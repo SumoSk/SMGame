@@ -5,7 +5,7 @@
   "description": "เกมสร้างเมืองและแก้ปัญหาจราจรแบบไทย",
   "scripts": {
     "start": "node work/server.cjs",
-    "test": "node work/test-game.cjs && node work/test-traffic-fixes.cjs && node work/test-motion.cjs && node work/test-saves.cjs && node work/test-junctions.cjs && node work/test-routing-signs.cjs && node work/test-road-connections.cjs && node work/test-city-diagnostics.cjs && node work/test-road-visuals.cjs && node work/test-stranded-recovery.cjs",
+    "test": "node work/test-game.cjs && node work/test-traffic-fixes.cjs && node work/test-motion.cjs && node work/test-saves.cjs && node work/test-junctions.cjs && node work/test-routing-signs.cjs && node work/test-road-connections.cjs && node work/test-city-diagnostics.cjs && node work/test-road-visuals.cjs && node work/test-stranded-recovery.cjs && node work/test-city-advisor.cjs",
     "build": "node work/build-ipad-styles.cjs && node work/build-release.cjs"
   }
 }
