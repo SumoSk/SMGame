@@ -28,7 +28,7 @@ if (gate) {
       if (element !== gate && element.tagName !== 'SCRIPT') element.inert = locked;
     });
     accountButton.hidden = locked;
-    if (!locked) accountButton.textContent = (user?.user_metadata?.display_name || user?.email || 'บัญชี').slice(0, 24) + ' ▾';
+    if (!locked) accountButton.textContent = (user?.email || 'บัญชี').slice(0, 24) + ' ▾';
   }
   function setMode(next) {
     mode = next;
@@ -37,8 +37,7 @@ if (gate) {
       tab.classList.toggle('active', active);
       tab.setAttribute('aria-selected', String(active));
     }
-    $('memberNicknameField').hidden = next !== 'signup';
-    $('memberSubmit').textContent = next === 'signup' ? 'สร้างบัญชีและเริ่มเล่น' : 'เข้าสู่เกม';
+    $('memberSubmit').textContent = next === 'signup' ? 'สมัครสมาชิกและเริ่มเล่น' : 'เข้าสู่เกม';
     $('memberPassword').setAttribute('autocomplete', next === 'signup' ? 'new-password' : 'current-password');
     setNotice('');
   }
@@ -53,22 +52,20 @@ if (gate) {
     if (busy) return;
     const email = $('memberEmail').value.trim().toLowerCase();
     const password = $('memberPassword').value;
-    const displayName = $('memberNickname').value.trim().slice(0, 30);
     if (!email || password.length < 6) { setNotice('กรอกอีเมลและรหัสผ่านอย่างน้อย 6 ตัวอักษรค่ะ', true); return; }
-    if (mode === 'signup' && !displayName) { setNotice('ตั้งชื่อผู้เล่นก่อนสมัครค่ะ', true); return; }
     busy = true;
     $('memberSubmit').disabled = true;
     setNotice('กำลังเชื่อมต่อบัญชี…');
     try {
       const result = mode === 'signup'
-        ? await auth.auth.signUp({ email, password, options: { data: { display_name: displayName } } })
+        ? await auth.auth.signUp({ email, password })
         : await auth.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
       if (result.data.session?.user) {
         setUser(result.data.session.user);
       } else if (mode === 'signup') {
         setMode('login');
-        setNotice('สมัครแล้วค่ะ โปรดยืนยันอีเมลจากลิงก์ที่ได้รับ แล้วกลับมาเข้าสู่เกม');
+        setNotice('บัญชีถูกสร้างแล้ว แต่ SUMOWEB ยังเปิดการยืนยันอีเมลอยู่ กรุณาติดต่อผู้ดูแลเกมเพื่อเปิดใช้งาน', true);
       } else {
         setNotice('กรุณายืนยันอีเมลก่อนเข้าสู่เกมค่ะ', true);
       }
