@@ -3,7 +3,7 @@ const source=fs.readFileSync('dist/game.js','utf8'),storage={};let blocked=false
 const noop=()=>{};
 function boot(indexedDB){let game;const nodes=new Map(),get=id=>{if(!nodes.has(id))nodes.set(id,{value:'',textContent:'',innerHTML:'',style:{},classList:{add:noop,remove:noop,toggle:noop,contains:()=>false},addEventListener:noop,focus:noop,showModal(){this.open=true;},close(){this.open=false;},getContext:()=>new Proxy({},{get:()=>noop}),setPointerCapture:noop});return nodes.get(id);};
  const context={indexedDB,document:{getElementById:get,querySelector:()=>get('dummy'),querySelectorAll:()=>[]},window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:g=>game=g},innerWidth:1440,innerHeight:900,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage:{getItem:k=>storage[k]??null,setItem:(k,v)=>{if(blocked)throw Error('QuotaExceeded');storage[k]=v;}},console:{error:noop,warn:noop,log:noop}};
- vm.createContext(context);vm.runInContext(source,context);return {game,get};
+ vm.createContext(context);vm.runInContext(source,context);return {game,get,clientWindow:context.window};
 }
 (async()=>{
 let {game,get}=boot();
@@ -34,5 +34,25 @@ await game.saveDurableGame('เมืองใหญ่','big');assert(records.g
 ({game,get}=boot(fakeIDB));await game.readDurableSaveSlots();assert(game.loadGame(true,'big'));assert.equal(game.state.money,456789);
 const prior=records.get('big').data;abortWrite=true;await assert.rejects(()=>game.saveDurableGame('เมืองใหญ่','big'));assert.equal(records.get('big').data,prior);abortWrite=false;blocked=false;
 console.log(JSON.stringify({passed:true,coverage:['IndexedDB commit before success','save larger than localStorage quota','save works when localStorage writes fail','fresh instance loads database save','transaction failure preserves previous save']}));
+
+// The online adapter is optional and never alters any legacy/local save slot.
+const cloud=[];const session=boot();
+session.clientWindow.SMGameAccount={user:{id:'test-player'},async listSaves(){return cloud.map(s=>({...s}));},async save(name,id,data){const next={id,name,data,savedAt:Date.now()},index=cloud.findIndex(s=>s.id===id);if(index<0)cloud.push(next);else cloud[index]=next;}};
+const originalSlots=session.game.readSaveSlots().map(s=>s.id).join(',');
+session.get('menu').onclick();
+assert(session.get('cloudSaveMenu').onclick,'logged-in player can access online saves');
+await session.get('cloudSaveMenu').onclick();
+session.get('cloudSaveName').value='เมืองคลาวด์';
+await session.get('cloudCreate').onclick();
+assert.equal(cloud.length,1);
+assert.equal(session.game.readSaveSlots().map(s=>s.id).join(','),originalSlots);
+const originalMoney=session.game.state.money;
+session.game.state.money=123;
+session.get('menu').onclick();
+await session.get('cloudLoadMenu').onclick();
+session.get('slotAction0').onclick();
+session.get('confirmDialog').onclick();
+assert.equal(session.game.state.money,originalMoney);
+console.log(JSON.stringify({passed:true,coverage:['cloud save integration uses snapshot','cloud slots do not overwrite browser saves','cloud load restores the original snapshot']}));
 
 })().catch(e=>{console.error(e);process.exitCode=1;});
