@@ -91,9 +91,18 @@ assert.equal(game.signalSettings(center).mode,'manual','bulk settings preserve m
 assert.equal(game.signalSettings(center).eastWest,7);
 assert.equal(game.signalCycle(center),20,'global settings update existing junctions');
 assert.equal(game.setSignalDefaults(4,6,true),false,'invalid global default is rejected');
+assert(get('inspectContent').innerHTML.includes('signal-defaults-reset'),'traffic mode offers a one-click recommended reset');
+click('signal-defaults-reset');
+assert.equal(game.state.signalDefaults.eastWest,6,'recommended reset restores east-west city default');
+assert.equal(game.state.signalDefaults.northSouth,6,'recommended reset restores north-south city default');
+assert.equal(game.signalSettings(center).mode,'auto','recommended reset also releases manual intersection control');
+assert.equal(game.signalSettings(center).eastWest,6);
+assert.equal(game.signalSettings(center).northSouth,6);
+assert.equal(game.signalCycle(center),16);
+assert.equal(game.signalPhase(center),-1,'recommended reset uses safe all-red transition before reopening');
 game.reset();game.state.time=400;
 for(const [speed,expected] of [[1,.8],[10,8],[20,16]]){
  game.state.speed=speed;const started=game.state.time;game.tick(1);
  assert(Math.abs(game.state.time-started-expected)<1e-8,'clock uses 0.8 game minutes per second at '+speed+'×');
 }
-console.log(JSON.stringify({passed:true,coverage:['per-junction independently configurable green durations','16-minute default','precise yellow and all-red transitions','manual switching with safe red clearance','vehicle right of way matches green axis','cars stop at manual red and resume at manual green','city-wide traffic mode and defaults','bulk settings preserve manual signal modes','tap target near junction center','save and load each signal configuration','older saves without signals load unchanged','invalid settings rejected','removed intersections clean up settings','3D lamps share simulation state']}));
+console.log(JSON.stringify({passed:true,coverage:['per-junction independently configurable green durations','16-minute default','precise yellow and all-red transitions','manual switching with safe red clearance','vehicle right of way matches green axis','cars stop at manual red and resume at manual green','city-wide traffic mode and defaults','bulk settings preserve manual signal modes','recommended reset restores all-auto safely','tap target near junction center','save and load each signal configuration','older saves without signals load unchanged','invalid settings rejected','removed intersections clean up settings','3D lamps share simulation state']}));
