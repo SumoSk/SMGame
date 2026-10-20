@@ -10,5 +10,19 @@ const v={id:900,path:[a,b,c,b,a],pathSet:new Set([a,b,c]),pos:0,progress:.1,lane
 const turn=install(turnPath(-1),'large',true),node=game.id(150,150),r=game.state.roads.get(node);const east=game.id(151,150);r.links.delete(east);game.state.roads.get(east).links.delete(node);game.state.junctionCache.clear();assert.equal(game.junction(node),3);phase(node,1);assert(!game.intersectionAllowed(turn,8),'T junction must stop on red');phase(node,0);assert(game.intersectionAllowed(turn,8),'T junction may enter on green');
 // Counts include all vehicles destined for this building, independently of trip purpose.
 const home={id:1,key:'home_small',parked:new Set([7]),residents:new Set()},office={id:2,key:'office_small',parked:new Set([8,9])},shop={id:3,key:'shop_small',parked:new Set()};game.state.vehicles.clear();game.state.vehicles.set(1,{toId:1});game.state.vehicles.set(2,{toId:1});game.state.vehicles.set(3,{toId:2});assert.equal(game.buildingTraffic(home).approaching,2);assert.equal(game.buildingTraffic(home).parked,1);assert.equal(game.buildingTraffic(home).max,2);assert.equal(game.buildingTraffic(office).max,game.CATALOG.office_small.jobs);assert.equal(game.buildingTraffic(shop).max,game.CATALOG.shop_small.jobs+game.CATALOG.shop_small.service);assert.equal(game.buildingTraffic(home).name,'บ้านเล็ก');
-console.log(JSON.stringify({passed:true,coverage:['no reversal at dead ends','legal loop route','old route migration without position jump','T junction red and green','building destination counts and capacities']}));
+// Rooftop service tubes use that building's actual visitors and capacity, not city totals.
+const building={id:43,key:'shop_small',x:148,y:148,parked:new Set([5]),visitors:new Set([11,12,13]),workers:new Set([22]),residents:new Set()};
+const shopMetrics=game.buildingGaugeMetrics(building,2);assert.equal(shopMetrics.traveling.value,2);assert.equal(shopMetrics.used.value,3);assert.equal(shopMetrics.capacity.value,game.CATALOG.shop_small.service);
+assert.equal(shopMetrics.used.pct,25);
+const homeMetrics=game.buildingGaugeMetrics({...building,key:'home_small',residents:new Set([1]),visitors:new Set()},1);assert.equal(homeMetrics.used.value,1);assert.equal(homeMetrics.capacity.value,2);
+const jobMetrics=game.buildingGaugeMetrics({...building,key:'office_small',workers:new Set([1,2,3])},2);assert.equal(jobMetrics.used.value,3);assert.equal(jobMetrics.capacity.value,18);
+const fakeElement=()=>({style:{},dataset:{},children:[],attributes:{},append(...nodes){this.children.push(...nodes);},replaceChildren(){this.children=[];},setAttribute(name,value){this.attributes[name]=value;},remove(){this.removed=true;}});
+let mapOverlay;context.document.createElement=fakeElement;get('world').insertAdjacentElement=(_position,node)=>{mapOverlay=node;};
+game.state.buildings.clear();game.state.buildings.set(building.id,building);game.state.vehicles.clear();game.state.vehicles.set(101,{toId:building.id});game.state.vehicles.set(102,{toId:building.id});game.updatePlaceLabels();
+const badge=mapOverlay.children[0],tubes=badge.children[1].children;assert.equal(tubes.length,3,'three tubes above each building');
+assert.deepEqual(tubes.map(t=>t.attributes['data-gauge']),['traveling','used','capacity']);
+assert(tubes[0].children[0].style.clipPath.startsWith('inset(83.333'));assert(tubes[1].children[0].style.clipPath.startsWith('inset(75%'));
+assert(badge.attributes['aria-label'].includes('กำลังไป 2 คน อยู่ 3 คน รับได้ 12 คน'));
+assert.equal(badge.children[0].children[1].textContent,'2/1/15','previous vehicle count remains');
+console.log(JSON.stringify({passed:true,coverage:['no reversal at dead ends','legal loop route','old route migration without position jump','T junction red and green','building destination counts and capacities','three independent rooftop tubes for service, home and jobs']}));
 `)(require);
