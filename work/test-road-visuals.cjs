@@ -13,6 +13,7 @@ const fixture=fs.readFileSync('work/test-motion.cjs','utf8').split('let combinat
   for(let k=0;k<=40;k++){const p=game.positionOnMotion(plan,turn.startDistance+(turn.endDistance-turn.startDistance)*k/40);for(const side of [-.13,0,.13])assert(hit(asphalt,p.x-.5-p.dy*side,p.y-.5+p.dx*side),'rounded bend must support the vehicle width '+JSON.stringify({inbound,outbound,sign,rotation,k,side}));}
   const layout=game.junctionDetails(v.path[8]),paint=meshes(0xead78c);assert(layout.borders.some(edge=>edge.length>=16),'corners use sampled curves');
   for(const port of layout.ports){const [dx,dz]=[[1,0],[0,1],[-1,0],[0,-1]][port.dir];for(const sign of [-1,1])for(const step of (crossing?[0,.03]:[-.03,0,.03])){const x=150+dx*(port.extent+step)-dz*.035*sign,z=150+dz*(port.extent+step)+dx*.035*sign;assert(hit(paint,x,z),'yellow lines meet the bend boundary without a gap '+JSON.stringify({inbound,outbound,sign,rotation,dir:port.dir,step,x,z}));}}
+  const white=meshes(0xdce3d8);for(const port of layout.ports){const [dx,dz]=[[1,0],[0,1],[-1,0],[0,-1]][port.dir];for(const side of [-1,1])for(const step of [0,.03])assert(hit(white,150+dx*(port.extent+step)-dz*port.width/2*side,150+dz*(port.extent+step)+dx*port.width/2*side),'white road edge meets the rounded curb');}
   game.drawRoads();turns++;
  }
  // Paint goes right up to the intersection; the old whole-link suppression
