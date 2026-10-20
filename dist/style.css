@@ -84,6 +84,9 @@ body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,di
 @media(max-width:700px){.member-gate{padding:15px}.member-card{max-width:355px;padding:21px 21px 17px;border-radius:18px}.member-card h2{font-size:21px}.member-intro{font-size:11px}.member-account{right:8px;top:48px;font-size:11px;padding:5px 7px}}
 @media(prefers-reduced-motion:reduce){.place-gauge-fill{transition:none}}
 
+/* Keep the city data panels; remove the redundant floating advisor bar. */
+#cityAdvisor{display:none!important}
+
 /* iPad native-size compatibility */
 @supports (-webkit-touch-callout:none){
 html{-webkit-text-size-adjust:none;text-size-adjust:none}
@@ -102,21 +105,21 @@ body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,di
 
 /* City advice is one persistent conversation, updated only when facts change. */
 .city-panel{width:150px;max-height:calc(50dvh / var(--ui-scale) - 180px)}.map-caption{left:165px}
-.need-card{padding:5px 0;border-bottom:0.5px solid var(--line);font-size:0.8125rem;line-height:1.65}
+.need-card{padding:5px 0;border-bottom:0.5px solid var(--line);font-size:6.5px;line-height:1.65}
 .need-card>div{display:flex;align-items:baseline;justify-content:space-between;gap:4px}
-.need-card b{font-weight:600}.need-card strong{font-size:0.75rem;font-weight:500;text-align:right}
-.need-card small{display:block;font-size:0.6875rem;color:var(--muted);overflow-wrap:anywhere}
+.need-card b{font-weight:600}.need-card strong{font-size:6px;font-weight:500;text-align:right}
+.need-card small{display:block;font-size:5.5px;color:var(--muted);overflow-wrap:anywhere}
 .need-card.has-need strong{color:#a16a1d}
 .city-advisor{width:min(380px,100%);margin:0 auto 5px;background:#f6faf7f7;border:0.5px solid #fff;border-radius:7.5px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden}
 .city-advisor summary{display:flex;align-items:center;gap:5px;padding:5.5px 8px;cursor:pointer;list-style:none}
 .city-advisor summary::-webkit-details-marker{display:none}
-.advisor-avatar{display:grid;place-items:center;flex:none;width:17px;height:17px;border-radius:5.5px;background:var(--ink);color:#f9d97b;font-size:1.25rem;font-weight:600}
-.city-advisor summary>span:nth-child(2){min-width:0;flex:1}.city-advisor summary small{display:block;font-size:0.6875rem;color:var(--muted)}.city-advisor summary strong{display:block;font-size:0.9375rem;line-height:1.6;font-weight:600}
-.advisor-chevron{font-size:1.25rem;transition:transform .16s}.city-advisor[open] .advisor-chevron{transform:rotate(180deg)}
-.advisor-body{max-height:calc(11dvh / var(--ui-scale));overflow:auto;padding:0 8px 7px;scrollbar-width:thin;font-size:0.8125rem;line-height:1.8}
-.advisor-body p{margin:0 0 4.5px;color:#49665b}.advisor-body h3{font-size:0.75rem;margin:0 0 2px;font-weight:600}.advisor-columns{display:grid;grid-template-columns:1fr 1.5fr;gap:8px}.advisor-body ul{margin:0;padding-left:8.5px;color:#5e7368}.advisor-next{border-top:0.5px solid var(--line);padding-top:4.5px;margin-top:4.5px}.advisor-next ol{margin:0;padding-left:10px}.advisor-next li{padding:1px 0}.advisor-next button{margin-left:4px;padding:1.5px 4.5px;border:0.5px solid #c8d9cc;border-radius:3.5px;font-size:0.6875rem;background:#e8f0e5;white-space:nowrap}
+.advisor-avatar{display:grid;place-items:center;flex:none;width:17px;height:17px;border-radius:5.5px;background:var(--ink);color:#f9d97b;font-size:10px;font-weight:600}
+.city-advisor summary>span:nth-child(2){min-width:0;flex:1}.city-advisor summary small{display:block;font-size:5.5px;color:var(--muted)}.city-advisor summary strong{display:block;font-size:7.5px;line-height:1.6;font-weight:600}
+.advisor-chevron{font-size:10px;transition:transform .16s}.city-advisor[open] .advisor-chevron{transform:rotate(180deg)}
+.advisor-body{max-height:calc(11dvh / var(--ui-scale));overflow:auto;padding:0 8px 7px;scrollbar-width:thin;font-size:6.5px;line-height:1.8}
+.advisor-body p{margin:0 0 4.5px;color:#49665b}.advisor-body h3{font-size:6px;margin:0 0 2px;font-weight:600}.advisor-columns{display:grid;grid-template-columns:1fr 1.5fr;gap:8px}.advisor-body ul{margin:0;padding-left:8.5px;color:#5e7368}.advisor-next{border-top:0.5px solid var(--line);padding-top:4.5px;margin-top:4.5px}.advisor-next ol{margin:0;padding-left:10px}.advisor-next li{padding:1px 0}.advisor-next button{margin-left:4px;padding:1.5px 4.5px;border:0.5px solid #c8d9cc;border-radius:3.5px;font-size:5.5px;background:#e8f0e5;white-space:nowrap}
 @media(max-width:1000px){.city-panel{width:130px}.map-caption{left:150px}.city-advisor{width:min(350px,100%)}.advisor-body{max-height:calc(11dvh / var(--ui-scale))}}
-@media(max-width:700px){.city-panel{width:109px}.map-caption{left:121.5px}.city-advisor summary{padding:4px 5px;gap:3.5px}.city-advisor summary strong{font-size:0.8125rem}.advisor-avatar{width:14px;height:14px;font-size:1.0625rem}.advisor-body{padding:0 5px 5px;font-size:0.75rem;max-height:calc(9dvh / var(--ui-scale))}.advisor-columns{grid-template-columns:1fr;gap:4px}.need-card{font-size:0.75rem;padding:4px 0}.need-card strong{font-size:0.6875rem}.need-card small{font-size:0.625rem}}
+@media(max-width:700px){.city-panel{width:109px}.map-caption{left:121.5px}.city-advisor summary{padding:4px 5px;gap:3.5px}.city-advisor summary strong{font-size:6.5px}.advisor-avatar{width:14px;height:14px;font-size:8.5px}.advisor-body{padding:0 5px 5px;font-size:6px;max-height:calc(9dvh / var(--ui-scale))}.advisor-columns{grid-template-columns:1fr;gap:4px}.need-card{font-size:6px;padding:4px 0}.need-card strong{font-size:5.5px}.need-card small{font-size:5px}}
 .signal-control{margin-top:7.5px;padding-top:5px;border-top:0.5px solid var(--line)}
 .inspector .signal-control h3{font-size:6.5px;margin:6px 0 3.5px;color:#284d42}
 .signal-current{display:flex;flex-wrap:wrap;align-items:center;gap:2.5px 4.5px;padding:5px;background:#e9f0e8;border-radius:4.5px;font-size:6px}
@@ -173,4 +176,7 @@ body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,di
 .member-account{position:fixed;z-index:15;right:20px;top:100px;border:1px solid #d9e8d9;background:#f7fbf2f5;padding:6px 10px;border-radius:9px;box-shadow:var(--shadow);font-size:12px;max-width:170px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 @media(max-width:700px){.member-gate{padding:15px}.member-card{max-width:355px;padding:21px 21px 17px;border-radius:18px}.member-card h2{font-size:21px}.member-intro{font-size:11px}.member-account{right:8px;top:48px;font-size:11px;padding:5px 7px}}
 @media(prefers-reduced-motion:reduce){.place-gauge-fill{transition:none}}
+
+/* Keep the city data panels; remove the redundant floating advisor bar. */
+#cityAdvisor{display:none!important}
 }

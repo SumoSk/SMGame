@@ -19,11 +19,14 @@ const nativeSource = base
   .replace(overlays + '{zoom:var(--ui-scale)}', '');
 const native = nativeSource.replace(/([^{}]+)\{([^{}]*)\}/g, (rule, selector, declarations) => {
   if (selector.trim() === 'canvas' || selector.includes('.member-')) return rule;
-  const compact = declarations.replace(/(-?(?:\d*\.\d+|\d+))(px|dvh|svh|lvh|vh|dvw|svw|lvw|vw)\b/g,
-    (_, value, unit) => Number((Number(value) * scale).toFixed(6)) + unit);
+  // WebKit's native iPad override must scale rem-based typography as well as
+  // pixel dimensions. Otherwise 13-20px text overflows the half-size panels.
+  const compact = declarations.replace(/(-?(?:\d*\.\d+|\d+))(rem|px|dvh|svh|lvh|vh|dvw|svw|lvw|vw)\b/g,
+    (_, value, unit) => Number((Number(value) * scale * (unit === 'rem' ? 16 : 1)).toFixed(6)) + (unit === 'rem' ? 'px' : unit));
   return selector + '{' + compact + '}';
 });
 if (/zoom:var\(--ui-scale\)/.test(native)) throw new Error('iPad must not use CSS zoom');
+if (/\d(?:\.\d+)?rem\b/.test(native)) throw new Error('Unscaled rem typography in iPad styles');
 const canvasRule = text => text.match(/(?:^|\})canvas\{[^}]+\}/)?.[0].replace(/^\}/, '');
 if (!canvasRule(base) || canvasRule(base) !== canvasRule(native)) throw new Error('World canvas changed');
 const mediaQueries = text => JSON.stringify(text.match(/@media[^{}]+/g));
