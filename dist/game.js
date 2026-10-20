@@ -399,13 +399,47 @@ function cityAdvice(demand,stats){
  const overview='ตอนนี้มีชาวเมือง '+stats.pop+' คน ความสุข '+Math.round(stats.happy)+'%'+(stats.pop?' และมีบ้านว่าง '+demand.housing.free+' ที่':'')+' · ผู้รอบริการ '+serviceWaiting+' คน · รถทั้งหมด '+cars.length+' คัน'+(state.speed===0?' · เวลาหยุดอยู่ กดเล่นต่อเพื่อให้ระบบเดินหน้า':'');
  return{headline,overview,good:good.slice(0,3),problems:problems.slice(0,5),next:next.slice(0,3)};
 }
+function serviceGaugeMetrics(r){
+ const values={traveling:r.traveling,used:r.used,capacity:r.capacity};
+ const scale=Math.max(1,r.capacity,r.used+r.traveling);
+ return Object.fromEntries(Object.entries(values).map(([key,value])=>[key,{value,pct:Math.max(0,Math.min(100,100*value/scale))}]));
+}
+function serviceGaugeMarkup(r){
+ const metric=serviceGaugeMetrics(r);
+ return '<div class="need-gauges" role="img" aria-label="กำลังไป '+r.traveling+' คน อยู่ '+r.used+' คน รับได้ '+r.capacity+' คน">'+
+  [['traveling','ไป'],['used','อยู่'],['capacity','รับ']].map(([key,label])=>
+   '<span class="need-gauge" data-gauge="'+key+'" aria-hidden="true"><span class="need-tube"><i class="need-tube-fill" style="clip-path:inset('+(100-metric[key].pct)+'% 0 0 0)"></i></span><span class="need-gauge-label">'+label+'</span></span>').join('')+
+  '</div>';
+}
 function updateCityAdvisor(){
  const d=cityDemand(),advice=cityAdvice(d,state.stats),set=(id,html)=>{const el=$(id);if(el&&el.innerHTML!==html)el.innerHTML=html;},e=escapeSaveText;
  const small=t=>'<small>'+t+'</small>';
  const jobsLabel=d.jobs.people?'ต้องการงาน '+d.jobs.people+' คน':'ไม่มีผู้รองาน',housingLabel=d.housing.people?'ยังไม่มีบ้าน '+d.housing.people+' คน':'ไม่มีผู้ขาดที่อยู่';
- let html='<div class="need-card"><div><b>บ้าน</b><strong>'+housingLabel+'</strong></div>'+small('ว่าง '+d.housing.free+' ที่ · กำลังย้ายเข้า '+d.housing.incoming+' คน')+'</div><div class="need-card"><div><b>งาน</b><strong>'+jobsLabel+'</strong></div>'+small('สำนักงาน / โรงงาน / ธุรกิจ · ว่าง '+d.jobs.free+' ตำแหน่ง'+(d.jobs.unreachable?' · ไปไม่ถึง '+d.jobs.unreachable+' คน':''))+'</div>';
- for(const r of d.services){const detail=[];if(r.missing)detail.push('ยังไม่มีบริการ '+r.missing+' คน');if(r.full)detail.push('บริการเต็ม '+r.full+' คน');if(r.unreachable)detail.push('มีบริการ แต่ไปไม่ถึง '+r.unreachable+' คน');if(r.retrying)detail.push('รอลองเดินทางใหม่ '+r.retrying+' คน');html+='<div class="need-card'+(r.waiting?' has-need':'')+'"><div><b>'+r.label+'</b><strong>'+(r.waiting?'ต้องการ '+r.waiting+' คน':'ไม่มีผู้รอ')+'</strong></div>'+small(detail.join(' · ')||'ยังไม่มีความต้องการค้างในขณะนี้')+small('มี '+r.buildings+' แห่ง · ใช้อยู่ '+r.visiting+' คน · กำลังไป '+r.traveling+' คน · ว่าง '+r.free+'/'+r.capacity+' ที่')+'</div>';}
- set('demand',html);
+ const cards=[{kind:'home',label:'บ้าน',headline:housingLabel,detail:'ว่าง '+d.housing.free+' ที่ · กำลังย้ายเข้า '+d.housing.incoming+' คน'},
+  {kind:'work',label:'งาน',headline:jobsLabel,detail:'สำนักงาน / โรงงาน / ธุรกิจ · ว่าง '+d.jobs.free+' ตำแหน่ง'+(d.jobs.unreachable?' · ไปไม่ถึง '+d.jobs.unreachable+' คน':'')}];
+ for(const r of d.services){
+  const detail=[];if(r.missing)detail.push('ยังไม่มีบริการ '+r.missing+' คน');if(r.full)detail.push('บริการเต็ม '+r.full+' คน');if(r.unreachable)detail.push('มีบริการ แต่ไปไม่ถึง '+r.unreachable+' คน');if(r.retrying)detail.push('รอลองเดินทางใหม่ '+r.retrying+' คน');
+  cards.push({kind:r.kind,label:r.label,headline:r.waiting?'ต้องการ '+r.waiting+' คน':'ไม่มีผู้รอ',detail:detail.join(' · ')||'ยังไม่มีความต้องการค้างในขณะนี้',
+   stats:'มี '+r.buildings+' แห่ง · อยู่ '+r.used+' · กำลังไป '+r.traveling+' · รับได้ '+r.capacity+' · ว่าง '+r.free,waiting:r.waiting,service:r});
+ }
+ const root=$('demand'),existing=root?.querySelectorAll?.('[data-need-kind]');
+ if(existing&&existing.length===cards.length&&cards.every((card,i)=>existing[i].dataset.needKind===card.kind)){
+  for(let i=0;i<cards.length;i++){
+   const card=cards[i],node=existing[i];node.classList.toggle('has-need',!!card.waiting);
+   node.querySelector('strong').textContent=card.headline;
+   node.querySelector('.need-detail').textContent=card.detail;
+   if(card.service){
+    node.querySelector('.need-stats').textContent=card.stats;
+    node.querySelector('.need-gauges').setAttribute('aria-label','กำลังไป '+card.service.traveling+' คน อยู่ '+card.service.used+' คน รับได้ '+card.service.capacity+' คน');
+    const metrics=serviceGaugeMetrics(card.service);
+    for(const key of ['traveling','used','capacity'])node.querySelector('[data-gauge="'+key+'"] .need-tube-fill').style.clipPath='inset('+(100-metrics[key].pct)+'% 0 0 0)';
+   }
+  }
+ }else{
+  const html=cards.map(card=>'<div class="need-card'+(card.waiting?' has-need':'')+'" data-need-kind="'+card.kind+'"><div><b>'+card.label+'</b><strong>'+card.headline+'</strong></div>'+small('<span class="need-detail">'+card.detail+'</span>')+
+   (card.service?'<div class="need-metrics">'+small('<span class="need-stats">'+card.stats+'</span>')+serviceGaugeMarkup(card.service)+'</div>':'')+'</div>').join('');
+  set('demand',html);
+ }
  set('advisorHeadline',e(advice.headline));set('advisorOverview',e(advice.overview));set('advisorGood',advice.good.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>เริ่มจากบ้านและถนน แล้วรอชีวิตเมืองเริ่มเดินทาง</li>');set('advisorProblems',advice.problems.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>ยังไม่พบปัญหาที่ต้องเร่งแก้จากข้อมูลปัจจุบัน</li>');
  set('advisorNext',advice.next.map((a,i)=>'<li><span>'+e(a.text)+'</span>'+(a.report?'<button data-advice-report>ตรวจเมือง</button>':a.category?'<button data-advice-category="'+a.category+'">เปิดหมวดสร้าง</button>':'')+'</li>').join(''));
 }
