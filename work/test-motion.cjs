@@ -20,7 +20,7 @@ function install(points,types,cross=false,seed=0){
  const key=`${path[0]}:${game.dir(path[0],path[1])}:${v.lane}`;v.occKey=key;game.state.occ.set(key,v.id);return v;
 }
 function turnPath(sign,rotation=0){const points=[];const rotate=([x,y])=>{for(let i=0;i<rotation;i++)[x,y]=[-y,x];return[150+x,150+y];};for(let x=-8;x<=0;x++)points.push(rotate([x,0]));for(let y=1;y<=8;y++)points.push(rotate([0,sign*y]));return points;}
-function phase(node,value){game.state.time=(Math.ceil(game.state.time/60)*24-node%17+(value===0?.1:12.1))*2.5;assert.equal(game.signalPhase(node),value);}
+function phase(node,value){const cycle=16,offset=(node%17)*cycle/24;game.state.time=Math.ceil((game.state.time+offset)/cycle)*cycle-offset+(value===0?.1:8.1);assert.equal(game.signalPhase(node),value);}
 let combinations=0;
 for(const seed of [0,1])for(const inbound of ['small','medium','large'])for(const junction of ['small','medium','large'])for(const outbound of ['small','medium','large'])for(const sign of [-1,1])for(let rotation=0;rotation<4;rotation++){
  const v=install(turnPath(sign,rotation),i=>i<8?inbound:i===8?junction:outbound,false,seed),plan=game.motionPlan(v),turn=plan.turns[0];
@@ -58,9 +58,9 @@ for(const seed of [0,1])for(const inbound of ['small','medium','large'])for(cons
  }
 }
 // Travel distance is carried across node boundaries at both normal and fast speed.
-for(const speed of [1,5])for(const fps of [30,60,120]){
- const v=install(Array.from({length:40},(_,i)=>[100+i,100]),'small');game.state.speed=speed;v.speed=2.7;
- const start=game.motionDistance(v);for(let i=0;i<fps;i++)game.advanceVehicles(1/fps,2*speed/fps);
+for(const speed of [1,5,10,20])for(const fps of [30,60,120]){
+ const v=install(Array.from({length:110},(_,i)=>[70+i,100]),'small');game.state.speed=speed;v.speed=2.7;
+ const start=game.motionDistance(v);for(let i=0;i<fps;i++)game.advanceVehicles(1/fps,.8*speed/fps);
  near(game.motionDistance(v)-start,2.7*speed,1e-7);
 }
 // An approach stops before the connector, and a blocked exit prevents entry.
@@ -111,4 +111,4 @@ for(const points of [[[145,150],[146,150],[147,150],[147,149],[148,149],[149,149
   if(previous)assert(Math.hypot(p.x-previous.x,p.y-previous.y)<plan.total/1000*1.05+1e-5);previous=p;
  }
 }
-console.log(JSON.stringify({passed:true,turnCombinations:combinations,coverage:['all road sizes and directions','tangent and seam continuity','uniform curve speed','normal and 5x frame rates','red light and blocked exit','junction lease and save/load','short bends and U-turns']}));
+console.log(JSON.stringify({passed:true,turnCombinations:combinations,coverage:['all road sizes and directions','tangent and seam continuity','uniform curve speed','1x/5x/10x/20x frame rates','red light and blocked exit','junction lease and save/load','short bends and U-turns']}));
