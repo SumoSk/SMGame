@@ -9,17 +9,6 @@ class Batch{
  box(color,x,y,z,sx,sy,sz,ry=0,id=null){this.add(BOX,color,x,y,z,sx,sy,sz,0,ry,0,id);}
  build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,items} of this.data.values()){const material=new THREE.MeshStandardMaterial({color,roughness:.83,metalness:0});const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow;mesh.receiveShadow=true;mesh.userData.ids=[];items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
-// One tapered strip per road edge. Adjacent segments meet at their real lane
-// widths instead of making the full connecting segment as wide as its widest end.
-class RoadRibbons{
- constructor(){this.items=new Map();}
- add(color,x,z,nx,nz,width,widthNext,height){
-  const dx=nx-x,dz=nz-z,len=Math.hypot(dx,dz);if(!len)return;
-  const px=-dz/len,pz=dx/len,a=[x-px*width/2,height,z-pz*width/2],b=[x+px*width/2,height,z+pz*width/2],c=[nx-px*widthNext/2,height,nz-pz*widthNext/2],d=[nx+px*widthNext/2,height,nz+pz*widthNext/2];
-  if(!this.items.has(color))this.items.set(color,[]);this.items.get(color).push(...a,...b,...c,...b,...d,...c);
- }
- build(){const group=new THREE.Group();for(const [color,positions]of this.items){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.computeVertexNormals();const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color,roughness:.89,side:THREE.DoubleSide}));mesh.receiveShadow=true;group.add(mesh);}return group;}
-}
 
 export class TrafficRenderer{
  constructor(canvas){
@@ -49,50 +38,16 @@ export class TrafficRenderer{
  else{batch.add(CYL,'#947653',x,.36*scale,z,.075*scale,.72*scale,.075*scale);batch.add(LEAF,'#498457',x,.87*scale,z,.53*scale,.68*scale,.5*scale,0,hash(x,z)*3,0);batch.add(LEAF,'#6aa060',x-.17*scale,1.18*scale,z-.12*scale,.37*scale,.37*scale,.36*scale);}
  }
  trees(state,cam){const cellX=Math.floor(cam.x/18),cellZ=Math.floor(cam.y/18),key=[cellX,cellZ,state.version,state.buildings.size,state.city].join(':');if(key===this.treeKey)return;this.treeKey=key;this.disposeGroup(this.treeGroup);const b=new Batch(),span=62;for(let z=cellZ*18-span;z<cellZ*18+span;z+=2.7)for(let x=cellX*18-span;x<cellX*18+span;x+=2.7){if(hash(x,z)<.69)continue;const tx=x+hash(z,x)*1.8,tz=z+hash(x+7,z)*1.8,ix=Math.floor(tx),iz=Math.floor(tz);if(ix<0||iz<0||ix>=300||iz>=300)continue;if(state.city==='phuket'&&tx<this.coast(tz)+2.1||state.city==='bangkok'&&Math.abs(tx-(125+Math.sin(tz*.047)*5))<4.6)continue;let clear=true;for(let yy=iz-1;yy<=iz+1;yy++)for(let xx=ix-1;xx<=ix+1;xx++){const index=yy*300+xx;if(state.footprint[index]>=0||state.buildGrid[index]>=0)clear=false;}if(!clear)continue;this.tree(b,tx,tz,.65+hash(tx,tz)*.65,state.city==='phuket'&&hash(tx+3,tz)>.42);}this.treeGroup.add(b.build());}
- makeRoads(state,ROADS,junction){this.disposeGroup(this.roadGroup);this.disposeGroup(this.signalGroup);this.signals=[];const batch=new Batch(),line=new Batch(),surface=new RoadRibbons(),markings=new RoadRibbons();const roadWidths={small:ROADS.small.visualWidth||1.55,medium:ROADS.medium.visualWidth||2.35,large:ROADS.large.visualWidth||3.72};
- for(const [i,r]of state.roads){const x=i%300,z=Math.floor(i/300),w=roadWidths[r.type];if(!r.links.size)batch.box('#47565c',x,.075,z,w,.12,w);
-  for(const j of r.links){if(j<i)continue;const neighbor=state.roads.get(j);if(!neighbor)continue;const nx=j%300,nz=Math.floor(j/300),dx=nx-x,dz=nz-z,len=Math.hypot(dx,dz),otherWidth=roadWidths[neighbor.type],lanes=ROADS[r.type].lanes,otherLanes=ROADS[neighbor.type].lanes;
-   surface.add('#c9c8b5',x,z,nx,nz,w+.28,otherWidth+.28,.034);
-   surface.add('#47565c',x,z,nx,nz,w,otherWidth,.107);
-   // Junction squares cover this section, leaving clean asphalt in the middle.
-   if(junction(i)>=3||junction(j)>=3)continue;
-   if([...r.links].some(n=>junction(n)>=3)||[...neighbor.links].some(n=>junction(n)>=3))continue;
-   for(const sign of[-1,1]){
-    markings.add('#ead78c',x+sign*.035*(-dz/len),z+sign*.035*(dx/len),nx+sign*.035*(-dz/len),nz+sign*.035*(dx/len),.018,.018,.124);
-    const edgeA=(w/2-.12)*sign,edgeB=(otherWidth/2-.12)*sign;
-    markings.add('#dce3d8',x-dz/len*edgeA,z+dx/len*edgeA,nx-dz/len*edgeB,nz+dx/len*edgeB,.025,.025,.123);
-    const common=Math.min(lanes,otherLanes)/2;
-    for(let n=1;n<common;n++){
-     const offsetA=sign*n*w/lanes,offsetB=sign*n*otherWidth/otherLanes;
-     // Short markings expose individual lanes while following the taper.
-     markings.add('#cbd9d4',x-dz/len*offsetA*.96,z+dx/len*offsetA*.96,nx-dz/len*offsetB*.96,nz+dx/len*offsetB*.96,.021,.021,.123);
-    }
-    if(lanes!==otherLanes){const wideAtStart=lanes>otherLanes,wideWidth=wideAtStart?w:otherWidth,wideLanes=wideAtStart?lanes:otherLanes,narrowWidth=wideAtStart?otherWidth:w;
-     // The outer extra lane visibly merges into the shoulder of the narrower road.
-     const startOffset=sign*(wideWidth/2-wideWidth/wideLanes),endOffset=sign*(narrowWidth/2-.13);
-     const o1=wideAtStart?startOffset:endOffset,o2=wideAtStart?endOffset:startOffset;
-     markings.add('#dce3d8',x-dz/len*o1,z+dx/len*o1,nx-dz/len*o2,nz+dx/len*o2,.026,.026,.126);
-    }
-   }
-  }
-  const arms=[...r.links];if(junction(i)>=3){const junctionWidth=Math.max(w,...arms.map(n=>roadWidths[state.roads.get(n)?.type]||w));batch.box('#47565c',x,.091,z,junctionWidth,.085,junctionWidth);
-   for(const j of arms){const neighbor=state.roads.get(j);if(!neighbor)continue;const nx=j%300,nz=Math.floor(j/300),dx=nx-x,dz=nz-z,len=Math.hypot(dx,dz),vx=dx/len,vz=dz/len,px=-vz,pz=vx,ww=roadWidths[neighbor.type];
-    const offset=junctionWidth/2+.29;let run=1,previous=i,current=j;
-    // Never put a stop bar beyond a short road arm or on an adjacent crossing.
-    while(run<5){const forward=[...state.roads.get(current).links].find(n=>n!==previous&&n%300-current%300===dx&&Math.floor(n/300)-Math.floor(current/300)===dz);if(forward==null||junction(current)>=3)break;previous=current;current=forward;run++;}
-    const sx=x+vx*Math.min(offset,run)+px*(ww/2+.2),sz=z+vz*Math.min(offset,run)+pz*(ww/2+.2);
-    // One thin stop line replaces the repeated bars that looked like a zebra crossing.
-    if(run>offset+.05){const stopX=x+vx*offset,stopZ=z+vz*offset;
-     line.box('#e9e7d9',stopX,.137,stopZ,.035,.008,Math.max(.3,ww-.2),-Math.atan2(vz,vx));}
-    batch.box('#4e6260',sx,.65,sz,.06,1.3,.06);batch.box('#283d3f',sx,1.3,sz,.14,.35,.12);
-    const bulb=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),new THREE.MeshBasicMaterial({color:'#ef795d'}));bulb.position.set(sx,1.31,sz+.07);this.signalGroup.add(bulb);this.signals.push({bulb,node:i,axis:Math.abs(dx)>Math.abs(dz)?0:1});
-   }
-  }else if(arms.length===2&&Math.abs(arms[0]%300+arms[1]%300-2*x)+Math.abs(Math.floor(arms[0]/300)+Math.floor(arms[1]/300)-2*z)>0){
-   // A two-way bend is still a road, not a traffic-light junction.
-   batch.box('#47565c',x,.08,z,w,.06,w);
-  }
+ makeRoads(state,ROADS,junction){this.disposeGroup(this.roadGroup);this.disposeGroup(this.signalGroup);this.signals=[];const batch=new Batch(),line=new Batch();const roadWidths={small:ROADS.small.visualWidth||1.55,medium:ROADS.medium.visualWidth||2.35,large:ROADS.large.visualWidth||3.72};
+ for(const [i,r]of state.roads){const x=i%300,z=Math.floor(i/300),w=roadWidths[r.type];if(!r.links.size)batch.box('#424f55',x,.062,z,w,.12,w);for(const j of r.links){if(j<i)continue;const nx=j%300,nz=Math.floor(j/300),dx=nx-x,dz=nz-z,len=Math.hypot(dx,dz),angle=-Math.atan2(dz,dx),mx=(x+nx)/2,mz=(z+nz)/2,neighbor=state.roads.get(j),segmentWidth=Math.max(w,neighbor?roadWidths[neighbor.type]||w:w);batch.box('#c9c8b5',mx,.015,mz,len+.04,.08,segmentWidth+.28,angle);batch.box('#47565c',mx,.075,mz,len+.05,.055,segmentWidth,angle);
+ const junctionA=junction(i)>=3,junctionB=junction(j)>=3;if(junctionA||junctionB)continue;let near=false;for(const n of r.links)if(junction(n)>=3)near=true;for(const n of state.roads.get(j).links)if(junction(n)>=3)near=true;if(near)continue;
+ const axisX=dx/len,axisZ=dz/len,perpX=-axisZ,perpZ=axisX,lanes=Math.max(ROADS[r.type].lanes,neighbor?ROADS[neighbor.type].lanes:0);for(const sign of [-1,1])line.box('#ead78c',mx+perpX*.035*sign,.109,mz+perpZ*.035*sign,len+.04,.008,.018,angle);
+ for(let n=1;n<lanes/2;n++)for(const sign of[-1,1]){const off=n*segmentWidth/lanes*sign;line.box('#dce3d8',mx+perpX*off,.108,mz+perpZ*off,len*.45,.008,.025,angle);}for(const sign of[-1,1])line.box('#dce3d8',mx+perpX*(segmentWidth/2-.1)*sign,.108,mz+perpZ*(segmentWidth/2-.1)*sign,len+.035,.008,.025,angle);
  }
- this.roadGroup.add(surface.build(),batch.build(false),markings.build(),line.build(false));
+ if(junction(i)>=3){const junctionWidth=Math.max(w,...[...r.links].map(n=>roadWidths[state.roads.get(n)?.type]||w));batch.box('#47565c',x,.081,z,junctionWidth,.055,junctionWidth);for(const j of r.links){const nx=j%300,nz=Math.floor(j/300),dx=nx-x,dz=nz-z,len=Math.hypot(dx,dz),vx=dx/len,vz=dz/len,px=-vz,pz=vx,ww=roadWidths[state.roads.get(j).type]||w,offset=.52;for(let n=-ww/2+.2;n<ww/2-.12;n+=.2)line.box('#edf0df',x+vx*offset+px*n,.115,z+vz*offset+pz*n,.11,.012,.48,Math.atan2(vx,vz));if(junction(i)>=3){const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3);batch.box('#4e6260',sx,.65,sz,.06,1.3,.06);batch.box('#283d3f',sx,1.3,sz,.14,.35,.12);const bulb=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),new THREE.MeshBasicMaterial({color:'#ef795d'}));bulb.position.set(sx,1.31,sz+.07);this.signalGroup.add(bulb);this.signals.push({bulb,node:i,axis:Math.abs(dx)>Math.abs(dz)?0:1});}}
+ }
+ }
+ this.roadGroup.add(batch.build(false),line.build(false));
  const gates=new Batch();for(let n=0;n<state.gates.length;n++){const i=state.gates[n],x=i%300,z=Math.floor(i/300),angle=n%2?0:Math.PI/2;gates.box('#dfddd0',x,1.9,z,4.9,.2,.45,angle);for(const sign of[-1,1]){const dx=n%2?0:sign*2.2,dz=n%2?sign*2.2:0;gates.box('#ede9d5',x+dx,.95,z+dz,.2,1.9,.2);}gates.box('#2f746c',x,2.15,z,3.7,.42,.16,angle);}this.roadGroup.add(gates.build());}
  roof(batch,x,z,w,d,base,color,id){const angle=Math.atan2(.55,d/2),length=Math.hypot(d/2,.55);for(const sign of[-1,1])batch.add(BOX,color,x,base+.275,z+sign*d/4,w+.18,.10,length+.11,sign*angle,0,0,id);for(let k=-w/2+.12;k<w/2;k+=.22){for(const sign of[-1,1])batch.add(BOX,'#b86d48',x+k,base+.3,z+sign*d/4,.023,.035,length+.12,sign*angle,0,0,id);}batch.box('#ce8054',x,base+.57,z,w+.19,.07,.08,0,id);}
  window(batch,x,y,z,w,h,side,id){if(side==='front'){batch.box('#385d69',x,y,z,w,h,.025,0,id);batch.box('#dddac4',x,y,z+.02,.026,h+.04,.022,0,id);batch.box('#e9e6d4',x,y-h/2-.035,z+.04,w+.1,.06,.075,0,id);}else{batch.box('#456d75',x,y,z,.025,h,w,0,id);batch.box('#ede7d3',x+.02,y-h/2-.035,z,.075,.06,w+.08,0,id);}}
