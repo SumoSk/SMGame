@@ -21,6 +21,12 @@ const fixture=fs.readFileSync('work/test-motion.cjs','utf8').split('let combinat
  const v=install(Array.from({length:17},(_,k)=>[142+k,150]),'large',true);render();const layout=game.junctionDetails(game.id(150,150)),paint=meshes(0xead78c);
  for(const port of layout.ports){const [dx,dz]=[[1,0],[0,1],[-1,0],[0,-1]][port.dir];for(let d=.01;d<1.8;d+=.08)assert(hit(paint,150+dx*(port.extent+d)-dz*.035,150+dz*(port.extent+d)+dx*.035),'approach paint remains visible all the way to the intersection');}
  assert(!hit(paint,150,150),'no straight yellow stripes through the center of a signal junction');
+ // Clicking a signal junction must not crash the 3D animation loop. This
+ // caught the missing `junction` argument in the selected-road preview path.
+ const preview={previewKey:'',previewGroup:new THREE.Group(),disposeGroup:TrafficRenderer.prototype.disposeGroup};
+ assert(game.junction(game.id(150,150))>=3,'fixture includes a traffic-light intersection');
+ assert.doesNotThrow(()=>TrafficRenderer.prototype.preview.call(preview,game.state,null,null,'hand',{kind:'road',id:game.id(150,150)},game.CATALOG,game.ROADS,game.junction,()=>({error:null})),'selecting the intersection must not stop the 3D frame');
+ assert.equal(preview.previewGroup.children.length,2,'3D selection highlights the road junction');
  // Optional geometry export for visual review, using the actual built meshes.
  if(process.env.SM_ROAD_QA){const frames=[];for(const bend of [false,true]){if(bend)install(turnPath(1),'medium');else install(Array.from({length:17},(_,k)=>[142+k,150]),i=>i<8?'large':'medium',true);render();const triangles=[];receiver.roadGroup.traverse(o=>{if(!o.isMesh)return;const pos=o.geometry.attributes.position,index=o.geometry.index,m=new THREE.Matrix4(),world=new THREE.Matrix4(),p=new THREE.Vector3();for(let instance=0;instance<(o.isInstancedMesh?o.count:1);instance++){if(o.isInstancedMesh){o.getMatrixAt(instance,m);world.multiplyMatrices(o.matrixWorld,m);}else world.copy(o.matrixWorld);for(let k=0;k<(index?index.count:pos.count);k+=3){const points=[];for(let n=0;n<3;n++){p.fromBufferAttribute(pos,index?index.getX(k+n):k+n).applyMatrix4(world);points.push([p.x-150,p.y,p.z-150]);}triangles.push({points,color:o.material.color.getHexString()});}}});frames.push(triangles);}fs.writeFileSync(process.env.SM_ROAD_QA,JSON.stringify(frames));}
  console.log(JSON.stringify({passed:true,turns,coverage:['rounded asphalt supports car width','continuous yellow-line joins','junction approach paint clipping','clear signal junction center']}));
