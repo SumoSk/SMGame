@@ -7,7 +7,7 @@ vm.createContext(context);vm.runInContext(fs.readFileSync('dist/game.js','utf8')
 const angle=p=>Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle));
 const delta=(a,b)=>Math.atan2(Math.sin(b-a),Math.cos(b-a));
 const near=(a,b,tolerance=1e-6)=>assert(Math.abs(a-b)<=tolerance,`${a} != ${b}`);
-function install(points,types,cross=false){
+function install(points,types,cross=false,seed=0){
  game.reset();game.state.roads.clear();game.state.junctionCache.clear();
  const path=points.map(([x,y])=>game.id(x,y));
  function add(node,type){if(!game.state.roads.has(node))game.state.roads.set(node,{type,main:false,links:new Set(),load:0,wait:0});}
@@ -15,15 +15,15 @@ function install(points,types,cross=false){
  path.forEach((node,i)=>add(node,typeof types==='function'?types(i):types));
  for(let i=1;i<path.length;i++)link(path[i-1],path[i]);
  if(cross){const center=game.id(150,150);for(const [dx,dy]of [[1,0],[0,1],[-1,0],[0,-1]]){let prev=center;for(let k=1;k<=8;k++){const node=game.id(150+dx*k,150+dy*k);add(node,'large');link(prev,node);prev=node;}}}
- const v={id:900,path,pathSet:new Set(path),pos:0,progress:0,lane:0,laneSeed:0,speed:0,phase:'driving',kind:'pass',wait:0,lastPain:0,deadline:null,citizenId:null,retryAt:0};
+ const v={id:900,path,pathSet:new Set(path),pos:0,progress:0,lane:0,laneSeed:seed,speed:0,phase:'driving',kind:'pass',wait:0,lastPain:0,deadline:null,citizenId:null,retryAt:0};
  v.lane=game.plannedLane(v,0);game.state.vehicles.set(v.id,v);
  const key=`${path[0]}:${game.dir(path[0],path[1])}:${v.lane}`;v.occKey=key;game.state.occ.set(key,v.id);return v;
 }
 function turnPath(sign,rotation=0){const points=[];const rotate=([x,y])=>{for(let i=0;i<rotation;i++)[x,y]=[-y,x];return[150+x,150+y];};for(let x=-8;x<=0;x++)points.push(rotate([x,0]));for(let y=1;y<=8;y++)points.push(rotate([0,sign*y]));return points;}
 function phase(node,value){game.state.time=Math.ceil(game.state.time/24)*24-node%17+(value===0?.1:12.1);assert.equal(game.signalPhase(node),value);}
 let combinations=0;
-for(const inbound of ['small','medium','large'])for(const junction of ['small','medium','large'])for(const outbound of ['small','medium','large'])for(const sign of [-1,1])for(let rotation=0;rotation<4;rotation++){
- const v=install(turnPath(sign,rotation),i=>i<8?inbound:i===8?junction:outbound),plan=game.motionPlan(v),turn=plan.turns[0];
+for(const seed of [0,1])for(const inbound of ['small','medium','large'])for(const junction of ['small','medium','large'])for(const outbound of ['small','medium','large'])for(const sign of [-1,1])for(let rotation=0;rotation<4;rotation++){
+ const v=install(turnPath(sign,rotation),i=>i<8?inbound:i===8?junction:outbound,false,seed),plan=game.motionPlan(v),turn=plan.turns[0];
  let last=null,rotationTotal=0,minStep=Infinity,maxStep=0;
  for(let k=0;k<=500;k++){
   const s=turn.startDistance+(turn.endDistance-turn.startDistance)*k/500,p=game.positionOnMotion(plan,s),heading=angle(p);
@@ -99,7 +99,7 @@ for(const turnSign of [-1,1]){
  game.state.vehicles.set(second.id,second);game.state.occ.set(second.occKey,second.id);phase(game.id(150,150),0);
  for(let k=0;k<1500&&game.state.vehicles.size;k++){
   game.advanceVehicles(.016,.032);
-  assert([...game.state.vehicles.values()].filter(v=>v.junctionPasses?.length).length<=1,'intersection lease must be exclusive');
+  const active=[...game.state.vehicles.values()].filter(v=>v.junctionPasses?.length);for(let a=0;a<active.length;a++)for(let b=a+1;b<active.length;b++)assert(!game.connectorsConflict(game.junctionConnector(active[a],active[a].junctionPasses[0].pos),game.junctionConnector(active[b],active[b].junctionPasses[0].pos)),'simultaneous leases must have disjoint swept paths');
  }
  assert.equal(game.state.vehicles.size,0,'both cars must eventually clear the intersection');
 }
