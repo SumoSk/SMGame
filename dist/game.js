@@ -135,9 +135,19 @@ function restoreRecommendedSignals(){
  }
  return count;
 }
-function laneCapacity(i){const r=state.roads.get(i);return Math.max(1,Math.floor((ROADS[r?.type||'small']?.lanes||2)/2));}
+// A junction tile stores the road used to build it, not the lane count of
+// every movement through it. Use the connected outgoing arm for each direction.
+function movementRoad(i,d){
+ const r=state.roads.get(i);if(d==null||!r)return ROADS[r?.type||'small'];
+ const layout=junctionDetails(i);
+ const bend=layout.arms.length===2&&layout.arms[0].dir%2!==layout.arms[1].dir%2;
+ if(layout.arms.length<3&&!bend)return ROADS[r.type];
+ const arm=layout.arms.find(a=>a.dir===d)||layout.arms.find(a=>a.dir===(d+2)%4);
+ return arm?Object.values(ROADS).reduce((best,t)=>Math.abs(t.visualWidth-arm.width)<Math.abs(best.visualWidth-arm.width)?t:best,ROADS.small):ROADS[r.type];
+}
+function laneCapacity(i,d){return Math.max(1,Math.floor(movementRoad(i,d).lanes/2));}
 function roadVisualWidth(type){return ROADS[type]?.visualWidth||ROADS.small.visualWidth;}
-function laneOffset(i,d,lane){const r=state.roads.get(i),type=ROADS[r?.type||'small'],cap=Math.max(1,Math.floor(type.lanes/2)),safeLane=Math.min(cap-1,Math.max(0,Number.isFinite(lane)?lane:0)),width=roadVisualWidth(r?.type||'small'),laneWidth=width/(cap*2),across=(safeLane+.5-cap/2)*laneWidth,side=width*.25,dirVector=DIR[d]||DIR[0],length=Math.hypot(dirVector[0],dirVector[1])||1;return{x:(dirVector[1]/length)*(side+across),y:(-dirVector[0]/length)*(side+across)};}
+function laneOffset(i,d,lane){const r=state.roads.get(i),type=movementRoad(i,d),cap=Math.max(1,Math.floor(type.lanes/2)),safeLane=Math.min(cap-1,Math.max(0,Number.isFinite(lane)?lane:0)),width=type.visualWidth,laneWidth=width/(cap*2),across=(safeLane+.5-cap/2)*laneWidth,side=width*.25,dirVector=DIR[d]||DIR[0],length=Math.hypot(dirVector[0],dirVector[1])||1;return{x:(dirVector[1]/length)*(side+across),y:(-dirVector[0]/length)*(side+across)};}
 function angleDelta(a,b){return Math.atan2(Math.sin(b-a),Math.cos(b-a));}
 function bezierPoint(p0,p1,p2,p3,t){const u=1-t,uu=u*u,tt=t*t;return{x:uu*u*p0.x+3*uu*t*p1.x+3*u*tt*p2.x+tt*t*p3.x,y:uu*u*p0.y+3*uu*t*p1.y+3*u*tt*p2.y+tt*t*p3.y};}
 function bezierTangent(p0,p1,p2,p3,t){const u=1-t;return{x:3*u*u*(p1.x-p0.x)+6*u*t*(p2.x-p1.x)+3*t*t*(p3.x-p2.x),y:3*u*u*(p1.y-p0.y)+6*u*t*(p2.y-p1.y)+3*t*t*(p3.y-p2.y)};}
@@ -163,14 +173,14 @@ function drawVehicles(){for(const v of state.vehicles.values()){if(v.phase==='ga
 const motionPlans=new WeakMap();
 function motionDirection(path,k){return dir(path[Math.max(0,Math.min(k,path.length-2))],path[Math.max(1,Math.min(k+1,path.length-1))]);}
 function turnLanePair(v,c,rank){
- const a=laneCapacity(v.path[c.pos-1]),b=laneCapacity(v.path[c.pos+1]);
+ const a=laneCapacity(v.path[c.pos-1],c.incoming),b=laneCapacity(v.path[c.pos+1],c.outgoing);
  if(c.turn===2)return{incoming:0,outgoing:0};
  const count=Math.min(2,a,b),r=Math.max(0,Math.min(count-1,rank));
  return c.turn===1?{incoming:r,outgoing:r}:{incoming:a-count+r,outgoing:b-count+r};
 }
 function chooseTurnLane(v,c){
  if(c.turn===2)return 0;
- const count=Math.min(2,laneCapacity(v.path[c.pos-1]),laneCapacity(v.path[c.pos+1]));
+ const count=Math.min(2,laneCapacity(v.path[c.pos-1],c.incoming),laneCapacity(v.path[c.pos+1],c.outgoing));
  const scores=Array(count).fill(0),node=v.path[c.pos];
  for(const other of state.vehicles.values()){
   if(other.id===v.id||!other.path?.length)continue;
@@ -179,7 +189,7 @@ function chooseTurnLane(v,c){
   if(!turn||turn.pos-other.pos>24)continue;
   for(let r=0;r<count;r++)if(p.lanes[Math.max(0,turn.pos-1)]===turnLanePair(v,c,r).incoming)scores[r]+=1+(other.speed<.1?.5:0);
  }
- for(let r=0;r<count;r++){const pair=turnLanePair(v,c,r);for(let k=c.pos+1;k<=Math.min(v.path.length-1,c.pos+4);k++){const key=occKey(v.path[k],c.outgoing,Math.min(pair.outgoing,laneCapacity(v.path[k])-1));if(state.occ.has(key)||state.reservations.has(key))scores[r]+=2;}}
+ for(let r=0;r<count;r++){const pair=turnLanePair(v,c,r);for(let k=c.pos+1;k<=Math.min(v.path.length-1,c.pos+4);k++){const key=occKey(v.path[k],c.outgoing,Math.min(pair.outgoing,laneCapacity(v.path[k],c.outgoing)-1));if(state.occ.has(key)||state.reservations.has(key))scores[r]+=2;}}
  const seed=Math.abs(v.laneSeed??v.id??0)%count;let best=seed;for(let r=0;r<count;r++)if(scores[r]<scores[best])best=r;return best;
 }
 function motionPlan(v){
@@ -192,10 +202,10 @@ function motionPlan(v){
  const legacy=v.trafficModel===1;
  if(!legacy){if(!v.turnLanes)v.turnLanes={};for(const c of corners){const key=c.pos+':'+path[c.pos]+':'+c.turn;if(v.turnLanes[key]==null)v.turnLanes[key]=chooseTurnLane(v,c);c.lanePair=turnLanePair(v,c,v.turnLanes[key]);}}
  let previousLane=Math.max(0,Math.floor(v.motionSeedLane??v.laneSeed??v.lane??v.id??0));
- let lastCorner=null,nextIndex=0,previousCap=laneCapacity(path[0]);
+ let lastCorner=null,nextIndex=0,previousCap=laneCapacity(path[0],motionDirection(path,0));
  for(let i=0;i<n;i++){
   while(nextIndex<corners.length&&corners[nextIndex].pos<=i)lastCorner=corners[nextIndex++];
-  const next=corners[nextIndex],cap=laneCapacity(path[i]);
+  const next=corners[nextIndex],cap=laneCapacity(path[i],motionDirection(path,i));
   const hold=lastCorner&&route[i]-lastCorner.u<=Math.min(3,next?(next.u-lastCorner.u)*.5:3);
   const prepare=next&&(!lastCorner||next.u-route[i]<=4);
   const turn=hold?lastCorner.turn:prepare?next.turn:0;
@@ -565,7 +575,7 @@ else if(action==='moveOut'){c.movingOut=true;c.state='เตรียมย้�
 function attemptLife(c,kind,toId,deadline,extra={}){if(c.locationId===toId)return true;const from=c.locationId||c.homeId;if(createTrip(c,kind,from,toId,null,null,deadline,extra))return true;pain(c,12,'ไม่มีเส้นทางไป'+buildingName(toId),'route-'+kind);pending(c,kind==='leisure'?'leisure':kind,{kind:extra.serviceKind,end:extra.activityEnd},c.problem);return false;}
 function plannedLane(v,pos){return motionPlan(v).lanes[pos]??0;}
 function occKey(i,d,l){return `${i}:${d}:${l}`;}
-function cellAvailable(i,d,l,vid){const r=state.roads.get(i);if(!r)return false;const key=occKey(i,d,l),o=state.occ.get(key),res=state.reservations.get(key);if(o&&o!==vid||res&&res.id!==vid)return false;const cap=ROADS[r.type].lanes/2;let same=0,total=0;for(let dd=0;dd<4;dd++)for(let ll=0;ll<4;ll++){const o=state.occ.get(occKey(i,dd,ll));if(o&&o!==vid){total++;if(dd===d)same++;}}return l<cap&&same<cap&&total<cap*2;}
+function cellAvailable(i,d,l,vid){const r=state.roads.get(i);if(!r)return false;const key=occKey(i,d,l),o=state.occ.get(key),res=state.reservations.get(key);if(o&&o!==vid||res&&res.id!==vid)return false;const cap=laneCapacity(i,d);let same=0,total=0;for(let dd=0;dd<4;dd++)for(let ll=0;ll<4;ll++){const o=state.occ.get(occKey(i,dd,ll));if(o&&o!==vid){total++;if(dd===d)same++;}}return l>=0&&l<cap&&same<cap&&(junction(i)>=3||total<cap*2);}
 function occupy(v,pos){const i=v.path[pos],d=dir(i,v.path[Math.min(pos+1,v.path.length-1)]),l=plannedLane(v,pos);v.lane=l;v.occKey=occKey(i,d,l);state.occ.set(v.occKey,v.id);}
 function release(v,keepIntersection=false){if(v.occKey&&state.occ.get(v.occKey)===v.id)state.occ.delete(v.occKey);v.occKey=null;if(!keepIntersection){clearVehicleReservations(v);v.junctionPasses=[];v.committedJunction=null;}}
 function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(c?.vehicleId)return false;if(kind==='pass'&&state.vehicles.size>=8000)return false;const path=tripRoute(fromId,toId,fromGate,toGate);if(!path)return false;const to=state.buildings.get(toId),from=state.buildings.get(fromId);if(kind==='leisure'&&to.visitors.size+to.reservedService>=CATALOG[to.key].service)return false;
