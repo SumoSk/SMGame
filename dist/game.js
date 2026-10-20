@@ -301,11 +301,13 @@ function vehiclePosition(v){if(v.phase==='stuck'&&v.heldPose)return v.heldPose;r
 function buildingTraffic(b,incoming=null){const t=CATALOG[b.key];let approaching=0;if(incoming)approaching=incoming.get(b.id)||0;else for(const v of state.vehicles.values())if(v.toId===b.id)approaching++;return{name:t.name,approaching,parked:b.parked.size,max:t.residents||t.jobs+t.service};}
 let placeLabelLayer=null,placeLabelState=null,placeLabels=new Map(),placeLabelCounts=new Map(),placeLabelAt=0,routeWarningMarkers=new Map();
 const NO_ROUTE_TIMEOUT=120;
+const IMMOBILE_RESPAWN_TIMEOUT=200;
 function missingRoute(v){return !!v&&(!!v.departureNoRoute||v.phase==='stuck'&&v.routeMissing!==false&&!/พบเส้นทางแล้ว/.test(v.stopReason||''));}
 function setRouteMissing(v,missing){if(missing){if(v.routeMissing===false||!Number.isFinite(v.routeMissingSince))v.routeMissingSince=state.time;v.routeMissing=true;}else{v.routeMissing=false;v.routeMissingSince=null;}}
 function routeWarningPosition(v){
  if(v.phase==='stuck'){const p=vehiclePosition(v);return p?renderer3d?screen(p.x-.5,p.y-.5,18):screen(p.x,p.y,12):null;}
  if(!v.departureNoRoute)return null;
+ if(v.fromId==null&&state.gates.includes(v.fromGate)){const [x,y]=xy(v.fromGate);return renderer3d?screen(x,y,18):screen(x+.5,y+.5,12);}
  const b=state.buildings.get(v.fromId),c=state.citizens.get(v.citizenId);if(!b||!c||!b.parked.has(c.id))return null;
  const n=[...b.parked].indexOf(c.id),s=CATALOG[b.key].size;
  if(renderer3d)return n<s-1?screen(b.x+.54+n*.53,b.y+s-.28,18):null;
@@ -482,6 +484,7 @@ function occupy(v,pos){const i=v.path[pos],d=dir(i,v.path[Math.min(pos+1,v.path.
 function release(v,keepIntersection=false){if(v.occKey&&state.occ.get(v.occKey)===v.id)state.occ.delete(v.occKey);v.occKey=null;if(!keepIntersection){clearVehicleReservations(v);v.junctionPasses=[];v.committedJunction=null;}}
 function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(c?.vehicleId)return false;if(kind==='pass'&&state.vehicles.size>=8000)return false;const path=tripRoute(fromId,toId,fromGate,toGate);if(!path)return false;const to=state.buildings.get(toId),from=state.buildings.get(fromId);if(kind==='leisure'&&to.visitors.size+to.reservedService>=CATALOG[to.key].service)return false;
 const v={id:state.nextId++,trafficModel:2,noUTurnPolicy:1,citizenId:c?.id||null,kind,fromId,toId,fromGate,toGate,path:[...path],pathSet:new Set(path),pos:0,progress:0,lane:0,laneSeed:Math.abs(state.nextId)%4,speed:0,phase:from?'departing':'gate_waiting',wait:0,lastPain:0,deadline,late:false,color:TRIPS[kind].color,version:state.version,activityEnd:extra.activityEnd,serviceKind:extra.serviceKind,residentReservation:kind==='moveIn',serviceReservation:kind==='leisure',retryAt:0,occKey:null,stopReason:'',routeMissing:false,routeMissingSince:null,committedJunction:null,departureRouteVersion:state.version};state.vehicles.set(v.id,v);if(kind==='moveIn')to.reservedResidents++;if(kind==='leisure')to.reservedService++;
+v.lastMovedAt=state.time;v.respawns=0;
 if(from)from.queue.push(v.id);if(c){c.vehicleId=v.id;c.location=from?CATALOG[from.key].kind:'travel';c.state=from?'รอออกเดินทาง':TRIPS[kind].name;c.history.push(timeText(state.time)+' '+TRIPS[kind].name+' → '+(to?CATALOG[to.key].name:'ประตูเมือง'));c.history=c.history.slice(-12);}return true;}
 function arrive(v){release(v);state.vehicles.delete(v.id);updateTrafficSpatial(v);const from=state.buildings.get(v.fromId);if(from)from.queue=from.queue.filter(i=>i!==v.id);const b=state.buildings.get(v.toId),c=state.citizens.get(v.citizenId);if(v.residentReservation&&b)b.reservedResidents=Math.max(0,b.reservedResidents-1);if(v.serviceReservation&&b)b.reservedService=Math.max(0,b.reservedService-1);if(!c)return;c.vehicleId=null;
 if(v.kind==='moveOut'){removeCitizen(c);addNews(citizenName(c)+' ย้ายออกจากเมือง');return;}if(!b){c.location='home';c.locationId=c.homeId;c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);return;}
@@ -511,6 +514,31 @@ function checkDepartureRoute(v){
  const path=tripRoute(v.fromId,v.toId,v.fromGate??v.path[0],v.toGate??v.path.at(-1));v.departureRouteVersion=state.version;v.nextDepartureRouteRetry=state.time+8+v.id%3;
  if(!path){release(v);const from=state.buildings.get(v.fromId),c=state.citizens.get(v.citizenId);if(from&&c){from.parked.add(c.id);c.locationId=from.id;c.location=CATALOG[from.key].kind;c.state='รอเส้นทางออกจากอาคาร';}setRouteMissing(v,true);v.departureNoRoute=true;v.stopReason='ไม่มีเส้นทางออกไปยังจุดหมาย · รออยู่ในอาคาร/ประตู';return false;}
  v.path=[...path];v.pathSet=new Set(path);v.pos=0;v.progress=0;v.motionStartPose=null;v.heldPose=null;v.turnLanes={};v.junctionQueueSince={};v.departureNoRoute=false;setRouteMissing(v,false);v.stopReason='';v.noUTurnPolicy=1;return true;
+}
+// Reuse the original trip and destination reservation; only its physical
+// location and route change. Route finding is throttled in advanceVehicles.
+function respawnVehicle(v){
+ if(!v||!state.vehicles.has(v.id))return false;
+ const gates=(state.gates||[]).filter(gate=>state.roads.has(gate));
+ if(!gates.length)return false;
+ const target=state.buildings.get(v.toId),end=target?.access?.[0]?.node??v.toGate??v.path.at(-1);
+ const gateQueue=new Map(gates.map(gate=>[gate,0]));
+ for(const other of state.vehicles.values())if(other.phase==='gate_waiting'&&gateQueue.has(other.fromGate))gateQueue.set(other.fromGate,gateQueue.get(other.fromGate)+1);
+ gates.sort((a,b)=>gateQueue.get(a)-gateQueue.get(b)||distance(a,end)-distance(b,end)||a-b);
+ let entrance=gates[0],path=null;
+ for(const gate of gates){const candidate=tripRoute(null,v.toId,gate,v.toGate);if(candidate?.length>1){entrance=gate;path=candidate;break;}}
+ const from=state.buildings.get(v.fromId),c=state.citizens.get(v.citizenId);
+ release(v);
+ if(from){from.queue=from.queue.filter(id=>id!==v.id);if(c){from.parked.delete(c.id);from.visitors.delete(c.id);}}
+ v.fromId=null;v.fromGate=entrance;v.path=path?[...path]:[entrance];v.pathSet=new Set(v.path);
+ v.pos=0;v.progress=0;v.lane=0;v.motionStartPose=null;v.motionSeedLane=null;v.heldPose=null;
+ v.turnLanes={};v.junctionPasses=[];v.junctionQueueSince={};v.committedJunction=null;
+ v.phase='gate_waiting';v.speed=0;v.wait=0;v.lastMovedAt=state.time;v.respawns=(v.respawns||0)+1;
+ v.retryAt=0;v.departureRouteVersion=path?state.version:-1;v.nextDepartureRouteRetry=state.time;
+ v.departureNoRoute=!path;v.routeCheckedVersion=state.version;v.noUTurnPolicy=1;v.trafficModel=2;
+ setRouteMissing(v,!path);v.stopReason=path?'กลับมาเริ่มเข้าที่ประตูเมืองใหม่':'กลับมาประตูเมืองแล้ว · ยังไม่มีเส้นทางถึงจุดหมาย';
+ if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+' รถติดเกิน 200 นาที · กลับเข้าประตูเมืองใหม่');c.history=c.history.slice(-12);}
+ updateTrafficSpatial(v);return true;
 }
 function canTowVehicle(v){return !!v&&(v.phase==='stuck'||v.departureNoRoute||v.wait>=48);}
 function towVehicle(id){
@@ -654,12 +682,17 @@ function enforceNoUTurn(v){
  if(v.phase==='driving')occupy(v,0);
 }
 function advanceVehicles(realDt,gameDt){
- let routeBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);for(const car of state.vehicles.values()){if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map()};for(const car of state.vehicles.values())updateTrafficSpatial(car);
+ let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);for(const car of state.vehicles.values()){if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map()};for(const car of state.vehicles.values())updateTrafficSpatial(car);
  for(const v of [...state.vehicles.values()]){
   if(!state.vehicles.has(v.id))continue;
   if(missingRoute(v)){
    if(!Number.isFinite(v.routeMissingSince))v.routeMissingSince=state.time;
    if(state.time-v.routeMissingSince>NO_ROUTE_TIMEOUT){towVehicle(v.id);continue;}
+  }
+  // Migrate existing saves using the wait counter without resetting it.
+  if(!Number.isFinite(v.lastMovedAt))v.lastMovedAt=state.time-Math.max(0,Number.isFinite(v.wait)?v.wait:0);
+  if(respawnBudget>0&&state.time-v.lastMovedAt>IMMOBILE_RESPAWN_TIMEOUT){
+   if(respawnVehicle(v)){respawnBudget--;continue;}
   }
   const c=state.citizens.get(v.citizenId);
   if(v.deadline&&state.time>v.deadline&&!['pass','moveIn'].includes(v.kind)){
@@ -676,7 +709,7 @@ function advanceVehicles(realDt,gameDt){
    const i=v.path[0],next=v.path[1];if(next==null){arrive(v);continue;}
    const d=dir(i,next),lane=plannedLane(v,0);
    if(cellAvailable(i,d,lane,v.id)&&physicalTrafficLimit(v,motionPlan(v),0,.01)>0){
-    if(from){from.queue=from.queue.filter(id=>id!==v.id);from.parked.delete(v.citizenId);from.visitors.delete(v.citizenId);}if(c){c.location='travel';c.state=TRIPS[v.kind].name;}v.phase='driving';v.speed=0;v.stopReason='';occupy(v,0);v.wait=0;updateTrafficSpatial(v);
+    if(from){from.queue=from.queue.filter(id=>id!==v.id);from.parked.delete(v.citizenId);from.visitors.delete(v.citizenId);}if(c){c.location='travel';c.state=TRIPS[v.kind].name;}v.phase='driving';v.speed=0;v.stopReason='';occupy(v,0);v.wait=0;v.lastMovedAt=state.time;updateTrafficSpatial(v);
    }else if(c&&v.wait>60&&state.time-v.lastPain>90){pain(c,1,'รอออกจากอาคารหรือประตูเมือง');v.lastPain=state.time;}
    continue;
   }
@@ -714,6 +747,7 @@ function advanceVehicles(realDt,gameDt){
   }
   if(!state.vehicles.has(v.id))continue;
   refreshMotionReservations(v,plan,s);
+  if(s-initial>1e-7)v.lastMovedAt=state.time;
   if(blocked&&s-initial<1e-7){
    v.wait+=gameDt;v.stopReason=blocked;state.roads.get(v.path[v.pos]).wait=Math.min(10,state.roads.get(v.path[v.pos]).wait+realDt);
    if(c&&v.wait>14&&state.time-v.lastPain>70){pain(c,1,blocked==='ไฟแดง'?'รถติดหรือรอสัญญาณไฟ':'รถติดหรือรอคิว');v.lastPain=state.time;}

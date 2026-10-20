@@ -51,5 +51,42 @@ v=install(Array.from({length:10},(_,k)=>[140+k,100]),'large');const fleetBase={.
  const warning=overlay.children.find(el=>el.textContent==='!');assert(warning&&warning.style.background==='#df3543'&&warning.style.left&&warning.style.top,'visible route-less car gets a red exclamation above it');
  assert(game.recoverVehicle(tagged,true));game.updateRouteWarnings();assert(warning.removed,'warning vanishes immediately when a route returns');
 }
-console.log(JSON.stringify({passed:true,coverage:['automatic periodic retry','same pose and heading','no U-turn or teleport','bounded retry interval','red marker on missing route','automatic removal strictly after 120 game minutes','traffic-light waits never auto-removed','recovery resets timeout','parked route-less vehicles auto-cancel cleanly','tow releases all leases','other junction users preserved','following traffic moves','queued route validation','unreachable queue head bypass','cancel without arrival or reward','save/load recovery state']}));
+// Exactly 200 game minutes must not move a car; the next instant sends that
+// very same car back to a connected city gate, preserving its trip and seats.
+{
+ const car=install(Array.from({length:20},(_,i)=>[280+i,150]),'large');
+ const entry=game.state.gates[1],destination=building(700,'shop_small',car.path[5],car.path[6],car.path[6]);
+ const origin=building(701,'home_small',car.path[0],car.path[1],car.path[1]);
+ game.state.buildings.set(destination.id,destination);game.state.buildings.set(origin.id,origin);
+ const passenger={id:702,resident:true,homeId:origin.id,locationId:origin.id,workId:null,profile:{trait:0,end:1050},happy:80,pain:0,vehicleId:car.id,location:'travel',state:'กำลังเดินทาง',history:[],scheduled:new Set(),failKinds:new Set()};
+ game.state.citizens.set(passenger.id,passenger);
+ car.citizenId=passenger.id;car.kind='leisure';car.fromId=origin.id;car.toId=destination.id;
+ car.serviceReservation=true;destination.reservedService=1;origin.queue.push(car.id);origin.parked.add(passenger.id);
+ game.release(car);car.pos=4;car.progress=.2;car.occKey=car.path[car.pos]+':'+game.dir(car.path[car.pos],car.path[car.pos+1])+':'+game.plannedLane(car,car.pos);
+ game.state.occ.set(car.occKey,car.id);game.state.reservations.set('test-lease',{id:car.id,until:999999});
+ car.lastMovedAt=game.state.time-200;car.wait=200;
+ game.advanceVehicles(0,0);assert.equal(car.phase,'driving','exactly 200 minutes cannot respawn');
+ game.state.time+=.01;game.advanceVehicles(0,0);
+ assert.equal(car.phase,'gate_waiting');assert.equal(car.path[0],entry,'respawn at real road-connected city gate');
+ assert(car.path.length>1&&!car.departureNoRoute,'new trip can still reach the original destination');
+ assert.equal(car.id,passenger.vehicleId,'citizen keeps the same car');assert.equal(game.state.vehicles.size,1,'no duplicate cars');
+ assert.equal(car.toId,destination.id);assert.equal(destination.reservedService,1,'destination booking retained');
+ assert(!origin.queue.includes(car.id)&&!origin.parked.has(passenger.id),'abandoned origin no longer blocked');
+ assert(![...game.state.occ.values()].includes(car.id),'old road occupancy removed');
+ assert(![...game.state.reservations.values()].some(r=>r.id===car.id),'old junction leases removed');
+ assert.equal(car.wait,0);assert.equal(car.lastMovedAt,game.state.time);assert.equal(car.respawns,1);
+ assert(game.saveGame(true,'respawn','respawn'));assert(game.loadGame(true,'respawn'));
+ const loaded=game.state.vehicles.get(car.id);assert.equal(loaded.lastMovedAt,car.lastMovedAt);assert.equal(loaded.respawns,1);
+ assert.equal(game.state.buildings.get(destination.id).reservedService,1,'saving/loading keeps booking');
+}
+// A car that moves before the threshold starts a fresh inactivity timer.
+{
+ const moving=install(Array.from({length:25},(_,i)=>[100+i,130]),'small');
+ moving.lastMovedAt=game.state.time-199;game.state.speed=1;
+ const before=game.motionDistance(moving);game.advanceVehicles(1,2);
+ assert(game.motionDistance(moving)>before,'moving car advances');
+ assert.equal(moving.lastMovedAt,game.state.time,'movement resets inactivity');
+ game.state.time+=3;game.advanceVehicles(0,0);assert.equal(moving.phase,'driving','moving car is not respawned');
+}
+console.log(JSON.stringify({passed:true,coverage:['automatic periodic retry','same pose and heading','no U-turn or teleport','bounded retry interval','red marker on missing route','automatic removal strictly after 120 game minutes','traffic-light waits never auto-removed','recovery resets timeout','parked route-less vehicles auto-cancel cleanly','tow releases all leases','other junction users preserved','following traffic moves','queued route validation','unreachable queue head bypass','cancel without arrival or reward','save/load recovery state','respawn only after 200 game minutes','same car and destination booking','old occupancy and reservations removed','respawn persisted in saves','movement resets inactivity timer']}));
 `)(require);
