@@ -46,6 +46,16 @@ body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,di
 .inspector .signal-control button[data-action="signal-auto"]{background:#f6f8f3;color:#32624f}
 .signal-manual{padding-top:8px;border-top:1px solid #e0e9df;margin-top:10px}
 
+.need-card .need-metrics{display:flex;align-items:center;gap:6px;min-width:0}
+.need-metrics>small{flex:1;min-width:0;line-height:1.45}
+.need-card .need-gauges{display:flex;align-items:flex-end;gap:3px;flex:none}
+.need-gauge{display:flex;align-items:center;flex-direction:column;gap:2px;width:12px}
+.need-tube{display:block;position:relative;width:8px;height:25px;border-radius:4px 4px 2px 2px;background:#e2e9e3;box-shadow:inset 0 0 0 1px #bbcfc2;overflow:hidden}
+.need-tube-fill{display:block;width:100%;height:100%;background:linear-gradient(to top,#54ad77 0%,#54ad77 59%,#e8ad4b 60%,#e8ad4b 84%,#cf6259 85%);clip-path:inset(100% 0 0 0);transition:clip-path .38s ease-out}
+.need-gauge[data-gauge="capacity"] .need-tube-fill{background:#6f9ca5}
+.need-gauge-label{font-size:8px;line-height:1;color:#60766c;white-space:nowrap}
+@media(prefers-reduced-motion:reduce){.need-tube-fill{transition:none}}
+
 /* iPad native-size compatibility */
 @supports (-webkit-touch-callout:none){
 html{-webkit-text-size-adjust:none;text-size-adjust:none}
@@ -97,4 +107,14 @@ body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,di
 .inspector .signal-control button[data-action="signal-manual"],.inspector .signal-control button[data-action="signal-switch"]{background:#245d4b;color:#fff7ce;border-color:#245d4b}
 .inspector .signal-control button[data-action="signal-auto"]{background:#f6f8f3;color:#32624f}
 .signal-manual{padding-top:4px;border-top:0.5px solid #e0e9df;margin-top:5px}
+
+.need-card .need-metrics{display:flex;align-items:center;gap:3px;min-width:0}
+.need-metrics>small{flex:1;min-width:0;line-height:1.45}
+.need-card .need-gauges{display:flex;align-items:flex-end;gap:1.5px;flex:none}
+.need-gauge{display:flex;align-items:center;flex-direction:column;gap:1px;width:6px}
+.need-tube{display:block;position:relative;width:4px;height:12.5px;border-radius:2px 2px 1px 1px;background:#e2e9e3;box-shadow:inset 0 0 0 0.5px #bbcfc2;overflow:hidden}
+.need-tube-fill{display:block;width:100%;height:100%;background:linear-gradient(to top,#54ad77 0%,#54ad77 59%,#e8ad4b 60%,#e8ad4b 84%,#cf6259 85%);clip-path:inset(100% 0 0 0);transition:clip-path .38s ease-out}
+.need-gauge[data-gauge="capacity"] .need-tube-fill{background:#6f9ca5}
+.need-gauge-label{font-size:4px;line-height:1;color:#60766c;white-space:nowrap}
+@media(prefers-reduced-motion:reduce){.need-tube-fill{transition:none}}
 }

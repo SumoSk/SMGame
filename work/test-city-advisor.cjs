@@ -35,6 +35,19 @@ const before=game.snapshot();
 check('Reading demand/advice does not modify the city or save',()=>{game.cityDemand();game.cityAdvice(game.cityDemand(),game.computeStats());assert(game.snapshot()===before);});
 check('A loaded save reproduces exact demand and existing stuck-car state',()=>{const expected=JSON.stringify(game.cityDemand());assert(game.saveGame(true,'advisor','advisor'));game.reset();assert(game.loadGame(true,'advisor'));assert(JSON.stringify(game.cityDemand())===expected);assert(game.state.vehicles.get(900).phase==='stuck');assert(game.canTowVehicle(game.state.vehicles.get(900)));});
 check('UI refresh is idempotent and safe',()=>{game.computeStats();game.updateCityAdvisor();const first=get('demand').innerHTML;game.updateCityAdvisor();assert(get('demand').innerHTML===first);assert(first.includes('ผับ'));assert(!first.includes('undefined'));assert(get('advisorNext').innerHTML.includes('ตรวจเมือง'));});
+check('Five compact tube charts show live going, present and capacity values',()=>{
+ const html=get('demand').innerHTML;
+ assert((html.match(/class="need-gauges"/g)||[]).length===5,'one mini chart per service category');
+ assert((html.match(/data-gauge="traveling"/g)||[]).length===5);
+ assert((html.match(/data-gauge="used"/g)||[]).length===5);
+ assert((html.match(/data-gauge="capacity"/g)||[]).length===5);
+ const r=row('pub');
+ assert(html.includes('กำลังไป '+r.traveling+' คน อยู่ '+r.used+' คน รับได้ '+r.capacity+' คน'),'chart has accessible numbers');
+ assert(!html.includes('NaN')&&!html.includes('Infinity'),'zero-capacity categories render safely');
+ const previous=html;const arrived=citizen(987);game.state.citizens.set(arrived.id,arrived);game.state.buildings.get(2).visitors.add(arrived.id);
+ game.updateCityAdvisor();assert(get('demand').innerHTML!==previous,'chart changes when actual occupancy changes');
+ assert(get('demand').innerHTML.includes('กำลังไป '+r.traveling+' คน อยู่ '+(r.used+1)+' คน รับได้ '+r.capacity+' คน'));
+});
 return checks;
 
 })();console.log(JSON.stringify({passed:true,checks}));
