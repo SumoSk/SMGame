@@ -1,0 +1,10 @@
+{
+  "name": "traffic-fixer-thailand",
+  "version": "1.0.0",
+  "private": true,
+  "description": "เกมสร้างเมืองและแก้ปัญหาจราจรแบบไทย",
+  "scripts": {
+    "start": "node work/server.cjs",
+    "test": "node work/test-game.cjs && node work/test-traffic-fixes.cjs"
+  }
+}
