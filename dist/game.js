@@ -539,7 +539,7 @@ function enforceNoUTurn(v){
  if(v.phase==='driving')occupy(v,0);
 }
 function advanceVehicles(realDt,gameDt){
- let routeBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);for(const car of state.vehicles.values()){if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else enforceNoUTurn(car);}prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map()};for(const car of state.vehicles.values())updateTrafficSpatial(car);
+ let routeBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);for(const car of state.vehicles.values()){if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map()};for(const car of state.vehicles.values())updateTrafficSpatial(car);
  for(const v of [...state.vehicles.values()]){
   if(!state.vehicles.has(v.id))continue;
   const c=state.citizens.get(v.citizenId);
@@ -550,7 +550,7 @@ function advanceVehicles(realDt,gameDt){
   if(v.phase==='gate_waiting'||v.phase==='departing'){
    v.wait+=gameDt;if(v.retryAt>state.time)continue;v.retryAt=state.time+.35;
    const from=state.buildings.get(v.fromId);
-   if(v.departureRouteVersion!==state.version||v.departureNoRoute&&!(v.nextDepartureRouteRetry>state.time)){if(routeBudget<=0)continue;routeBudget--;if(!checkDepartureRoute(v))continue;}
+   if(v.departureRouteVersion!==state.version||v.departureNoRoute&&!(v.nextDepartureRouteRetry>state.time)){if(routeBudget<=0||!routeChecks.has(v.id))continue;routeBudget--;if(!checkDepartureRoute(v))continue;}
    if(v.departureNoRoute)continue;
    if(from&&from.queue.find(id=>{const car=state.vehicles.get(id);return car&&!car.departureNoRoute;})!==v.id)continue;
    if(!from){if(gateAttempt.has(v.path[0]))continue;gateAttempt.add(v.path[0]);}
@@ -561,7 +561,7 @@ function advanceVehicles(realDt,gameDt){
    }else if(c&&v.wait>60&&state.time-v.lastPain>90){pain(c,1,'รอออกจากอาคารหรือประตูเมือง');v.lastPain=state.time;}
    continue;
   }
-  if(v.phase==='stuck'){v.wait+=gameDt;v.speed=0;if(routeBudget>0&&recoveryDue(v)){routeBudget--;recoverVehicle(v);}continue;}
+  if(v.phase==='stuck'){v.wait+=gameDt;v.speed=0;if(routeBudget>0&&routeChecks.has(v.id)&&recoveryDue(v)){routeBudget--;recoverVehicle(v);}continue;}
   if(v.routeCheckedVersion!==state.version){v.routeCheckedVersion=state.version;if(!remainingRouteValid(v)){strandVehicle(v,'เส้นทางเดิมขาด');continue;}}
   if(v.pos+1>=v.path.length){arrive(v);continue;}
   const plan=motionPlan(v),initial=motionDistance(v,plan),type=ROADS[state.roads.get(v.path[v.pos]).type];
