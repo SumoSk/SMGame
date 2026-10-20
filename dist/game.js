@@ -93,6 +93,7 @@ function drawRoads(){
 
 function roadColor(r){return r.wait>4?'#363b38':r.wait>1?'#e36351':r.load>.75?'#edaa51':r.load>.4?'#dbce68':'#67ab76';}
 const SIGNAL_YELLOW_MINUTES=1,SIGNAL_CLEAR_MINUTES=1,SIGNAL_MIN_GREEN=5,SIGNAL_MAX_GREEN=240;
+const RECOMMENDED_SIGNAL_GREEN_MINUTES=6;
 const signalDefaults=()=>({...state.signalDefaults,mode:'auto',axis:0,holdUntil:0});
 function signalSettings(i){return state.signals.get(i)||signalDefaults();}
 function signalCycle(i){const s=signalSettings(i);return s.eastWest+s.northSouth+2*(SIGNAL_YELLOW_MINUTES+SIGNAL_CLEAR_MINUTES);}
@@ -124,6 +125,15 @@ function setSignalDefaults(eastWest,northSouth,applyExisting=false){
  state.signalDefaults={eastWest,northSouth};
  if(applyExisting)for(const [node] of state.roads)if(junction(node)>=3){const current=signalSettings(node);state.signals.set(node,{...current,eastWest,northSouth});}
  return true;
+}
+function restoreRecommendedSignals(){
+ state.signalDefaults={eastWest:RECOMMENDED_SIGNAL_GREEN_MINUTES,northSouth:RECOMMENDED_SIGNAL_GREEN_MINUTES};
+ let count=0;
+ for(const [node] of state.roads)if(junction(node)>=3){
+  state.signals.set(node,{...signalDefaults(),holdUntil:state.time+SIGNAL_CLEAR_MINUTES});
+  count++;
+ }
+ return count;
 }
 function laneCapacity(i){const r=state.roads.get(i);return Math.max(1,Math.floor((ROADS[r?.type||'small']?.lanes||2)/2));}
 function roadVisualWidth(type){return ROADS[type]?.visualWidth||ROADS.small.visualWidth;}
@@ -419,7 +429,8 @@ function globalSignalInspector(){
  `<p class="signal-note">ไฟเหลือง ${SIGNAL_YELLOW_MINUTES} นาที และแดงเคลียร์แยก ${SIGNAL_CLEAR_MINUTES} นาทีต่อช่วง · รอบค่าเริ่มต้น ${s.eastWest+s.northSouth+2*(SIGNAL_YELLOW_MINUTES+SIGNAL_CLEAR_MINUTES)} นาทีเกม</p>`+
  action('บันทึกเป็นค่าเริ่มต้นสำหรับแยกใหม่','signal-defaults-save')+
  action('ใช้เวลานี้กับทุกแยกในเมือง','signal-defaults-apply')+
- `<p class="signal-note">ปุ่มใช้กับทุกแยกจะเปลี่ยนเวลาไฟเขียวของแยกที่มีอยู่ด้วย แต่คงโหมดควบคุมเองของแต่ละแยกไว้ · คลิกแยกบนแผนที่เพื่อปรับทีละจุด</p></section>`;
+ action('คืนค่าแนะนำทุกแยก (6 + 6 นาที)','signal-defaults-reset')+
+ `<p class="signal-note">ใช้เวลานี้กับทุกแยกจะคงโหมดควบคุมเองไว้ · คืนค่าแนะนำจะเปลี่ยนทุกแยกกลับเป็นอัตโนมัติ ไฟเขียวฝั่งละ 6 นาที พร้อมช่วงไฟเหลืองและแดงเคลียร์แยก · คลิกแยกบนแผนที่เพื่อปรับทีละจุด</p></section>`;
 }
 function signalInspector(i){
  const setting=signalSettings(i),status=signalStatus(i),manual=setting.mode==='manual',direction=status.phase===0?'ตะวันออก–ตะวันตก':status.phase===1?'เหนือ–ใต้':status.phase===2?'ไฟเหลือง':'แดงทุกทิศ';
@@ -814,6 +825,10 @@ canvas.addEventListener('pointercancel',e=>{pointers.delete(e.pointerId);drag=nu
 canvas.addEventListener('wheel',e=>{e.preventDefault();const before=world(e.clientX,e.clientY);cam.z=Math.max(.22,Math.min(5.2,cam.z*(e.deltaY<0?1.12:.89)));if(renderer3d)renderer3d.updateCamera(cam);const after=world(e.clientX,e.clientY);cam.x+=before[0]-after[0];cam.y+=before[1]-after[1];},{passive:false});
 window.addEventListener('keydown',e=>{if($('dialog').open)return;if(e.key==='Escape'){cancelInteraction();return;}if(e.target?.matches?.('input,textarea,select,[contenteditable="true"]'))return;if(e.code==='Space'){e.preventDefault();state.speed=state.speed?0:1;updateUI();}if(['1','2','5'].includes(e.key)){state.speed=+e.key;updateUI();}if(e.key.toLowerCase()==='h')$('heat').click();if(e.key.toLowerCase()==='b'){category='roads';selectTool('small');}if(e.key.toLowerCase()==='s'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openSaveDialog();}});
 $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action,v=+b.dataset.value;
+ if(a==='signal-defaults-reset'){
+  if(selected?.kind!=='signals')return;const count=restoreRecommendedSignals();
+  toast('คืนค่าแนะนำแล้ว '+count+' แยก · กลับสู่ไฟอัตโนมัติทั้งหมด');renderInspector(true);return;
+ }
  if(a==='signal-defaults-save'||a==='signal-defaults-apply'){
   if(selected?.kind!=='signals')return;const rawEW=String($('signalDefaultEW').value).trim(),rawNS=String($('signalDefaultNS').value).trim();
   if(!rawEW||!rawNS||!setSignalDefaults(Number(rawEW),Number(rawNS),a==='signal-defaults-apply')){toast('เวลาไฟเขียวต้องเป็นจำนวนเต็ม 5–240 นาทีค่ะ');return;}
@@ -901,6 +916,6 @@ $('menu').onclick=()=>{modal('<span class="eyebrow">YOUR CITY</span><h2>จั�
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){if(!['moveIn','pass'].includes(v.kind)&&v.wait>24){v.late=true;const c=state.citizens.get(v.citizenId);if(c){c.late=true;pain(c,3,'ล่าช้าก่อนข้ามวัน');}}arrive(v);}state.events=state.events.filter(e=>e.at>=target);state.time=target-360;daily();state.time=target;for(const c of state.citizens.values()){if(c.removed)continue;for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;$('heat').classList.add('active');addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,selectTool,snapshot,loadGame,saveGame,buildingTraffic,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();reset();requestAnimationFrame(frame);
 })();
