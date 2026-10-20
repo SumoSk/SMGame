@@ -18,7 +18,7 @@ const nativeSource = base
   .replace(/\/\* Scale every interface overlay[^]*?\*\//, '')
   .replace(overlays + '{zoom:var(--ui-scale)}', '');
 const native = nativeSource.replace(/([^{}]+)\{([^{}]*)\}/g, (rule, selector, declarations) => {
-  if (selector.trim() === 'canvas') return rule;
+  if (selector.trim() === 'canvas' || selector.includes('.member-')) return rule;
   const compact = declarations.replace(/(-?(?:\d*\.\d+|\d+))(px|dvh|svh|lvh|vh|dvw|svw|lvw|vw)\b/g,
     (_, value, unit) => Number((Number(value) * scale).toFixed(6)) + unit);
   return selector + '{' + compact + '}';
