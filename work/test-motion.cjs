@@ -20,7 +20,7 @@ function install(points,types,cross=false,seed=0){
  const key=`${path[0]}:${game.dir(path[0],path[1])}:${v.lane}`;v.occKey=key;game.state.occ.set(key,v.id);return v;
 }
 function turnPath(sign,rotation=0){const points=[];const rotate=([x,y])=>{for(let i=0;i<rotation;i++)[x,y]=[-y,x];return[150+x,150+y];};for(let x=-8;x<=0;x++)points.push(rotate([x,0]));for(let y=1;y<=8;y++)points.push(rotate([0,sign*y]));return points;}
-function phase(node,value){game.state.time=Math.ceil(game.state.time/24)*24-node%17+(value===0?.1:12.1);assert.equal(game.signalPhase(node),value);}
+function phase(node,value){game.state.time=(Math.ceil(game.state.time/60)*24-node%17+(value===0?.1:12.1))*2.5;assert.equal(game.signalPhase(node),value);}
 let combinations=0;
 for(const seed of [0,1])for(const inbound of ['small','medium','large'])for(const junction of ['small','medium','large'])for(const outbound of ['small','medium','large'])for(const sign of [-1,1])for(let rotation=0;rotation<4;rotation++){
  const v=install(turnPath(sign,rotation),i=>i<8?inbound:i===8?junction:outbound,false,seed),plan=game.motionPlan(v),turn=plan.turns[0];

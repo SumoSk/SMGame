@@ -5,9 +5,14 @@ const document={getElementById:get,querySelector:()=>element(),querySelectorAll:
 const sandbox={document,window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:x=>game=x},innerWidth:1440,innerHeight:900,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage:{setItem:noop,getItem:()=>null},console};
 vm.createContext(sandbox);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),sandbox);
 function findVehicle(){return [...game.state.vehicles.values()][0];}
-function redFor(node,dir){for(let n=0;n<24;n++){if(game.signalPhase(node)===1&&dir%2===0)return;game.state.time++;}}
+function redFor(node,dir){for(let n=0;n<60;n++){if(game.signalPhase(node)===1&&dir%2===0)return;game.state.time++;}}
 game.reset();
 const center=game.id(150,150),west=game.id(149,150),east=game.id(151,150),north=game.id(150,149);
+const signalAt=minute=>{game.state.time=600-(center%17)*2.5+minute;return game.signalPhase(center);};
+for(const [minute,expected] of [[0,0],[24.9,0],[25,2],[28.4,2],[28.5,-1],[29.9,-1],[30,1],[54.9,1],[55,2],[58.4,2],[58.5,-1],[59.9,-1],[60,0]]){
+ assert.equal(signalAt(minute),expected,`signal phase at ${minute} minutes in the 60-minute cycle`);
+}
+assert.equal(signalAt(0),signalAt(60),'traffic light cycle repeats exactly every 60 game minutes');
 game.state.roads.get(west).type='medium';game.state.roads.get(east).type='medium';game.state.roads.get(north).type='large';game.state.junctionCache.clear();
 redFor(center,0);
 assert.equal(game.junction(center),4,'mixed road crossing must remain a four-way junction');

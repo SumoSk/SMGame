@@ -90,7 +90,11 @@ function drawRoads(){
 }
 
 function roadColor(r){return r.wait>4?'#363b38':r.wait>1?'#e36351':r.load>.75?'#edaa51':r.load>.4?'#dbce68':'#67ab76';}
-function signalPhase(i){const phase=(state.time+(i%17))%24;return phase<10?0:phase<11.4?2:phase<12?-1:phase<22?1:phase<23.4?2:-1;}
+const SIGNAL_CYCLE_MINUTES=60;
+function signalPhase(i){
+ const phase=(state.time+(i%17)*SIGNAL_CYCLE_MINUTES/24)%SIGNAL_CYCLE_MINUTES;
+ return phase<25?0:phase<28.5?2:phase<30?-1:phase<55?1:phase<58.5?2:-1;
+}
 function laneCapacity(i){const r=state.roads.get(i);return Math.max(1,Math.floor((ROADS[r?.type||'small']?.lanes||2)/2));}
 function roadVisualWidth(type){return ROADS[type]?.visualWidth||ROADS.small.visualWidth;}
 function laneOffset(i,d,lane){const r=state.roads.get(i),type=ROADS[r?.type||'small'],cap=Math.max(1,Math.floor(type.lanes/2)),safeLane=Math.min(cap-1,Math.max(0,Number.isFinite(lane)?lane:0)),width=roadVisualWidth(r?.type||'small'),laneWidth=width/(cap*2),across=(safeLane+.5-cap/2)*laneWidth,side=width*.25,dirVector=DIR[d]||DIR[0],length=Math.hypot(dirVector[0],dirVector[1])||1;return{x:(dirVector[1]/length)*(side+across),y:(-dirVector[0]/length)*(side+across)};}
@@ -491,7 +495,7 @@ function prepareJunctionQueues(){
 function junctionPriority(request,node){
  const c=request.connector;let priority=c.turn===2?2:c.turn===1?1:0;
  // A movement that has waited a full signal cycle joins the oldest-first tier.
- return state.time-request.at>=24?0:priority;
+ return state.time-request.at>=SIGNAL_CYCLE_MINUTES?0:priority;
 }
 function queueAllows(v,pos,connector){
  const node=v.path[pos],queue=state.junctionQueues?.get(node);if(!queue)return true;
