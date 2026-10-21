@@ -19,10 +19,11 @@ const jobMetrics=game.buildingGaugeMetrics({...building,key:'office_small',worke
 const fakeElement=()=>({style:{},dataset:{},children:[],attributes:{},append(...nodes){this.children.push(...nodes);},replaceChildren(){this.children=[];},setAttribute(name,value){this.attributes[name]=value;},remove(){this.removed=true;}});
 let mapOverlay;context.document.createElement=fakeElement;get('world').insertAdjacentElement=(_position,node)=>{mapOverlay=node;};
 game.state.buildings.clear();game.state.buildings.set(building.id,building);game.state.vehicles.clear();game.state.vehicles.set(101,{toId:building.id});game.state.vehicles.set(102,{toId:building.id});game.updatePlaceLabels();
-const badge=mapOverlay.children[0],tubes=badge.children[1].children;assert.equal(tubes.length,3,'three tubes above each building');
-assert.deepEqual(tubes.map(t=>t.attributes['data-gauge']),['traveling','used','capacity']);
-assert(tubes[0].children[0].style.clipPath.startsWith('inset(83.333'));assert(tubes[1].children[0].style.clipPath.startsWith('inset(75%'));
-assert(badge.attributes['aria-label'].includes('กำลังไป 2 คน อยู่ 3 คน รับได้ 12 คน'));
-assert.equal(badge.children[0].children[1].textContent,'2/1/15','previous vehicle count remains');
-console.log(JSON.stringify({passed:true,coverage:['no reversal at dead ends','legal loop route','old route migration without position jump','T junction red and green','building destination counts and capacities','three independent rooftop tubes for service, home and jobs']}));
+const badge=mapOverlay.children[0];
+assert.equal(badge.children.length,2,'rooftop label contains only name and arriving count');
+assert.equal(badge.children[0].textContent,'ร้านค้าเล็ก','show the building name');
+assert.equal(badge.children[1].textContent,'กำลังมา 2','show only inbound vehicles');
+assert.equal(badge.attributes['aria-label'],'ร้านค้าเล็ก กำลังมา 2 คัน','accessible label includes the inbound count');
+assert(!badge.children.some(child=>child.className==='place-label-gauges'),'no gauge tubes remain');
+console.log(JSON.stringify({passed:true,coverage:['no reversal at dead ends','legal loop route','old route migration without position jump','T junction red and green','building destination counts and capacities','compact rooftop label with name and arriving car count only']}));
 `)(require);
