@@ -51,6 +51,7 @@ const trip=game.state.vehicles.get(sample.vehicleId);assert(trip&&trip.kind==='w
 trip.late=true;game.arrive(trip,true);
 // Instant test arrival skips road departure; release the artificial old parked occupancy.
 home.parked.delete(sample.id);
+const oldSlot=home.parkingSlots.indexOf(sample.id);if(oldSlot>=0)home.parkingSlots[oldSlot]=null;
 assert(sample.routine.advance>before,'late work arrivals must shift future departures earlier');
 assert(game.planForDay(sample,2).leave<game.planForDay({...sample,routine:{...sample.routine,advance:before}},2).leave,'later mornings must adapt');
 // After work: one citizen goes directly home, another chooses a service.
