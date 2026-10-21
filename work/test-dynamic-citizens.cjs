@@ -58,7 +58,7 @@ assert(game.planForDay(sample,2).leave<game.planForDay({...sample,routine:{...sa
 sample.dailyPlan={...sample.dailyPlan,day:1,kind:null,end:1040,postDelay:7};
 game.state.time=1440+1100;
 game.runAction(sample,'afterWork',{day:1});
-assert(game.state.vehicles.get(sample.vehicleId)?.kind==='home','some citizens must go straight home after work');
+assert(game.state.vehicles.get(sample.vehicleId)?.kind==='home'||sample.pending?.action==='home','some citizens must choose home after work even if no valid road route exists');
 // A full destination leads to an alternate type or a delayed retry, not
 // endless frame-by-frame decisions.
 const second=game.state.citizens.get(citizens[1].id);
