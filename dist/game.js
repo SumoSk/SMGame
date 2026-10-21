@@ -677,7 +677,7 @@ function updateRouteWarnings(){
 }
 function updatePlaceLabels(){
  if(typeof document.createElement!=='function')return;
- if(!placeLabelLayer){placeLabelLayer=document.createElement('div');placeLabelLayer.id='buildingLabels';placeLabelLayer.setAttribute('aria-label','สถานที่และจำนวนรถ');Object.assign(placeLabelLayer.style,{position:'absolute',inset:'0',pointerEvents:'none',overflow:'hidden'});canvas.insertAdjacentElement('afterend',placeLabelLayer);}
+ if(!placeLabelLayer){placeLabelLayer=document.createElement('div');placeLabelLayer.id='buildingLabels';placeLabelLayer.setAttribute('aria-label','สถานที่และจำนวนรถที่กำลังมา');Object.assign(placeLabelLayer.style,{position:'absolute',inset:'0',pointerEvents:'none',overflow:'hidden'});canvas.insertAdjacentElement('afterend',placeLabelLayer);}
  if(placeLabelState!==state){placeLabelLayer.replaceChildren();placeLabels.clear();routeWarningMarkers.clear();placeLabelState=state;placeLabelAt=0;}
  const now=Date.now(),refresh=now-placeLabelAt>300||placeLabels.size!==state.buildings.size;
  if(refresh){placeLabelCounts=new Map();for(const v of state.vehicles.values())if(v.toId!=null)placeLabelCounts.set(v.toId,(placeLabelCounts.get(v.toId)||0)+1);placeLabelAt=now;}
@@ -686,23 +686,19 @@ function updatePlaceLabels(){
   const t=CATALOG[b.key],height=renderer3d?(t.kind==='office'?t.size*1.15+.7:t.kind==='park'?.65:t.kind==='home'?t.size*.62+1.2:t.size*.55+1)*18:(t.kind==='office'?t.size*8:t.kind==='park'?6:t.kind==='home'?t.size*4+11:t.size*3.5+7);
   const model=lotModel(b),p=screen(model.x+t.size/2,model.y+t.size/2,height);let label=placeLabels.get(b.id);
   if(!label){
-   const element=document.createElement('div'),info=document.createElement('span'),name=document.createElement('strong'),counts=document.createElement('span'),gauges=document.createElement('span'),fills={};
-   Object.assign(element.style,{position:'absolute',transform:'translate(-50%,-100%)',display:'flex',alignItems:'center',gap:'5px',padding:'3px 6px',borderRadius:'6px',background:'#f8fcf4ed',border:'1px solid #d6e1ce',boxShadow:'0 2px 6px #173f3d20',color:'#173f3d',font:'9px/1.45 "Noto Sans Thai",Tahoma,sans-serif',whiteSpace:'nowrap',textAlign:'center'});
-   Object.assign(name.style,{display:'block',fontWeight:'600'});counts.style.display='block';info.append(name,counts);
-   gauges.className='place-label-gauges';gauges.setAttribute('aria-hidden','true');
-   for(const key of ['traveling','used','capacity']){
-    const tube=document.createElement('span'),fill=document.createElement('i');tube.className='place-gauge-track';tube.setAttribute('data-gauge',key);fill.className='place-gauge-fill';tube.append(fill);gauges.append(tube);fills[key]=fill;
-   }
-   element.append(info,gauges);placeLabelLayer.append(element);label={element,name,counts,gauges,fills};placeLabels.set(b.id,label);
+   const element=document.createElement('div'),name=document.createElement('strong'),counts=document.createElement('span');
+   element.className='place-building-label';
+   Object.assign(element.style,{position:'absolute',transform:'translate(-50%,-100%)',pointerEvents:'none'});
+   name.className='place-building-name';counts.className='place-building-arrivals';
+   element.append(name,counts);placeLabelLayer.append(element);
+   label={element,name,counts};placeLabels.set(b.id,label);
   }
   const visible=p[0]>-40&&p[0]<view.w+40&&p[1]>65&&p[1]<view.h-95;label.element.hidden=!visible;if(!visible)continue;
-  label.element.style.left=p[0]+'px';label.element.style.top=(p[1]-5)+'px';
-  label.gauges.style.display=cam.z<.72?'none':'flex';
+  label.element.style.left=p[0]+'px';label.element.style.top=(p[1]-4)+'px';
   if(refresh||!label.name.textContent){
-   const traffic=buildingTraffic(b,placeLabelCounts),metrics=buildingGaugeMetrics(b,traffic.approaching);
-   label.name.textContent=traffic.name;label.counts.textContent=traffic.approaching+'/'+traffic.parked+'/'+traffic.max;
-   label.element.setAttribute('aria-label',traffic.name+' กำลังมา '+traffic.approaching+' คัน จอด '+traffic.parked+' คัน สูงสุด '+traffic.max+' คัน · กำลังไป '+metrics.traveling.value+' คน อยู่ '+metrics.used.value+' คน รับได้ '+metrics.capacity.value+' คน');
-   for(const key of ['traveling','used','capacity'])label.fills[key].style.clipPath='inset('+(100-metrics[key].pct)+'% 0 0 0)';
+   const traffic=buildingTraffic(b,placeLabelCounts);
+   label.name.textContent=traffic.name;label.counts.textContent='กำลังมา '+traffic.approaching;
+   label.element.setAttribute('aria-label',traffic.name+' กำลังมา '+traffic.approaching+' คัน');
   }
  }
 }
