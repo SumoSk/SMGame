@@ -697,8 +697,8 @@ function updatePlaceLabels(){
   label.element.style.left=p[0]+'px';label.element.style.top=(p[1]-4)+'px';
   if(refresh||!label.name.textContent){
    const traffic=buildingTraffic(b,placeLabelCounts);
-   label.name.textContent=traffic.name;label.counts.textContent='กำลังมา '+traffic.approaching;
-   label.element.setAttribute('aria-label',traffic.name+' กำลังมา '+traffic.approaching+' คัน');
+   label.name.textContent=traffic.name;label.counts.textContent=traffic.approaching+' / '+traffic.parked+' / '+traffic.max;
+   label.element.setAttribute('aria-label',traffic.name+' กำลังมา '+traffic.approaching+' คัน จอดอยู่ '+traffic.parked+' คัน ความจุ '+traffic.max+' คัน');
   }
  }
 }
