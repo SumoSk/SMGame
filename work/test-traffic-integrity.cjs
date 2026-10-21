@@ -54,4 +54,40 @@ assert.equal(car.fromId,null);
 assert(!home.parked.has(citizen.id),'old building must release the departing resident car');
 assert(!home.parkingSlots.includes(citizen.id),'old parking bay must be released after recovery');
 assert(game.state.vehicles.has(car.id),'recovery must not delete the journey');
-console.log(JSON.stringify({passed:true,plotRotations:plots,parkedPoseChecks:stalls,distributedParkingTypes:types.length,coverage:['all parking footprints and parked-body overlaps','balanced parking banks','rounded parking steering','long-wait recovery preserves trip and frees old bay']}));
+// Dense opposing-flow scenario for every compact model that previously looked broken.
+let laneCollisionChecks=0;
+for(const type of types){
+ game.reset();game.state.money=1e8;
+ const origin=game.buildBuilding('home_large',160,148-game.CATALOG.home_large.plotHeight,true);
+ const destination=game.buildBuilding(type,180,148-game.CATALOG[type].plotHeight,true);
+ assert(origin&&destination,'missing parking access: '+type);
+ const citizens=[];
+ for(let i=0;i<10;i++){
+  const c=game.newCitizen(origin);citizens.push(c);
+  assert(game.createTrip(c,'moveIn',null,origin.id,game.id(155,150),null,null));
+ }
+ const advance=(n)=>{
+  for(let i=0;i<n;i++){
+   game.state.time+=.04;game.advanceVehicles(.05,.04);
+   if(i%5===0){
+    const moving=[...game.state.vehicles.values()].filter(v=>v.lotPath);
+    for(let a=0;a<moving.length;a++)for(let b=0;b<a;b++){
+     if(moving[a].lotBuilding!==moving[b].lotBuilding)continue;
+     laneCollisionChecks++;
+     assert(!game.lotCarsOverlap(game.parkingPose(moving[a]),game.parkingPose(moving[b]),0),'parking vehicles overlap at '+type);
+    }
+   }
+  }
+ };
+ advance(5000);assert.equal(origin.parked.size,10,'initial cars not parked: '+type);
+ for(const c of citizens)assert(game.createTrip(c,'work',origin.id,destination.id,null,null,null));
+ for(let i=0;i<20;i++){
+  const c=game.newCitizen(origin);
+  assert(game.createTrip(c,'moveIn',null,origin.id,game.id(155,150),null,null));
+ }
+ advance(12000);
+ assert.equal(game.state.vehicles.size,0,'parking gridlock for '+type);
+ assert.equal(destination.parked.size,10,'departures stalled for '+type);
+ assert.equal(origin.parked.size,20,'inbound traffic stalled for '+type);
+}
+console.log(JSON.stringify({passed:true,mixedModels:types.length,trafficPairChecks:laneCollisionChecks,plotRotations:plots,parkedPoseChecks:stalls,distributedParkingTypes:types.length,coverage:['all parking footprints and parked-body overlaps','balanced parking banks','rounded parking steering','long-wait recovery preserves trip and frees old bay']}));
