@@ -353,12 +353,10 @@ function updateTrackingOverlay(){
   if(!['driving','stuck'].includes(v.phase))continue;
   const pose=vehiclePosition(v);if(!pose)continue;
   visible.add(v.id);let item=trackingNodes.get(v.id);
-  if(!item){const group=document.createElementNS(ns,'g'),path=document.createElementNS(ns,'polyline'),end=document.createElementNS(ns,'circle'),label=document.createElementNS(ns,'text');path.setAttribute('fill','none');path.setAttribute('stroke-linejoin','round');path.setAttribute('stroke-linecap','round');end.setAttribute('r','4');end.setAttribute('stroke','#103b39');label.setAttribute('font-size','11');label.setAttribute('font-family','Tahoma, sans-serif');label.setAttribute('paint-order','stroke');label.setAttribute('stroke','#103b39');label.setAttribute('stroke-width','3');label.setAttribute('stroke-linejoin','round');group.append(path,end,label);trackingLayer.appendChild(group);item={group,path,end,label};trackingNodes.set(v.id,item);}
+  if(!item){const group=document.createElementNS(ns,'g'),path=document.createElementNS(ns,'polyline');path.setAttribute('fill','none');path.setAttribute('stroke-linejoin','round');path.setAttribute('stroke-linecap','round');group.append(path);trackingLayer.appendChild(group);item={group,path};trackingNodes.set(v.id,item);}
   const focused=selected?.kind==='vehicle'&&selected.id===v.id,color=focused?'#ffffff':`hsl(${(v.id*137.508)%360} 95% 72%)`,project=p=>screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0));
-  const points=trackingRoute(v).map(project),position=project(pose);
+  const points=trackingRoute(v).map(project);
   item.path.setAttribute('points',points.map(p=>p.join(',')).join(' '));item.path.setAttribute('stroke',color);item.path.setAttribute('stroke-width',focused?'3':'1.5');item.path.setAttribute('opacity',focused?'1':'.65');
-  const end=points.at(-1);item.end.style.display=end?'':'none';if(end){item.end.setAttribute('cx',end[0]);item.end.setAttribute('cy',end[1]);item.end.setAttribute('fill',color);}
-  item.label.setAttribute('x',position[0]+8);item.label.setAttribute('y',position[1]-10);item.label.setAttribute('fill',color);item.label.textContent=`#${v.id} → ${trackingDestination(v)}${v.stopReason?' · '+v.stopReason:points.length?'':' · ไม่มีเส้นทางที่แสดงได้'}`;
   if(focused)trackingLayer.appendChild(item.group);
  }
  for(const [id,item] of trackingNodes)if(!visible.has(id)){item.group.remove();trackingNodes.delete(id);}
@@ -1067,3 +1065,4 @@ if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContex
 if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();reset();requestAnimationFrame(frame);
 })();
+
