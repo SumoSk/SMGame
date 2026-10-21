@@ -37,13 +37,66 @@ function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return 
 function citizenCarColor(id){return ['#f0e8c7','#e5a861','#719ca5','#afc5a2','#bc8fa5','#c8c8c0'][Math.abs(id)%6];}
 function parkingSpace(b,cid,allocate=false){
  if(!b.parkingSlots)b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);
- let index=b.parkingSlots.indexOf(cid);if(index<0&&allocate){index=b.parkingSlots.indexOf(null);if(index>=0)b.parkingSlots[index]=cid;}return index;
+ let index=b.parkingSlots.indexOf(cid);
+ if(index<0&&allocate){
+  const t=CATALOG[b.key],bankCount=Array(t.parkingRows).fill(0),bankCapacity=Array(t.parkingRows).fill(0);
+  for(let i=0;i<b.parkingSlots.length;i++){
+   const bank=Math.floor(i/(2*t.parkingColumns));
+   bankCapacity[bank]++;
+   if(b.parkingSlots[i]!==null)bankCount[bank]++;
+  }
+  // Balance parking across banks and stagger columns, instead of filling the
+  // first row completely and blocking the next arrival's only approach aisle.
+  let best=Infinity;
+  const seed=((Math.imul(Number(cid)||0,2654435761)>>>0)%65536)/65536;
+  for(let i=0;i<b.parkingSlots.length;i++){
+   if(b.parkingSlots[i]!==null)continue;
+   const bank=Math.floor(i/(2*t.parkingColumns)),col=i%t.parkingColumns;
+   const occupancy=bankCount[bank]/Math.max(1,bankCapacity[bank]);
+   const spread=Math.abs((col+.5)/t.parkingColumns-seed);
+   const score=occupancy*100+spread*3+bank*.01;
+   if(score<best){best=score;index=i;}
+  }
+  if(index>=0)b.parkingSlots[index]=cid;
+ }
+ return index;
 }
 function freeParkingSpace(b,cid){if(!b?.parkingSlots)return;const i=b.parkingSlots.indexOf(cid);if(i>=0)b.parkingSlots[i]=null;}
 function parkingFree(b){let incoming=0;for(const v of state.vehicles.values())if(v.toId===b.id&&v.citizenId)incoming++;return Math.max(0,CATALOG[b.key].parkingCapacity-b.parked.size-incoming);}
 function parkingIsMoving(cid){const c=state.citizens.get(cid),v=state.vehicles.get(c?.vehicleId);return !!v?.lotPath;}
 function parkingPose(v){if(!v.lotPath)return null;return lotPathPose(v.lotPath,v.lotDistance||0);}
-function lotPathPose(points,distance){let d=Math.max(0,distance);for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],length=Math.hypot(b.x-a.x,b.y-a.y);if(d<=length||i===points.length-1){const t=length?Math.min(1,d/length):1;return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,angle:Math.atan2((b.y-a.y)*.78,b.x-a.x)};}d-=length;}return{...points[0],angle:0};}
+function lotPathPose(points,distance){
+ let d=Math.max(0,distance);
+ const curve=(a,b,c,t)=>{
+  const u=1-t,x=u*u*a.x+2*u*t*b.x+t*t*c.x,y=u*u*a.y+2*u*t*b.y+t*t*c.y;
+  const dx=u*(b.x-a.x)+t*(c.x-b.x),dy=u*(b.y-a.y)+t*(c.y-b.y);
+  return{x,y,angle:Math.atan2(dy*.78,dx)};
+ };
+ const bend=(a,b,c)=>{
+  const x=b.x-a.x,y=b.y-a.y,p=c.x-b.x,q=c.y-b.y,la=Math.hypot(x,y),lb=Math.hypot(p,q);
+  if(la<.12||lb<.12||Math.abs(x*q-y*p)<.08*la*lb)return null;
+  return{r:Math.min(.14,la*.25,lb*.25),ux:x/la,uy:y/la,vx:p/lb,vy:q/lb};
+ };
+ for(let i=1;i<points.length;i++){
+  const a=points[i-1],b=points[i],len=Math.hypot(b.x-a.x,b.y-a.y);
+  const prev=i>1?bend(points[i-2],a,b):null;
+  const next=i+1<points.length?bend(a,b,points[i+1]):null;
+  if(prev&&d<=prev.r){
+   const r=prev.r,p={x:a.x-prev.ux*r,y:a.y-prev.uy*r},q={x:a.x+prev.vx*r,y:a.y+prev.vy*r};
+   return curve(p,a,q,Math.max(0,Math.min(1,(d+r)/(2*r))));
+  }
+  if(d<=len||i===points.length-1){
+   if(next&&d>=len-next.r){
+    const r=next.r,p={x:b.x-next.ux*r,y:b.y-next.uy*r},q={x:b.x+next.vx*r,y:b.y+next.vy*r};
+    return curve(p,b,q,Math.max(0,Math.min(1,(d-(len-r))/(2*r))));
+   }
+   const t=len?Math.max(0,Math.min(1,d/len)):1;
+   return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,angle:Math.atan2((b.y-a.y)*.78,b.x-a.x)};
+  }
+  d-=len;
+ }
+ return{...points[0],angle:0};
+}
 function lotPathLength(points){let n=0;for(let i=1;i<points.length;i++)n+=Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y);return n;}
 // Each car occupies its physical space; unrelated aisles remain free.
 function lotCarsOverlap(a,b,margin=.035){
