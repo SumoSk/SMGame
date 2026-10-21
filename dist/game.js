@@ -1038,10 +1038,11 @@ function physicalTrafficLimit(v,plan,s,lookahead){
  return Infinity;
 }
 function motionBarrier(v,plan,s,budget=-1){
- const physical=physicalTrafficLimit(v,plan,s,Math.min(3,Math.max(.8,(v.speed||0)*(v.speed||0)/9.6+.3,budget>=0?budget+.1:0)));
- let limit=physical,reason=Number.isFinite(physical)?'เว้นระยะรถ':'';
+ const ghost=v.mergeGhostUntil!=null&&s<v.mergeGhostUntil-1e-8;
+ const physical=ghost?Infinity:physicalTrafficLimit(v,plan,s,Math.min(3,Math.max(.8,(v.speed||0)*(v.speed||0)/9.6+.3,budget>=0?budget+.1:0)));
+ let limit=ghost?v.mergeGhostUntil:physical,reason=ghost?'ผ่านปากทางลานจอดต่อเนื่อง':Number.isFinite(physical)?'เว้นระยะรถ':'';
  const nextPos=v.pos+1;
- if(nextPos<v.path.length&&!cellAvailable(v.path[nextPos],motionDirection(v.path,nextPos),plannedLane(v,nextPos),v.id)){
+ if(!ghost&&nextPos<v.path.length&&!cellAvailable(v.path[nextPos],motionDirection(v.path,nextPos),plannedLane(v,nextPos),v.id)){
   const cellLimit=Math.max(s,plan.nodes[nextPos]-TRAFFIC_RULES.vehicleHalfLength*2-.08);if(cellLimit<limit){limit=cellLimit;reason='รถคันหน้าขวาง';}
  }
  const lookahead=Math.max(4,(v.speed||0)*(v.speed||0)/9.6+1,budget>=0?budget+.5:0);
@@ -1237,6 +1238,13 @@ function advanceVehicles(realDt,gameDt){
   if(v.routeCheckedVersion!==state.version){v.routeCheckedVersion=state.version;if(!remainingRouteValid(v)){strandVehicle(v,'เส้นทางเดิมขาด');continue;}}
   if(v.pos+1>=v.path.length){arrive(v);continue;}
   if(emergencyAlerts.length)emergencyRightReroute(v,emergencyAlerts);
+  if(v.mergeGhostUntil!=null&&motionDistance(v)>=v.mergeGhostUntil-1e-8)v.mergeGhostUntil=null;
+  // Claim road cell only if free. A ghosting merge must not displace the car
+  // whose logical occupancy was already registered there.
+  if(!v.occKey&&state.roads.has(v.path[v.pos])){
+   const d=motionDirection(v.path,v.pos),lane=plannedLane(v,v.pos),key=occKey(v.path[v.pos],d,lane);
+   if(!state.occ.has(key)&&!state.reservations.has(key))occupy(v,v.pos);
+  }
   const plan=motionPlan(v),initial=motionDistance(v,plan),type=ROADS[state.roads.get(v.path[v.pos]).type];
   let s=initial;refreshMotionReservations(v,plan,s);
   const barrier=motionBarrier(v,plan,s),braking=4.8,acceleration=2.8;
@@ -1257,10 +1265,15 @@ function advanceVehicles(realDt,gameDt){
    if(step>0){s+=step;budget-=step;v.progress=Math.min(1,(s-plan.nodes[v.pos])/Math.max(1e-10,end-plan.nodes[v.pos]));}
    if(s>=end-1e-9){
     const nextPos=v.pos+1,d=motionDirection(v.path,nextPos),lane=plannedLane(v,nextPos);
-    if(!cellAvailable(v.path[nextPos],d,lane,v.id)){blocked=gate.reason||'รถคันหน้าขวาง';v.speed=0;break;}
-    // Keep intersection leases until the rear of the car has cleared the whole
-    // connector. Carry unused travel distance into the next road segment.
-    release(v,true);v.pos=nextPos;v.progress=0;occupy(v,v.pos);transitions++;
+    const ghost=v.mergeGhostUntil!=null&&s<=v.mergeGhostUntil+1e-8&&junction(v.path[nextPos])<3;
+    if(!ghost&&!cellAvailable(v.path[nextPos],d,lane,v.id)){blocked=gate.reason||'รถคันหน้าขวาง';v.speed=0;break;}
+    // Do not overwrite an occupied lane while passing through stalled traffic.
+    // In arcade merge mode the car proceeds physically and becomes registered
+    // on the first unclaimed road cell.
+    release(v,true);v.pos=nextPos;v.progress=0;
+    const roadKey=occKey(v.path[nextPos],d,lane);
+    if(!state.occ.has(roadKey)&&!state.reservations.has(roadKey))occupy(v,v.pos);
+    transitions++;
     state.roads.get(v.path[v.pos]).load=Math.min(1.2,state.roads.get(v.path[v.pos]).load+.15);
     refreshMotionReservations(v,plan,s);
     if(v.pos===v.path.length-1){arrive(v);break;}
