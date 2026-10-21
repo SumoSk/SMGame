@@ -174,7 +174,7 @@ export class TrafficRenderer{
    let tint=base,intensity=0;
    if(role==='asphalt'||role==='night-asphalt'){intensity=.42;tint=base||'#56666a';}
    else if(role==='marking'||role==='road-marking'||role==='night-marking'){intensity=.68;tint=base||'#f4edd8';}
-   else if(role==='night-lot-base'){intensity=.20;tint=base||'#bdc6ae';}
+   else if(role==='lot-base'||role==='night-lot-base'){intensity=.20;tint=base||'#bdc6ae';}
    if(intensity){mesh.material.emissive.set(tint);mesh.material.emissiveIntensity=night*intensity;}
   });
   for(const set of this.carSets.values()){
