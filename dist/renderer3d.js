@@ -532,6 +532,163 @@ export class TrafficRenderer{
    }
    if(tier>=2)block('#83a2a1',cx,H+.55,cz-depth*.18,mainW*.47,.31,depth*.37,'glass');
   }
+  // Four-sided architecture pass: decorated rear elevations and side facades.
+  // All details are in plot-local coordinates, so every rotation gets the
+  // same treatment. The earlier build only decorated the front (+v) face.
+  const rear=cz-depth*.5-.055;
+  const windowBands=kind==='office'?Math.max(3,Math.floor(H/.64)):
+   kind==='home'?tier:kind==='mall'?tier:kind==='factory'?1:
+   tier===3?2:1;
+  const rearBayCount=Math.min(kind==='office'?16:kind==='factory'?12:20,
+    Math.max(2,Math.ceil(mainW/(kind==='factory'?1.72:kind==='mall'?1.13:.85))));
+  const baySpacing=mainW*.89/rearBayCount;
+  const rearGlass=kind==='pub'?'#4c5b7d':kind==='home'?'#567989':
+   kind==='office'||kind==='mall'?'#427689':'#426b73';
+  // Full-width horizontal belting ensures the silhouette is recognisable
+  // from behind; concrete remains a secondary material, not the full wall.
+  block(accent,cx,H*.82+.18,rear-.045,mainW*.96,.12,.105,'metal');
+  block('#d3dfda',cx,.40,rear-.052,mainW*.94,.10,.115,'stone');
+  for(let floor=0;floor<windowBands;floor++){
+   const yy=kind==='office'?.58+floor*.63:
+    kind==='home'?.75+floor*.72:
+    kind==='mall'?.76+floor*.54:.79+floor*.70;
+   if(yy>H+.12)continue;
+   if(floor>0)block(kind==='pub'?'#9282a6':'#bdccc6',cx,yy-.32,rear-.06,
+     mainW*.90,.045,.10,'metal');
+   for(let i=0;i<rearBayCount;i++){
+    const x=cx-mainW*.445+(i+.5)*baySpacing;
+    const width=Math.min(kind==='factory'?.90:.67,baySpacing*.77);
+    const lit=hash(id*1.29+x*2.1,floor+31)>.48;
+    // Industrial and retail rear doors alternate with skylit sections;
+    // housing, offices and malls get real translucent window bays.
+    if(kind==='factory'&&floor===0&&i%3===0){
+     block('#59747a',x,.85,rear-.057,width,1.05,.09,'metal');
+     for(let k=0;k<4;k++)block('#a6b8b5',x,.47+k*.23,rear-.11,width*.94,.026,.029,'metal');
+    }else{
+     block('#e3e8e0',x,yy,rear-.04,width+.07,.49,.072,'stone');
+     block(rearGlass,x,yy,rear-.086,width,.42,.045,'glass');
+     block('#a6cbd0',x,yy+.15,rear-.113,width*.80,.035,.022,'glass');
+     block('#d8e2df',x,yy,rear-.117,.022,.44,.018,'metal');
+     if(lit)block(kind==='pub'?'#de9ee8':'#ffddaf',x,yy-.09,rear-.120,
+      width*.68,.20,.012,'glass',true);
+    }
+   }
+  }
+  // Local side-facing glazing: use d along the depth rather than w.
+  // This gives true perpendicular panes when any plot is rotated.
+  const sideRows=kind==='office'?Math.max(3,Math.floor(H/.63)):
+   kind==='home'?tier:kind==='mall'?tier:1;
+  const sideBays=Math.max(2,Math.min(5,Math.floor(depth/.62)+1));
+  for(const sign of [-1,1]){
+   const sideX=cx+sign*(mainW*.5+.044);
+   const wallColor=kind==='pub'?'#7b78a2':kind==='factory'?'#95a9a7':
+    kind==='home'?'#b69f86':accent;
+   block(wallColor,sideX,H*.54+.17,cz,.095,H*.72,depth*.81,
+    kind==='home'?'wood':'metal');
+   block('#e5e9df',sideX,H+.21,cz,.16,.095,depth+.08,'stone');
+   for(let i=0;i<sideBays;i++){
+    const v=cz-depth*.39+(i+.5)*depth*.78/sideBays;
+    for(let level=0;level<sideRows;level++){
+     const yy=kind==='office'?.55+level*.63:.76+level*.70;
+     if(yy>H+.05)continue;
+     if(kind==='factory'&&i%2===0){
+      block('#536e7a',sideX+sign*.054,.78,v,.065,.73,
+       Math.min(.39,depth*.62/sideBays),'metal');
+      continue;
+     }
+     const width=Math.min(.48,depth*.70/sideBays);
+     block('#dae4df',sideX+sign*.06,yy,v,.075,.44,width+.075,'stone');
+     block(kind==='pub'?'#4f5783':'#356779',sideX+sign*.110,yy,v,
+       .05,.36,width,'glass');
+     if(hash(v+id*.67,level+sign*17)>.46)
+      block(kind==='pub'?'#d49ee8':'#ffe0ab',
+       sideX+sign*.147,yy-.09,v,.014,.18,width*.68,'glass',true);
+    }
+   }
+   // Side entrance recess, shadow-casting canopy, and facade fins.
+   block(accent,sideX+sign*.065,.43,cz,.16,.12,depth*.83,'stone');
+   if(kind==='home'&&tier>=2||kind==='restaurant'||kind==='pub'){
+    block(kind==='pub'?'#8b79ac':'#bba88c',
+      sideX+sign*.12,1.23,cz,.23,.09,Math.min(1.14,depth*.66),
+      kind==='pub'?'metal':'wood');
+   }
+  }
+  // The outer wing walls, not the inner central core, are the visible sides
+  // of larger buildings. Wrap these extensions in matching material language.
+  if(tier>=2){
+   const wingWidth=Math.min(span*.22,Math.max(.76,s*.47));
+   for(const sign of [-1,1]){
+    const wingX=cx+sign*(span*.43-wingWidth*.40);
+    const wingSide=wingX+sign*(wingWidth*.5+.055);
+    const wingBack=cz-depth*.065-depth*.41-.055;
+    const trim=kind==='home'?'#c4aa88':kind==='pub'?'#9780b4':
+     kind==='factory'?'#95aaa9':'#9bbac0';
+    block(trim,wingSide,H*.42+.18,cz-depth*.065,.10,H*.58,depth*.64,
+      kind==='home'?'wood':'metal');
+    block('#e0e5de',wingSide,H*.73+.35,cz-depth*.065,.15,.09,depth*.77,'stone');
+    for(let i=0;i<2;i++){
+     const v=cz-depth*.34+i*depth*.39;
+     const y=H*.46+.17;
+     block('#355f70',wingSide+sign*.062,y,v,.05,.40,depth*.21,'glass');
+     block(kind==='pub'?'#ce97e5':'#ffd8a8',
+      wingSide+sign*.097,y-.075,v,.014,.20,depth*.15,'glass',true);
+    }
+    block(accent,wingX,H*.44+.18,wingBack,wingWidth*.85,H*.58,.08,'stone');
+    block('#376a79',wingX,.77,wingBack-.052,wingWidth*.49,.45,.045,'glass');
+    if(kind==='home')block('#bb9976',wingX,1.24,wingBack-.075,
+      wingWidth*.65,.07,.17,'wood');
+    if(kind==='pub')block('#c99de8',wingX,H*.65,wingBack-.084,
+      wingWidth*.61,.13,.045,'glass',true);
+   }
+  }
+  // Tier-specific back detailing makes the back as recognisable as the front.
+  if(kind==='home'){
+   if(tier>=2){
+    block('#c7b89f',cx+mainW*.16,1.31,rear-.20,mainW*.36,.13,.38,'wood');
+    block('#97b5b8',cx+mainW*.16,1.66,rear-.31,mainW*.34,.055,.04,'glass');
+    for(const sign of [-1,1])block('#e4e1d8',
+     cx+mainW*.16+sign*mainW*.16,1.46,rear-.29,.04,.30,.04,'metal');
+   }
+   if(tier===3){
+    block('#ac987f',cx-mainW*.27,H*.54,rear-.16,mainW*.18,H*.62,.12,'wood');
+    block('#6c9eaf',cx-mainW*.17,H*.78,rear-.075,mainW*.20,.56,.075,'glass');
+    block('#ffdbac',cx-mainW*.17,H*.77,rear-.122,mainW*.13,.22,.013,'glass',true);
+   }
+  }else if(kind==='mall'){
+   block('#759d9e',cx,H*.73,rear-.14,mainW*.50,.12,.15,'metal');
+   block('#ffdcaa',cx,H*.71,rear-.22,mainW*.39,.045,.013,'glass',true);
+   block('#dce6e0',cx,H+.47,cz-depth*.20,mainW*.45,.075,depth*.30,'stone');
+   if(tier>=2)for(const sign of [-1,1])
+    block('#b5d2d6',cx+sign*mainW*.32,1.10,rear-.11,mainW*.13,.70,.045,'glass');
+  }else if(kind==='office'){
+   // Wrap the glass curtain wall around the whole tower perimeter.
+   for(let level=0;level<windowBands;level++){
+    const yy=.55+level*.63;
+    if(yy>H+.10)continue;
+    block('#b2d3d7',cx,yy+.25,rear-.16,mainW*.95,.065,.09,'metal');
+   }
+  }else if(kind==='factory'){
+   const doors=Math.min(10,Math.max(2,Math.ceil(mainW/4)));
+   for(let i=0;i<doors;i++){
+    const x=cx-mainW*.42+(i+.5)*mainW*.84/doors;
+    block('#566a71',x,.67,rear-.19,Math.min(1.25,mainW*.66/doors),
+      .77,.06,'metal');
+    block('#c8d3ce',x,1.12,rear-.13,Math.min(1.31,mainW*.72/doors),.08,.14,'stone');
+   }
+  }else if(kind==='pub'){
+   for(let x=cx-mainW*.41;x<cx+mainW*.41;x+=1.47){
+    block(x<cx?'#bc88d6':'#75bfd1',x,1.31,rear-.16,
+     .12,.83,.11,'glass',true);
+   }
+   block('#9b86bd',cx,H+.49,rear-.12,mainW*.71,.15,.16,'metal',true);
+  }else if(kind==='restaurant'){
+   block('#bb906d',cx,1.20,rear-.21,mainW*.72,.12,.40,'wood');
+   block('#ffdfa9',cx,1.15,rear-.26,mainW*.64,.045,.05,'glass',true);
+   block('#bfac8a',cx,.28,rear-.23,mainW*.66,.08,.36,'wood');
+  }else{
+   block('#ab865e',cx,1.29,rear-.21,mainW*.78,.13,.24,'wood');
+   block('#dbe4dc',cx,1.20,rear-.23,mainW*.63,.05,.09,'metal');
+  }
   const lamps=Math.min(15,Math.max(2,Math.floor(W/7)));
   for(let i=0;i<lamps;i++){
    const x=.75+(W-1.5)*(i+.5)/lamps;
