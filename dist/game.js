@@ -13,13 +13,13 @@ const CATALOG={};
 const catalogData={home:[[2,6000,20,2],[3,35000,100,10],[4,130000,350,30]],shop:[[2,8000,100,0,3,12],[3,24000,250,0,8,35],[4,70000,650,0,18,80]],restaurant:[[3,12000,180,0,5,18],[4,35000,450,0,14,50],[5,85000,900,0,30,95]],mall:[[4,45000,450,0,12,45],[5,95000,1100,0,30,100],[6,190000,2300,0,65,180]],office:[[3,18000,250,0,18],[4,60000,700,0,50],[5,120000,1300,0,90]],factory:[[4,22000,450,0,25],[5,70000,1300,0,65],[6,140000,2400,0,110]],park:[[3,6000,40,0,1,20],[4,18000,140,0,3,60],[5,45000,350,0,8,130]],pub:[[3,14000,200,0,5,18],[4,38000,550,0,13,45],[5,85000,1200,0,28,85]]};
 for(const [kind,rows] of Object.entries(catalogData))rows.forEach((r,i)=>{const key=kind+'_'+['small','medium','large'][i];CATALOG[key]={key,kind,name:KINDS[kind].name+['เล็ก','กลาง','ใหญ่'][i],size:r[0],cost:r[1],maint:r[2],residents:r[3]||0,jobs:r[4]||0,service:r[5]||0};});
 // Parking is part of every plot. Spaces are assigned automatically on entry.
-const PARKING_VERSION=3,LOT_SPEED=.85;
+const PARKING_VERSION=4,LOT_SPEED=.85;
 for(const t of Object.values(CATALOG)){
  t.parkingCapacity=t.residents||t.jobs+t.service;
  t.parkingColumns=t.parkingCapacity<=40?Math.ceil(t.parkingCapacity/2):Math.ceil(Math.sqrt(t.parkingCapacity*3.4));
  t.parkingRows=Math.ceil(t.parkingCapacity/(2*t.parkingColumns));
  t.plotWidth=Math.ceil(Math.max(t.size+1,t.parkingColumns*.38+2));
- t.plotHeight=Math.ceil(t.size+.3+t.parkingRows*2.5+2.5);
+ t.plotHeight=Math.ceil(t.size+.3+t.parkingRows*2.5+.35);
 }
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
 function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
@@ -129,13 +129,11 @@ function parkingVisuals(b){const t=CATALOG[b.key],rects=[];const rect=(u,v,w,h,c
   for(let x=1.2;x<t.plotWidth-1;x+=1.2)rect(x,aisle,.42,.025,'#b4c3b5');
  }
  for(const s of lotSlots(b)){rect(s.u-.19,s.v,.022,.8,'#e9e6cc');rect(s.u+.19,s.v,.022,.8,'#e9e6cc');rect(s.u,s.v+(s.row?.4:-.4),.38,.022,'#e9e6cc');}
- // Mark the one-way spines and the real holding area, outside all parking bays.
- for(let y=t.size+1;y<t.plotHeight-1;y+=1.1)for(const u of [.45,t.plotWidth-.45])rect(u,y,.025,.38,'#b4c3b5');
- const holding=t.size+.3+t.parkingRows*2.5;
- rect(t.plotWidth/2,holding+.15,t.plotWidth-1.6,.035,'#e9e6cc');
- for(const [u,sign] of [[.45,-1],[t.plotWidth-.45,1]])for(let y=holding+.5;y<t.plotHeight-.3;y+=.8){
-  rect(u,y,.035,.3,'#e9e6cc');rect(u-.07,y+sign*.09,.025,.1,'#e9e6cc');rect(u+.07,y+sign*.09,.025,.1,'#e9e6cc');
- }
+ // Mark one-way access lanes inside the compact lot; there is no separate entry apron.
+ for(let y=t.size+1;y<t.plotHeight-.4;y+=1.1)for(const u of [.45,t.plotWidth-.45])rect(u,y,.025,.32,'#b4c3b5');
+ // Planted curbs frame the direct street entrance without expanding its footprint.
+ const driveTop=t.size+.3,driveBottom=t.plotHeight;
+ for(const u of [.13,t.plotWidth-.13])rect(u,(driveTop+driveBottom)/2,.12,driveBottom-driveTop-.1,'#9eaf9e');
  // Separate green entrance and warm exit, with directional arrows.
  for(const [u,color,sign]of[[.45,'#a8d9ad',-1],[t.plotWidth-.45,'#f3cb85',1]]){
   rect(u,t.plotHeight-.65,.035,.48,color);rect(u-.08,t.plotHeight-.65+sign*.12,.025,.13,color);rect(u+.08,t.plotHeight-.65+sign*.12,.025,.13,color);
