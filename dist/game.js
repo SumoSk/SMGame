@@ -936,7 +936,25 @@ function queueAllows(v,pos,connector){
  return true;
 }
 function signalRequired(node){return junction(node)>=3;}
-function junctionExitAvailable(v,pos){for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionLookahead);k++)if(!cellAvailable(v.path[k],motionDirection(v.path,k),plannedLane(v,k),v.id))return false;return true;}
+function junctionExitAvailable(v,pos){
+ for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionLookahead);k++)
+  if(!cellAvailable(v.path[k],motionDirection(v.path,k),plannedLane(v,k),v.id))return false;
+ // A free *logical* lane is not enough if a car is physically sitting at the
+ // downstream side of the junction (for example during a lane change).
+ if(trafficSpatial){
+  const plan=motionPlan(v),junctionTurn=plan.junctions.find(g=>g.pos===pos);
+  if(junctionTurn){
+   for(const beyond of [.18,.6]){
+    const pose=positionOnMotion(plan,Math.min(plan.total,junctionTurn.clear+beyond));
+    const ix=Math.floor(pose.x/2),iy=Math.floor(pose.y/2);
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)
+     for(const other of trafficSpatial.cells.get((ix+dx)+':'+(iy+dy))?.values()||[])
+      if(other.id!==v.id&&Math.hypot(other.pose.x-pose.x,other.pose.y-pose.y)<.8&&capsulesOverlap(pose,other.pose))return false;
+   }
+  }
+ }
+ return true;
+}
 function intersectionAllowed(v,pos,ignoreSignal=false){
  if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
  const entering=motionDirection(v.path,pos-1);if(signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering))return false;
