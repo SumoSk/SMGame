@@ -165,8 +165,8 @@ function checkParkingBuilding(key,x,y){
  return{error};
 }
 function markBuildingPlot(b,value){const {w,h}=buildingBounds(b);for(let yy=b.y;yy<b.y+h;yy++)for(let xx=b.x;xx<b.x+w;xx++)state.buildGrid[id(xx,yy)]=value;}
-function advanceLot(v,dt){
- const total=lotPathLength(v.lotPath),target=Math.min(total,(v.lotDistance||0)+LOT_SPEED*dt);let distance=v.lotDistance||0;
+function advanceLot(v,dt,maxDistance=Infinity){
+ const total=lotPathLength(v.lotPath),target=Math.min(total,maxDistance,(v.lotDistance||0)+LOT_SPEED*dt);let distance=v.lotDistance||0;
  // Small swept steps also protect queues when the game runs at high speed.
  while(distance<target-1e-8){const next=Math.min(target,distance+.04);if(!lotClear(v,lotPathPose(v.lotPath,next))){v.stopReason='รอรถข้างหน้าในลานจอด';break;}distance=next;v.lastMovedAt=state.time;}
  v.lotDistance=distance;return distance>=total-1e-7;
@@ -598,7 +598,7 @@ function buildingGaugeMetrics(b,approaching){
 }
 let placeLabelLayer=null,placeLabelState=null,placeLabels=new Map(),placeLabelCounts=new Map(),placeLabelAt=0,routeWarningMarkers=new Map();
 const NO_ROUTE_TIMEOUT=120;
-const IMMOBILE_RESPAWN_TIMEOUT=200;
+const IMMOBILE_RESPAWN_TIMEOUT=60;
 function missingRoute(v){return !!v&&(!!v.departureNoRoute||v.phase==='stuck'&&v.routeMissing!==false&&!/พบเส้นทางแล้ว/.test(v.stopReason||''));}
 function setRouteMissing(v,missing){if(missing){if(v.routeMissing===false||!Number.isFinite(v.routeMissingSince))v.routeMissingSince=state.time;v.routeMissing=true;}else{v.routeMissing=false;v.routeMissingSince=null;}}
 function routeWarningPosition(v){
@@ -883,13 +883,13 @@ function respawnVehicle(v){
  if(from){from.queue=from.queue.filter(id=>id!==v.id);if(c){from.parked.delete(c.id);from.visitors.delete(c.id);freeParkingSpace(from,c.id);}}
  v.fromId=null;v.fromGate=entrance;v.path=path?[...path]:[entrance];v.pathSet=new Set(v.path);
  v.pos=0;v.progress=0;v.lane=0;v.motionStartPose=null;v.motionSeedLane=null;v.heldPose=null;
- v.lotPath=null;v.lotDistance=0;v.lotBuilding=null;v.lotReady=false;cleanupParkingVehicle(v);
+ v.lotPath=null;v.lotDistance=0;v.lotBuilding=null;v.lotReady=false;v.mergeCommitted=false;cleanupParkingVehicle(v);
  v.turnLanes={};v.junctionPasses=[];v.junctionQueueSince={};v.committedJunction=null;
  v.phase='gate_waiting';v.speed=0;v.wait=0;v.lastMovedAt=state.time;v.respawns=(v.respawns||0)+1;
  v.retryAt=0;v.departureRouteVersion=path?state.version:-1;v.nextDepartureRouteRetry=state.time;
  v.departureNoRoute=!path;v.routeCheckedVersion=state.version;v.noUTurnPolicy=1;v.trafficModel=2;
  setRouteMissing(v,!path);v.stopReason=path?'กลับมาเริ่มเข้าที่ประตูเมืองใหม่':'กลับมาประตูเมืองแล้ว · ยังไม่มีเส้นทางถึงจุดหมาย';
- if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+' รถติดเกิน 200 นาที · กลับเข้าประตูเมืองใหม่');c.history=c.history.slice(-12);}
+ if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+' รถติดครบ 60 นาที · กลับเข้าประตูเมืองใหม่');c.history=c.history.slice(-12);}
  updateTrafficSpatial(v);return true;
 }
 function canTowVehicle(v){return !!v&&(v.phase==='stuck'||v.departureNoRoute||v.wait>=48);}
@@ -1055,28 +1055,47 @@ function advanceVehicles(realDt,gameDt){
  let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);for(const car of state.vehicles.values()){if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
  for(const v of [...state.vehicles.values()]){
   if(!state.vehicles.has(v.id))continue;
+  if(!Number.isFinite(v.lastMovedAt))v.lastMovedAt=state.time-Math.max(0,Number.isFinite(v.wait)?v.wait:0);
+  // Apply the same 60-game-minute recovery to every moving/stalled trip,
+  // INCLUDING parking_in, parking_out and departing without an active lotPath.
+  // This check must precede the early continue branches for parking motion.
+  if(respawnBudget>0&&['departing','parking_in','parking_out','driving','stuck'].includes(v.phase)
+    &&state.time-v.lastMovedAt>=IMMOBILE_RESPAWN_TIMEOUT
+    &&respawnVehicle(v)){respawnBudget--;continue;}
   if(v.phase==='parking_in'){
    const done=advanceLot(v,simDt);const gateDistance=Math.hypot(v.lotPath[1].x-v.lotPath[0].x,v.lotPath[1].y-v.lotPath[0].y);
    if(v.lotDistance>gateDistance+.3)release(v);if(done)arrive(v,true);updateTrafficSpatial(v);continue;
   }
   if(v.phase==='parking_out'){
-   if(advanceLot(v,simDt)){const b=state.buildings.get(v.fromId);if(b){b.queue=b.queue.filter(id=>id!==v.id);b.parked.delete(v.citizenId);b.visitors.delete(v.citizenId);freeParkingSpace(b,v.citizenId);}const c=state.citizens.get(v.citizenId);if(c){c.location='travel';c.state=TRIPS[v.kind].name;}v.lotPath=null;v.lotReady=false;v.phase='driving';v.speed=0;v.wait=0;v.stopReason='';}updateTrafficSpatial(v);continue;
+   if(!v.mergeCommitted&&v.occKey&&state.occ.get(v.occKey)===v.id)v.mergeCommitted=true; // resumed 1.3 save
+   // Park at the approach line until the *actual* road lane and its exit are
+   // clear. Do not lock the road while still waiting inside the car park.
+   const total=lotPathLength(v.lotPath),hold=Math.max(0,total-.7);
+   if(!v.mergeCommitted){
+    advanceLot(v,simDt,hold);
+    if(v.lotDistance<hold-1e-7){updateTrafficSpatial(v);continue;}
+    const path=v.path,next=path[1],plan=motionPlan(v),lane=plannedLane(v,0);
+    if(next==null){arrive(v);continue;}
+    const d=dir(path[0],next),roadClear=cellAvailable(path[0],d,lane,v.id)
+      &&cellAvailable(next,motionDirection(path,1),plannedLane(v,1),v.id)
+      &&physicalTrafficLimit(v,plan,0,1.15)>.65;
+    if(!roadClear){v.stopReason='รอช่องถนนและทางออกว่าง';updateTrafficSpatial(v);continue;}
+    occupy(v,0);v.mergeCommitted=true;
+   }
+   if(advanceLot(v,simDt)){
+    const b=state.buildings.get(v.fromId);
+    if(b){b.queue=b.queue.filter(id=>id!==v.id);b.parked.delete(v.citizenId);b.visitors.delete(v.citizenId);freeParkingSpace(b,v.citizenId);}
+    const c=state.citizens.get(v.citizenId);
+    if(c){c.location='travel';c.state=TRIPS[v.kind].name;}
+    v.lotPath=null;v.lotReady=false;v.mergeCommitted=false;
+    v.phase='driving';v.speed=0;v.wait=0;v.stopReason='';v.lastMovedAt=state.time;
+   }
+   updateTrafficSpatial(v);continue;
   }
   if(missingRoute(v)){
 
    if(!Number.isFinite(v.routeMissingSince))v.routeMissingSince=state.time;
    if(state.time-v.routeMissingSince>NO_ROUTE_TIMEOUT){towVehicle(v.id);continue;}
-  }
-  // Migrate existing saves using the wait counter without resetting it.
-  if(!Number.isFinite(v.lastMovedAt))v.lastMovedAt=state.time-Math.max(0,Number.isFinite(v.wait)?v.wait:0);
-  // Last-resort safety valve: a genuinely immobilized car inside a parking lot
-  // cannot use road rerouting. Give it the same long grace period as road cars
-  // before retrying its trip from a city gate; never delete its trip or citizen.
-  if(respawnBudget>0&&v.lotPath&&['departing','parking_in','parking_out'].includes(v.phase)&&state.time-v.lastMovedAt>IMMOBILE_RESPAWN_TIMEOUT){
-   if(respawnVehicle(v)){respawnBudget--;continue;}
-  }
-  if(respawnBudget>0&&!v.lotPath&&v.phase!=='departing'&&v.pos+1<v.path.length&&state.time-v.lastMovedAt>IMMOBILE_RESPAWN_TIMEOUT){
-   if(respawnVehicle(v)){respawnBudget--;continue;}
   }
   const c=state.citizens.get(v.citizenId);
   if(v.deadline&&state.time>v.deadline&&!['pass','moveIn'].includes(v.kind)){
@@ -1092,10 +1111,18 @@ function advanceVehicles(realDt,gameDt){
    if(!from){if(gateAttempt.has(v.path[0]))continue;gateAttempt.add(v.path[0]);}
    const i=v.path[0],next=v.path[1];if(next==null){arrive(v);continue;}
    const d=dir(i,next),lane=plannedLane(v,0);
+   if(from){
+    // Only one vehicle per lot is in the street-merge corridor at once.
+    // The road occupancy is granted later, at the end of this short corridor.
+    const start=parkingPose(v),end=positionOnMotion(motionPlan(v),0);
+    v.lotPath=[start,end];v.lotDistance=0;v.lotReady=false;
+    v.mergeCommitted=false;v.phase='parking_out';v.stopReason='รอช่องทางออกสู่ถนน';
+    updateTrafficSpatial(v);continue;
+   }
    if(cellAvailable(i,d,lane,v.id)&&physicalTrafficLimit(v,motionPlan(v),0,.01)>0){
-    if(from){const start=parkingPose(v),end=positionOnMotion(motionPlan(v),0);v.lotPath=[start,end];v.lotDistance=0;v.lotReady=false;v.phase='parking_out';occupy(v,0);v.stopReason='กำลังออกสู่ถนน';continue;}
-
-    if(from){from.queue=from.queue.filter(id=>id!==v.id);from.parked.delete(v.citizenId);from.visitors.delete(v.citizenId);}if(c){c.location='travel';c.state=TRIPS[v.kind].name;}v.phase='driving';v.speed=0;v.stopReason='';occupy(v,0);v.wait=0;v.lastMovedAt=state.time;updateTrafficSpatial(v);
+    if(c){c.location='travel';c.state=TRIPS[v.kind].name;}
+    v.phase='driving';v.speed=0;v.stopReason='';
+    occupy(v,0);v.wait=0;v.lastMovedAt=state.time;updateTrafficSpatial(v);
    }else if(c&&v.wait>60&&state.time-v.lastPain>90){pain(c,1,'รอออกจากอาคารหรือประตูเมือง');v.lastPain=state.time;}
    continue;
   }
