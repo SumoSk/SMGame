@@ -6,23 +6,55 @@ function boot(indexedDB){let game;const nodes=new Map(),get=id=>{if(!nodes.has(i
  vm.createContext(context);vm.runInContext(source,context);return {game,get,clientWindow:context.window};
 }
 (async()=>{
-let {game,get}=boot();
+let {game,get,clientWindow}=boot();
 const legacy=game.snapshot();storage['traffic-fixer-thailand-v1']=legacy;
 assert.equal(game.readSaveSlots()[0].name,'เซฟเดิม');
 game.state.money=123456;assert(game.saveGame(true,'เมืองหนึ่ง','one'));
 game.reset('bangkok');game.state.money=234567;assert(game.saveGame(true,'เมืองสอง','two'));
-({game,get}=boot());assert(game.loadGame(true,'one'));assert.equal(game.state.money,123456);assert.equal(game.state.city,'phuket');
+({game,get,clientWindow}=boot());assert(game.loadGame(true,'one'));assert.equal(game.state.money,123456);assert.equal(game.state.city,'phuket');
 assert(game.loadGame(true,'two'));assert.equal(game.state.money,234567);assert.equal(game.state.city,'bangkok');
 assert(game.loadGame(true,'legacy'));assert.equal(game.state.money,500000);
 game.state.money=345678;assert(game.saveGame(true,'เมืองหนึ่ง','one'));assert(game.loadGame(true,'two'));assert.equal(game.state.money,234567);assert(game.loadGame(true,'one'));assert.equal(game.state.money,345678);assert.equal(game.readSaveSlots().length,3);
 const saved=storage['traffic-fixer-thailand-saves-v2'];blocked=true;assert.equal(game.saveGame(true,'เขียนไม่สำเร็จ','one'),false);assert.equal(storage['traffic-fixer-thailand-saves-v2'],saved);blocked=false;
 let collection=JSON.parse(saved);collection.slots.push({id:'broken',name:'เสีย',data:'{"format":1}'});storage['traffic-fixer-thailand-saves-v2']=JSON.stringify(collection);const previous=game.state;assert.equal(game.loadGame(true,'broken'),false);assert.equal(game.state,previous);assert.equal(game.state.money,345678);storage['traffic-fixer-thailand-saves-v2']=saved;
-// Exercise the actual menu handlers, escaping names and creating a distinct slot.
-get('menu').onclick();await get('saveMenu').onclick();get('saveName').value='<img src=x onerror=alert(1)>';await get('createSave').onclick();assert.equal(game.readSaveSlots().length,4);
-get('menu').onclick();await get('loadMenu').onclick();assert(get('dialogContent').innerHTML.includes('&lt;img'));assert(!get('dialogContent').innerHTML.includes('<img'));
-const index=game.readSaveSlots().findIndex(s=>s.id==='two');get('slotAction'+index).onclick();get('confirmDialog').onclick();assert.equal(game.state.city,'bangkok');assert.equal(game.state.money,234567);
+// Legacy storage remains intact for old saves, but the visible menu is cloud-only.
+const cloudSlot={id:'cloud-demo',name:'<img src=x onerror=alert(1)>',savedAt:Date.now(),data:game.snapshot()};
+let deleted=false,changedPassword=false,savedCloud=false;
+clientWindow.SMGameAccount={
+ user:{id:'test-user',email:'test@example.com'},
+ async listSaves(){return deleted?[]:[cloudSlot];},
+ async save(){savedCloud=true;},
+ async deleteSave(id){if(id!==cloudSlot.id)throw Error('wrong slot');deleted=true;},
+ async changePassword(){changedPassword=true;},
+ async signOut(){},
+};
+get('menu').onclick();
+assert(get('dialogContent').innerHTML.includes('id="accountMenu"'));
+assert(get('dialogContent').innerHTML.includes('id="saveMenu"'));
+assert(!get('dialogContent').innerHTML.includes('id="loadMenu"'));
+await get('saveMenu').onclick();
+assert(get('dialogContent').innerHTML.includes('&lt;img'));
+assert(!get('dialogContent').innerHTML.includes('<img src='));
+assert(get('dialogContent').innerHTML.includes('id="onlineDelete0"'));
+get('onlineDelete0').onclick();
+assert.equal(deleted,false,'delete must await confirmation');
+get('confirmDialog').onclick();
+for(let i=0;i<12;i++)await Promise.resolve();
+assert.equal(deleted,true);
+get('menu').onclick();
+get('accountMenu').onclick();
+get('accountOldPassword').value='old-password';
+get('accountNewPassword').value='new-password-123';
+get('accountConfirmPassword').value='new-password-123';
+await get('accountChangePassword').onclick();
+assert(changedPassword);
+await get('saveMenu').onclick();
+get('onlineSaveName').value='เกมใหม่';
+await get('onlineCreate').onclick();
+assert(savedCloud);
+assert.equal(game.readSaveSlots().length,3,'cloud UI must not write local save collection');
 assert.equal(storage['traffic-fixer-thailand-v1'],legacy);
-console.log(JSON.stringify({passed:true,coverage:['named slots survive fresh game instance','selected save loads exact city and money','overwrite preserves other slots','legacy save retained','storage failure preserves saves','invalid save preserves active city','menu save and load handlers','HTML escaping']}));
+console.log(JSON.stringify({passed:true,coverage:['named slots survive fresh game instance','selected save loads exact city and money','overwrite preserves other slots','legacy save retained','storage failure preserves saves','invalid save preserves active city','cloud-only menu with save/delete','password update','HTML escaping']}));
 
 // A transaction model checks that success waits for commit and survives a new game instance.
 const records=new Map();let abortWrite=false;
