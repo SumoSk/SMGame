@@ -700,16 +700,21 @@ export class TrafficRenderer{
 
  createCars(){
   this.carModels=VEHICLE_TYPES.map((_,i)=>carGeometries(i));
-  this.carSets=new Map();this.carDummy=new THREE.Object3D();this.carTint=new THREE.Color();
+  this.carSets=new Map();this.carDummy=new THREE.Object3D();this.carLightDummy=new THREE.Object3D();this.carTint=new THREE.Color();
  }
  ensureCarSet(kind,needed){
   const old=this.carSets.get(kind);if(old&&old.capacity>=needed)return old;
-  if(old){this.scene.remove(old.body,old.trim);old.body.material.dispose();old.trim.material.dispose();}
+  if(old){for(const mesh of [old.body,old.trim,old.headlights,old.taillights]){this.scene.remove(mesh);mesh.material.dispose();}}
   const capacity=Math.max(32,2**Math.ceil(Math.log2(Math.max(1,needed)))),geometry=this.carModels[kind];
   const body=new THREE.InstancedMesh(geometry.body,new THREE.MeshStandardMaterial({color:'#ffffff',roughness:kind===5||kind===6?.25:.4,metalness:.15}),capacity);
   const trim=new THREE.InstancedMesh(geometry.trim,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.45,metalness:.13}),capacity);
+  // Two very small instanced light surfaces per car. No dynamic point lights:
+  // works on iPad and remains readable from an isometric camera.
+  const lightMesh=color=>new THREE.InstancedMesh(BOX,new THREE.MeshBasicMaterial({color,transparent:true,opacity:0,depthWrite:false,toneMapped:false}),capacity*2);
+  const headlights=lightMesh('#ffeac0'),taillights=lightMesh('#ff6059');
+  for(const mesh of [headlights,taillights]){mesh.frustumCulled=false;mesh.renderOrder=3;mesh.count=0;mesh.visible=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(mesh);}
   for(const mesh of [body,trim]){mesh.castShadow=true;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.count=0;this.scene.add(mesh);}
-  const created={capacity,body,trim};this.carSets.set(kind,created);return created;
+  const created={capacity,body,trim,headlights,taillights};this.carSets.set(kind,created);this.lastNightVisibility=-1;return created;
  }
  cars(state,vehiclePosition,CATALOG){
   const groups=VEHICLE_TYPES.map(()=>[]);
@@ -725,15 +730,28 @@ export class TrafficRenderer{
   }
   for(let kind=0;kind<groups.length;kind++){
    const items=groups[kind],old=this.carSets.get(kind);
-   if(!items.length){if(old){old.body.count=0;old.trim.count=0;}continue;}
+   if(!items.length){if(old){old.body.count=0;old.trim.count=0;old.headlights.count=0;old.taillights.count=0;}continue;}
    const set=this.ensureCarSet(kind,items.length);
    for(let i=0;i<items.length;i++){
     const car=items[i];this.carDummy.position.set(car.x,0,car.z);this.carDummy.rotation.set(0,-car.angle,0);
     this.carDummy.scale.set(1,1,1);this.carDummy.updateMatrix();
     set.body.setMatrixAt(i,this.carDummy.matrix);set.trim.setMatrixAt(i,this.carDummy.matrix);
     set.body.setColorAt(i,this.carTint.set(car.color));
+    const [length,width]=VEHICLE_STYLES[kind],cos=Math.cos(car.angle),sin=Math.sin(car.angle);
+    for(const sign of [-1,1]){
+     // Car model faces +X in local space; side offsets rotate with the body.
+     const side=sign*width*.33;
+     for(const [mesh,localX,height] of [[set.headlights,length*.5+.015,.184],[set.taillights,-length*.5-.015,.165]]){
+      this.carLightDummy.position.set(car.x+cos*localX-sin*side,height,car.z+sin*localX+cos*side);
+      this.carLightDummy.rotation.set(0,-car.angle,0);
+      this.carLightDummy.scale.set(.020,.040,.045);
+      this.carLightDummy.updateMatrix();
+      mesh.setMatrixAt(i*2+(sign+1)/2,this.carLightDummy.matrix);
+     }
+    }
    }
    for(const mesh of [set.body,set.trim]){mesh.count=items.length;mesh.instanceMatrix.needsUpdate=true;}
+   for(const mesh of [set.headlights,set.taillights]){mesh.count=items.length*2;mesh.instanceMatrix.needsUpdate=true;}
    if(set.body.instanceColor)set.body.instanceColor.needsUpdate=true;
   }
  }
