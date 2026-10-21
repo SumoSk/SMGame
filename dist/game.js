@@ -112,7 +112,7 @@ function lotClear(v,pose){
  // The first/last metres of the driveway are shared with live road traffic.
  // A car leaving or entering the lot must not ignore vehicles on the street.
  const b=state.buildings.get(v.lotBuilding);
- if(b){
+ if(b&&['departing','parking_out'].includes(v.phase)){
   const t=CATALOG[b.key],entrance=lotPoint(b,.45,t.plotHeight),exit=lotPoint(b,t.plotWidth-.45,t.plotHeight);
   if(Math.min(Math.hypot(pose.x-entrance.x,pose.y-entrance.y),Math.hypot(pose.x-exit.x,pose.y-exit.y))<1.15)
    for(const other of state.vehicles.values()){
