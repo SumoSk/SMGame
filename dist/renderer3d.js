@@ -724,6 +724,13 @@ export class TrafficRenderer{
    block('#ab865e',cx,1.29,rear-.21,mainW*.78,.13,.24,'wood');
    block('#dbe4dc',cx,1.20,rear-.23,mainW*.63,.05,.09,'metal');
   }
+  // Parking perimeter lights: a few lamps along the frontage edge, away
+  // from both end gates and outside the two rows of parked cars.
+  // Each lamp is batched; no new dynamic light sources or path collision.
+  if(W>=16){
+   const spacing=Math.max(5,Math.min(9,W/8));
+   for(let u=3;u<W-3;u+=spacing)lantern(u,t.plotHeight-.16,'#ffe8b8',1.5);
+  }
   const lamps=Math.min(15,Math.max(2,Math.floor(W/7)));
   for(let i=0;i<lamps;i++){
    const x=.75+(W-1.5)*(i+.5)/lamps;
