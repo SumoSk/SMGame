@@ -29,12 +29,12 @@ for(const c of citizens){
  const first=game.planForDay(c,0),next=game.planForDay(c,1),again=game.planForDay(c,0);
  assert.equal(JSON.stringify(first),JSON.stringify(again),'stable day plan across reload');
  if(first.leave!==next.leave||first.end!==next.end)variations++;
- assert(Math.abs(first.leave-c.profile.leave-c.routine.weekdayShift+c.routine.advance)<=21.5,'daily jitter bounded around personal routine');
+ if(first.works){const shift=game.workRoutine(c);assert(Math.abs(first.leave-Math.max(shift.open,shift.leave-c.routine.advance))<=21,'daily jitter bounded around compatible personal shift');}
 }
 assert(variations>=26,'daily habits should vary across days');
 let last=-Infinity,count=0;
 while(game.state.events.length){const e=game.eventPop();assert(e.at>=last,'event queue must remain time-ordered');last=e.at;count++;}
-assert(count>30,'citizen events should have been scheduled');
+assert(count>20&&count<=30,'one initial event per active daily itinerary');
 for(const c of citizens)game.scheduleDay(c,1);
 let eventSnapshot=game.snapshot();
 assert(game.loadGame(true,null,eventSnapshot),'new schedule snapshot must reload');
@@ -75,5 +75,5 @@ const bigHome={id:999,key:'home_large'},big=[];
 for(let i=0;i<5000;i++){const c=game.newCitizen(bigHome);c.resident=true;big.push(c);game.scheduleDay(c,0);}
 last=-Infinity;let total=0;
 while(game.state.events.length){const e=game.eventPop();assert(e.at>=last,'large queue out of order');last=e.at;total++;}
-assert(total>6000,'insufficient events for 5,000 citizen stress');
+assert(total>2500&&total<=5000,'schedule only initial outings, not every future activity');
 console.log(JSON.stringify({passed:true,archetypes:traits,personalDepartures:new Set(morning).size,plannedWorkDays:morning.length,variationCount:variations,scheduleEvents:count,reloadedEvents:popped,largePopulation:5000,largeEvents:total,adaptiveAdvance:sample.routine.advance-before}));

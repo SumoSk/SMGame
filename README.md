@@ -105,3 +105,14 @@ npm test
 - กดชื่อประชาชนเพื่อเปิด Inspector รายบุคคล แยกภาพรวมกับข้อมูลรายคนได้ทันที และมีข้อความกำกับว่าความคิด/ความกังวลเป็นการอนุมานจากสถานะตัวละคร ไม่ใช่ความเห็นจริง
 - รีเฟรชข้อมูลเฉพาะเวลาที่โหมดเปิดอยู่และจำกัดความถี่ 1.5 วินาที ไม่สแกนประชาชนเพิ่มทุกเฟรม ยังคงระบบเซฟออนไลน์และแบ็กอัป `backup-version-2.0-car-bug-fix` ไว้เหมือนเดิม
 - เพิ่ม `work/test-citizens-dashboard.cjs` ตรวจตำแหน่งหมวด, ความถูกต้องของค่าจริง/ตัวกรอง, XSS escape, การกดดูประชาชน, การโหลดเซฟ, และการแสดงประชาชน 5,000 คนโดยเรนเดอร์เฉพาะ 40 รายชื่อแรก
+
+
+## Citizen lifestyles 2.3.0
+
+Twelve daily lifestyle patterns retain the four existing personalities. Stable punctuality, sociability, venue preferences and traffic tolerance influence daily plans. Weekday weights are targets conditioned on jobs and compatible building shifts; they are not fixed population or traffic quotas. Office and service workers keep compatible personal shifts, with fewer weekend workdays. Factories and pubs support overnight work.
+
+Itineraries run on the existing event heap and actual road/parking system: lunch returns to the same job, after-work visits can chain, and residents can return home then go out again. Each resident has at most one vehicle. Overnight itineraries retain their original day until finished. Venue stays start on arrival; opening hours, reservations, capacity, route availability and available activity time are checked. Failed optional activities retry at bounded intervals before continuing, while blocked home trips keep retrying. Existing employment, happiness, taxes and migration rules remain in use.
+
+Simulation service hours: restaurant 06:00–24:00, mall 10:00–22:00, shop 08:00–22:00, park 05:00–21:00, pub 18:00–03:00. These are game defaults, not real-world business hours. The citizen dashboard shows daily lifestyle counts, all 24 hours of estimated itinerary departures, and per-person plans. Estimated times can change with actual travel. Legacy saved schedules finish using their existing actions, then adopt new itineraries on the next day.
+
+Focused checks: node work/test-dynamic-citizens.cjs, node work/test-citizens-dashboard.cjs, node work/test-lifestyles.cjs.
