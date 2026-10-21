@@ -16,25 +16,25 @@ function exitCar(home,office){
  assert(game.createTrip(c,'work',home.id,office.id,null,null,null));
  return {c,v:game.state.vehicles.get(c.vehicleId)};
 }
-// ROAD MERGE: a busy road lane must not be reserved by cars still waiting in their lot.
+// ROAD MERGE: intentional arcade priority crosses stopped road vehicles
+// but preserves the ownership of the road lane.
 let {home,office}=setup();
 let {c,v}=exitCar(home,office),from=v.path[0],next=v.path[1],lane=game.plannedLane(v,0),
     key=from+':'+game.dir(from,next)+':'+lane;
 game.state.occ.set(key,87654321);
-step(600);
-assert.equal(v.phase,'parking_out','car should queue at the actual road merge');
-assert.equal(v.mergeCommitted,false,'blocked merge must not commit');
-assert.equal(v.occKey,null,'blocked car must not occupy street cells');
-assert.equal(game.state.occ.get(key),87654321,'existing street occupancy must remain unchanged');
-assert(home.parked.has(c.id),'blocked departure must still be physically parked');
-const holdDistance=v.lotDistance;
-step(200);
-assert.equal(v.lotDistance,holdDistance,'car must stop at merge line instead of sliding onto the road');
-assert.equal(v.respawns||0,0,'do not recover a car before sixty game minutes have elapsed');
-game.state.occ.delete(key);
+step(168);
+assert.equal(v.phase,'parking_out','car should be crossing the road boundary');
+assert.equal(v.mergeCommitted,true,'committed exit must not return to waiting');
+assert.equal(v.occKey,null,'do not register on top of an occupied lane');
+assert.equal(game.state.occ.get(key),87654321,'existing road occupancy is never overwritten');
+step(150);
+assert.notEqual(v.phase,'parking_out','committed merge should finish despite the occupied road');
+assert.equal(game.state.occ.get(key),87654321,'same road car must keep its occupancy');
+assert.equal(v.respawns||0,0,'no recovery should be needed before 60 minutes');
 step(2500);
-assert(office.parked.has(c.id),'car must merge when road opens and complete its trip');
-assert(!home.parked.has(c.id),'departure frees its original parking bay');
+assert(office.parked.has(c.id),'parking car should complete its trip through stationary road traffic');
+assert(!home.parked.has(c.id),'parking departure must release its original space');
+
 // ALL PARKING PHASES must be eligible for recovery after 60 game minutes.
 let phases=[];
 for(const phase of ['departing','parking_in','parking_out','driving','stuck']){
@@ -90,4 +90,4 @@ assert.equal(game.state.vehicles.size,0,'30-way exit deadlock');
 assert.equal(office.parked.size,30,'all departing cars must reach the office');
 assert.equal(home.parked.size,0,'all cars must leave home');
 assert(peak<=1,'only one car should actively merge from the same lot at a time');
-console.log(JSON.stringify({passed:true,recoveryMinutes:60,recoveryPhases:phases,blockedRoadKeepsCarInside:true,denseDepartures:30,peakSimultaneousMerges:peak}));
+console.log(JSON.stringify({passed:true,recoveryMinutes:60,recoveryPhases:phases,blockedRoadAllowsArcadeExit:true,denseDepartures:30,peakSimultaneousMerges:peak}));
