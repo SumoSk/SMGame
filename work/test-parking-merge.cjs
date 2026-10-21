@@ -35,6 +35,31 @@ step(2500);
 assert(office.parked.has(c.id),'parking car should complete its trip through stationary road traffic');
 assert(!home.parked.has(c.id),'parking departure must release its original space');
 
+// The road obstruction is a real stationary vehicle, not just a mocked
+// occupancy map. A departing car may visually pass through this specific
+// stopped road vehicle during its committed merge, without stealing its lane.
+({home,office}=setup());
+({c,v}=exitCar(home,office));
+const exitStart=game.positionOnMotion(game.motionPlan(v),0);
+assert(game.createTrip(null,'pass',null,null,game.id(168,150),game.id(194,150),null));
+const roadCar=[...game.state.vehicles.values()].find(other=>other.id!==v.id);
+assert(roadCar);
+roadCar.phase='stuck';roadCar.heldPose={...exitStart};
+roadCar.routeMissing=false;roadCar.recoveryVersion=game.state.version;roadCar.nextRouteRetry=Infinity;
+const occupiedExit=v.path[0]+':'+game.dir(v.path[0],v.path[1])+':'+game.plannedLane(v,0);
+roadCar.occKey=occupiedExit;game.state.occ.set(occupiedExit,roadCar.id);
+let physicalCrossing=false;
+for(let i=0;i<580;i++){
+ step(1);
+ if(game.state.vehicles.has(v.id)){
+  const p=game.vehiclePosition(v);
+  if(p&&game.lotCarsOverlap(p,roadCar.heldPose,0))physicalCrossing=true;
+ }
+}
+assert(physicalCrossing,'forced departure should be able to pass physically stopped road traffic');
+assert(office.parked.has(c.id),'departing car must still finish journey past stopped road car');
+assert.equal(game.state.occ.get(occupiedExit),roadCar.id,'road vehicle keeps its original lane ownership');
+
 // ALL PARKING PHASES must be eligible for recovery after 60 game minutes.
 let phases=[];
 for(const phase of ['departing','parking_in','parking_out','driving','stuck']){
