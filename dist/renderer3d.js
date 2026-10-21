@@ -539,7 +539,7 @@ export class TrafficRenderer{
   const windowBands=kind==='office'?Math.max(3,Math.floor(H/.64)):
    kind==='home'?tier:kind==='mall'?tier:kind==='factory'?1:
    tier===3?2:1;
-  const rearBayCount=Math.min(kind==='office'?27:kind==='factory'?15:24,
+  const rearBayCount=Math.min(kind==='office'?16:kind==='factory'?12:20,
     Math.max(2,Math.ceil(mainW/(kind==='factory'?1.72:kind==='mall'?1.13:.85))));
   const baySpacing=mainW*.89/rearBayCount;
   const rearGlass=kind==='pub'?'#4c5b7d':kind==='home'?'#567989':
@@ -578,7 +578,7 @@ export class TrafficRenderer{
   // This gives true perpendicular panes when any plot is rotated.
   const sideRows=kind==='office'?Math.max(3,Math.floor(H/.63)):
    kind==='home'?tier:kind==='mall'?tier:1;
-  const sideBays=Math.max(2,Math.min(7,Math.floor(depth/.62)+1));
+  const sideBays=Math.max(2,Math.min(5,Math.floor(depth/.62)+1));
   for(const sign of [-1,1]){
    const sideX=cx+sign*(mainW*.5+.044);
    const wallColor=kind==='pub'?'#7b78a2':kind==='factory'?'#95a9a7':
@@ -611,6 +611,34 @@ export class TrafficRenderer{
     block(kind==='pub'?'#8b79ac':'#bba88c',
       sideX+sign*.12,1.23,cz,.23,.09,Math.min(1.14,depth*.66),
       kind==='pub'?'metal':'wood');
+   }
+  }
+  // The outer wing walls, not the inner central core, are the visible sides
+  // of larger buildings. Wrap these extensions in matching material language.
+  if(tier>=2){
+   const wingWidth=Math.min(span*.22,Math.max(.76,s*.47));
+   for(const sign of [-1,1]){
+    const wingX=cx+sign*(span*.43-wingWidth*.40);
+    const wingSide=wingX+sign*(wingWidth*.5+.055);
+    const wingBack=cz-depth*.065-depth*.41-.055;
+    const trim=kind==='home'?'#c4aa88':kind==='pub'?'#9780b4':
+     kind==='factory'?'#95aaa9':'#9bbac0';
+    block(trim,wingSide,H*.42+.18,cz-depth*.065,.10,H*.58,depth*.64,
+      kind==='home'?'wood':'metal');
+    block('#e0e5de',wingSide,H*.73+.35,cz-depth*.065,.15,.09,depth*.77,'stone');
+    for(let i=0;i<2;i++){
+     const v=cz-depth*.34+i*depth*.39;
+     const y=H*.46+.17;
+     block('#355f70',wingSide+sign*.062,y,v,.05,.40,depth*.21,'glass');
+     block(kind==='pub'?'#ce97e5':'#ffd8a8',
+      wingSide+sign*.097,y-.075,v,.014,.20,depth*.15,'glass',true);
+    }
+    block(accent,wingX,H*.44+.18,wingBack,wingWidth*.85,H*.58,.08,'stone');
+    block('#376a79',wingX,.77,wingBack-.052,wingWidth*.49,.45,.045,'glass');
+    if(kind==='home')block('#bb9976',wingX,1.24,wingBack-.075,
+      wingWidth*.65,.07,.17,'wood');
+    if(kind==='pub')block('#c99de8',wingX,H*.65,wingBack-.084,
+      wingWidth*.61,.13,.045,'glass',true);
    }
   }
   // Tier-specific back detailing makes the back as recognisable as the front.
