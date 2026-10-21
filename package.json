@@ -1,11 +1,11 @@
 {
   "name": "traffic-fixer-thailand",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "description": "เกมสร้างเมืองและแก้ปัญหาจราจรแบบไทย",
   "scripts": {
     "start": "node work/server.cjs",
-    "test": "node work/test-game.cjs && node work/test-traffic-fixes.cjs && node work/test-motion.cjs && node work/test-saves.cjs && node work/test-junctions.cjs && node work/test-routing-signs.cjs && node work/test-road-connections.cjs && node work/test-city-diagnostics.cjs && node work/test-road-visuals.cjs && node work/test-stranded-recovery.cjs && node work/test-city-advisor.cjs && node work/test-signals.cjs && node work/test-mixed-junctions.cjs && node work/test-signal-design.cjs && node work/test-ipad-controls.cjs && node work/test-parking.cjs && node work/test-parking-flow.cjs && node work/test-parking-renderer.cjs && node work/test-traffic-integrity.cjs && node work/test-parking-merge.cjs && node work/test-parking-emergency.cjs && node work/test-dynamic-citizens.cjs",
+    "test": "node work/test-game.cjs && node work/test-traffic-fixes.cjs && node work/test-motion.cjs && node work/test-saves.cjs && node work/test-junctions.cjs && node work/test-routing-signs.cjs && node work/test-road-connections.cjs && node work/test-city-diagnostics.cjs && node work/test-road-visuals.cjs && node work/test-stranded-recovery.cjs && node work/test-city-advisor.cjs && node work/test-signals.cjs && node work/test-mixed-junctions.cjs && node work/test-signal-design.cjs && node work/test-ipad-controls.cjs && node work/test-parking.cjs && node work/test-parking-flow.cjs && node work/test-parking-renderer.cjs && node work/test-traffic-integrity.cjs && node work/test-parking-merge.cjs && node work/test-parking-emergency.cjs && node work/test-dynamic-citizens.cjs && node work/test-citizens-dashboard.cjs",
     "build": "node work/build-ipad-styles.cjs && node work/build-member.cjs && node work/build-release.cjs"
   },
   "dependencies": {
