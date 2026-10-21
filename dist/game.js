@@ -14,17 +14,17 @@ const catalogData={home:[[2,6000,20,2],[3,35000,100,10],[4,130000,350,30]],shop:
 for(const [kind,rows] of Object.entries(catalogData))rows.forEach((r,i)=>{const key=kind+'_'+['small','medium','large'][i];CATALOG[key]={key,kind,name:KINDS[kind].name+['เล็ก','กลาง','ใหญ่'][i],size:r[0],cost:r[1],maint:r[2],residents:r[3]||0,jobs:r[4]||0,service:r[5]||0};});
 // Version 6 of the parking layout is the new v5 architectural masterplan.
 // There are exactly two facing stall rows, one continuous aisle, no inner banks.
-const PARKING_VERSION=6,LOT_SPEED=1.35;
+const PARKING_VERSION=7,LOT_SPEED=1.35;
 for(const t of Object.values(CATALOG)){
  t.parkingCapacity=t.residents||t.jobs+t.service;
  t.parkingColumns=Math.ceil(t.parkingCapacity/2);
  t.parkingRows=1; // one double-sided bank = exactly two long parallel stall rows
  t.parkingPhysicalRows=2;
- t.parkingPitch=.74;
- t.parkingRowOffset=1.03;
+ t.parkingPitch=.55; // compact two-sided parallel rows
+ t.parkingRowOffset=.94; // keep maneuvering clearance
  t.parkingAisle=t.size+2.13;
- t.plotWidth=Math.ceil(Math.max(t.size+2.8,2.85+t.parkingColumns*t.parkingPitch));
- t.plotHeight=Math.ceil(t.size+4.35);
+ t.plotWidth=Math.ceil(Math.max(t.size+2.5,2.45+t.parkingColumns*t.parkingPitch));
+ t.plotHeight=Math.ceil(t.size+4.0);
  t.compactParking=false;
  t.parkingLayout=null;
 }
