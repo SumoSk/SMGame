@@ -5,8 +5,10 @@ function step(n){for(let i=0;i<n;i++){game.state.time+=.04;game.advanceVehicles(
 function build(key,x){const t=game.CATALOG[key];game.state.money=1e8;const y=148-t.plotHeight;const check=game.checkBuilding(key,x,y);assert(!check.error,JSON.stringify({key,x,y,check}));const b=game.buildBuilding(key,x,y,true);assert(b);return b;}
 game.reset();const home=build('home_large',160),office=build('office_large',180);
 assert.equal(game.lotSlots(home).length,30);assert.equal(game.lotSlots({key:'mall_large'}).length,245);
-// The entrance apron is removed: every plot is exactly two tiles shallower.
-for(const t of Object.values(game.CATALOG))assert.equal(t.plotHeight,Math.ceil(t.size+.3+t.parkingRows*2.5+2.5)-2);
+const targeted=['office_large','factory_medium','shop_medium','shop_large','restaurant_medium','mall_small','mall_large','park_medium','park_large','pub_large'];
+for(const t of Object.values(game.CATALOG)){const oldColumns=t.parkingCapacity<=40?Math.ceil(t.parkingCapacity/2):Math.ceil(Math.sqrt(t.parkingCapacity*3.4));const oldWidth=Math.ceil(Math.max(t.size+1,oldColumns*.38+2));const oldDepth=Math.ceil(t.size+.3+Math.ceil(t.parkingCapacity/(2*oldColumns))*2.5+.35);if(targeted.includes(t.key)){assert(t.plotHeight<oldDepth,'compact depth for '+t.key);assert(t.plotWidth<=oldWidth,'compact width for '+t.key);assert(t.plotHeight*t.plotWidth<oldWidth*oldDepth,'compact footprint for '+t.key);}else{assert.equal(t.plotHeight,oldDepth,'unchanged depth for '+t.key);assert.equal(t.plotWidth,oldWidth,'unchanged width for '+t.key);}}
+
+
 
 for(const t of Object.values(game.CATALOG))for(let rotation=0;rotation<4;rotation++){
  const b={key:t.key,x:20,y:20,rotation},bounds=game.buildingBounds(b),slots=game.lotSlots(b);assert.equal(slots.length,t.parkingCapacity);const poses=slots.map(s=>game.parkingSlotPose(b,s.index));for(const p of poses){assert(p.x>20&&p.x<20+bounds.w+.5);assert(p.y>20&&p.y<20+bounds.h+.5);}for(let i=0;i<poses.length;i++)for(let j=0;j<i;j++)assert(Math.hypot(poses[i].x-poses[j].x,poses[i].y-poses[j].y)>.37);
@@ -19,8 +21,8 @@ const c=citizens[0];assert(game.createTrip(c,'work',home.id,office.id,null,null,
 step(1500);assert.equal(v.phase,'departing');assert(v.lotReady);assert(home.parked.has(c.id));assert.equal(v.fromId,home.id);assert.equal(v.respawns,0);const pose=game.vehiclePosition(v);assert(pose&&Math.hypot(pose.x-game.vehiclePosition({...v,lotPath:null,phase:'driving'}).x,pose.y-game.vehiclePosition({...v,lotPath:null,phase:'driving'}).y)>.2);
 // A second car follows into the internal queue while the road is blocked.
 const c2=citizens[1];assert(game.createTrip(c2,'work',home.id,office.id,null,null,null));step(300);assert(game.state.vehicles.get(c2.vehicleId).lotPath,'second car queues inside while the first waits for road');
-const snapshot=game.snapshot();assert.equal(JSON.parse(snapshot).parkingVersion,4);assert(game.loadGame(true,null,snapshot));const restored=game.state.vehicles.get(v.id);assert(restored.lotReady);assert.deepEqual(Array.from(game.state.buildings.get(home.id).parkingSlots),Array.from(home.parkingSlots));
-const obsolete=JSON.parse(snapshot);obsolete.parkingVersion=3;assert.equal(game.loadGame(true,null,JSON.stringify(obsolete)),false,'old plots must not load into the smaller geometry');
+const snapshot=game.snapshot();assert.equal(JSON.parse(snapshot).parkingVersion,5);assert(game.loadGame(true,null,snapshot));const restored=game.state.vehicles.get(v.id);assert(restored.lotReady);assert.deepEqual(Array.from(game.state.buildings.get(home.id).parkingSlots),Array.from(home.parkingSlots));
+const obsolete=JSON.parse(snapshot);obsolete.parkingVersion=4;assert.equal(game.loadGame(true,null,JSON.stringify(obsolete)),false,'old plots must not load into the smaller geometry');
 const old=JSON.parse(snapshot);old.format=1;delete old.parkingVersion;assert.equal(game.loadGame(true,null,JSON.stringify(old)),false);assert(game.state.buildings.has(home.id));game.state.speed=1;step(6000);assert.equal(game.state.buildings.get(office.id).parked.size,2,'both cars travel and park at work');assert.equal(game.state.buildings.get(home.id).parked.size,8);
 const full=game.state.buildings.get(office.id);for(let i=0;i<game.CATALOG[full.key].parkingCapacity;i++)full.parked.add(9000+i);assert.equal(game.parkingFree(full),0);assert.equal(game.createTrip(citizens[2],'work',home.id,full.id,null,null,null),false);
 console.log(JSON.stringify({passed:true,catalogTypes:24,rotations:4,homeSpaces:30,mallSpaces:245,coverage:['whole plot footprint','automatic slot allocation','10 real parked cars','blocked exit keeps cars inside','physical departure queue','road-to-lot continuity','capacity reservation','save moving cars','reject old compact cities']}));

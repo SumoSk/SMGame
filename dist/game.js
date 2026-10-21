@@ -13,17 +13,25 @@ const CATALOG={};
 const catalogData={home:[[2,6000,20,2],[3,35000,100,10],[4,130000,350,30]],shop:[[2,8000,100,0,3,12],[3,24000,250,0,8,35],[4,70000,650,0,18,80]],restaurant:[[3,12000,180,0,5,18],[4,35000,450,0,14,50],[5,85000,900,0,30,95]],mall:[[4,45000,450,0,12,45],[5,95000,1100,0,30,100],[6,190000,2300,0,65,180]],office:[[3,18000,250,0,18],[4,60000,700,0,50],[5,120000,1300,0,90]],factory:[[4,22000,450,0,25],[5,70000,1300,0,65],[6,140000,2400,0,110]],park:[[3,6000,40,0,1,20],[4,18000,140,0,3,60],[5,45000,350,0,8,130]],pub:[[3,14000,200,0,5,18],[4,38000,550,0,13,45],[5,85000,1200,0,28,85]]};
 for(const [kind,rows] of Object.entries(catalogData))rows.forEach((r,i)=>{const key=kind+'_'+['small','medium','large'][i];CATALOG[key]={key,kind,name:KINDS[kind].name+['เล็ก','กลาง','ใหญ่'][i],size:r[0],cost:r[1],maint:r[2],residents:r[3]||0,jobs:r[4]||0,service:r[5]||0};});
 // Parking is part of every plot. Spaces are assigned automatically on entry.
-const PARKING_VERSION=4,LOT_SPEED=.85;
+const PARKING_VERSION=5,LOT_SPEED=.85;
+// Compact individual plots that still had an oversized asphalt approach in v4.
+const COMPACT_PARKING_TYPES=new Set(['office_large','factory_medium','shop_medium','shop_large','restaurant_medium','mall_small','mall_large','park_medium','park_large','pub_large']);
 for(const t of Object.values(CATALOG)){
  t.parkingCapacity=t.residents||t.jobs+t.service;
  t.parkingColumns=t.parkingCapacity<=40?Math.ceil(t.parkingCapacity/2):Math.ceil(Math.sqrt(t.parkingCapacity*3.4));
  t.parkingRows=Math.ceil(t.parkingCapacity/(2*t.parkingColumns));
+ t.compactParking=COMPACT_PARKING_TYPES.has(t.key);
+ // Pack each existing double-sided parking bank to its actual capacity: no empty stalls along the edge.
+ if(t.compactParking)t.parkingColumns=Math.ceil(t.parkingCapacity/(2*t.parkingRows));
+ t.parkingBankStride=t.compactParking?2.08:2.5;
+ t.parkingRowOffset=t.compactParking?.68:.85;
  t.plotWidth=Math.ceil(Math.max(t.size+1,t.parkingColumns*.38+2));
- t.plotHeight=Math.ceil(t.size+.3+t.parkingRows*2.5+.35);
+ // Only a turning margin remains between the final parking bays and the public road.
+ t.plotHeight=t.compactParking?Math.ceil(t.size+.3+t.parkingRows*t.parkingBankStride+.16):Math.ceil(t.size+.3+t.parkingRows*2.5+.35);
 }
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
 function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
-function lotSlots(b){const t=CATALOG[b.key];if(t.parkingLayout)return t.parkingLayout;const slots=[];for(let n=0;n<t.parkingCapacity;n++){const block=Math.floor(n/(2*t.parkingColumns)),row=Math.floor(n/t.parkingColumns)%2,col=n%t.parkingColumns,aisle=t.size+.3+block*2.5+1.25;slots.push({index:n,u:1+(col+.5)*.38,v:aisle+(row? .85:-.85),aisle,row});}return t.parkingLayout=slots;}
+function lotSlots(b){const t=CATALOG[b.key];if(t.parkingLayout)return t.parkingLayout;const slots=[];for(let n=0;n<t.parkingCapacity;n++){const block=Math.floor(n/(2*t.parkingColumns)),row=Math.floor(n/t.parkingColumns)%2,col=n%t.parkingColumns,aisle=t.size+.3+block*t.parkingBankStride+t.parkingBankStride/2;slots.push({index:n,u:1+(col+.5)*.38,v:aisle+(row?t.parkingRowOffset:-t.parkingRowOffset),aisle,row});}return t.parkingLayout=slots;}
 function lotModel(b){const t=CATALOG[b.key],p=lotPoint(b,t.plotWidth/2,t.size/2+.1);return{...b,x:p.x-.5-t.size/2,y:p.y-.5-t.size/2};}
 function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=(slot.row?Math.PI/2:-Math.PI/2)+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
 function citizenCarColor(id){return ['#f0e8c7','#e5a861','#719ca5','#afc5a2','#bc8fa5','#c8c8c0'][Math.abs(id)%6];}
@@ -125,7 +133,7 @@ function parkingVisuals(b){const t=CATALOG[b.key],rects=[];const rect=(u,v,w,h,c
  rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.06,t.plotHeight-.06,'#bdc6ae');
  const top=t.size+.3,bottom=t.plotHeight;rect(t.plotWidth/2,(top+bottom)/2,t.plotWidth-.12,bottom-top-.1,'#515f62');
  for(let block=0;block<t.parkingRows;block++){
-  const aisle=t.size+.3+block*2.5+1.25;
+  const aisle=t.size+.3+block*t.parkingBankStride+t.parkingBankStride/2;
   for(let x=1.2;x<t.plotWidth-1;x+=1.2)rect(x,aisle,.42,.025,'#b4c3b5');
  }
  for(const s of lotSlots(b)){rect(s.u-.19,s.v,.022,.8,'#e9e6cc');rect(s.u+.19,s.v,.022,.8,'#e9e6cc');rect(s.u,s.v+(s.row?.4:-.4),.38,.022,'#e9e6cc');}
