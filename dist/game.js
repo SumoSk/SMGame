@@ -109,7 +109,20 @@ function lotClear(v,pose){
   if(other.id===v.id||other.lotBuilding!==v.lotBuilding||!other.lotPath)continue;
   if(lotCarsOverlap(pose,parkingPose(other)))return false;
  }
- const b=state.buildings.get(v.lotBuilding);if(b)for(const cid of b.parked){
+ // The first/last metres of the driveway are shared with live road traffic.
+ // A car leaving or entering the lot must not ignore vehicles on the street.
+ const b=state.buildings.get(v.lotBuilding);
+ if(b){
+  const t=CATALOG[b.key],entrance=lotPoint(b,.45,t.plotHeight),exit=lotPoint(b,t.plotWidth-.45,t.plotHeight);
+  if(Math.min(Math.hypot(pose.x-entrance.x,pose.y-entrance.y),Math.hypot(pose.x-exit.x,pose.y-exit.y))<1.15)
+   for(const other of state.vehicles.values()){
+    if(other.id===v.id||!['driving','stuck','parking_out','parking_in','departing'].includes(other.phase))continue;
+    if(other.lotBuilding===b.id)continue;
+    const p=vehiclePosition(other);
+    if(p&&Math.hypot(p.x-pose.x,p.y-pose.y)<1.1&&lotCarsOverlap(pose,p,.045))return false;
+   }
+ }
+ if(b)for(const cid of b.parked){
   if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(p&&lotCarsOverlap(pose,p,.015))return false;
  }
  return true;
@@ -960,7 +973,7 @@ function capsulesOverlap(p,q){
 }
 function updateTrafficSpatial(v){
  if(!trafficSpatial)return;trafficSpatial.epoch++;const old=trafficSpatial.cars.get(v.id);if(old){const cell=trafficSpatial.cells.get(old.key);cell?.delete(v.id);if(!cell?.size)trafficSpatial.cells.delete(old.key);trafficSpatial.cars.delete(v.id);}
- if(!state.vehicles.has(v.id)||(!['driving','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='stuck'&&v.heldPose)))return;const pose=vehiclePosition(v),key=Math.floor(pose.x/2)+':'+Math.floor(pose.y/2);let cell=trafficSpatial.cells.get(key);if(!cell)trafficSpatial.cells.set(key,cell=new Map());const record={id:v.id,pose,key};cell.set(v.id,record);trafficSpatial.cars.set(v.id,record);
+ if(!state.vehicles.has(v.id)||(!['driving','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath)&&!(v.phase==='stuck'&&v.heldPose)))return;const pose=vehiclePosition(v),key=Math.floor(pose.x/2)+':'+Math.floor(pose.y/2);let cell=trafficSpatial.cells.get(key);if(!cell)trafficSpatial.cells.set(key,cell=new Map());const record={id:v.id,pose,key};cell.set(v.id,record);trafficSpatial.cars.set(v.id,record);
 }
 function physicalTrafficLimit(v,plan,s,lookahead){
  if(!trafficSpatial)return Infinity;const end=Math.min(plan.total,s+lookahead),origin=positionOnMotion(plan,s),x=Math.floor(origin.x/2),y=Math.floor(origin.y/2),key=x+':'+y;let cached=trafficSpatial.candidates.get(v.id),candidates=cached?.key===key&&cached.epoch===trafficSpatial.epoch?cached.ids:null;
@@ -1031,7 +1044,7 @@ function advanceVehicles(realDt,gameDt){
    else if(c&&state.time-(v.lastLate||v.deadline)>60){pain(c,1,'เดินทางล่าช้าต่อเนื่อง');v.lastLate=state.time;}
   }
   if(v.phase==='gate_waiting'||v.phase==='departing'){
-   v.wait+=gameDt;if(v.phase==='departing'&&!v.departureNoRoute){if(!prepareLotDeparture(v,simDt))continue;}if(v.retryAt>state.time)continue;v.retryAt=state.time+.35;
+   v.wait+=gameDt;if(v.phase==='departing'&&!v.departureNoRoute){if(!prepareLotDeparture(v,simDt)){updateTrafficSpatial(v);continue;}updateTrafficSpatial(v);}if(v.retryAt>state.time)continue;v.retryAt=state.time+.35;
    const from=state.buildings.get(v.fromId);
    if(v.departureRouteVersion!==state.version||v.departureNoRoute&&!(v.nextDepartureRouteRetry>state.time)){if(routeBudget<=0||!routeChecks.has(v.id))continue;routeBudget--;if(!checkDepartureRoute(v))continue;}
    if(v.departureNoRoute)continue;
