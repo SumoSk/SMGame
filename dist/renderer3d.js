@@ -154,23 +154,58 @@ export class TrafficRenderer{
   this.rain=new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color:'#cfe6f1',transparent:true,opacity:0,depthWrite:false}));
   this.rain.frustumCulled=false;this.rain.visible=false;this.scene.add(this.rain);this.lastGlow=-1;
  }
+ updateNightVisibility(night){
+  // A controlled emissive floor keeps the driving surfaces readable without
+  // lighting the entire city like daytime. Cache updates for mobile GPUs.
+  if(Math.abs(night-(this.lastNightVisibility??-1))<.018)return;
+  this.lastNightVisibility=night;
+  const surfaces=[
+   [this.roadGroup,true],
+   [this.buildingGroup,false]
+  ];
+  for(const [group,isRoad] of surfaces)group.traverse(mesh=>{
+   if(!mesh.material?.emissive)return;
+   const base=mesh.userData.baseColor||'';
+   let role=mesh.userData.nightRole;
+   if(isRoad){
+    if(['#47565c','#424f55'].includes(base))role='asphalt';
+    else if(['#dce3d8','#ead78c','#edf0df','#f1eddb'].includes(base))role='marking';
+   }
+   let tint=base,intensity=0;
+   if(role==='asphalt'||role==='night-asphalt'){intensity=.42;tint=base||'#56666a';}
+   else if(role==='marking'||role==='road-marking'||role==='night-marking'){intensity=.68;tint=base||'#f4edd8';}
+   else if(role==='night-lot-base'){intensity=.20;tint=base||'#bdc6ae';}
+   if(intensity){mesh.material.emissive.set(tint);mesh.material.emissiveIntensity=night*intensity;}
+  });
+  for(const set of this.carSets.values()){
+   set.body.material.emissive.set('#a5afb4');
+   set.body.material.emissiveIntensity=night*.40;
+   set.trim.material.emissive.set('#6d8790');
+   set.trim.material.emissiveIntensity=night*.23;
+   for(const mesh of [set.headlights,set.taillights]){
+    mesh.visible=night>.04&&mesh.count>0;
+    mesh.material.opacity=night*.94;
+   }
+  }
+ }
  updateWeatherLight(state){
   const sun=lightAt(state.time),air=climateAt(state.time,state.city);
   this.scene.background.copy(sun.sky).lerp(new THREE.Color('#738999'),air.cloud*.22+air.rain*.38);
-  this.skyLight.intensity=sun.ambient*(1-air.cloud*.14-air.rain*.24);
+  this.skyLight.intensity=Math.max(.84,sun.ambient*(1-air.cloud*.14-air.rain*.24));
   this.light.color.copy(sun.sun).lerp(new THREE.Color('#dfe9f0'),air.cloud*.25);
-  this.light.intensity=sun.strength*(1-air.cloud*.18-air.rain*.36);
-  this.renderer.toneMappingExposure=sun.exposure*(1-air.rain*.09);
+  this.light.intensity=Math.max(.44,sun.strength*(1-air.cloud*.18-air.rain*.36));
+  this.renderer.toneMappingExposure=Math.max(.69,sun.exposure*(1-air.rain*.09));
   const solar=Math.max(0,Math.sin((sun.minute-360)/720*Math.PI)),az=sun.minute/1440*Math.PI*2;
   this.light.position.set(this.cam.x+Math.cos(az)*65,27+solar*68,this.cam.y+Math.sin(az)*65);
   this.light.castShadow=sun.strength>.58;
   const glow=smooth(sun.lamps)*(1-air.rain*.12);
+  this.updateNightVisibility(glow);
   if(Math.abs(glow-this.lastGlow)>.008){
    for(const group of [this.lampGroup,this.buildingGroup])group.traverse(mesh=>{
     if(!mesh.userData.nightGlow)return;mesh.visible=glow>.015;
     mesh.material.opacity=.91*glow;mesh.material.emissiveIntensity=1.25+glow*.9;
    });
-   if(this.streetGlow)this.streetGlow.material.opacity=.31*glow;
+   if(this.streetGlow)this.streetGlow.material.opacity=.42*glow;
    this.lastGlow=glow;
   }
   this.rain.visible=air.rain>.025;
