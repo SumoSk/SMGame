@@ -880,7 +880,7 @@ function respawnVehicle(v){
  for(const gate of gates){const candidate=tripRoute(null,v.toId,gate,v.toGate);if(candidate?.length>1){entrance=gate;path=candidate;break;}}
  const from=state.buildings.get(v.fromId),c=state.citizens.get(v.citizenId);
  release(v);
- if(from){from.queue=from.queue.filter(id=>id!==v.id);if(c){from.parked.delete(c.id);from.visitors.delete(c.id);}}
+ if(from){from.queue=from.queue.filter(id=>id!==v.id);if(c){from.parked.delete(c.id);from.visitors.delete(c.id);freeParkingSpace(from,c.id);}}
  v.fromId=null;v.fromGate=entrance;v.path=path?[...path]:[entrance];v.pathSet=new Set(v.path);
  v.pos=0;v.progress=0;v.lane=0;v.motionStartPose=null;v.motionSeedLane=null;v.heldPose=null;
  v.lotPath=null;v.lotDistance=0;v.lotBuilding=null;v.lotReady=false;cleanupParkingVehicle(v);
