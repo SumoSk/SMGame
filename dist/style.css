@@ -226,11 +226,11 @@ body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,di
 .citizen-empty{text-align:center;color:#698375;background:#f3f7f2;border-radius:9px;padding:20px;font-size:12px}
 @media(max-width:700px){.citizens-dashboard{right:8px;left:8px;width:auto;top:76px;bottom:94px;height:auto;max-height:none;min-height:0;border-radius:12px}.citizens-top{padding:8px 10px}.citizens-top h2{font-size:17px}.citizens-toolbar{padding:7px 10px}.citizens-dashboard-body{padding:8px 10px}.citizen-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.citizen-pair{grid-template-columns:1fr}.citizen-kpi b{font-size:16px}}
 
-/* Rooftop labels: name and the approaching car count only. */
+/* Rooftop labels: tiny building name and three number-only counters. */
 .place-building-label{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:2px 4px;border-radius:5px;background:#f8fcf4e8;border:1px solid #d6e1ce;box-shadow:0 1px 4px #173f3d20;color:#173f3d;font:8px/1.22 "Noto Sans Thai",Tahoma,sans-serif;white-space:nowrap;text-align:center}
 .place-building-label[hidden]{display:none!important}
 .place-building-name{font-weight:600;font-size:8px;line-height:1.24}
-.place-building-arrivals{font-size:7.5px;line-height:1.20;color:#547265;font-variant-numeric:tabular-nums}
+.place-building-arrivals{font-size:7px;line-height:1.20;letter-spacing:-.08px;color:#547265;font-variant-numeric:tabular-nums}
 /* Tablet layouts should not be dominated by the citizen dashboard. */
 @media(min-width:701px) and (max-width:1400px){
  .citizens-dashboard{right:10px;top:72px;width:min(370px,calc(100vw - 22px));height:min(460px,60dvh);min-height:250px;font-size:10.5px}
