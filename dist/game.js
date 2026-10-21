@@ -1093,7 +1093,7 @@ canvas.addEventListener('pointerup',e=>{
 });
 canvas.addEventListener('pointercancel',e=>{ignoredTouchPointers.delete(e.pointerId);pointers.delete(e.pointerId);drag=null;pinch=null;});canvas.addEventListener('contextmenu',e=>{e.preventDefault();cancelInteraction();});canvas.addEventListener('pointerleave',()=>hover=null);
 canvas.addEventListener('wheel',e=>{e.preventDefault();const before=world(e.clientX,e.clientY);cam.z=Math.max(.22,Math.min(5.2,cam.z*(e.deltaY<0?1.12:.89)));if(renderer3d)renderer3d.updateCamera(cam);const after=world(e.clientX,e.clientY);cam.x+=before[0]-after[0];cam.y+=before[1]-after[1];},{passive:false});
-window.addEventListener('keydown',e=>{if($('dialog').open)return;if(e.key==='Escape'){cancelInteraction();return;}if(e.target?.matches?.('input,textarea,select,[contenteditable="true"]'))return;if(e.code==='Space'){e.preventDefault();state.speed=state.speed?0:1;updateUI();}if(['1','2','5'].includes(e.key)){state.speed=+e.key;updateUI();}if(e.key.toLowerCase()==='h')$('heat').click();if(e.key.toLowerCase()==='b'){category='roads';selectTool('small');}if(e.key.toLowerCase()==='s'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openSaveDialog();}});
+window.addEventListener('keydown',e=>{if($('dialog').open)return;if(e.key==='Escape'){cancelInteraction();return;}if(e.target?.matches?.('input,textarea,select,[contenteditable="true"]'))return;if(e.code==='Space'){e.preventDefault();state.speed=state.speed?0:1;updateUI();}if(['1','2','5'].includes(e.key)){state.speed=+e.key;updateUI();}if(e.key.toLowerCase()==='h')$('heat').click();if(e.key.toLowerCase()==='b'){category='roads';selectTool('small');}if(e.key.toLowerCase()==='s'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openCloudSaveDialog();}});
 $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action,v=+b.dataset.value;
  if(a==='signal-defaults-reset'){
   if(selected?.kind!=='signals')return;const count=restoreRecommendedSignals();
@@ -1166,22 +1166,97 @@ async function openLoadDialog(){
  $('loadClose').onclick=closeModal;
  slots.forEach((slot,i)=>$('slotAction'+i).onclick=()=>{closeModal();confirmAction('โหลด “'+escapeSaveText(slot.name)+'”','เมืองที่ยังไม่ได้บันทึกจะถูกแทนที่ด้วยเซฟที่เลือก',()=>loadGame(false,slot.id));});
 }
+// All visible save operations use the authenticated Supabase account.
+// Historic local saves are left on the device but are never read or written by the game menus.
 async function openCloudSaveDialog(){
- const api=window.SMGameAccount;if(!api?.user){toast('กรุณาเข้าสู่ระบบก่อนค่ะ');return;}
- let slots;try{slots=await api.listSaves();}catch(e){console.error('Cloud save list:',e);toast('อ่านเซฟออนไลน์ไม่ได้ กรุณาลองอีกครั้งค่ะ');return;}
- modal(`<span class="eyebrow">ONLINE SAVE</span><h2>บันทึกเมืองออนไลน์</h2><p>เซฟนี้ผูกกับบัญชีของคุณ เปิดเกมจากอุปกรณ์อื่นได้ และไม่ลบเซฟในเครื่อง</p><label for="cloudSaveName">ชื่อเซฟ</label><input id="cloudSaveName" maxlength="80" style="display:block;box-sizing:border-box;width:100%;margin:8px 0" value="${escapeSaveText(CITIES[state.city].name+' วันที่ '+(Math.floor(state.time/1440)+1))}"><p id="cloudSaveError" role="status" aria-live="polite"></p><div class="actions"><button id="cloudCreate" class="primary">บันทึกออนไลน์เป็นเซฟใหม่</button><button id="cloudClose">กลับไปเล่น</button></div>${slots.length?'<h3>เซฟออนไลน์</h3>'+saveSlotRows(slots,'save'):''}`);
- $('cloudClose').onclick=closeModal;
- const upload=async(name,slotId,button)=>{const error=$('cloudSaveError');button.disabled=true;error.textContent='กำลังบันทึกออนไลน์…';try{await api.save(name,slotId,snapshot());closeModal();toast('บันทึกเมืองออนไลน์แล้วค่ะ');}catch(e){console.error('Cloud save:',e);error.textContent='บันทึกออนไลน์ไม่สำเร็จ: '+(e.message||'ลองอีกครั้งค่ะ');}finally{button.disabled=false;}};
- $('cloudCreate').onclick=()=>{const name=$('cloudSaveName').value.trim().slice(0,80);if(!name){$('cloudSaveError').textContent='ใส่ชื่อเซฟก่อนค่ะ';return;}return upload(name,'cloud-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10),$('cloudCreate'));};
- slots.forEach((slot,i)=>$('slotAction'+i).onclick=()=>{closeModal();confirmAction('เขียนทับเซฟออนไลน์ “'+escapeSaveText(slot.name)+'”','ข้อมูลเซฟออนไลน์นี้จะถูกแทนที่ด้วยเมืองที่กำลังเล่น',async()=>{try{await api.save(slot.name,slot.id,snapshot());toast('เขียนทับเซฟออนไลน์แล้วค่ะ');}catch(e){console.error('Cloud overwrite:',e);toast('เขียนทับเซฟออนไลน์ไม่สำเร็จ กรุณาลองใหม่ค่ะ');}});});
+ const api=window.SMGameAccount;
+ if(!api?.user){toast('กรุณาเข้าสู่ระบบก่อนค่ะ');return;}
+ let slots;
+ try{slots=await api.listSaves();}
+ catch(e){console.error('Online saves:',e);toast('อ่านเซฟออนไลน์ไม่ได้ กรุณาลองอีกครั้งค่ะ');return;}
+ const rows=slots.map((slot,i)=>{
+  const when=Number.isFinite(slot.savedAt)?new Date(slot.savedAt).toLocaleString('th-TH'):'';
+  return '<div style="padding:11px 0;border-bottom:1px solid #dce4de"><strong style="overflow-wrap:anywhere">'+escapeSaveText(slot.name)+'</strong><p style="margin:3px 0;color:#648074;font-size:12px">'+escapeSaveText(when)+'</p><div class="actions"><button id="onlineLoad'+i+'">โหลด</button><button id="onlineOverwrite'+i+'">เขียนทับ</button><button id="onlineDelete'+i+'">ลบเซฟ</button></div></div>';
+ }).join('');
+ modal(`<span class="eyebrow">ONLINE SAVES</span><h2>เซฟเกม</h2>
+  <p>บันทึกออนไลน์ในบัญชีของคุณ และเล่นต่อบนอุปกรณ์อื่นได้ค่ะ</p>
+  <label for="onlineSaveName">ชื่อเซฟ</label>
+  <input id="onlineSaveName" maxlength="80" autocomplete="off" style="display:block;box-sizing:border-box;width:100%;margin:8px 0" value="${escapeSaveText(CITIES[state.city].name+' วันที่ '+(Math.floor(state.time/1440)+1))}">
+  <p id="onlineSaveError" role="status" aria-live="polite" style="min-height:16px"></p>
+  <div class="actions"><button id="onlineCreate" class="primary">บันทึกเป็นเซฟใหม่</button><button id="onlineClose">กลับไปเล่น</button></div>
+  <h3>เซฟออนไลน์ของฉัน</h3>
+  ${rows||'<p>ยังไม่มีเซฟออนไลน์ค่ะ</p>'}
+  <h3>จัดการเมือง</h3>
+  <select id="citySelect">${Object.entries(CITIES).map(([k,c])=>`<option value="${k}" ${k===state.city?'selected':''}>${c.name}</option>`).join('')}</select>
+  <div class="actions"><button id="newCity">เริ่มเมืองใหม่</button><button id="reportMenu">ตรวจเมือง / รายงานบัค</button></div>`);
+ $('onlineClose').onclick=closeModal;
+ $('onlineCreate').onclick=async()=>{
+  const button=$('onlineCreate'),error=$('onlineSaveError'),name=$('onlineSaveName').value.trim().slice(0,80);
+  if(!name){error.textContent='กรุณาตั้งชื่อเซฟค่ะ';return;}
+  button.disabled=true;error.textContent='กำลังบันทึกออนไลน์…';
+  try{await api.save(name,'cloud-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10),snapshot());toast('บันทึกเซฟออนไลน์แล้วค่ะ');await openCloudSaveDialog();}
+  catch(e){console.error('Online save failed:',e);error.textContent='บันทึกไม่สำเร็จ: '+(e.message||'กรุณาลองใหม่');}
+  finally{button.disabled=false;}
+ };
+ slots.forEach((slot,i)=>{
+  $('onlineLoad'+i).onclick=()=>{
+   confirmAction('โหลดเซฟ “'+escapeSaveText(slot.name)+'”','เมืองปัจจุบันที่ยังไม่ได้บันทึกจะถูกแทนที่',()=>{
+    if(loadGame(false,null,slot.data))toast('โหลดเซฟออนไลน์แล้วค่ะ');
+   });
+  };
+  $('onlineOverwrite'+i).onclick=()=>{
+   confirmAction('เขียนทับ “'+escapeSaveText(slot.name)+'”','เซฟออนไลน์เดิมจะถูกแทนที่ด้วยเมืองที่กำลังเล่น',async()=>{
+    try{await api.save(slot.name,slot.id,snapshot());toast('เขียนทับเซฟออนไลน์แล้วค่ะ');await openCloudSaveDialog();}
+    catch(e){console.error('Cloud overwrite failed:',e);toast('เขียนทับเซฟออนไลน์ไม่สำเร็จค่ะ');}
+   });
+  };
+  $('onlineDelete'+i).onclick=()=>{
+   confirmAction('ลบเซฟ “'+escapeSaveText(slot.name)+'”','ลบเซฟนี้ออกจากบัญชีออนไลน์ถาวร และไม่สามารถกู้คืนจากเกมได้',async()=>{
+    try{await api.deleteSave(slot.id);toast('ลบเซฟออนไลน์แล้วค่ะ');await openCloudSaveDialog();}
+    catch(e){console.error('Cloud delete failed:',e);toast('ลบเซฟไม่สำเร็จ กรุณาลองใหม่ค่ะ');}
+   });
+  };
+ });
+ $('newCity').onclick=()=>{
+  const key=$('citySelect').value;
+  confirmAction('เริ่มเมืองใหม่','เมืองปัจจุบันที่ยังไม่ได้บันทึกจะหายไป เริ่มเมืองใหม่ด้วยเงิน 500,000 บาท',()=>reset(key));
+ };
+ $('reportMenu').onclick=openCityReport;
 }
-async function openCloudLoadDialog(){
- const api=window.SMGameAccount;if(!api?.user){toast('กรุณาเข้าสู่ระบบก่อนค่ะ');return;}
- let slots;try{slots=await api.listSaves();}catch(e){console.error('Cloud saves:',e);toast('อ่านเซฟออนไลน์ไม่ได้ค่ะ');return;}
- modal(`<span class="eyebrow">ONLINE CITY</span><h2>โหลดเมืองออนไลน์</h2>${slots.length?saveSlotRows(slots,'load'):'<p>ยังไม่มีเซฟออนไลน์ค่ะ</p>'}<div class="actions"><button id="cloudLoadClose">กลับไปเล่น</button></div>`);
- $('cloudLoadClose').onclick=closeModal;
- slots.forEach((slot,i)=>$('slotAction'+i).onclick=()=>{closeModal();confirmAction('โหลดเซฟออนไลน์ “'+escapeSaveText(slot.name)+'”','เมืองที่ยังไม่ได้บันทึกจะถูกแทนที่ด้วยเซฟออนไลน์นี้',()=>loadGame(false,null,slot.data));});
+function openAccountDialog(){
+ const api=window.SMGameAccount;
+ if(!api?.user){toast('กรุณาเข้าสู่ระบบก่อนค่ะ');return;}
+ modal(`<span class="eyebrow">MY ACCOUNT</span><h2>บัญชีผู้ใช้</h2>
+ <p>อีเมล: <strong>${escapeSaveText(api.user.email||'')}</strong></p>
+ <h3>เปลี่ยนรหัสผ่าน</h3>
+ <label for="accountOldPassword">รหัสผ่านปัจจุบัน</label>
+ <input id="accountOldPassword" type="password" autocomplete="current-password" style="display:block;width:100%;box-sizing:border-box;margin:7px 0 12px;padding:9px" required>
+ <label for="accountNewPassword">รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษร)</label>
+ <input id="accountNewPassword" type="password" autocomplete="new-password" minlength="8" style="display:block;width:100%;box-sizing:border-box;margin:7px 0 12px;padding:9px" required>
+ <label for="accountConfirmPassword">ยืนยันรหัสผ่านใหม่</label>
+ <input id="accountConfirmPassword" type="password" autocomplete="new-password" minlength="8" style="display:block;width:100%;box-sizing:border-box;margin:7px 0 12px;padding:9px" required>
+ <p id="accountChangeNotice" role="status" aria-live="polite"></p>
+ <div class="actions"><button id="accountChangePassword" class="primary">บันทึกรหัสผ่านใหม่</button><button id="accountSignOut">ออกจากระบบ</button><button id="accountClose">กลับไปเล่น</button></div>`);
+ $('accountClose').onclick=closeModal;
+ $('accountChangePassword').onclick=async()=>{
+  const oldPw=$('accountOldPassword').value,newPw=$('accountNewPassword').value,confirm=$('accountConfirmPassword').value;
+  const error=$('accountChangeNotice'),button=$('accountChangePassword');
+  if(newPw.length<8){error.textContent='รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษรค่ะ';return;}
+  if(newPw!==confirm){error.textContent='ยืนยันรหัสผ่านใหม่ไม่ตรงกันค่ะ';return;}
+  if(newPw===oldPw){error.textContent='กรุณาตั้งรหัสผ่านใหม่ที่ต่างจากเดิมค่ะ';return;}
+  button.disabled=true;error.textContent='กำลังเปลี่ยนรหัสผ่าน…';
+  try{await api.changePassword(oldPw,newPw);$('accountOldPassword').value='';$('accountNewPassword').value='';$('accountConfirmPassword').value='';error.textContent='เปลี่ยนรหัสผ่านสำเร็จแล้วค่ะ';}
+  catch(e){error.textContent='เปลี่ยนรหัสผ่านไม่สำเร็จ: '+(e.message||'กรุณาตรวจสอบรหัสผ่านเดิม');}
+  finally{button.disabled=false;}
+ };
+ $('accountSignOut').onclick=()=>{
+  confirmAction('ออกจากระบบ','เมืองที่ยังไม่ได้บันทึกออนไลน์จะหายไป กรุณาบันทึกก่อนออกจากระบบ',async()=>{
+   try{await api.signOut();closeModal();}
+   catch(e){console.error('Sign out:',e);toast('ออกจากระบบไม่สำเร็จค่ะ');}
+  });
+ };
 }
+window.SMGameAuthReset=()=>reset();
 function cityBugReport(){
  const reasons={},vehicles=[],issues=[];
  for(const v of state.vehicles.values()){const reason=v.phase==='stuck'?(v.stopReason||'ไม่มีเส้นทาง'):v.phase==='gate_waiting'||v.phase==='departing'?'รอออกจากอาคาร/ประตู':v.stopReason||'กำลังเดินทาง';reasons[reason]=(reasons[reason]||0)+1;
@@ -1199,7 +1274,12 @@ function openCityReport(){const report=cityBugReport(),rows=Object.entries(repor
  report.issues.slice(0,12).forEach((v,i)=>{$('bugCar'+i).onclick=()=>{if(v.pose){cam.x=v.pose.x;cam.y=v.pose.y;follow=v.id;}selected={kind:'vehicle',id:v.id};closeModal();renderInspector();};$('bugTow'+i).onclick=()=>{if(towVehicle(v.id))toast('ลากรถออกแล้ว · ยกเลิกเที่ยวเดินทาง');openCityReport();};});
 }
 $('advisorNext').onclick=e=>{const button=e.target.closest('button');if(!button)return;if(button.hasAttribute('data-advice-report'))openCityReport();else if(button.dataset.adviceCategory){category=button.dataset.adviceCategory;renderTools();}};
-$('menu').onclick=()=>{const cloud=!!window.SMGameAccount?.user;modal('<span class="eyebrow">YOUR CITY</span><h2>จัดการเมือง</h2><p>เซฟในเครื่องยังคงอยู่เหมือนเดิม'+(cloud?' · เลือกบันทึกออนไลน์เพื่อใช้ข้ามอุปกรณ์':'')+'</p><div class="actions"><button id="saveMenu">บันทึกในเครื่อง</button><button id="loadMenu">โหลดจากเครื่อง</button>'+(cloud?'<button id="cloudSaveMenu">บันทึกออนไลน์</button><button id="cloudLoadMenu">โหลดออนไลน์</button>':'')+'<button id="reportMenu">ตรวจเมือง / รายงานบัค</button></div><h3>เริ่มเมืองใหม่</h3><select id="citySelect">'+Object.entries(CITIES).map(([k,c])=>`<option value="${k}" ${k===state.city?'selected':''}>${c.name}</option>`).join('')+'</select><p>เมืองแต่ละแห่งต่างกันที่ภูมิประเทศและบรรยากาศ พื้นน้ำและภูเขายังเป็นภาพประกอบการเล่น</p><div class="actions"><button id="menuClose">กลับไปเล่น</button><button id="newCity" class="primary">เริ่มใหม่</button></div>');$('menuClose').onclick=closeModal;$('reportMenu').onclick=openCityReport;$('saveMenu').onclick=()=>{closeModal();return openSaveDialog();};$('loadMenu').onclick=()=>{closeModal();return openLoadDialog();};if(cloud){$('cloudSaveMenu').onclick=()=>{closeModal();return openCloudSaveDialog();};$('cloudLoadMenu').onclick=()=>{closeModal();return openCloudLoadDialog();};}$('newCity').onclick=()=>{const key=$('citySelect').value;closeModal();confirmAction('เริ่มเมืองใหม่','เมืองปัจจุบันที่ยังไม่ได้บันทึกจะหายไป เริ่มเมืองใหม่ด้วยเงิน 500,000 บาท',()=>reset(key));};};
+$('menu').onclick=()=>{
+ modal('<span class="eyebrow">GAME MENU</span><h2>เมนูหลัก</h2><div class="actions"><button id="accountMenu">บัญชีผู้ใช้</button><button id="saveMenu">เซฟเกม</button></div><div class="actions"><button id="menuClose">กลับไปเล่น</button></div>');
+ $('menuClose').onclick=closeModal;
+ $('accountMenu').onclick=openAccountDialog;
+ $('saveMenu').onclick=openCloudSaveDialog;
+};
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){if(!['moveIn','pass'].includes(v.kind)&&v.wait>24){v.late=true;const c=state.citizens.get(v.citizenId);if(c){c.late=true;pain(c,3,'ล่าช้าก่อนข้ามวัน');}}arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);state.time=target-360;daily();state.time=target;for(const c of state.citizens.values()){if(c.removed)continue;for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;$('heat').classList.add('active');addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.

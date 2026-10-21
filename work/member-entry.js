@@ -15,7 +15,6 @@ if (gate) {
   let mode = 'login';
   let busy = false;
   const notice = $('memberNotice');
-  const accountButton = $('memberAccount');
 
   function setNotice(message, error = false) {
     notice.textContent = message;
@@ -27,8 +26,6 @@ if (gate) {
     document.querySelectorAll('body > *').forEach(element => {
       if (element !== gate && element.tagName !== 'SCRIPT') element.inert = locked;
     });
-    accountButton.hidden = locked;
-    if (!locked) accountButton.textContent = (user?.email || 'บัญชี').slice(0, 24) + ' ▾';
   }
   function setMode(next) {
     mode = next;
@@ -42,6 +39,9 @@ if (gate) {
     setNotice('');
   }
   function setUser(next) {
+    const previousId = user?.id;
+    const nextId = next?.id;
+    if (previousId && previousId !== nextId) window.SMGameAuthReset?.();
     user = next || null;
     setLocked(!user);
     if (user) setNotice('');
@@ -78,11 +78,6 @@ if (gate) {
       $('memberSubmit').disabled = false;
     }
   });
-  accountButton.addEventListener('click', async () => {
-    if (!window.confirm('ออกจากระบบ SMGame ใช่ไหมคะ? บันทึกเมืองก่อนออกจากเกมนะคะ')) return;
-    const { error } = await auth.auth.signOut();
-    if (error) window.alert('ออกจากระบบไม่สำเร็จ: ' + error.message);
-  });
   auth.auth.onAuthStateChange((_event, session) => setUser(session?.user));
   auth.auth.getSession().then(({ data, error }) => {
     if (error) setNotice('ตรวจสอบการเข้าสู่ระบบไม่ได้ กรุณาลองใหม่ค่ะ', true);
@@ -94,7 +89,7 @@ if (gate) {
     async listSaves() {
       if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
       const { data, error } = await auth.from('smgame_saves')
-        .select('slot_id,name,data,updated_at').order('updated_at', { ascending: false });
+        .select('slot_id,name,data,updated_at').eq('user_id',user.id).order('updated_at', { ascending: false });
       if (error) throw error;
       return (data || []).map(slot => ({
         id: slot.slot_id, name: slot.name, savedAt: Date.parse(slot.updated_at),
@@ -109,6 +104,31 @@ if (gate) {
       }, { onConflict: 'user_id,slot_id' }).select('slot_id').single();
       if (error) throw error;
       if (data?.slot_id !== slotId) throw Error('ตรวจสอบเซฟออนไลน์ไม่สำเร็จ');
+    },
+    async deleteSave(slotId) {
+      if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
+      if (typeof slotId !== 'string' || !slotId) throw Error('ระบุเซฟที่ต้องการลบค่ะ');
+      const { data, error } = await auth.from('smgame_saves').delete()
+        .eq('user_id', user.id).eq('slot_id', slotId).select('slot_id');
+      if (error) throw error;
+      if (!data?.some(slot => slot.slot_id === slotId)) throw Error('ไม่พบเซฟนี้ในบัญชีค่ะ');
+    },
+    async changePassword(currentPassword, newPassword) {
+      if (!user?.email) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
+      if (!currentPassword || newPassword?.length < 8) throw Error('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษรค่ะ');
+      if (currentPassword === newPassword) throw Error('รหัสผ่านใหม่ต้องแตกต่างจากเดิมค่ะ');
+      const { error: checkError } = await auth.auth.signInWithPassword({
+        email: user.email, password: currentPassword,
+      });
+      if (checkError) throw Error('รหัสผ่านปัจจุบันไม่ถูกต้องค่ะ');
+      const { error } = await auth.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+    },
+    async signOut() {
+      if (!user) return;
+      const { error } = await auth.auth.signOut();
+      if (error) throw error;
+      setUser(null);
     },
   };
 }
