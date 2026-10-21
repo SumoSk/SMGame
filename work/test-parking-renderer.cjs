@@ -1,0 +1,13 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('node:path'),{pathToFileURL}=require('node:url');
+(async()=>{
+ const harness=fs.readFileSync('work/test-parking.cjs','utf8').split('function step(n)')[0].replace("'newCitizen,parkingFree,parkingSpace,'","'newCitizen,parkingIsMoving,citizenCarColor,parkingFree,parkingSpace,'");
+ const game=new Function('require',harness+';return game;')(require),THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
+ const source=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');const {TrafficRenderer,Batch}=new Function('THREE',source+';return {TrafficRenderer,Batch};')(THREE);
+ game.state.money=1e8;const home=game.buildBuilding('home_large',160,140,true);assert(home);for(let i=0;i<10;i++){const c=game.newCitizen(home);c.resident=true;home.parked.add(c.id);}game.syncParkingSlots();
+ const r=Object.create(TrafficRenderer.prototype);r.scene=new THREE.Scene();r.parking=game;r.createCars();r.cars(game.state,game.vehiclePosition,game.CATALOG);assert.equal(r.carBody.count,10);
+ const matrix=new THREE.Matrix4(),position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3();for(let i=0;i<10;i++){r.carBody.getMatrixAt(i,matrix);matrix.decompose(position,quaternion,scale);assert(Math.abs(scale.x-.57)<1e-6);assert(Math.abs(scale.z-.26)<1e-6);const expected=game.parkingSlotPose(home,i);assert(Math.hypot(position.x-(expected.x-.5),position.z-(expected.y-.5))<1e-4);}
+ const batch=new Batch();r.building(batch,home,game.CATALOG,{});const model=batch.build();assert(model.children.length>3);const visuals=game.parkingVisuals(home);assert(visuals.length>=30*3);const levels=new Set([...batch.data.values()].flatMap(v=>v.items).map(i=>i.y));assert(levels.has(.025)&&levels.has(.065)&&levels.has(.09));
+ // Starting to leave hides only that citizen's static parked instance.
+ const c=[...game.state.citizens.values()][0],v={id:99999,citizenId:c.id,phase:'departing',lotPath:[game.parkingSlotPose(home,0),game.lotPoint(home,1.19,5.55)],lotDistance:0,color:game.citizenCarColor(c.id)};c.vehicleId=v.id;game.state.vehicles.set(v.id,v);r.cars(game.state,game.vehiclePosition,game.CATALOG);assert.equal(r.carBody.count,10);
+ console.log(JSON.stringify({passed:true,visibleCars:10,carLength:.57,carWidth:.26,coverage:['full-sized cars','one car per occupied space','no duplicate departing car','30 marked bays','separate asphalt and marking heights','retained building model']}));
+})().catch(e=>{console.error(e);process.exitCode=1;});
