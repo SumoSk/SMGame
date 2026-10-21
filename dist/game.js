@@ -802,11 +802,11 @@ function citizenDashboardData(){
   if(issue)summary.issues++;
   // Counts refer to today's *planned* activities, not observed departures.
   if(plan.works){
-   const outbound=Math.floor(plan.leave/120),back=Math.floor((plan.end+plan.postDelay)/120);
+   const outbound=Math.floor((plan.leave-360)/120),back=Math.floor((plan.end+plan.postDelay-360)/120);
    if(outbound>=0&&outbound<8)rush[outbound]++;
    if(back>=0&&back<8)rush[back]++;
   }else if(plan.kind){
-   const outing=Math.floor(plan.leisureStart/120);
+   const outing=Math.floor((plan.leisureStart-360)/120);
    if(outing>=0&&outing<8)rush[outing]++;
   }
  }
@@ -884,7 +884,7 @@ function renderCitizenDashboard(force=false){
    [['อยู่บ้าน',locations.home],['อยู่ที่ทำงาน',locations.work],['กำลังใช้บริการ',locations.service],['เดินทาง',locations.travel],['อื่น ๆ',locations.other],['ปรับออกเช้าหลังมาสาย',m.adaptive]].map(([label,num])=>'<div><b>'+fmt(num)+'</b><small>'+label+'</small></div>').join('')+'</div>')+
   section('ช่วงเวลาเดินทางที่วางแผนไว้','รวมเวลาออกบ้านและเลิกงาน · ไม่ใช่จำนวนรถจริง',
    '<div class="citizen-rush-chart">'+rush.map((count,i)=>'<div class="citizen-rush-col"><div class="citizen-rush-bar" title="'+fmt(count)+' กิจกรรม" style="height:'+
-    Math.max(2,Math.round(count/Math.max(1,...rush)*61))+'px"></div><small>'+String(i*2).padStart(2,'0')+'</small></div>').join('')+'</div>')+
+    Math.max(2,Math.round(count/Math.max(1,...rush)*61))+'px"></div><small>'+String(6+i*2).padStart(2,'0')+'</small></div>').join('')+'</div>')+
   section('ปัญหาที่ระบบตรวจพบ','ค้างอยู่หรือเพิ่งเกิดขึ้น',
    '<div class="citizen-issues">'+(problems.length?problems.map(([label,count])=>'<span class="citizen-issue">'+escapeSaveText(label)+' <strong>'+fmt(count)+'</strong></span>').join(''):'<span class="citizen-note">ยังไม่พบปัญหาที่ค้างอยู่</span>')+'</div>')+
   section('รายชื่อประชาชนที่ต้องติดตาม',fmt(records.length)+' คนตามตัวกรอง',
