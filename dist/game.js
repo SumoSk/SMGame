@@ -14,7 +14,7 @@ const catalogData={home:[[2,6000,20,2],[3,35000,100,10],[4,130000,350,30]],shop:
 for(const [kind,rows] of Object.entries(catalogData))rows.forEach((r,i)=>{const key=kind+'_'+['small','medium','large'][i];CATALOG[key]={key,kind,name:KINDS[kind].name+['เล็ก','กลาง','ใหญ่'][i],size:r[0],cost:r[1],maint:r[2],residents:r[3]||0,jobs:r[4]||0,service:r[5]||0};});
 // Version 6 of the parking layout is the new v5 architectural masterplan.
 // There are exactly two facing stall rows, one continuous aisle, no inner banks.
-const PARKING_VERSION=6,LOT_SPEED=.85;
+const PARKING_VERSION=6,LOT_SPEED=1.35;
 for(const t of Object.values(CATALOG)){
  t.parkingCapacity=t.residents||t.jobs+t.service;
  t.parkingColumns=Math.ceil(t.parkingCapacity/2);
@@ -109,9 +109,19 @@ function lotPathPose(points,distance){
 function lotPathLength(points){let n=0;for(let i=1;i<points.length;i++)n+=Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y);return n;}
 // Each car occupies its physical space; unrelated aisles remain free.
 function lotCarsOverlap(a,b,margin=.035){
- const angle=p=>Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),aa=angle(a),ba=angle(b),axes=[[Math.cos(aa),Math.sin(aa)],[-Math.sin(aa),Math.cos(aa)],[Math.cos(ba),Math.sin(ba)],[-Math.sin(ba),Math.cos(ba)]],dx=b.x-a.x,dy=b.y-a.y,hl=.285+margin,hw=.13+margin;
- if(Math.hypot(dx,dy)>2*Math.hypot(hl,hw))return false;
- for(const [x,y] of axes){const ra=hl*Math.abs(x*Math.cos(aa)+y*Math.sin(aa))+hw*Math.abs(-x*Math.sin(aa)+y*Math.cos(aa)),rb=hl*Math.abs(x*Math.cos(ba)+y*Math.sin(ba))+hw*Math.abs(-x*Math.sin(ba)+y*Math.cos(ba));if(Math.abs(dx*x+dy*y)>=ra+rb)return false;}return true;
+ const dx=b.x-a.x,dy=b.y-a.y,hl=.285+margin,hw=.13+margin;
+ // A long two-row lot can have hundreds of parked cars. Reject distant
+ // objects before allocating the oriented axes and calling sin/cos.
+ if(dx*dx+dy*dy>4*(hl*hl+hw*hw))return false;
+ const angle=p=>Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),aa=angle(a),ba=angle(b);
+ const axes=[[Math.cos(aa),Math.sin(aa)],[-Math.sin(aa),Math.cos(aa)],
+             [Math.cos(ba),Math.sin(ba)],[-Math.sin(ba),Math.cos(ba)]];
+ for(const [x,y] of axes){
+  const ra=hl*Math.abs(x*Math.cos(aa)+y*Math.sin(aa))+hw*Math.abs(-x*Math.sin(aa)+y*Math.cos(aa));
+  const rb=hl*Math.abs(x*Math.cos(ba)+y*Math.sin(ba))+hw*Math.abs(-x*Math.sin(ba)+y*Math.cos(ba));
+  if(Math.abs(dx*x+dy*y)>=ra+rb)return false;
+ }
+ return true;
 }
 function lotClear(v,pose,ignoreRoadTraffic=false){
  for(const other of state.vehicles.values()){
@@ -132,7 +142,7 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
    }
  }
  if(b)for(const cid of b.parked){
-  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(p&&lotCarsOverlap(pose,p,.015))return false;
+  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1&&lotCarsOverlap(pose,p,.015))return false;
  }
  return true;
 }
