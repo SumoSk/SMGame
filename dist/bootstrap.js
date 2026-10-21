@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=no-fog-v501';
+import { TrafficRenderer } from './renderer3d.js?v=v5-art-compact-1';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
-await import('./game.js?v=estate-v5-20261022');
+await import('./game.js?v=v5-art-compact-1');
 await import('./member.js?v=4ab9b2d0361e');

@@ -129,9 +129,9 @@ function carGeometries(style){
 
 class Batch{
  constructor(){this.data=new Map();this.group=new THREE.Group();}
- add(geo,color,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0,buildingId=null,glow=false){const key=geo.uuid+color+(glow?'@light':'');if(!this.data.has(key))this.data.set(key,{geo,color,glow,items:[]});this.data.get(key).items.push({x,y,z,sx,sy,sz,rx,ry,rz,buildingId});}
- box(color,x,y,z,sx,sy,sz,ry=0,id=null,glow=false){this.add(BOX,color,x,y,z,sx,sy,sz,0,ry,0,id,glow);}
- build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,items} of this.data.values()){const material=new THREE.MeshStandardMaterial({color,roughness:glow?.4:.83,metalness:0,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){material.emissive.set(color);material.emissiveIntensity=1.6;material.toneMapped=false;}const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.baseColor=color;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
+ add(geo,color,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0,buildingId=null,glow=false,finish='matte'){const key=geo.uuid+color+(glow?'@light':'')+finish;if(!this.data.has(key))this.data.set(key,{geo,color,glow,finish,items:[]});this.data.get(key).items.push({x,y,z,sx,sy,sz,rx,ry,rz,buildingId});}
+ box(color,x,y,z,sx,sy,sz,ry=0,id=null,glow=false,finish='matte'){this.add(BOX,color,x,y,z,sx,sy,sz,0,ry,0,id,glow,finish);}
+ build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=new THREE.MeshStandardMaterial({color,roughness:glow?.4:roughness,metalness,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){material.emissive.set(color);material.emissiveIntensity=1.6;material.toneMapped=false;}const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.baseColor=color;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
 
 export class TrafficRenderer{
@@ -304,185 +304,239 @@ export class TrafficRenderer{
  window(batch,x,y,z,w,h,side,id){if(side==='front'){batch.box('#385d69',x,y,z,w,h,.025,0,id);if(hash(x+id,y+z)>.36)batch.box('#ffdf9d',x,y,z+.034,w*.76,h*.78,.012,0,id,true);batch.box('#dddac4',x,y,z+.02,.026,h+.04,.022,0,id);batch.box('#e9e6d4',x,y-h/2-.035,z+.04,w+.1,.06,.075,0,id);}else{batch.box('#456d75',x,y,z,.025,h,w,0,id);if(hash(z+id,x+y)>.40)batch.box('#ffe2ad',x+.035,y,z,.012,h*.77,w*.73,0,id,true);batch.box('#ede7d3',x+.02,y-h/2-.035,z,.075,.06,w+.08,0,id);}}
  parkingLot(batch,b){for(const rect of this.parking.parkingVisuals(b)){const p=this.parking.lotPoint(b,rect.u,rect.v);batch.box(rect.color,p.x-.5,rect.color==='#bdc6ae'?.025:rect.color==='#515f62'?.065:.09,p.y-.5,rect.w,.012,rect.h,-(b.rotation||0)*Math.PI/2,b.id);}}
  building(batch,b,CATALOG,KINDS){
-  const t=CATALOG[b.key],id=b.id,s=t.size,plots=t.plotWidth||s+2,rot=-(b.rotation||0)*Math.PI/2;
+  // Visual-only architecture v5: every component remains within its plot.
   if(this.parking)this.parkingLot(batch,b);
-  const tier=b.key.endsWith('_large')?3:b.key.endsWith('_medium')?2:1,kind=t.kind;
-  const pt=(u,v)=>this.parking?.lotPoint(b,u,v)||{x:b.x+u+.5,y:b.y+v+.5};
-  const box=(color,u,h,v,w,th,d,glow=false)=>{
-   const p=pt(u,v);batch.box(color,p.x-.5,h,p.y-.5,w,th,d,rot,id,glow);
+  const t=CATALOG[b.key],id=b.id,s=t.size,W=t.plotWidth||s+2,kind=t.kind;
+  const tier=b.key.endsWith('_large')?3:b.key.endsWith('_medium')?2:1;
+  const turn=-(b.rotation||0)*Math.PI/2;
+  const point=(u,v)=>this.parking?.lotPoint(b,u,v)||{x:b.x+u+.5,y:b.y+v+.5};
+  const block=(color,u,y,v,w,h,d,finish='matte',glow=false)=>{
+   const p=point(u,v);batch.box(color,p.x-.5,y,p.y-.5,w,h,d,turn,id,glow,finish);
   };
-  const cyl=(color,u,h,v,r,th)=>{
-   const p=pt(u,v);batch.add(CYL,color,p.x-.5,h,p.y-.5,r,th,r,0,0,0,id);
+  const pole=(color,u,y,v,r,h,finish='matte',glow=false)=>{
+   const p=point(u,v);batch.add(CYL,color,p.x-.5,y,p.y-.5,r,h,r,0,0,0,id,glow,finish);
   };
-  const center=plots/2,span=Math.min(plots-2.0,
-    kind==='home'?s*(1.1+tier*.49):kind==='park'?plots-1.5:
-    kind==='factory'?plots-2.8:plots-2.2);
-  const mid=s*.48,depth=s*.73,height=
-   kind==='office'?1.4+tier*1.56:kind==='mall'?1.05+tier*.72:
-   kind==='home'?1.03+tier*.68:kind==='factory'?1.35+tier*.38:
-   kind==='pub'?1.12+tier*.57:1.13+tier*.44;
-  const palettes={
-   home:['#e8dac9','#e5ded4','#eee8de'],shop:['#dfb98b','#d4cbb9','#dde0d5'],
-   restaurant:['#dba789','#dbb49b','#e8c9af'],mall:['#e0dfd4','#d5dfdc','#dae1df'],
-   office:['#aebcbe','#a7cbd1','#b4cbd0'],factory:['#b8b8a8','#b7c3bd','#c5c8bc'],
-   park:['#8faa79','#8eb58b','#83af83'],pub:['#665c72','#50536f','#50516a']
+  const planted=(u,v,scale=.44)=>{
+   const p=point(u,v);this.tree(batch,p.x-.5,p.y-.5,scale);
   };
-  const wall=palettes[kind][tier-1],roof=kind==='home'?'#655f59':
-   kind==='pub'?'#262839':kind==='factory'?'#71888a':'#8da1a1';
-  const front=mid+depth/2+.025,facadeZ=front+.04;
-  const windows=(w=span,top=height*.53)=>{
-   const count=Math.max(2,Math.floor(w/.95));
+  const gable=(color,u,v,w,d,base,rise)=>{
+   const slope=Math.hypot(d*.5,rise)+.04,angle=Math.atan2(rise,d*.5);
+   for(const sign of [-1,1]){
+    const p=point(u,v+sign*d*.25);
+    batch.add(BOX,color,p.x-.5,base+rise*.51,p.y-.5,w+.10,.10,slope,sign*angle,turn,0,id,false,'stone');
+   }
+   block('#e8d9c9',u,base+rise,v,w+.14,.05,.08,'stone');
+  };
+  const lantern=(u,v,lit='#ffe0ad',height=1.18)=>{
+   pole('#6b777a',u,height*.5,v,.021,height,'metal');
+   block('#d3d7cd',u,height+.02,v,.17,.065,.14,'metal');
+   block(lit,u,height-.01,v,.12,.065,.11,'glass',true);
+  };
+  const pane=(u,y,v,w,h,lit=true,tint='#356578')=>{
+   block('#e6e6dc',u,y,v,w+.105,h+.11,.065,'stone');
+   block(tint,u,y,v+.044,w,h,.05,'glass');
+   block('#a4d1da',u,y+h*.20,v+.073,w*.72,.035,.014,'glass');
+   if(lit)block('#ffe2b3',u,y-h*.10,v+.079,w*.75,h*.55,.012,'glass',true);
+   block('#bfcfcb',u,y,v+.08,.023,h*.96,.022,'metal');
+   block('#e9ded0',u,y-h*.55,v+.048,w+.09,.052,.09,'stone');
+  };
+  const ribbon=(u,y,v,w,h,n,tint='#356475')=>{
+   block(tint,u,y,v,w,h,.035,'glass');
+   const count=Math.max(2,Math.min(26,n));
    for(let i=0;i<count;i++){
-    const u=center-w/2+(i+.5)*w/count;
-    const lit=hash(u+id,top)> (kind==='pub'?.24:.42);
-    box('#345d69',u,top,facadeZ,w/count*.71,Math.min(.54,height*.43),.022);
-    if(lit)box(kind==='pub'?'#eaa5f5':'#ffdeaa',u,top,facadeZ+.019,w/count*.56,Math.min(.43,height*.33),.014,true);
-    box('#d4ded8',u,top+.28,facadeZ+.023,w/count*.77,.028,.037);
+    const x=u-w*.5+(i+.5)*w/count;
+    block('#bed5d9',x,y,v+.04,.022,h*.92,.022,'metal');
+    block('#d1e1df',x,y+h*.28,v+.042,w/count*.82,.028,.018,'glass');
+    if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
-  // Architectural site plinth, landscaped setback, garden and walkway.
-  box('#b8c4b4',center,.046,s*.49,Math.min(plots-.23,span+1.3),.095,s-.12);
-  box('#829e7d',center,.102,s*.18,Math.min(plots-.4,span+1.1),.05,.38);
-  box('#e9e1d0',center,.117,s-.15,Math.max(.9,span*.5),.036,.48);
-  const gardenSpots=Math.max(2,Math.min(12,Math.ceil(span/8)));
-  for(let i=0;i<gardenSpots;i++){
-   const u=center-span/2+(i+.5)*span/gardenSpots;
-   if(Math.abs(u-center)<.9)continue;
-   box('#638958',u,.18,s-.08,.65,.19,.29);
-   const p=pt(u,s-.1);this.tree(batch,p.x-.5,p.y-.5,.38+tier*.09);
+  const wall={
+   home:['#e9dbc9','#e7dfd3','#eae6df'],shop:['#e0bd90','#d7c9b4','#d9e2db'],
+   restaurant:['#ddb194','#dcc0a5','#e8ceb7'],mall:['#e6e3d8','#dae4de','#d9e3e5'],
+   office:['#cbd5d0','#c2d8da','#d3e0dd'],factory:['#c7c4b5','#bdcbc5','#cbd2ce'],
+   park:['#8dab82','#78a982','#7eac80'],pub:['#65586e','#4b5268','#3a3f55']
+  }[kind][tier-1];
+  const accent={
+   home:['#a36f53','#836b58','#6b7d83'],shop:['#b77d50','#728f8b','#4c7e80'],
+   restaurant:['#aa7150','#936c53','#9b7758'],mall:['#6a9a99','#548f92','#3c7f8d'],
+   office:['#6a959d','#527e8c','#437788'],factory:['#7e918d','#788e8f','#607985'],
+   park:['#699b79','#678d7a','#587f6c'],pub:['#a579b6','#9d70b3','#c07bd2']
+  }[kind][tier-1];
+  const roof=kind==='pub'?'#293044':kind==='home'?'#786f64':kind==='factory'?'#758991':'#7a9196';
+  const span=Math.min(W-1.95,kind==='home'?s*(.94+tier*.45):W-2.36);
+  const cx=W*.5,cz=s*.39,depth=s*.62,front=cz+depth*.5,H=
+   kind==='office'?1.55+tier*1.17:kind==='home'?1.03+tier*.56:
+   kind==='mall'?1.15+tier*.54:kind==='pub'?1.13+tier*.56:
+   kind==='factory'?1.23+tier*.33:1.10+tier*.39;
+  const mainW=kind==='home'?span*.86:kind==='office'?span*.74:span*.85;
+  block('#bdc8bb',cx,.042,s*.50,Math.min(W-.1,span+.36),.09,s-.16,'stone');
+  block('#e6dccb',cx,.105,s*.91,Math.max(1.03,mainW*.66),.028,.27,'stone');
+  block('#8ca580',cx,.14,s*.11,Math.min(W-.45,mainW+.5),.13,.27);
+  const gardens=Math.max(2,Math.min(9,Math.floor(W/7)));
+  for(let i=0;i<gardens;i++){
+   const u=cx-span*.48+span*.96*(i+.5)/gardens;
+   if(Math.abs(u-cx)<.9)continue;
+   block('#73965f',u,.18,s*.88,.47,.17,.23);
+   if(i%2===0)planted(u,s*.81,.28+tier*.10);
   }
   if(kind==='park'){
-   // Continuous scenic promenade, circular fountain and colored flower beds.
-   box('#75ae84',center,.15,mid,span,.08,depth);
-   box('#e9ddc6',center,.19,mid,span*.96,.035,.34);
-   box('#e2d9bc',center,.19,mid,.30,.035,s*.82);
-   for(let i=0;i<Math.min(42,Math.floor(span/1.7));i++){
-    const u=center-span/2+.8+i*1.67;
+   // Landscape architecture: three hardscape axes, fountain and pavilions.
+   block('#7bb688',cx,.17,s*.44,span,.10,s*.66);
+   block('#edddc4',cx,.23,s*.48,span*.95,.032,.28,'stone');
+   block('#e4d9c3',cx,.23,s*.48,.32,.032,s*.72,'stone');
+   const plants=Math.max(3,Math.min(30,Math.ceil(span/1.30)));
+   for(let i=0;i<plants;i++){
+    const u=cx-span*.46+span*.92*(i+.5)/plants;
     for(const side of [-1,1]){
-     box(i%3?'#71a778':'#d89e90',u,.20,mid+side*depth*.29,.64,.1,.48);
-     if(i%4===0){const p=pt(u,mid+side*depth*.33);this.tree(batch,p.x-.5,p.y-.5,.40+tier*.14);}
+     if(i%4===0)planted(u,s*.45+side*s*.22,.34+tier*.12);
+     else block(i%3?'#d6ab87':'#b49ebc',u,.24,s*.45+side*s*.22,.46,.12,.29);
     }
    }
-   cyl('#d3c6a6',center,.24,mid,.62,.18);
-   cyl('#5dacc1',center,.33,mid,.52,.045);
-   cyl('#a3e0ee',center,.50,mid,.07,.34);
-   box('#fff0b6',center,.40,mid,.18,.08,.18,true);
-   for(const sign of [-1,1]){
-    box('#98754e',center+sign*span*.27,.30,mid,.95,.10,.34);
-    box('#668c83',center+sign*span*.27,.19,mid,.08,.21,.32);
+   pole('#e6dcc2',cx,.31,s*.49,.57,.26,'stone');
+   pole('#5cacc2',cx,.46,s*.49,.47,.045,'water');
+   pole('#e6ded3',cx,.62,s*.49,.09,.37,'stone');
+   pole('#d1ece9',cx,.81,s*.49,.04,.09,'water');
+   for(const side of [-1,1]){
+    const x=cx+side*span*.28;
+    block('#ac8a63',x,1.05,s*.45,1.05,.11,.86,'wood');
+    for(const z of [-1,1])pole('#e3d2ba',x,.61,s*.45+z*.36,.047,1.01,'stone');
+    block('#86a67f',x,1.17,s*.45,1.12,.095,.94);
+    if(tier>1)lantern(x,s*.65,'#ffe2ba',.94);
    }
    return;
   }
-  box(wall,center,height/2+.16,mid,span,height,depth);
-  // Facade massing uses increasing setbacks and wings, not merely scale.
+  // Separate horizontal podium from setbacks to eliminate giant block outlines.
+  block('#b3b9b0',cx,.17,cz,span+.10,.16,depth+.16,'stone');
+  block(wall,cx,H*.5+.23,cz,mainW,H,depth,'stone');
   if(tier>=2){
-   for(const sign of [-1,1]){
-    box(kind==='pub'?'#383849':'#cad6cc',center+sign*span*.36,height*.39+.16,mid+.13,
-      span*.18,height*.78,depth*.81);
+   const wing=Math.min(span*.22,Math.max(.76,s*.47));
+   for(const side of [-1,1]){
+    const wx=cx+side*(span*.43-wing*.40);
+    block(accent,wx,H*.36+.21,cz-depth*.065,wing,H*.72,depth*.82,'stone');
+    block('#dedfd7',wx,H*.73+.30,cz-depth*.065,wing+.12,.11,depth*.85,'stone');
    }
   }
-  if(tier===3){
-   box(kind==='pub'?'#625370':'#c7d5d3',center,height*.70+.20,mid-depth*.19,span*.56,height*.61,depth*.43);
+  if(kind==='home'&&tier<3||kind==='restaurant'&&tier===1){
+   gable(kind==='home'?'#aa7658':'#9c7156',cx,cz,mainW,depth,H+.22,tier===1?.33:.39);
+  }else{
+   block('#edf0e9',cx,H+.28,cz,mainW+.18,.15,depth+.18,'stone');
+   block(roof,cx,H+.37,cz,mainW+.06,.06,depth+.09,'metal');
+   block(accent,cx,H+.41,cz,mainW*.77,.04,depth*.46,'metal');
   }
-  box('#e4e7d8',center,height+.22,mid,span+.19,.12,depth+.22);
-  box(roof,center,height+.30,mid,span-.12,.07,depth-.12);
-  box('#e8e1d1',center,.37,front+.19,Math.max(1.1,span*.43),.12,.58);
-  // Glazed main entrance and soft night-lit canopy.
-  box('#376672',center,.68,front+.035,Math.min(2.2,span*.38),1.00,.042);
-  box('#ffd6a0',center,.70,front+.067,Math.min(1.5,span*.29),.77,.016,true);
-  box('#f3ead8',center,1.28,front+.34,Math.min(3.1,span*.45),.12,.66);
-  box('#f5dfaa',center,1.25,front+.39,Math.min(2.7,span*.40),.06,.09,true);
+  block('#eae1d2',cx,.37,front+.13,Math.max(1.1,span*.36),.12,.45,'stone');
+  block('#315b6c',cx,.72,front+.04,Math.min(1.8,span*.30),.86,.06,'glass');
+  block('#b2d0d7',cx,.74,front+.075,Math.min(1.54,span*.26),.68,.035,'glass');
+  block('#eee8df',cx,1.20,front+.17,Math.min(2.4,span*.40),.12,.39,'metal');
+  block('#ffdea3',cx,1.16,front+.19,Math.min(2.0,span*.35),.048,.15,'glass',true);
   if(kind==='home'){
-   box(tier===1?'#9a604b':'#545a62',center,height+.41,mid,span+.14,.19,depth+.12);
-   if(tier>=2){
-    box('#d5ccc0',center,height*.79,mid-depth*.22,span*.57,.20,depth*.58);
-    box('#53626b',center,height*.87,front+.04,span*.49,.12,.05);
+   // Cottage -> family house -> villa with layered glazed pavilion and pool.
+   const n=tier===1?3:tier===2?4:6;
+   for(let i=0;i<n;i++){
+    const x=cx-mainW*.44+mainW*.88*(i+.5)/n;
+    if(Math.abs(x-cx)<.37)continue;
+    pane(x,H*.54+.11,front+.035,tier===1?.35:.49,.43+tier*.05,hash(x,id)>.32);
    }
-   if(tier===3){
-    box('#8bbfc5',center+span*.25,.18,s-.35,span*.28,.08,.38);
-    box('#dfe5df',center+span*.25,.14,s-.35,span*.32,.03,.44);
-    for(const sign of [-1,1])box('#f3d5a0',center+sign*span*.4,1.04,front+.08,.11,.24,.06,true);
-   }
-   windows(span*.79,height*.60);
-   for(const sign of [-1,1]){
-    box('#d1c8b5',center+sign*span*.32,.57,mid,span*.12,.60,depth*.89);
-    box('#ffc986',center+sign*span*.32,.69,facadeZ+.01,.25,.27,.018,true);
+   if(tier===1){
+    block('#c0a48b',cx-mainW*.33,H+.40,cz-.19,.24,.48,.43,'stone');
+    block('#9c7961',cx,H*.30,front+.36,span*.62,.06,.23,'wood');
+   }else if(tier===2){
+    block('#c8b8a5',cx-mainW*.14,H+.72,cz-depth*.18,mainW*.51,.18,depth*.54,'stone');
+    block('#a3babe',cx-mainW*.14,H+.86,cz-depth*.18,mainW*.48,.08,depth*.51,'glass');
+    block('#b7ac97',cx+mainW*.31,H*.68+.3,cz,.22,H*.46,depth*.65,'wood');
+    block('#e4daca',cx+mainW*.17,1.43,front+.035,mainW*.30,.10,.06,'glass');
+   }else{
+    // Modern mansion: floating glass upper volume and asymmetric terraces.
+    block('#739eae',cx-mainW*.13,H+.73,cz-depth*.18,mainW*.59,.80,depth*.72,'glass');
+    block('#e6e1d5',cx-mainW*.13,H+1.18,cz-depth*.18,mainW*.65,.10,depth*.80,'stone');
+    block('#b59b7b',cx+mainW*.32,H+.76,cz-depth*.21,mainW*.28,.16,depth*.58,'wood');
+    for(let x=cx-mainW*.43;x<cx+mainW*.44;x+=.55)
+     block('#dadfd9',x,H+.55,front+.045,.025,.35,.025,'metal');
+    const poolX=cx+span*.29,poolZ=s*.86;
+    block('#e8e9df',poolX,.17,poolZ,Math.min(1.95,span*.25),.06,.33,'stone');
+    block('#62b2c4',poolX,.215,poolZ,Math.min(1.8,span*.235),.023,.24,'water');
+    block('#c7e2e7',poolX,.228,poolZ,Math.min(1.5,span*.20),.008,.025,'water');
+    for(const sign of [-1,1])block('#f9d3a5',cx+sign*mainW*.42,1.06,front+.07,.10,.22,.04,'glass',true);
    }
   }else if(kind==='mall'){
-   box('#9ebcc1',center,height*.75+.27,mid-depth*.11,span*.48,height*.7,depth*.63);
-   box('#c4e5e4',center,height*.87+.3,mid-depth*.1,span*.32,height*.5,depth*.64);
-   box('#edf0df',center,height+.51,mid-depth*.1,span*.52,.14,depth*.65);
-   box('#3a7a7c',center,height*.64,facadeZ+.015,span*.95,.13,.07);
-   box('#ffdeab',center,height*.64,facadeZ+.055,span*.84,.07,.014,true);
-   windows(span*.91,.80);
-   for(let i=0;i<Math.floor(span/2.7);i++){
-    const u=center-span/2+1.5+i*2.7;
-    box('#e5e8df',u,height+.39,mid,1.25,.045,depth*.12);
-    box('#719496',u,1.6,front+.18,.055,1.6,.18);
+   // Modular storefront and raised skylight atrium.
+   ribbon(cx,.87,front+.08,mainW*.92,.88,Math.round(mainW/.65));
+   block(accent,cx,H*.72,front+.09,mainW*.94,.17,.085,'metal');
+   const atrium=Math.min(8,mainW*.34);
+   block('#86b5c0',cx,H*.77+.41,cz-depth*.13,atrium,H*.72,depth*.68,'glass');
+   block('#dfeae6',cx,H*1.14+.44,cz-depth*.13,atrium+.17,.11,depth*.72,'stone');
+   if(tier===3){
+    block('#b2d0d8',cx,H+.65,cz-depth*.19,Math.min(18,mainW*.6),.28,depth*.43,'glass');
+    block('#e5ede8',cx,H+.83,cz-depth*.19,Math.min(18.3,mainW*.61),.07,depth*.45,'stone');
+   }
+   for(let x=cx-mainW*.46;x<cx+mainW*.46;x+=1.95){
+    block('#e8eae1',x,H+.48,cz,1.05,.07,depth*.14,'stone');
+    block('#6f9ba1',x,1.02,front+.22,.055,1.30,.13,'metal');
    }
   }else if(kind==='office'){
-   box('#87b7c0',center,height*.82+.14,mid-depth*.12,span*.38,height*.83,depth*.78);
-   box('#d0e3dc',center,height*1.25+.22,mid-depth*.15,span*.39,.11,depth*.8);
-   for(let floor=.58;floor<height-.2;floor+=.63){
-    for(let u=center-span/2+.34;u<center+span/2-.2;u+=.78){
-     box('#4b808c',u,floor,facadeZ,.56,.43,.028);
-     if(hash(u+id,floor)>.40)box('#ffdeae',u,floor,facadeZ+.024,.42,.32,.015,true);
-    }
-    box('#e5eddf',center,floor+.27,front+.065,span+.09,.055,.12);
+   // Glass curtain wall grid, raised central tower and rooftop cap.
+   const floors=Math.max(3,Math.ceil(H/.62));
+   for(let level=0;level<floors;level++){
+    const yy=.52+level*.62;
+    ribbon(cx,yy,front+.07,mainW*.9,.41,Math.floor(mainW/.52),'#3d7182');
+    block('#dce7e4',cx,yy+.24,front+.09,mainW*.96,.065,.07,'metal');
    }
-   box('#678c96',center,height+.55,mid-depth*.3,span*.3,.36,depth*.34);
+   block('#84aeb7',cx,H*.88+.19,cz-depth*.12,mainW*.52,H*.87,depth*.64,'glass');
+   block('#ebf0e8',cx,H*1.32+.25,cz-depth*.12,mainW*.57,.13,depth*.71,'stone');
+   block('#537e8e',cx,H*1.35+.38,cz-depth*.18,mainW*.34,.12,depth*.36,'metal');
+   for(const sign of [-1,1])block('#d1d9d7',cx+sign*mainW*.40,H+.57,cz,.14,.36,depth*.50,'stone');
   }else if(kind==='factory'){
-   for(let i=0;i<Math.min(28,Math.ceil(span/3));i++){
-    const u=center-span/2+1.2+i*2.85;
-    if(u>center+span/2-.6)break;
-    box(i%2?'#9eadaa':'#d7d7c8',u,height+.41,mid,1.18,.25,depth*.83);
-    box('#607b82',u,.82,facadeZ,.95,1.03,.045);
-    box('#e3d9b8',u,1.18,facadeZ+.037,.68,.12,.028);
+   // Sawtooth / clerestory roof, bay loading doors, ventilation stacks.
+   const bays=Math.max(2,Math.min(20,Math.ceil(mainW/2.6)));
+   for(let i=0;i<bays;i++){
+    const x=cx-mainW*.46+(i+.5)*mainW*.92/bays;
+    block(i%2?'#a2b9b7':'#c5d0cb',x,H+.49,cz,.85,.20,depth*.85,'metal');
+    block('#607a82',x,.81,front+.07,.82,.99,.07,'metal');
+    for(let y=.51;y<1.2;y+=.19)block('#d7dcd5',x,y,front+.11,.81,.018,.05,'metal');
+    block('#9cc5cd',x,H+.64,cz-depth*.16,.61,.045,depth*.43,'glass');
    }
-   for(const sign of [-1,1]){
-    cyl('#859095',center+sign*span*.27,height+.75,mid-depth*.28,.19,.98);
-    cyl('#e7e3d5',center+sign*span*.27,height+1.27,mid-depth*.28,.26,.13);
+   for(const side of [-1,1]){
+    pole('#919fa0',cx+side*mainW*.27,H+.75,cz-depth*.24,.18,.90,'metal');
+    pole('#d5dad2',cx+side*mainW*.27,H+1.21,cz-depth*.24,.23,.10,'metal');
    }
   }else if(kind==='pub'){
-   box('#232c3c',center,height*.58,facadeZ+.013,span*.97,.46,.09);
-   windows(span*.90,height*.38);
-   for(let u=center-span/2+.7;u<center+span/2-.4;u+=1.28){
-    box(u<center?'#e39dcc':'#86d3e2',u,1.46,front+.18,.10,.72,.055,true);
-   }
-   box('#d9b2de',center,height+.38,front+.16,span*.7,.18,.16,true);
-   box('#a2d0e6',center,height+.56,mid-depth*.3,span*.36,.15,.22,true);
-   for(const sign of [-1,1]){
-    box('#7a719e',center+sign*span*.39,.60,front+.18,.28,1.11,.18);
-    box('#eea5d2',center+sign*span*.39,1.12,front+.28,.21,.28,.10,true);
+   // Dark podium, colored vertical fins, illuminated club crown.
+   block('#293245',cx,H*.60,front+.08,mainW*.93,.36,.10,'metal');
+   ribbon(cx,.81,front+.20,mainW*.84,.75,Math.floor(mainW/.85),'#2c4e66');
+   for(let x=cx-mainW*.45;x<cx+mainW*.45;x+=1.17)
+    block(x<cx?'#e29ad0':'#83cfe4',x,1.42,front+.24,.11,.67,.075,'glass',true);
+   block('#b989cb',cx,H+.52,front+.15,mainW*.76,.19,.19,'metal',true);
+   if(tier>=2)block('#695879',cx,H+.81,cz-depth*.15,mainW*.57,.53,depth*.43,'stone');
+   if(tier===3){
+    block('#a899c1',cx,H+1.13,cz-depth*.15,mainW*.53,.10,depth*.50,'metal');
+    for(const side of [-1,1])block('#b2a4d7',cx+side*mainW*.37,H+.64,front+.10,.16,1.04,.13,'glass',true);
    }
   }else if(kind==='restaurant'){
-   windows(span*.88,.91);
-   box('#a97053',center,height+.46,mid,span*.82,.17,depth*.48);
-   for(let u=center-span*.4;u<center+span*.4;u+=1.35){
-    box('#eec99a',u,1.42,front+.22,.10,.31,.34);
-    box('#ffe2a8',u,1.20,front+.28,.23,.10,.16,true);
+   const panes=Math.max(2,Math.min(16,Math.round(mainW/.88)));
+   for(let i=0;i<panes;i++){
+    const x=cx-mainW*.44+(i+.5)*mainW*.88/panes;
+    pane(x,.80,front+.06,.49,.64,hash(x,id)>.2,'#416e72');
    }
-   box('#8a7055',center,.30,s-.09,span*.86,.07,.55);
-   for(let u=center-span*.38;u<center+span*.38;u+=1.8){
-    box('#e5dbc5',u,.38,s-.09,.58,.09,.37);
-    box('#96866f',u,.25,s-.09,.07,.31,.07);
+   block('#ad805d',cx,H+.51,front+.22,mainW*.84,.13,.31,'wood');
+   block('#fbe3b5',cx,H+.46,front+.28,mainW*.78,.05,.09,'glass',true);
+   for(let x=cx-mainW*.40;x<cx+mainW*.40;x+=1.55){
+    block('#d3c3a5',x,.29,s*.88,.57,.07,.30,'wood');
+    pole('#8f816b',x,.18,s*.88,.038,.26,'wood');
    }
   }else{
-   windows(span*.89,.84);
-   for(let u=center-span*.42;u<center+span*.42;u+=1.24){
-    box('#e2b780',u,1.35,front+.20,.88,.09,.40);
-    box('#f9d6a7',u,1.30,front+.24,.76,.035,.20,true);
+   ribbon(cx,.83,front+.07,mainW*.92,.91,Math.floor(mainW/.65),'#3b6873');
+   const bays=Math.min(18,Math.max(2,Math.ceil(mainW/1.32)));
+   for(let i=0;i<bays;i++){
+    const x=cx-mainW*.47+(i+.5)*mainW*.94/bays;
+    block('#b58056',x,1.38,front+.18,mainW*.86/bays,.075,.37,'wood');
+    block('#ffe0a4',x,1.32,front+.23,mainW*.74/bays,.035,.12,'glass',true);
    }
-   box('#779d92',center,height+.43,mid,span*.4,.15,depth*.4);
+   if(tier>=2)block('#83a2a1',cx,H+.55,cz-depth*.18,mainW*.47,.31,depth*.37,'glass');
   }
-  // Parking-edge promenade: shadow-casting columns and warm night lanterns.
-  const lights=Math.min(24,Math.max(2,Math.floor(plots/7)));
-  for(let i=0;i<lights;i++){
-   const u=1.0+(plots-2.0)*(i+.5)/lights;
-   if(Math.abs(u-center)<1.1)continue;
-   cyl('#697a77',u,.73,s+.07,.028,1.24);
-   box('#eadfc1',u,1.38,s+.07,.16,.10,.16);
-   box('#ffdfa2',u,1.39,s+.085,.105,.065,.11,true);
+  const lamps=Math.min(15,Math.max(2,Math.floor(W/7)));
+  for(let i=0;i<lamps;i++){
+   const x=.75+(W-1.5)*(i+.5)/lamps;
+   if(Math.abs(x-cx)<1)continue;
+   lantern(x,s*.94,kind==='pub'?'#e6a4e6':'#ffe5b0',.80+tier*.11);
   }
  }
  makeBuildings(state,CATALOG,KINDS){this.disposeGroup(this.buildingGroup);const b=new Batch();for(const building of state.buildings.values())this.building(b,building,CATALOG,KINDS);this.buildingGroup.add(b.build());}
