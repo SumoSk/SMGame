@@ -909,7 +909,7 @@ function scheduleDay(c,day){
  const base=day*1440;
  if(plan.works){
   if(base+plan.leave>state.time)schedule(c,base+plan.leave,'work',{day});
-  else if(state.time<base+plan.end&&c.locationId===c.homeId)schedule(c,state.time+1+habitRandom(c.id,day,24)*4,'work',{day});
+  else if(state.time<base+Math.min(plan.end,plan.leave+120)&&c.locationId===c.homeId)schedule(c,state.time+1+habitRandom(c.id,day,24)*4,'work',{day});
   if(base+plan.end+plan.postDelay>state.time)schedule(c,base+plan.end+plan.postDelay,'afterWork',{day,kind:plan.kind});
  }else if(plan.kind&&base+plan.leisureStart>state.time){
   schedule(c,base+plan.leisureStart,'leisure',{day,kind:plan.kind,end:base+plan.leisureEnd});
