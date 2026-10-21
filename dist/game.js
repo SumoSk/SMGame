@@ -12,26 +12,35 @@ const KINDS={home:{name:'บ้าน',icon:'⌂',color:'#e9b871',roof:'#db8558'
 const CATALOG={};
 const catalogData={home:[[2,6000,20,2],[3,35000,100,10],[4,130000,350,30]],shop:[[2,8000,100,0,3,12],[3,24000,250,0,8,35],[4,70000,650,0,18,80]],restaurant:[[3,12000,180,0,5,18],[4,35000,450,0,14,50],[5,85000,900,0,30,95]],mall:[[4,45000,450,0,12,45],[5,95000,1100,0,30,100],[6,190000,2300,0,65,180]],office:[[3,18000,250,0,18],[4,60000,700,0,50],[5,120000,1300,0,90]],factory:[[4,22000,450,0,25],[5,70000,1300,0,65],[6,140000,2400,0,110]],park:[[3,6000,40,0,1,20],[4,18000,140,0,3,60],[5,45000,350,0,8,130]],pub:[[3,14000,200,0,5,18],[4,38000,550,0,13,45],[5,85000,1200,0,28,85]]};
 for(const [kind,rows] of Object.entries(catalogData))rows.forEach((r,i)=>{const key=kind+'_'+['small','medium','large'][i];CATALOG[key]={key,kind,name:KINDS[kind].name+['เล็ก','กลาง','ใหญ่'][i],size:r[0],cost:r[1],maint:r[2],residents:r[3]||0,jobs:r[4]||0,service:r[5]||0};});
-// Parking is part of every plot. Spaces are assigned automatically on entry.
-const PARKING_VERSION=5,LOT_SPEED=.85;
-// Compact individual plots that still had an oversized asphalt approach in v4.
-const COMPACT_PARKING_TYPES=new Set(['office_large','factory_medium','shop_medium','shop_large','restaurant_medium','mall_small','mall_large','park_medium','park_large','pub_large']);
+// Version 6 of the parking layout is the new v5 architectural masterplan.
+// There are exactly two facing stall rows, one continuous aisle, no inner banks.
+const PARKING_VERSION=6,LOT_SPEED=1.35;
 for(const t of Object.values(CATALOG)){
  t.parkingCapacity=t.residents||t.jobs+t.service;
- t.parkingColumns=t.parkingCapacity<=40?Math.ceil(t.parkingCapacity/2):Math.ceil(Math.sqrt(t.parkingCapacity*3.4));
- t.parkingRows=Math.ceil(t.parkingCapacity/(2*t.parkingColumns));
- t.compactParking=COMPACT_PARKING_TYPES.has(t.key);
- // Pack each existing double-sided parking bank to its actual capacity: no empty stalls along the edge.
- if(t.compactParking)t.parkingColumns=Math.ceil(t.parkingCapacity/(2*t.parkingRows));
- t.parkingBankStride=t.compactParking?2.08:2.5;
- t.parkingRowOffset=t.compactParking?.68:.85;
- t.plotWidth=Math.ceil(Math.max(t.size+1,t.parkingColumns*.38+2));
- // Only a turning margin remains between the final parking bays and the public road.
- t.plotHeight=t.compactParking?Math.ceil(t.size+.3+t.parkingRows*t.parkingBankStride+.16):Math.ceil(t.size+.3+t.parkingRows*2.5+.35);
+ t.parkingColumns=Math.ceil(t.parkingCapacity/2);
+ t.parkingRows=1; // one double-sided bank = exactly two long parallel stall rows
+ t.parkingPhysicalRows=2;
+ t.parkingPitch=.74;
+ t.parkingRowOffset=1.03;
+ t.parkingAisle=t.size+2.13;
+ t.plotWidth=Math.ceil(Math.max(t.size+2.8,2.85+t.parkingColumns*t.parkingPitch));
+ t.plotHeight=Math.ceil(t.size+4.35);
+ t.compactParking=false;
+ t.parkingLayout=null;
 }
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
 function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
-function lotSlots(b){const t=CATALOG[b.key];if(t.parkingLayout)return t.parkingLayout;const slots=[];for(let n=0;n<t.parkingCapacity;n++){const block=Math.floor(n/(2*t.parkingColumns)),row=Math.floor(n/t.parkingColumns)%2,col=n%t.parkingColumns,aisle=t.size+.3+block*t.parkingBankStride+t.parkingBankStride/2;slots.push({index:n,u:1+(col+.5)*.38,v:aisle+(row?t.parkingRowOffset:-t.parkingRowOffset),aisle,row});}return t.parkingLayout=slots;}
+function lotSlots(b){
+ const t=CATALOG[b.key];if(t.parkingLayout)return t.parkingLayout;
+ const slots=[];
+ for(let n=0;n<t.parkingCapacity;n++){
+  const row=Math.floor(n/t.parkingColumns),col=n%t.parkingColumns;
+  const aisle=t.parkingAisle;
+  slots.push({index:n,u:1.42+(col+.5)*t.parkingPitch,
+   v:aisle+(row?t.parkingRowOffset:-t.parkingRowOffset),aisle,row});
+ }
+ return t.parkingLayout=slots;
+}
 function lotModel(b){const t=CATALOG[b.key],p=lotPoint(b,t.plotWidth/2,t.size/2+.1);return{...b,x:p.x-.5-t.size/2,y:p.y-.5-t.size/2};}
 function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=(slot.row?Math.PI/2:-Math.PI/2)+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
 function citizenCarColor(id){return ['#f0e8c7','#e5a861','#719ca5','#afc5a2','#bc8fa5','#c8c8c0'][Math.abs(id)%6];}
@@ -100,9 +109,19 @@ function lotPathPose(points,distance){
 function lotPathLength(points){let n=0;for(let i=1;i<points.length;i++)n+=Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y);return n;}
 // Each car occupies its physical space; unrelated aisles remain free.
 function lotCarsOverlap(a,b,margin=.035){
- const angle=p=>Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),aa=angle(a),ba=angle(b),axes=[[Math.cos(aa),Math.sin(aa)],[-Math.sin(aa),Math.cos(aa)],[Math.cos(ba),Math.sin(ba)],[-Math.sin(ba),Math.cos(ba)]],dx=b.x-a.x,dy=b.y-a.y,hl=.285+margin,hw=.13+margin;
- if(Math.hypot(dx,dy)>2*Math.hypot(hl,hw))return false;
- for(const [x,y] of axes){const ra=hl*Math.abs(x*Math.cos(aa)+y*Math.sin(aa))+hw*Math.abs(-x*Math.sin(aa)+y*Math.cos(aa)),rb=hl*Math.abs(x*Math.cos(ba)+y*Math.sin(ba))+hw*Math.abs(-x*Math.sin(ba)+y*Math.cos(ba));if(Math.abs(dx*x+dy*y)>=ra+rb)return false;}return true;
+ const dx=b.x-a.x,dy=b.y-a.y,hl=.285+margin,hw=.13+margin;
+ // A long two-row lot can have hundreds of parked cars. Reject distant
+ // objects before allocating the oriented axes and calling sin/cos.
+ if(dx*dx+dy*dy>4*(hl*hl+hw*hw))return false;
+ const angle=p=>Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),aa=angle(a),ba=angle(b);
+ const axes=[[Math.cos(aa),Math.sin(aa)],[-Math.sin(aa),Math.cos(aa)],
+             [Math.cos(ba),Math.sin(ba)],[-Math.sin(ba),Math.cos(ba)]];
+ for(const [x,y] of axes){
+  const ra=hl*Math.abs(x*Math.cos(aa)+y*Math.sin(aa))+hw*Math.abs(-x*Math.sin(aa)+y*Math.cos(aa));
+  const rb=hl*Math.abs(x*Math.cos(ba)+y*Math.sin(ba))+hw*Math.abs(-x*Math.sin(ba)+y*Math.cos(ba));
+  if(Math.abs(dx*x+dy*y)>=ra+rb)return false;
+ }
+ return true;
 }
 function lotClear(v,pose,ignoreRoadTraffic=false){
  for(const other of state.vehicles.values()){
@@ -123,7 +142,7 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
    }
  }
  if(b)for(const cid of b.parked){
-  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(p&&lotCarsOverlap(pose,p,.015))return false;
+  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1&&lotCarsOverlap(pose,p,.015))return false;
  }
  return true;
 }
@@ -187,15 +206,18 @@ function advanceLot(v,dt,maxDistance=Infinity,ignoreRoadTraffic=false){
  v.lotDistance=distance;return distance>=total-1e-7;
 }
 function parkingBankBusy(b,index,arriving){
- // Opposing flows cannot claim the same parking aisle at the same time.
- // Cars in different banks and cars moving in the same direction remain free.
- const cols=CATALOG[b.key].parkingColumns,bank=Math.floor(index/(2*cols));
+ // A single continuous eastbound aisle carries inbound and outbound traffic.
+ // Never lock the entire 100+ car strip for an opposing car in a distant bay.
+ // Swept footprint collision checks in lotClear/canLeaveParkingSpace serialize
+ // merges locally at the exact physical conflict, without cross-bank deadlocks.
+ const target=lotSlots(b)[index];
+ if(!target)return false;
  for(const other of state.vehicles.values()){
   if(!other.lotPath||other.lotBuilding!==b.id)continue;
-  const opposite=arriving?(other.phase==='departing'&&!other.lotReady):(other.phase==='parking_in');
-  if(!opposite)continue;
   const otherIndex=b.parkingSlots?.indexOf(other.citizenId)??-1;
-  if(otherIndex>=0&&Math.floor(otherIndex/(2*cols))===bank)return true;
+  if(otherIndex<0)continue;
+  const occupied=lotSlots(b)[otherIndex];
+  if(occupied&&Math.abs(occupied.u-target.u)<.45&&occupied.index!==index)return true;
  }
  return false;
 }
@@ -225,23 +247,37 @@ function cleanupParkingVehicle(v,keepDestination=false){
  }
 }
 function syncParkingSlots(){for(const b of state.buildings.values()){if(!b.parkingSlots)b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);const entering=new Set([...state.vehicles.values()].filter(v=>v.toId===b.id&&v.phase==='parking_in').map(v=>v.citizenId));for(let i=0;i<b.parkingSlots.length;i++){const cid=b.parkingSlots[i];if(cid!==null&&!b.parked.has(cid)&&!entering.has(cid))b.parkingSlots[i]=null;}for(const cid of b.parked)parkingSpace(b,cid,true);}}
-function parkingVisuals(b){const t=CATALOG[b.key],rects=[];const rect=(u,v,w,h,color)=>rects.push({u,v,w,h,color});
- rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.06,t.plotHeight-.06,'#bdc6ae');
- const top=t.size+.3,bottom=t.plotHeight;rect(t.plotWidth/2,(top+bottom)/2,t.plotWidth-.12,bottom-top-.1,'#515f62');
- for(let block=0;block<t.parkingRows;block++){
-  const aisle=t.size+.3+block*t.parkingBankStride+t.parkingBankStride/2;
-  for(let x=1.2;x<t.plotWidth-1;x+=1.2)rect(x,aisle,.42,.025,'#b4c3b5');
+function parkingVisuals(b){
+ const t=CATALOG[b.key],rects=[];
+ const rect=(u,v,w,h,color)=>rects.push({u,v,w,h,color});
+ rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.05,t.plotHeight-.05,'#bdc6ae');
+ const front=t.size+.22,bottom=t.plotHeight-.12,aisle=t.parkingAisle;
+ rect(t.plotWidth/2,(front+bottom)/2,t.plotWidth-.12,bottom-front,'#515f62');
+ // Exactly two perimeter stall rows. The center lane is a single continuous
+ // eastbound aisle, with no crossroads, internal parking banks or crossovers.
+ for(const row of [0,1]){
+  const rowV=aisle+(row?t.parkingRowOffset:-t.parkingRowOffset);
+  for(let col=0;col<t.parkingColumns;col++){
+   const stall=lotSlots(b)[row*t.parkingColumns+col];if(!stall)continue;
+   rect(stall.u-t.parkingPitch/2,rowV,.025,1.24,'#e9e6cc');
+   rect(stall.u+t.parkingPitch/2,rowV,.025,1.24,'#e9e6cc');
+   rect(stall.u,rowV+(row?.62:-.62),t.parkingPitch-.04,.025,'#e9e6cc');
+  }
  }
- for(const s of lotSlots(b)){rect(s.u-.19,s.v,.022,.8,'#e9e6cc');rect(s.u+.19,s.v,.022,.8,'#e9e6cc');rect(s.u,s.v+(s.row?.4:-.4),.38,.022,'#e9e6cc');}
- // Mark one-way access lanes inside the compact lot; there is no separate entry apron.
- for(let y=t.size+1;y<t.plotHeight-.4;y+=1.1)for(const u of [.45,t.plotWidth-.45])rect(u,y,.025,.32,'#b4c3b5');
- // Planted curbs frame the direct street entrance without expanding its footprint.
- const driveTop=t.size+.3,driveBottom=t.plotHeight;
- for(const u of [.13,t.plotWidth-.13])rect(u,(driveTop+driveBottom)/2,.12,driveBottom-driveTop-.1,'#9eaf9e');
- // Separate green entrance and warm exit, with directional arrows.
- for(const [u,color,sign]of[[.45,'#a8d9ad',-1],[t.plotWidth-.45,'#f3cb85',1]]){
-  rect(u,t.plotHeight-.65,.035,.48,color);rect(u-.08,t.plotHeight-.65+sign*.12,.025,.13,color);rect(u+.08,t.plotHeight-.65+sign*.12,.025,.13,color);
+ // Directional lane markings and very long uninterrupted sight lines.
+ for(let u=1.1;u<t.plotWidth-1.1;u+=2.1){
+  rect(u,aisle,.58,.035,'#c5d2c2');
+  rect(u+.21,aisle-.11,.20,.03,'#c5d2c2');
+  rect(u+.21,aisle+.11,.20,.03,'#c5d2c2');
  }
+ // Short lead-ins at opposite ends link the central strip to one road frontage.
+ for(const u of [.45,t.plotWidth-.45]){
+  rect(u,(aisle+t.plotHeight)/2,.85,t.plotHeight-aisle+.08,'#58666a');
+  rect(u,(aisle+t.plotHeight)/2,.026,t.plotHeight-aisle,'#bbc9b9');
+ }
+ rect(.45,t.plotHeight-.45,.52,.08,'#94d9aa');
+ rect(t.plotWidth-.45,t.plotHeight-.45,.52,.08,'#f3ca88');
+ for(const u of [1.05,t.plotWidth-1.05])rect(u,t.plotHeight-.66,.12,.38,'#e5e6d0');
  return rects;
 }
 function drawParking2D(b){for(const r of parkingVisuals(b)){const points=[[r.u-r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v+r.h/2],[r.u-r.w/2,r.v+r.h/2]].map(([u,v])=>{const p=lotPoint(b,u,v);return screen(p.x-.5,p.y-.5);});poly(points,r.color);}for(const cid of b.parked||[]){if(parkingIsMoving(cid))continue;const i=parkingSpace(b,cid),p=parkingSlotPose(b,i);if(p){const q=screen(p.x,p.y);drawCarShape(q[0],q[1],p.angle,citizenCarColor(cid),cam.z);}}}
