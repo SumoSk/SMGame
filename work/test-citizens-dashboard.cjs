@@ -28,6 +28,8 @@ for(let i=0;i<80;i++){
  game.scheduleDay(c,Math.floor(game.state.time/1440));
  people.push(c);
 }
+// Keep an explicit jobless resident after the scheduler's job matching.
+office.workers.delete(people[4].id);people[4].workId=null;
 people[0].problem='<img src=x onerror=evil()> ขัดข้อง';
 people[0].pending={action:'work',next:game.state.time+10,expires:game.state.time+400};
 people[1].late=true;
@@ -42,6 +44,7 @@ assert.equal(d.summary.adaptive,1);
 assert.equal(d.summary.late,1);
 assert.equal(d.traits.reduce((a,b)=>a+b,0),80);
 assert.equal(d.moods.reduce((a,b)=>a+b,0),80);
+assert.equal(d.rush.length,12);assert.equal(d.lifestyles.reduce((a,b)=>a+b,0),80);
 assert(d.rush.some(n=>n>0),'rush plan chart should contain real planned trips');
 assert(d.problems.some(([k])=>k==='เดินทางไปทำงานไม่ได้'));
 const categories=get('categories').innerHTML;

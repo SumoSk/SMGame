@@ -209,7 +209,7 @@ body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,di
 .citizen-signal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
 .citizen-signal-grid div{background:#f5f8f4;border:1px solid #e6ede5;padding:10px 8px;border-radius:9px}
 .citizen-signal-grid b{font-size:16px;display:block;color:#355f50}.citizen-signal-grid small{font-size:10px;color:#71867a;line-height:1.5}
-.citizen-rush-chart{height:86px;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px;align-items:end;border-bottom:1px solid #d8e6dc;padding-top:3px}
+.citizen-rush-chart{height:86px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:5px;align-items:end;border-bottom:1px solid #d8e6dc;padding-top:3px}
 .citizen-rush-col{height:80px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;align-items:center;min-width:0}
 .citizen-rush-bar{width:min(22px,72%);border-radius:4px 4px 0 0;background:#82ad8f;min-height:2px}
 .citizen-rush-col small{font-size:9px;color:#6d8275}
