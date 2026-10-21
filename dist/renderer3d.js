@@ -127,7 +127,8 @@ function carGeometries(style){
  };
  return{body:merge(paint),trim:merge(detail)};
 }
-\nclass Batch{
+
+class Batch{
  constructor(){this.data=new Map();this.group=new THREE.Group();}
  add(geo,color,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0,buildingId=null,glow=false){const key=geo.uuid+color+(glow?'@light':'');if(!this.data.has(key))this.data.set(key,{geo,color,glow,items:[]});this.data.get(key).items.push({x,y,z,sx,sy,sz,rx,ry,rz,buildingId});}
  box(color,x,y,z,sx,sy,sz,ry=0,id=null,glow=false){this.add(BOX,color,x,y,z,sx,sy,sz,0,ry,0,id,glow);}
