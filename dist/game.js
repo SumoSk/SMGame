@@ -846,7 +846,7 @@ function showCitizenDashboard(){
 function hideCitizenDashboard(){const panel=$('citizensDashboard');if(panel)panel.classList.add('hidden');}
 function renderCitizenDashboard(force=false){
  const panel=$('citizensDashboard');
- if(!panel||panel.classList.contains('hidden'))return;
+ if(!panel||tool!=='citizenDashboard'||panel.classList.contains('hidden'))return;
  if(!force&&Date.now()-citizenDashboardUpdatedAt<1500)return;
  citizenDashboardUpdatedAt=Date.now();
  const data=citizenDashboardData(),{summary:m,traits,moods,rush,problems,locations}=data;
