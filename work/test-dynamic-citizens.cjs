@@ -49,6 +49,8 @@ game.state.time=1*1440+sample.dailyPlan.leave;
 game.runAction(sample,'work',{day:1});
 const trip=game.state.vehicles.get(sample.vehicleId);assert(trip&&trip.kind==='work','morning work trip missing');
 trip.late=true;game.arrive(trip,true);
+// Instant test arrival skips road departure; release the artificial old parked occupancy.
+home.parked.delete(sample.id);
 assert(sample.routine.advance>before,'late work arrivals must shift future departures earlier');
 assert(game.planForDay(sample,2).leave<game.planForDay({...sample,routine:{...sample.routine,advance:before}},2).leave,'later mornings must adapt');
 // After work: one citizen goes directly home, another chooses a service.
