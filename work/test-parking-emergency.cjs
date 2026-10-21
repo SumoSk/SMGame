@@ -28,18 +28,20 @@ function activeExit(home,office){
  car.phase='parking_out';car.lotBuilding=home.id;car.lotPath=[p,{x:p.x+.35,y:p.y+.7}];car.lotDistance=0;car.mergeCommitted=false;
  return car;
 }
-// The car must not wait half-turned on the street while the merge is occupied.
+// Departure begins inside the lot but doesn't stop midway when the road
+// is occupied. The road's existing logical occupant is preserved.
 let {home,office}=setup(),car=parkedCar(home,office);
 const first=car.path[0],next=car.path[1],d=game.dir(first,next),lane=game.plannedLane(car,0),roadKey=first+':'+d+':'+lane;
 game.state.occ.set(roadKey,987654);
-step(220);
+step(168);
 assert.equal(car.phase,'parking_out');
-assert.equal(car.mergeCommitted,false);
+assert.equal(car.mergeCommitted,true);
 assert.equal(car.occKey,null);
-assert.equal(car.lotDistance,0,'vehicle must wait before turning');
-const p=game.vehiclePosition(car),end=car.lotPath[0];
-assert(Math.hypot(p.x-end.x,p.y-end.y)<.00001,'vehicle must be inside lot, not partially across the street');
-assert(p.y<home.y+game.CATALOG[home.key].plotHeight+.5-.28,'entire car length must remain in lot');
+assert.equal(game.state.occ.get(roadKey),987654);
+step(90);
+assert.notEqual(car.phase,'parking_out','the car must leave through a stopped road lane');
+assert.equal(game.state.occ.get(roadKey),987654,'stopped road car retains its lane');
+
 // Emergency right shift WITH a new route from the shifted location.
 ({home,office}=setup());activeExit(home,office);
 let driver=roadDriver(3);
@@ -69,4 +71,4 @@ assert(!Number.isFinite(driver.emergencyInitialLane),'rightmost lane cannot shif
 step(2400);
 assert.equal(office.parked.size,1,'parking departure should still complete');
 assert.equal(game.state.vehicles.size,0);
-console.log(JSON.stringify({passed:true,deepHold:true,rightShiftAndReroute:true,occupancyUpdated:true,occupiedRightLaneRejected:true,noOncomingLane:false===false,normalParkingTrip:true}));
+console.log(JSON.stringify({passed:true,continuousExit:true,rightShiftAndReroute:true,occupancyUpdated:true,occupiedRightLaneRejected:true,noOncomingLane:false===false,normalParkingTrip:true}));

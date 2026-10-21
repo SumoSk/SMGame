@@ -18,11 +18,23 @@ const citizens=[];for(let i=0;i<10;i++){const c=game.newCitizen(home);citizens.p
 assert.equal(game.parkingFree(home),20);assert.equal(home.parkingSlots.filter(x=>x!==null).length,0,'slots assigned only when entering');step(5000);
 assert.equal(home.parked.size,10,'all ten cars park visibly');assert.equal(home.parkingSlots.filter(x=>x!==null).length,10);assert.equal(new Set(home.parkingSlots.filter(x=>x!==null)).size,10);assert.equal(game.state.vehicles.size,0);
 const c=citizens[0];assert(game.createTrip(c,'work',home.id,office.id,null,null,null));const v=game.state.vehicles.get(c.vehicleId),start=v.path[0],d=game.dir(start,v.path[1]),lane=game.plannedLane(v,0),key=`${start}:${d}:${lane}`;game.state.occ.set(key,99999);
-step(1000);assert.equal(v.phase,'parking_out','parked car must wait at the road merge');assert.equal(v.mergeCommitted,false,'road merge must not be committed while lane is blocked');assert.equal(v.occKey,null,'parked car cannot reserve road while blocked');assert(home.parked.has(c.id));assert.equal(v.fromId,home.id);assert.equal(v.respawns,0);const pose=game.vehiclePosition(v);assert(pose&&Math.hypot(pose.x-game.vehiclePosition({...v,lotPath:null,phase:'driving'}).x,pose.y-game.vehiclePosition({...v,lotPath:null,phase:'driving'}).y)>.2);
-// A second car follows into the internal queue while the road is blocked.
-const c2=citizens[1];assert(game.createTrip(c2,'work',home.id,office.id,null,null,null));step(300);assert(game.state.vehicles.get(c2.vehicleId).lotPath,'second car queues inside while the first waits for road');
-const snapshot=game.snapshot();assert.equal(JSON.parse(snapshot).parkingVersion,5);assert(game.loadGame(true,null,snapshot));const restored=game.state.vehicles.get(v.id);assert.equal(restored.phase,'parking_out');assert(restored.lotPath,'blocked road merge must survive save/load');assert.deepEqual(Array.from(game.state.buildings.get(home.id).parkingSlots),Array.from(home.parkingSlots));
-const obsolete=JSON.parse(snapshot);obsolete.parkingVersion=4;assert.equal(game.loadGame(true,null,JSON.stringify(obsolete)),false,'old plots must not load into the smaller geometry');
-const old=JSON.parse(snapshot);old.format=1;delete old.parkingVersion;assert.equal(game.loadGame(true,null,JSON.stringify(old)),false);assert(game.state.buildings.has(home.id));game.state.speed=1;step(6000);assert.equal(game.state.buildings.get(office.id).parked.size,2,'both cars travel and park at work');assert.equal(game.state.buildings.get(home.id).parked.size,8);
+step(168);
+assert.equal(v.phase,'parking_out','car should already be exiting despite a blocked street lane');
+assert.equal(v.mergeCommitted,true);
+assert.equal(v.occKey,null,'do not steal road occupancy from stopped cars');
+assert.equal(game.state.occ.get(key),99999);
+assert(home.parked.has(c.id));
+const snapshot=game.snapshot();assert.equal(JSON.parse(snapshot).parkingVersion,5);
+assert(game.loadGame(true,null,snapshot));
+const restored=game.state.vehicles.get(v.id);assert.equal(restored.phase,'parking_out');assert(restored.lotPath);
+assert.deepEqual(Array.from(game.state.buildings.get(home.id).parkingSlots),Array.from(home.parkingSlots));
+const obsolete=JSON.parse(snapshot);obsolete.parkingVersion=4;assert.equal(game.loadGame(true,null,JSON.stringify(obsolete)),false);
+const old=JSON.parse(snapshot);old.format=1;delete old.parkingVersion;assert.equal(game.loadGame(true,null,JSON.stringify(old)),false);
+const c2=game.state.citizens.get(citizens[1].id);
+assert(game.createTrip(c2,'work',home.id,office.id,null,null,null));
+game.state.speed=1;step(6000);
+assert.equal(game.state.buildings.get(office.id).parked.size,2,'both cars should reach work even when road lane was occupied');
+assert.equal(game.state.buildings.get(home.id).parked.size,8);
+
 const full=game.state.buildings.get(office.id);for(let i=0;i<game.CATALOG[full.key].parkingCapacity;i++)full.parked.add(9000+i);assert.equal(game.parkingFree(full),0);assert.equal(game.createTrip(citizens[2],'work',home.id,full.id,null,null,null),false);
-console.log(JSON.stringify({passed:true,catalogTypes:24,rotations:4,homeSpaces:30,mallSpaces:245,coverage:['whole plot footprint','automatic slot allocation','10 real parked cars','blocked exit keeps cars inside','physical departure queue','road-to-lot continuity','capacity reservation','save moving cars','reject old compact cities']}));
+console.log(JSON.stringify({passed:true,catalogTypes:24,rotations:4,homeSpaces:30,mallSpaces:245,coverage:['whole plot footprint','automatic slot allocation','10 real parked cars','blocked exit continues without stealing road occupancy','physical departure queue','road-to-lot continuity','capacity reservation','save moving cars','reject old compact cities']}));

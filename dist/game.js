@@ -104,7 +104,7 @@ function lotCarsOverlap(a,b,margin=.035){
  if(Math.hypot(dx,dy)>2*Math.hypot(hl,hw))return false;
  for(const [x,y] of axes){const ra=hl*Math.abs(x*Math.cos(aa)+y*Math.sin(aa))+hw*Math.abs(-x*Math.sin(aa)+y*Math.cos(aa)),rb=hl*Math.abs(x*Math.cos(ba)+y*Math.sin(ba))+hw*Math.abs(-x*Math.sin(ba)+y*Math.cos(ba));if(Math.abs(dx*x+dy*y)>=ra+rb)return false;}return true;
 }
-function lotClear(v,pose){
+function lotClear(v,pose,ignoreRoadTraffic=false){
  for(const other of state.vehicles.values()){
   if(other.id===v.id||other.lotBuilding!==v.lotBuilding||!other.lotPath)continue;
   if(lotCarsOverlap(pose,parkingPose(other)))return false;
@@ -112,7 +112,7 @@ function lotClear(v,pose){
  // The first/last metres of the driveway are shared with live road traffic.
  // A car leaving or entering the lot must not ignore vehicles on the street.
  const b=state.buildings.get(v.lotBuilding);
- if(b&&['departing','parking_out'].includes(v.phase)){
+ if(!ignoreRoadTraffic&&b&&['departing','parking_out'].includes(v.phase)){
   const t=CATALOG[b.key],entrance=lotPoint(b,.45,t.plotHeight),exit=lotPoint(b,t.plotWidth-.45,t.plotHeight);
   if(Math.min(Math.hypot(pose.x-entrance.x,pose.y-entrance.y),Math.hypot(pose.x-exit.x,pose.y-exit.y))<1.15)
    for(const other of state.vehicles.values()){
@@ -180,10 +180,10 @@ function parkingMergeClear(v){
  }
  return true;
 }
-function advanceLot(v,dt,maxDistance=Infinity){
+function advanceLot(v,dt,maxDistance=Infinity,ignoreRoadTraffic=false){
  const total=lotPathLength(v.lotPath),target=Math.min(total,maxDistance,(v.lotDistance||0)+LOT_SPEED*dt);let distance=v.lotDistance||0;
  // Small swept steps also protect queues when the game runs at high speed.
- while(distance<target-1e-8){const next=Math.min(target,distance+.04);if(!lotClear(v,lotPathPose(v.lotPath,next))){v.stopReason='รอรถข้างหน้าในลานจอด';break;}distance=next;v.lastMovedAt=state.time;}
+ while(distance<target-1e-8){const next=Math.min(target,distance+.04);if(!lotClear(v,lotPathPose(v.lotPath,next),ignoreRoadTraffic)){v.stopReason='รอรถข้างหน้าในลานจอด';break;}distance=next;v.lastMovedAt=state.time;}
  v.lotDistance=distance;return distance>=total-1e-7;
 }
 function parkingBankBusy(b,index,arriving){
@@ -901,7 +901,7 @@ function respawnVehicle(v){
  if(from){from.queue=from.queue.filter(id=>id!==v.id);if(c){from.parked.delete(c.id);from.visitors.delete(c.id);freeParkingSpace(from,c.id);}}
  v.fromId=null;v.fromGate=entrance;v.path=path?[...path]:[entrance];v.pathSet=new Set(v.path);
  v.pos=0;v.progress=0;v.lane=0;v.motionStartPose=null;v.motionSeedLane=null;v.emergencyInitialLane=null;v.heldPose=null;
- v.lotPath=null;v.lotDistance=0;v.lotBuilding=null;v.lotReady=false;v.mergeCommitted=false;cleanupParkingVehicle(v);
+ v.lotPath=null;v.lotDistance=0;v.lotBuilding=null;v.lotReady=false;v.mergeCommitted=false;v.mergeGhostUntil=null;cleanupParkingVehicle(v);
  v.turnLanes={};v.junctionPasses=[];v.junctionQueueSince={};v.committedJunction=null;
  v.phase='gate_waiting';v.speed=0;v.wait=0;v.lastMovedAt=state.time;v.respawns=(v.respawns||0)+1;
  v.retryAt=0;v.departureRouteVersion=path?state.version:-1;v.nextDepartureRouteRetry=state.time;
@@ -1038,10 +1038,11 @@ function physicalTrafficLimit(v,plan,s,lookahead){
  return Infinity;
 }
 function motionBarrier(v,plan,s,budget=-1){
- const physical=physicalTrafficLimit(v,plan,s,Math.min(3,Math.max(.8,(v.speed||0)*(v.speed||0)/9.6+.3,budget>=0?budget+.1:0)));
- let limit=physical,reason=Number.isFinite(physical)?'เว้นระยะรถ':'';
+ const ghost=v.mergeGhostUntil!=null&&s<v.mergeGhostUntil-1e-8;
+ const physical=ghost?Infinity:physicalTrafficLimit(v,plan,s,Math.min(3,Math.max(.8,(v.speed||0)*(v.speed||0)/9.6+.3,budget>=0?budget+.1:0)));
+ let limit=ghost?v.mergeGhostUntil:physical,reason=ghost?'ผ่านปากทางลานจอดต่อเนื่อง':Number.isFinite(physical)?'เว้นระยะรถ':'';
  const nextPos=v.pos+1;
- if(nextPos<v.path.length&&!cellAvailable(v.path[nextPos],motionDirection(v.path,nextPos),plannedLane(v,nextPos),v.id)){
+ if(!ghost&&nextPos<v.path.length&&!cellAvailable(v.path[nextPos],motionDirection(v.path,nextPos),plannedLane(v,nextPos),v.id)){
   const cellLimit=Math.max(s,plan.nodes[nextPos]-TRAFFIC_RULES.vehicleHalfLength*2-.08);if(cellLimit<limit){limit=cellLimit;reason='รถคันหน้าขวาง';}
  }
  const lookahead=Math.max(4,(v.speed||0)*(v.speed||0)/9.6+1,budget>=0?budget+.5:0);
@@ -1077,7 +1078,7 @@ function parkingGateAlerts(){
  const alerts=[],seen=new Set();
  for(const car of state.vehicles.values()){
   const inLot=car.phase==='parking_in';
-  const outLot=car.phase==='parking_out'||car.phase==='departing'&&car.lotReady;
+  const outLot=car.phase==='parking_out'||car.phase==='departing'&&car.lotReady||car.phase==='driving'&&car.mergeGhostUntil!=null;
   const waitingInRoad=car.phase==='driving'&&car.toId!=null&&(car.speed||0)<.3;
   if(!inLot&&!outLot&&!waitingInRoad)continue;
   const building=state.buildings.get(inLot||waitingInRoad?car.toId:car.fromId);
@@ -1171,28 +1172,31 @@ function advanceVehicles(realDt,gameDt){
    if(v.lotDistance>gateDistance+.3)release(v);if(done)arrive(v,true);updateTrafficSpatial(v);continue;
   }
   if(v.phase==='parking_out'){
-   if(!v.mergeCommitted&&v.occKey&&state.occ.get(v.occKey)===v.id)v.mergeCommitted=true; // resumed 1.3 save
-   // Park at the approach line until the *actual* road lane and its exit are
-   // clear. Do not lock the road while still waiting inside the car park.
-   const total=lotPathLength(v.lotPath),hold=0; // Stay entirely inside the bay approach until crossing is granted.
+   // Once a car has started its exit, drive the short merge in one continuous
+   // movement. Stopped road traffic is intentionally allowed to visually
+   // overlap during this arcade-style priority move.
+   // Never overwrite another car's logical road occupancy.
    if(!v.mergeCommitted){
-    advanceLot(v,simDt,hold);
-    if(v.lotDistance<hold-1e-7){updateTrafficSpatial(v);continue;}
-    const path=v.path,next=path[1],plan=motionPlan(v),lane=plannedLane(v,0);
-    if(next==null){arrive(v);continue;}
-    const d=dir(path[0],next),roadClear=cellAvailable(path[0],d,lane,v.id)
-      &&cellAvailable(next,motionDirection(path,1),plannedLane(v,1),v.id)
-      &&physicalTrafficLimit(v,plan,0,1.15)>.65&&parkingMergeClear(v);
-    if(!roadClear){v.stopReason='รอช่องถนนและทางออกว่าง';updateTrafficSpatial(v);continue;}
-    occupy(v,0);v.mergeCommitted=true;
+    const path=v.path,roadNext=path[1];
+    if(roadNext==null){arrive(v);continue;}
+    const d=dir(path[0],roadNext),lane=plannedLane(v,0);
+    const key=occKey(path[0],d,lane);
+    if(!state.occ.has(key)&&!state.reservations.has(key))occupy(v,0);
+    v.mergeCommitted=true;
+    v.stopReason='กำลังออกจากลานจอดต่อเนื่อง';
    }
-   if(advanceLot(v,simDt)){
+   if(advanceLot(v,simDt,Infinity,true)){
     const b=state.buildings.get(v.fromId);
     if(b){b.queue=b.queue.filter(id=>id!==v.id);b.parked.delete(v.citizenId);b.visitors.delete(v.citizenId);freeParkingSpace(b,v.citizenId);}
     const c=state.citizens.get(v.citizenId);
     if(c){c.location='travel';c.state=TRIPS[v.kind].name;}
     v.lotPath=null;v.lotReady=false;v.mergeCommitted=false;
-    v.phase='driving';v.speed=0;v.wait=0;v.stopReason='';v.lastMovedAt=state.time;
+    // Skip physical braking over the first two road segments of this merge.
+    // Junction signals are still enforced. Occupancy is never stolen.
+    const plan=motionPlan(v);
+    v.mergeGhostUntil=Math.min(plan.total,Math.max(1.5,plan.nodes[Math.min(2,plan.nodes.length-1)]||1.5));
+    v.phase='driving';v.speed=Math.max(.8,v.speed||0);
+    v.wait=0;v.stopReason='';v.lastMovedAt=state.time;
    }
    updateTrafficSpatial(v);continue;
   }
@@ -1234,6 +1238,13 @@ function advanceVehicles(realDt,gameDt){
   if(v.routeCheckedVersion!==state.version){v.routeCheckedVersion=state.version;if(!remainingRouteValid(v)){strandVehicle(v,'เส้นทางเดิมขาด');continue;}}
   if(v.pos+1>=v.path.length){arrive(v);continue;}
   if(emergencyAlerts.length)emergencyRightReroute(v,emergencyAlerts);
+  if(v.mergeGhostUntil!=null&&motionDistance(v)>=v.mergeGhostUntil-1e-8)v.mergeGhostUntil=null;
+  // Claim road cell only if free. A ghosting merge must not displace the car
+  // whose logical occupancy was already registered there.
+  if(!v.occKey&&state.roads.has(v.path[v.pos])){
+   const d=motionDirection(v.path,v.pos),lane=plannedLane(v,v.pos),key=occKey(v.path[v.pos],d,lane);
+   if(!state.occ.has(key)&&!state.reservations.has(key))occupy(v,v.pos);
+  }
   const plan=motionPlan(v),initial=motionDistance(v,plan),type=ROADS[state.roads.get(v.path[v.pos]).type];
   let s=initial;refreshMotionReservations(v,plan,s);
   const barrier=motionBarrier(v,plan,s),braking=4.8,acceleration=2.8;
@@ -1254,10 +1265,15 @@ function advanceVehicles(realDt,gameDt){
    if(step>0){s+=step;budget-=step;v.progress=Math.min(1,(s-plan.nodes[v.pos])/Math.max(1e-10,end-plan.nodes[v.pos]));}
    if(s>=end-1e-9){
     const nextPos=v.pos+1,d=motionDirection(v.path,nextPos),lane=plannedLane(v,nextPos);
-    if(!cellAvailable(v.path[nextPos],d,lane,v.id)){blocked=gate.reason||'รถคันหน้าขวาง';v.speed=0;break;}
-    // Keep intersection leases until the rear of the car has cleared the whole
-    // connector. Carry unused travel distance into the next road segment.
-    release(v,true);v.pos=nextPos;v.progress=0;occupy(v,v.pos);transitions++;
+    const ghost=v.mergeGhostUntil!=null&&s<=v.mergeGhostUntil+1e-8&&junction(v.path[nextPos])<3;
+    if(!ghost&&!cellAvailable(v.path[nextPos],d,lane,v.id)){blocked=gate.reason||'รถคันหน้าขวาง';v.speed=0;break;}
+    // Do not overwrite an occupied lane while passing through stalled traffic.
+    // In arcade merge mode the car proceeds physically and becomes registered
+    // on the first unclaimed road cell.
+    release(v,true);v.pos=nextPos;v.progress=0;
+    const roadKey=occKey(v.path[nextPos],d,lane);
+    if(!state.occ.has(roadKey)&&!state.reservations.has(roadKey))occupy(v,v.pos);
+    transitions++;
     state.roads.get(v.path[v.pos]).load=Math.min(1.2,state.roads.get(v.path[v.pos]).load+.15);
     refreshMotionReservations(v,plan,s);
     if(v.pos===v.path.length-1){arrive(v);break;}
