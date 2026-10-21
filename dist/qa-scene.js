@@ -1,14 +1,13 @@
+// Deterministic demo city, separate from account saves.
 window.__TRAFFIC_TEST_HARNESS__=game=>requestAnimationFrame(()=>{
- game.reset('phuket');
- const line=(x,y,u,v,type='small')=>{const cells=[],n=Math.max(Math.abs(u-x),Math.abs(v-y));for(let k=0;k<=n;k++)cells.push(game.id(Math.round(x+(u-x)*k/n),Math.round(y+(v-y)*k/n)));game.buildRoad(cells,type,true);};
- line(150,137,176,137,'medium');line(150,160,176,160,'medium');line(176,137,176,160,'medium');line(162,137,162,160);line(136,150,136,160);line(136,160,150,160);line(138,137,150,137);
- const build=(key,x,y)=>{const b=game.buildBuilding(key,x,y,true);if(!b)console.warn('QA placement',key,x,y,game.checkBuilding(key,x,y));};
- game.state.money=2500000;
- build('home_medium',153,133);build('home_small',157,134);build('restaurant_small',164,133);build('home_medium',168,133);build('home_small',172,134);
- build('home_small',153,138);build('home_small',156,138);build('home_medium',158,140);build('office_medium',164,138);build('shop_small',171,138);build('park_medium',171,141);
- build('mall_medium',164,152);build('home_medium',153,155);build('home_small',157,156);build('pub_small',169,156);build('restaurant_small',172,156);
- build('home_medium',137,156);build('home_small',141,157);build('shop_small',145,157);build('park_small',142,137);
- game.immigration();for(let n=0;n<2200;n++)game.tick(.1);
- game.state.speed=1;
- console.log('QA scene populated',game.state.buildings.size,game.computeStats());
+ game.reset('korat');game.state.money=2000000;
+ const home=game.buildBuilding('home_large',160,148-game.CATALOG.home_large.plotHeight,true);
+ const office=game.buildBuilding('office_small',174,148-game.CATALOG.office_small.plotHeight,true);
+ const shop=game.buildBuilding('shop_small',184,148-game.CATALOG.shop_small.plotHeight,true);
+ for(const [building,count] of [[home,10],[office,6],[shop,4]]){
+  if(!building)throw Error('Parking demo placement failed');
+  for(let i=0;i<count;i++){const c=game.newCitizen(home);c.resident=true;c.locationId=building.id;c.location=game.CATALOG[building.key].kind;c.state='จอดอยู่';home.residents.add(c.id);building.parked.add(c.id);}
+ }
+ game.syncParkingSlots();const saved=JSON.parse(game.snapshot());saved.cam={x:174,y:145,z:1.7,angle:.4};game.loadGame(true,null,JSON.stringify(saved));
+ console.log('Parking demo: home 10 / 30, office 6 / 18, shop 4 / 15');
 });
