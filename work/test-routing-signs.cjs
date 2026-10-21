@@ -22,8 +22,8 @@ game.state.buildings.clear();game.state.buildings.set(building.id,building);game
 const badge=mapOverlay.children[0];
 assert.equal(badge.children.length,2,'rooftop label contains only name and arriving count');
 assert.equal(badge.children[0].textContent,'ร้านค้าเล็ก','show the building name');
-assert.equal(badge.children[1].textContent,'กำลังมา 2','show only inbound vehicles');
-assert.equal(badge.attributes['aria-label'],'ร้านค้าเล็ก กำลังมา 2 คัน','accessible label includes the inbound count');
+assert.equal(badge.children[1].textContent,'2 / 1 / 15','show three numbers in approaching parked capacity order');
+assert.equal(badge.attributes['aria-label'],'ร้านค้าเล็ก กำลังมา 2 คัน จอดอยู่ 1 คัน ความจุ 15 คัน','accessible label explains the three numbers');
 assert(!badge.children.some(child=>child.className==='place-label-gauges'),'no gauge tubes remain');
 console.log(JSON.stringify({passed:true,coverage:['no reversal at dead ends','legal loop route','old route migration without position jump','T junction red and green','building destination counts and capacities','compact rooftop label with name and arriving car count only']}));
 `)(require);
