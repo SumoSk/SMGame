@@ -253,7 +253,7 @@ function reset(city='phuket'){
 state={city,money:500000,time:360,speed:1,roads:new Map(),buildings:new Map(),citizens:new Map(),vehicles:new Map(),signals:new Map(),signalDefaults:{eastWest:6,northSouth:6},footprint:new Int32Array(W*H).fill(-1),buildGrid:new Int32Array(W*H).fill(-1),nextId:1,profileSeq:0,version:0,routeCache:new Map(),occ:new Map(),reservations:new Map(),events:[],lastMinute:359,lastDay:0,lastImmigration:0,lastPass:0,stats:{},alerts:[],roadChanges:[],activeTraffic:new Set(),junctionCache:new Map(),skip:false};
 for(let n=0;n<300;n++){state.roads.set(id(150,n),{type:'large',main:true,links:new Set(),load:0,wait:0});state.roads.set(id(n,150),{type:'large',main:true,links:new Set(),load:0,wait:0});}
 for(let n=0;n<299;n++){link(id(150,n),id(150,n+1));link(id(n,150),id(n+1,150));}
-state.gates=[id(150,0),id(299,150),id(150,299),id(0,150)];rebuildFootprint();cam={x:149,y:149,z:innerWidth<700?.94:1.24};selected=null;follow=null;news=[];tool='hand';$('inspector').classList.add('hidden');$('cityName').textContent=CITIES[city].name;$('citySub').textContent=CITIES[city].sub;$('mapLabel').innerHTML=CITIES[city].en+'<small>THAILAND · สร้างเมืองในแบบคุณ</small>';addNews('เริ่มเมืองใหม่ เชื่อมถนน สร้างบ้าน และสร้างงาน');updateUI();renderTools();}
+state.gates=[id(150,0),id(299,150),id(150,299),id(0,150)];rebuildFootprint();cam={x:149,y:149,z:innerWidth<700?.94:1.24};selected=null;follow=null;news=[];tool='hand';hideCitizenDashboard();citizenFilter='all';citizenSearch='';citizenPage=0;if($('citizenSearch'))$('citizenSearch').value='';$('inspector').classList.add('hidden');$('cityName').textContent=CITIES[city].name;$('citySub').textContent=CITIES[city].sub;$('mapLabel').innerHTML=CITIES[city].en+'<small>THAILAND · สร้างเมืองในแบบคุณ</small>';addNews('เริ่มเมืองใหม่ เชื่อมถนน สร้างบ้าน และสร้างงาน');updateUI();renderTools();}
 function link(a,b){if(a===b)return;state.roads.get(a)?.links.add(b);state.roads.get(b)?.links.add(a);}
 function rebuildFootprint(){state.footprint.fill(-1);for(const [i,r]of state.roads){const [x,y]=xy(i),w=ROADS[r.type].width,lo=Math.floor(w/2);for(let dy=-lo;dy<w-lo;dy++)for(let dx=-lo;dx<w-lo;dx++)if(valid(x+dx,y+dy)){const p=id(x+dx,y+dy);if(state.footprint[p]<0||Math.hypot(dx,dy)<distance(p,state.footprint[p]))state.footprint[p]=i;}}}
 function distance(a,b){const p=xy(a),q=xy(b);return Math.hypot(p[0]-q[0],p[1]-q[1]);}
@@ -756,12 +756,146 @@ function updateCityAdvisor(){
  set('advisorNext',advice.next.map((a,i)=>'<li><span>'+e(a.text)+'</span>'+(a.report?'<button data-advice-report>ตรวจเมือง</button>':a.category?'<button data-advice-category="'+a.category+'">เปิดหมวดสร้าง</button>':'')+'</li>').join(''));
 }
 
-function updateUI(){const s=computeStats();$('money').textContent=money(state.money);$('population').innerHTML=fmt(s.pop)+' <em>คน</em>';$('happy').innerHTML=Math.round(s.happy)+'<em>%</em>';$('flow').innerHTML=Math.round(s.flow)+'<em>%</em>';$('clock').textContent=timeText(state.time);$('day').textContent=['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์','วันอาทิตย์'][Math.floor(state.time/1440)%7]+' · วันที่ '+(Math.floor(state.time/1440)+1);$('sun').style.left=(state.time%1440)/1440*100+'%';$('net').textContent=(s.net>=0?'+':'')+money(s.net);$('net').classList.toggle('warning',s.net<0);const steps=[{done:[...state.roads.values()].some(r=>!r.main),text:'ต่อถนนเล็กจากถนนหลัก'},{done:s.homes>0,text:'สร้างบ้านติดถนน รอคนย้ายเข้า'},{done:s.jobs>0,text:'สร้างงานให้ประชาชน'}];$('steps').textContent=steps.filter(s=>s.done).length+' / 3';$('guide').innerHTML=steps.map((s,i)=>`<div class="guide-item ${s.done?'done':'current'}"><b>${s.done?'✓':i+1}</b><span>${s.text}</span></div>`).join('');updateCityAdvisor();$('news').innerHTML=news.slice(0,3).map(n=>`<div class="news-item"><time>${timeText(n.time)}</time>${n.text}</div>`).join('');const stranded=[...state.vehicles.values()].filter(v=>v.phase==='stuck'||v.departureNoRoute).length;$('status').textContent=stranded?'รถรอเส้นทาง '+stranded+' คัน · เมนู ☰ → ตรวจเมือง / รายงานบัค':s.pop?`รถเดินทาง ${state.vehicles.size} คัน · รอคิว ${s.waiting} คัน · คลิกที่รถเพื่อดูชีวิตประชาชน`:'ลากเพื่อเลื่อนแผนที่ · เลื่อนล้อเพื่อซูม';document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',+b.dataset.speed===state.speed));$('pause').textContent=state.speed?'Ⅱ':'▶';if(selected&&!document.activeElement?.classList?.contains?.('signal-minutes'))renderInspector();}
+function updateUI(){const s=computeStats();$('money').textContent=money(state.money);$('population').innerHTML=fmt(s.pop)+' <em>คน</em>';$('happy').innerHTML=Math.round(s.happy)+'<em>%</em>';$('flow').innerHTML=Math.round(s.flow)+'<em>%</em>';$('clock').textContent=timeText(state.time);$('day').textContent=['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์','วันอาทิตย์'][Math.floor(state.time/1440)%7]+' · วันที่ '+(Math.floor(state.time/1440)+1);$('sun').style.left=(state.time%1440)/1440*100+'%';$('net').textContent=(s.net>=0?'+':'')+money(s.net);$('net').classList.toggle('warning',s.net<0);const steps=[{done:[...state.roads.values()].some(r=>!r.main),text:'ต่อถนนเล็กจากถนนหลัก'},{done:s.homes>0,text:'สร้างบ้านติดถนน รอคนย้ายเข้า'},{done:s.jobs>0,text:'สร้างงานให้ประชาชน'}];$('steps').textContent=steps.filter(s=>s.done).length+' / 3';$('guide').innerHTML=steps.map((s,i)=>`<div class="guide-item ${s.done?'done':'current'}"><b>${s.done?'✓':i+1}</b><span>${s.text}</span></div>`).join('');updateCityAdvisor();$('news').innerHTML=news.slice(0,3).map(n=>`<div class="news-item"><time>${timeText(n.time)}</time>${n.text}</div>`).join('');const stranded=[...state.vehicles.values()].filter(v=>v.phase==='stuck'||v.departureNoRoute).length;$('status').textContent=stranded?'รถรอเส้นทาง '+stranded+' คัน · เมนู ☰ → ตรวจเมือง / รายงานบัค':s.pop?`รถเดินทาง ${state.vehicles.size} คัน · รอคิว ${s.waiting} คัน · คลิกที่รถเพื่อดูชีวิตประชาชน`:'ลากเพื่อเลื่อนแผนที่ · เลื่อนล้อเพื่อซูม';document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',+b.dataset.speed===state.speed));$('pause').textContent=state.speed?'Ⅱ':'▶';if(selected&&!document.activeElement?.classList?.contains?.('signal-minutes'))renderInspector();renderCitizenDashboard();}
 function timeText(t){t=Math.floor(t%1440);return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
 function computeStats(){let pop=0,happy=0,homes=0,freeHomes=0,jobs=0,unemployed=0,serviceNeed=0,tax=0,business=0,maint=0,waiting=0;for(const b of state.buildings.values()){const t=CATALOG[b.key];homes+=t.residents;freeHomes+=Math.max(0,t.residents-(b.residents?.size||0)-(b.reservedResidents||0));jobs+=t.jobs;maint+=t.maint;business+=(b.workers?.size||0)*50;}for(const c of state.citizens.values()){if(!c.resident||c.removed)continue;pop++;happy+=c.happy;if(c.profile.trait!==3&&!c.workId&&!c.movingOut)unemployed++;if(c.pending&&['shop','restaurant','mall','park','pub'].includes(c.pending.kind))serviceNeed++;if(!c.movingOut)tax+=c.late?250:500;}for(const r of state.roads.values())if(!r.main)maint+=ROADS[r.type].maint;for(const v of state.vehicles.values())if(v.wait>1||v.phase!=='driving')waiting++;const flow=state.vehicles.size?100*(1-waiting/state.vehicles.size):100;return state.stats={pop,happy:pop?happy/pop:100,homes,freeHomes,jobs,unemployed,serviceNeed,tax,business,maint,net:tax+business-maint,waiting,flow};}
-const categories=[['roads','ถนน'],['home','บ้าน'],['work','งาน'],['food','ร้านค้า & อาหาร'],['leisure','พักผ่อน'],['signals','🚦 ไฟจราจร'],['tracking','โหมดติดตาม'],['manage','จัดการ']];
-function renderTools(){ $('categories').innerHTML=categories.map(([k,n])=>`<button data-category="${k}" class="${category===k?'active':''}">${n}</button>`).join('');let items=[];if(category==='roads'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ลากเพื่อเลื่อน',price:'คลิกเพื่อตรวจสอบ'},...Object.entries(ROADS).map(([k,v])=>({key:k,name:v.name,icon:'═',sub:v.lanes+' เลน · '+v.maint+' / วัน',price:money(v.cost)+' / ช่อง'}))];}else if(category==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'}];}else if(category==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(category==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ถนนหลักรื้อไม่ได้',price:'ค่ารื้อ 20%'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'ค่ารื้อ 10%'}];}else{const kinds=category==='work'?['office','factory']:category==='food'?['shop','restaurant','mall']:category==='leisure'?['park','pub']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,sub:t.plotWidth+'×'+t.plotHeight+' · ที่จอด '+t.parkingCapacity+' คัน · '+(t.residents?t.residents+' คน':t.jobs+' งาน'),price:money(t.cost)}));}$('tools').innerHTML=items.map(t=>`<button class="tool ${tool===t.key?'active':''}" data-tool="${t.key}"><span class="tool-icon">${t.icon}</span><span><strong>${t.name}</strong><small>${t.sub}</small><small class="tool-price">${t.price}</small></span></button>`).join('');}
-function selectTool(t){tool=t;trackingAt=-Infinity;if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · วางชิดขอบถนน`:t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
+
+// Aggregate actual citizen records; interpretation is clearly labeled and no
+// fictional survey responses are generated.
+const CITIZEN_TRAITS=['ขยัน','ชิล ๆ','สายชิล','บ้านรวย'];
+const CITIZEN_FILTERS=[['all','ทั้งหมด'],['unhappy','ไม่มีความสุข'],['critical','วิกฤต'],['issues','มีปัญหา'],['jobless','ไม่มีงาน'],['travel','กำลังเดินทาง'],['late','มาสาย']];
+let citizenFilter='all',citizenSearch='',citizenPage=0,citizenDashboardUpdatedAt=0;
+function citizenDashboardData(){
+ const people=[],traits=[0,0,0,0],moods=[0,0,0,0],rush=Array(8).fill(0);
+ const problems=new Map(),locations={home:0,work:0,service:0,travel:0,other:0};
+ const summary={population:0,average:100,unhappy:0,critical:0,jobless:0,waiting:0,travel:0,late:0,adaptive:0,movingOut:0,issues:0};
+ let happinessSum=0;
+ const today=Math.floor(state.time/1440);
+ const addIssue=(label)=>problems.set(label,(problems.get(label)||0)+1);
+ for(const c of state.citizens.values()){
+  if(!c.resident||c.removed)continue;
+  const vehicle=state.vehicles.get(c.vehicleId),mood=Number.isFinite(c.happy)?Math.max(0,Math.min(100,c.happy)):0;
+  const plan=c.dailyPlan?.day===today?c.dailyPlan:planForDay(c,today);
+  const noJob=c.profile.trait!==3&&!c.workId&&!c.movingOut;
+  const blocked=!!c.pending||!!vehicle&&(vehicle.phase==='stuck'||vehicle.departureNoRoute||(vehicle.wait||0)>=8);
+  const issue=blocked||noJob||c.movingOut||mood<60;
+  people.push({c,vehicle,mood,plan,noJob,blocked,issue});
+  summary.population++;happinessSum+=mood;
+  traits[Math.max(0,Math.min(3,c.profile?.trait||0))]++;
+  moods[mood<40?0:mood<60?1:mood<80?2:3]++;
+  if(mood<60)summary.unhappy++;
+  if(mood<40)summary.critical++;
+  if(noJob){summary.jobless++;addIssue('ไม่มีตำแหน่งงาน');}
+  if(vehicle){summary.travel++;locations.travel++;if((vehicle.wait||0)>=8)summary.waiting++;}
+  else if(c.locationId===c.homeId)locations.home++;
+  else if(c.workId&&c.locationId===c.workId)locations.work++;
+  else if(state.buildings.get(c.locationId)?.key&&CATALOG[state.buildings.get(c.locationId).key].service)locations.service++;
+  else locations.other++;
+  if(c.late)summary.late++;
+  if((c.routine?.advance||0)>0)summary.adaptive++;
+  if(c.movingOut){summary.movingOut++;addIssue('กำลังเตรียมย้ายออก');}
+  if(c.pending){
+   const p=c.pending,description=p.action==='work'?'เดินทางไปทำงานไม่ได้':p.action==='leisure'?'รอกิจกรรมหรือบริการ':p.action==='home'?'กลับบ้านไม่ได้':'รอการเดินทาง';
+   addIssue(description);
+  }else if(vehicle&&(vehicle.phase==='stuck'||vehicle.departureNoRoute))addIssue('รถไม่มีเส้นทาง');
+  else if(vehicle&&(vehicle.wait||0)>=8)addIssue('รถติดหรือรอคิวนาน');
+  if(issue)summary.issues++;
+  // Counts refer to today's *planned* activities, not observed departures.
+  if(plan.works){
+   const outbound=Math.floor((plan.leave-360)/120),back=Math.floor((plan.end+plan.postDelay-360)/120);
+   if(outbound>=0&&outbound<8)rush[outbound]++;
+   if(back>=0&&back<8)rush[back]++;
+  }else if(plan.kind){
+   const outing=Math.floor((plan.leisureStart-360)/120);
+   if(outing>=0&&outing<8)rush[outing]++;
+  }
+ }
+ summary.average=summary.population?happinessSum/summary.population:100;
+ return{summary,traits,moods,rush,problems:[...problems.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6),locations,people,today};
+}
+function citizenRiskText(record){
+ const {c,vehicle,noJob,mood}=record;
+ if(c.movingOut)return'กำลังเตรียมย้ายออก';
+ if(vehicle?.phase==='stuck'||vehicle?.departureNoRoute)return'ไม่มีเส้นทางเดินรถ';
+ if(c.pending)return c.problem||'มีการเดินทางหรือกิจกรรมรอดำเนินการ';
+ if(vehicle&&(vehicle.wait||0)>=8)return'รอรถติด '+Math.round(vehicle.wait||0)+' นาทีเกม';
+ if(noJob)return'ยังไม่มีตำแหน่งงาน';
+ if(mood<40)return'ความสุขต่ำมาก · ปัญหาล่าสุด: '+(c.problem||'ยังไม่ระบุ');
+ if(mood<60)return'ความสุขต่ำ · ปัญหาล่าสุด: '+(c.problem||'ยังไม่ระบุ');
+ if(c.late)return'เคยไปทำงานสายวันนี้';
+ return c.state||'อยู่ในเมือง';
+}
+function filteredCitizenRecords(data){
+ const query=citizenSearch.trim().toLocaleLowerCase('th-TH');
+ const matches=data.people.filter(p=>{
+  const {c,vehicle,mood,noJob,issue}=p;
+  const passes=citizenFilter==='unhappy'?mood<60:citizenFilter==='critical'?mood<40:
+   citizenFilter==='issues'?issue:citizenFilter==='jobless'?noJob:
+   citizenFilter==='travel'?!!vehicle:citizenFilter==='late'?!!c.late:true;
+  return passes&&(!query||String(c.id).includes(query)||citizenName(c).toLocaleLowerCase('th-TH').includes(query));
+ });
+ matches.sort((a,b)=>a.mood-b.mood||Number(b.issue)-Number(a.issue)||a.c.id-b.c.id);
+ return matches;
+}
+function showCitizenDashboard(){
+ const panel=$('citizensDashboard');if(!panel)return;
+ selected=null;$('inspector').classList.add('hidden');
+ panel.classList.remove('hidden');citizenDashboardUpdatedAt=0;
+ renderCitizenDashboard(true);
+}
+function hideCitizenDashboard(){const panel=$('citizensDashboard');if(panel)panel.classList.add('hidden');}
+function renderCitizenDashboard(force=false){
+ const panel=$('citizensDashboard');
+ if(!panel||tool!=='citizenDashboard'||panel.classList.contains('hidden'))return;
+ if(!force&&Date.now()-citizenDashboardUpdatedAt<1500)return;
+ citizenDashboardUpdatedAt=Date.now();
+ const data=citizenDashboardData(),{summary:m,traits,moods,rush,problems,locations}=data;
+ $('citizenDashDay').textContent='วันที่ '+(data.today+1)+' · '+timeText(state.time);
+ const filters=$('citizenFilters');
+ // Filter controls are separate from the refreshing contents so text input
+ // and scroll position remain stable as the game progresses.
+ if(filters&&!filters.children.length)filters.innerHTML=CITIZEN_FILTERS.map(([key,label])=>
+  '<button data-citizen-filter="'+key+'">'+label+'</button>').join('');
+ for(const b of filters?.querySelectorAll('[data-citizen-filter]')||[])
+  b.classList.toggle('active',b.dataset.citizenFilter===citizenFilter);
+ const bar=(label,count,total,accent='')=>'<div class="citizen-bar-row"><span>'+label+
+  '</span><span class="citizen-bar-track"><i class="citizen-bar-fill '+accent+
+  '" style="width:'+Math.min(100,100*count/Math.max(1,total))+'%"></i></span><strong>'+fmt(count)+'</strong></div>';
+ const tile=(value,label,urgent=false)=>'<div class="citizen-kpi'+(urgent?' urgent':'')+'"><b>'+value+'</b><span>'+label+'</span></div>';
+ const section=(label,meta,content)=>'<section class="citizen-section"><div class="citizen-section-head"><h3>'+label+'</h3><small>'+meta+'</small></div>'+content+'</section>';
+ const records=filteredCitizenRecords(data),shown=records.slice(0,(citizenPage+1)*40);
+ const card=p=>{
+  const c=p.c,issue=citizenRiskText(p),score=p.mood<40?'critical':p.mood<60?'low':'';
+  return'<button class="citizen-person" data-citizen-id="'+c.id+'" title="ดูชีวิตประชาชน '+c.id+'"><span class="citizen-person-main"><b>'+
+   escapeSaveText(citizenName(c))+'</b><small>'+escapeSaveText(CITIZEN_TRAITS[c.profile?.trait]||'ประชาชน')+
+   ' · '+escapeSaveText(issue)+'</small></span><span class="citizen-person-score"><strong class="'+score+'">'+Math.round(p.mood)+'%</strong><em>ความสุข</em></span></button>';
+ };
+ const total=fmt(m.population),mean=Math.round(m.average);
+ const html='<div class="citizen-kpis">'+tile(total,'ประชาชนในเมือง')+tile(mean+'%','ความสุขเฉลี่ย')+
+  tile(fmt(m.unhappy),'ความสุขต่ำกว่า 60%',m.unhappy>0)+tile(fmt(m.critical),'วิกฤต ต่ำกว่า 40%',m.critical>0)+
+  tile(fmt(m.jobless),'ยังไม่มีงาน')+tile(fmt(m.travel),'กำลังเดินทาง')+
+  tile(fmt(m.waiting),'รถรอนาน ≥ 8 นาทีเกม')+tile(fmt(m.issues),'คนที่ควรดูแล',m.issues>0)+'</div>'+
+  '<div class="citizen-pair">'+
+   section('ลักษณะนิสัย','อ้างอิงโปรไฟล์ประชาชน',traits.map((count,i)=>bar(CITIZEN_TRAITS[i],count,m.population,i===3?'cool':'')).join(''))+
+   section('ระดับความสุข','สัดส่วนปัจจุบัน',bar('ดี 80–100%',moods[3],m.population)+
+    bar('ปานกลาง 60–79%',moods[2],m.population,'cool')+bar('ต่ำ 40–59%',moods[1],m.population,'warning')+
+    bar('วิกฤต 0–39%',moods[0],m.population,'danger'))+'</div>'+
+  section('ชีวิตประจำวัน · อยู่ที่ไหน','นับตามสถานะปัจจุบัน','<div class="citizen-signal-grid">'+
+   [['อยู่บ้าน',locations.home],['อยู่ที่ทำงาน',locations.work],['กำลังใช้บริการ',locations.service],['เดินทาง',locations.travel],['อื่น ๆ',locations.other],['ปรับออกเช้าหลังมาสาย',m.adaptive]].map(([label,num])=>'<div><b>'+fmt(num)+'</b><small>'+label+'</small></div>').join('')+'</div>')+
+  section('ช่วงเวลาเดินทางที่วางแผนไว้','รวมเวลาออกบ้านและเลิกงาน · ไม่ใช่จำนวนรถจริง',
+   '<div class="citizen-rush-chart">'+rush.map((count,i)=>'<div class="citizen-rush-col"><div class="citizen-rush-bar" title="'+fmt(count)+' กิจกรรม" style="height:'+
+    Math.max(2,Math.round(count/Math.max(1,...rush)*61))+'px"></div><small>'+String(6+i*2).padStart(2,'0')+'</small></div>').join('')+'</div>')+
+  section('ปัญหาที่ระบบตรวจพบ','ค้างอยู่หรือเพิ่งเกิดขึ้น',
+   '<div class="citizen-issues">'+(problems.length?problems.map(([label,count])=>'<span class="citizen-issue">'+escapeSaveText(label)+' <strong>'+fmt(count)+'</strong></span>').join(''):'<span class="citizen-note">ยังไม่พบปัญหาที่ค้างอยู่</span>')+'</div>')+
+  section('รายชื่อประชาชนที่ต้องติดตาม',fmt(records.length)+' คนตามตัวกรอง',
+   '<div class="citizen-results">'+(shown.length?shown.map(card).join(''):'<div class="citizen-empty">ยังไม่พบประชาชนตามเงื่อนไขนี้ค่ะ</div>')+'</div>'+
+   (shown.length<records.length?'<button class="citizen-more" data-citizen-more="1">ดูเพิ่มอีก 40 คน</button>':'')+
+   '<p class="citizen-note">“ความคิด/ความกังวล” ประเมินจากความสุข ปัญหาล่าสุด งาน และการเดินทางของตัวละคร ไม่ใช่คำพูดหรือความคิดเห็นจริงของประชาชน</p>');
+ const body=$('citizensDashboardBody'),scroll=body.scrollTop;body.innerHTML=html;body.scrollTop=scroll;
+}
+const categories=[['roads','ถนน'],['home','บ้าน'],['work','งาน'],['food','ร้านค้า & อาหาร'],['leisure','พักผ่อน'],['signals','🚦 ไฟจราจร'],['citizens','👥 ประชาชน'],['tracking','โหมดติดตาม'],['manage','จัดการ']];
+function renderTools(){ $('categories').innerHTML=categories.map(([k,n])=>`<button data-category="${k}" class="${category===k?'active':''}">${n}</button>`).join('');let items=[];if(category==='roads'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ลากเพื่อเลื่อน',price:'คลิกเพื่อตรวจสอบ'},...Object.entries(ROADS).map(([k,v])=>({key:k,name:v.name,icon:'═',sub:v.lanes+' เลน · '+v.maint+' / วัน',price:money(v.cost)+' / ช่อง'}))];}else if(category==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'}];}else if(category==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(category==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(category==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ถนนหลักรื้อไม่ได้',price:'ค่ารื้อ 20%'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'ค่ารื้อ 10%'}];}else{const kinds=category==='work'?['office','factory']:category==='food'?['shop','restaurant','mall']:category==='leisure'?['park','pub']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,sub:t.plotWidth+'×'+t.plotHeight+' · ที่จอด '+t.parkingCapacity+' คัน · '+(t.residents?t.residents+' คน':t.jobs+' งาน'),price:money(t.cost)}));}$('tools').innerHTML=items.map(t=>`<button class="tool ${tool===t.key?'active':''}" data-tool="${t.key}"><span class="tool-icon">${t.icon}</span><span><strong>${t.name}</strong><small>${t.sub}</small><small class="tool-price">${t.price}</small></span></button>`).join('');}
+function selectTool(t){tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · วางชิดขอบถนน`:t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูความสุข ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
 function modal(html){$('dialogContent').innerHTML=html;$('dialog').showModal();}
 function closeModal(){$('dialog').close();}
 const row=(a,b)=>`<div class="detail-row"><span>${a}</span><strong>${b}</strong></div>`;
@@ -1467,7 +1601,15 @@ function confirmAction(title,body,callback){modal(`<span class="eyebrow">CITY PL
 function signalHitAt(x,y){const p=world(x,y),centerX=Math.round(p[0]-(renderer3d?0:.5)),centerY=Math.round(p[1]-(renderer3d?0:.5));let best=22,result=null;for(let yy=centerY-3;yy<=centerY+3;yy++)for(let xx=centerX-3;xx<=centerX+3;xx++){if(!valid(xx,yy))continue;const node=id(xx,yy);if(junction(node)<3)continue;const v=screen(xx+(renderer3d?0:.5),yy+(renderer3d?0:.5),renderer3d?.2:0),dist=Math.hypot(v[0]-x,v[1]-y);if(dist<best){best=dist;result=node;}}return result;}
 function inspectAt(x,y){const signal=tool==='tracking'?null:signalHitAt(x,y);if(signal!=null){selected={kind:'road',id:signal};renderInspector();return;}let closest=null,best=15;for(const v of state.vehicles.values()){if(!['driving','stuck','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;const p=vehiclePosition(v);if(!p)continue;const a=screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0)),dist=Math.hypot(a[0]-x,a[1]-y);if(dist<best){best=dist;closest=v;}}if(closest){selected={kind:'vehicle',id:closest.id};renderInspector();return;}if(renderer3d){const hit=renderer3d.pickBuilding(x,y);if(hit!=null){selected={kind:'building',id:hit};renderInspector();return;}}const p=world(x,y),ix=Math.floor(p[0]),iy=Math.floor(p[1]);if(!valid(ix,iy))return;const b=state.buildGrid[id(ix,iy)];if(b>=0)selected={kind:'building',id:b};else{const i=owner(id(ix,iy));if(state.roads.has(i))selected={kind:'road',id:i};else{selected=null;$('inspector').classList.add('hidden');return;}}renderInspector();}
 function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(!$('dialog').open&&!window.SMGameAuthLocked)tick(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
-window.addEventListener('resize',resize);$('categories').onclick=e=>{const b=e.target.closest('[data-category]');if(b){category=b.dataset.category;if(category==='signals')selectTool('signalManage');else if(category==='tracking')selectTool('tracking');else if(tool==='tracking')selectTool('hand');else renderTools();}};$('tools').onclick=e=>{const b=e.target.closest('[data-tool]');if(b)selectTool(b.dataset.tool);};$('pause').onclick=()=>{state.speed=state.speed?0:1;updateUI();};document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{state.speed=+b.dataset.speed;updateUI();});$('heat').onclick=()=>{heat=!heat;$('heat').classList.toggle('active',heat);};$('debug').onclick=()=>{debug=!debug;$('debug').classList.toggle('active',debug);};$('zoomIn').onclick=()=>cam.z=Math.min(5.2,cam.z*1.2);$('zoomOut').onclick=()=>cam.z=Math.max(.22,cam.z/1.2);$('center').onclick=()=>{cam={x:150,y:150,z:1.24};follow=null;};$('collapse').onclick=()=>{document.querySelector('.city-panel').classList.toggle('collapsed');$('collapse').textContent=document.querySelector('.city-panel').classList.contains('collapsed')?'+':'−';};$('closeInspector').onclick=()=>{selected=null;$('inspector').classList.add('hidden');follow=null;};document.querySelectorAll('[data-inspect]').forEach(b=>b.onclick=()=>{selected={kind:b.dataset.inspect};renderInspector();});
+window.addEventListener('resize',resize);$('categories').onclick=e=>{const b=e.target.closest('[data-category]');if(b){category=b.dataset.category;if(category==='signals')selectTool('signalManage');else if(category==='citizens')selectTool('citizenDashboard');else if(category==='tracking')selectTool('tracking');else if(tool==='tracking'||tool==='citizenDashboard')selectTool('hand');else{hideCitizenDashboard();renderTools();}}};$('tools').onclick=e=>{const b=e.target.closest('[data-tool]');if(b)selectTool(b.dataset.tool);};
+$('closeCitizensDashboard').onclick=()=>{category='roads';selectTool('hand');};
+$('citizenSearch').oninput=e=>{citizenSearch=e.target.value.slice(0,80);citizenPage=0;renderCitizenDashboard(true);};
+$('citizenFilters').onclick=e=>{const b=e.target.closest('[data-citizen-filter]');if(b){citizenFilter=b.dataset.citizenFilter;citizenPage=0;renderCitizenDashboard(true);}};
+$('citizensDashboardBody').onclick=e=>{
+ const person=e.target.closest('[data-citizen-id]');
+ if(person){const id=Number(person.dataset.citizenId);if(state.citizens.has(id)){hideCitizenDashboard();selected={kind:'citizen',id};renderInspector(true);}return;}
+ if(e.target.closest('[data-citizen-more]')){citizenPage++;renderCitizenDashboard(true);}
+};$('pause').onclick=()=>{state.speed=state.speed?0:1;updateUI();};document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{state.speed=+b.dataset.speed;updateUI();});$('heat').onclick=()=>{heat=!heat;$('heat').classList.toggle('active',heat);};$('debug').onclick=()=>{debug=!debug;$('debug').classList.toggle('active',debug);};$('zoomIn').onclick=()=>cam.z=Math.min(5.2,cam.z*1.2);$('zoomOut').onclick=()=>cam.z=Math.max(.22,cam.z/1.2);$('center').onclick=()=>{cam={x:150,y:150,z:1.24};follow=null;};$('collapse').onclick=()=>{document.querySelector('.city-panel').classList.toggle('collapsed');$('collapse').textContent=document.querySelector('.city-panel').classList.contains('collapsed')?'+':'−';};$('closeInspector').onclick=()=>{selected=null;$('inspector').classList.add('hidden');follow=null;};document.querySelectorAll('[data-inspect]').forEach(b=>b.onclick=()=>{selected={kind:b.dataset.inspect};renderInspector();});
 let pointers=new Map(),pinch=null,pendingTap=null,lastTap=null;
 const ignoredTouchPointers=new Set(),doubleTapDelay=320,doubleTapRadius=44;
 function clearPendingTap(perform=false){if(!pendingTap)return;clearTimeout(pendingTap.timer);const action=pendingTap.action;pendingTap=null;lastTap=null;if(perform)action();}
@@ -1483,7 +1625,7 @@ canvas.addEventListener('pointerdown',e=>{
  canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
  if(pointers.size===2){const a=[...pointers.values()];pinch={distance:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),z:cam.z};drag=null;return;}
  const p=world(e.clientX,e.clientY),x=Math.floor(p[0]),y=Math.floor(p[1]);
- drag={sx:e.clientX,sy:e.clientY,lastX:e.clientX,lastY:e.clientY,x,y,pan:tool==='hand'||tool==='tracking'||tool==='signalManage'||e.button===1||e.shiftKey,moved:false,cells:valid(x,y)?[owner(id(x,y))]:[]};
+ drag={sx:e.clientX,sy:e.clientY,lastX:e.clientX,lastY:e.clientY,x,y,pan:tool==='hand'||tool==='tracking'||tool==='signalManage'||tool==='citizenDashboard'||e.button===1||e.shiftKey,moved:false,cells:valid(x,y)?[owner(id(x,y))]:[]};
 });
 canvas.addEventListener('pointermove',e=>{const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1])};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch&&pointers.size===2){const a=[...pointers.values()];cam.z=Math.max(.22,Math.min(5.2,pinch.z*Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)/pinch.distance));return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(owner(id(drag.x,drag.y)),owner(id(hover.x,hover.y)));drag.lastX=e.clientX;drag.lastY=e.clientY;});
 function finishCanvasInteraction(d,x,y,activeTool){
@@ -1704,6 +1846,6 @@ $('menu').onclick=()=>{
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){if(!['moveIn','pass'].includes(v.kind)&&v.wait>24){v.late=true;const c=state.citizens.get(v.citizenId);if(c){c.late=true;pain(c,3,'ล่าช้าก่อนข้ามวัน');}}arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;for(const c of state.citizens.values()){if(c.removed)continue;for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;$('heat').classList.add('active');addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();reset();requestAnimationFrame(frame);
 })();
