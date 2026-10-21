@@ -165,6 +165,21 @@ function checkParkingBuilding(key,x,y){
  return{error};
 }
 function markBuildingPlot(b,value){const {w,h}=buildingBounds(b);for(let yy=b.y;yy<b.y+h;yy++)for(let xx=b.x;xx<b.x+w;xx++)state.buildGrid[id(xx,yy)]=value;}
+function parkingMergeClear(v){
+ // The entire joining trajectory must be free, not merely the first road cell.
+ if(!v.lotPath)return false;
+ const len=lotPathLength(v.lotPath);
+ for(let dist=0;dist<=len+.0001;dist+=.085){
+  const pose=lotPathPose(v.lotPath,Math.min(len,dist));
+  for(const other of state.vehicles.values()){
+   if(other.id===v.id||!['driving','stuck','gate_waiting','parking_in','parking_out','departing'].includes(other.phase))continue;
+   if(other.lotBuilding===v.lotBuilding&&other.lotPath)continue;
+   const p=vehiclePosition(other);
+   if(p&&Math.hypot(p.x-pose.x,p.y-pose.y)<.82&&lotCarsOverlap(pose,p,.045))return false;
+  }
+ }
+ return true;
+}
 function advanceLot(v,dt,maxDistance=Infinity){
  const total=lotPathLength(v.lotPath),target=Math.min(total,maxDistance,(v.lotDistance||0)+LOT_SPEED*dt);let distance=v.lotDistance||0;
  // Small swept steps also protect queues when the game runs at high speed.
@@ -433,6 +448,9 @@ function motionPlan(v){
   previousLane=lanes[i];previousCap=cap;
  }
  if(state.buildings.has(v.fromId))lanes[0]=laneCapacity(path[0],motionDirection(path,0))-1;if(state.buildings.has(v.toId))lanes[n-1]=laneCapacity(path[n-1],motionDirection(path,n-1))-1;
+ // An emergency move to the right is an actual new starting lane, not just
+ // a rendered car displacement. Preserve it when rebuilding the route.
+ if(v.emergencyInitialLane!=null&&n>1)lanes[0]=Math.min(laneCapacity(path[0],motionDirection(path,0))-1,Math.max(0,v.emergencyInitialLane));
  const point=(i,d=motionDirection(path,i))=>{const p=xy(path[i]),off=laneOffset(path[i],d,lanes[i]);return{x:p[0]+.5+off.x,y:p[1]+.5+off.y};};
  const dot=(p,d)=>p.x*DIR[d][0]+p.y*DIR[d][1];
  const shift=(p,d,a)=>({x:p.x+DIR[d][0]*a,y:p.y+DIR[d][1]*a});
@@ -882,7 +900,7 @@ function respawnVehicle(v){
  release(v);
  if(from){from.queue=from.queue.filter(id=>id!==v.id);if(c){from.parked.delete(c.id);from.visitors.delete(c.id);freeParkingSpace(from,c.id);}}
  v.fromId=null;v.fromGate=entrance;v.path=path?[...path]:[entrance];v.pathSet=new Set(v.path);
- v.pos=0;v.progress=0;v.lane=0;v.motionStartPose=null;v.motionSeedLane=null;v.heldPose=null;
+ v.pos=0;v.progress=0;v.lane=0;v.motionStartPose=null;v.motionSeedLane=null;v.emergencyInitialLane=null;v.heldPose=null;
  v.lotPath=null;v.lotDistance=0;v.lotBuilding=null;v.lotReady=false;v.mergeCommitted=false;cleanupParkingVehicle(v);
  v.turnLanes={};v.junctionPasses=[];v.junctionQueueSince={};v.committedJunction=null;
  v.phase='gate_waiting';v.speed=0;v.wait=0;v.lastMovedAt=state.time;v.respawns=(v.respawns||0)+1;
@@ -1070,7 +1088,7 @@ function advanceVehicles(realDt,gameDt){
    if(!v.mergeCommitted&&v.occKey&&state.occ.get(v.occKey)===v.id)v.mergeCommitted=true; // resumed 1.3 save
    // Park at the approach line until the *actual* road lane and its exit are
    // clear. Do not lock the road while still waiting inside the car park.
-   const total=lotPathLength(v.lotPath),hold=Math.max(0,total-.7);
+   const total=lotPathLength(v.lotPath),hold=0; // Stay entirely inside the bay approach until crossing is granted.
    if(!v.mergeCommitted){
     advanceLot(v,simDt,hold);
     if(v.lotDistance<hold-1e-7){updateTrafficSpatial(v);continue;}
@@ -1078,7 +1096,7 @@ function advanceVehicles(realDt,gameDt){
     if(next==null){arrive(v);continue;}
     const d=dir(path[0],next),roadClear=cellAvailable(path[0],d,lane,v.id)
       &&cellAvailable(next,motionDirection(path,1),plannedLane(v,1),v.id)
-      &&physicalTrafficLimit(v,plan,0,1.15)>.65;
+      &&physicalTrafficLimit(v,plan,0,1.15)>.65&&parkingMergeClear(v);
     if(!roadClear){v.stopReason='รอช่องถนนและทางออกว่าง';updateTrafficSpatial(v);continue;}
     occupy(v,0);v.mergeCommitted=true;
    }
