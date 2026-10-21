@@ -171,11 +171,25 @@ function advanceLot(v,dt){
  while(distance<target-1e-8){const next=Math.min(target,distance+.04);if(!lotClear(v,lotPathPose(v.lotPath,next))){v.stopReason='รอรถข้างหน้าในลานจอด';break;}distance=next;v.lastMovedAt=state.time;}
  v.lotDistance=distance;return distance>=total-1e-7;
 }
+function parkingBankBusy(b,index,arriving){
+ // Opposing flows cannot claim the same parking aisle at the same time.
+ // Cars in different banks and cars moving in the same direction remain free.
+ const cols=CATALOG[b.key].parkingColumns,bank=Math.floor(index/(2*cols));
+ for(const other of state.vehicles.values()){
+  if(!other.lotPath||other.lotBuilding!==b.id)continue;
+  const opposite=arriving?(other.phase==='departing'&&!other.lotReady):(other.phase==='parking_in');
+  if(!opposite)continue;
+  const otherIndex=b.parkingSlots?.indexOf(other.citizenId)??-1;
+  if(otherIndex>=0&&Math.floor(otherIndex/(2*cols))===bank)return true;
+ }
+ return false;
+}
 function prepareLotDeparture(v,dt){
  const b=state.buildings.get(v.fromId);if(!b)return true;
  if(v.lotReady)return true;
  if(!v.lotPath){
   const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){v.stopReason='ไม่พบช่องจอดของรถ';return false;}
+  if(parkingBankBusy(b,index,false)){v.stopReason='รอรถเข้าจอดในแถวเดียวกัน';return false;}
   const t=CATALOG[b.key];v.lotPath=[parkingSlotPose(b,index),lotPoint(b,slot.u,slot.aisle),lotPoint(b,t.plotWidth-.45,slot.aisle),lotPoint(b,t.plotWidth-.45,t.plotHeight-.4)];v.lotDistance=0;v.lotBuilding=b.id;
   if(!canLeaveParkingSpace(v,v.lotPath)){v.lotPath=null;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
  }
@@ -184,6 +198,7 @@ function prepareLotDeparture(v,dt){
 function beginParkingArrival(v){
  const b=state.buildings.get(v.toId);if(!b||!v.citizenId)return false;
  const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){v.stopReason='ลานจอดเต็ม';v.speed=0;return true;}
+ if(parkingBankBusy(b,index,true)){freeParkingSpace(b,v.citizenId);v.stopReason='รอรถออกจากแถวจอด';v.speed=0;return true;}
  const t=CATALOG[b.key],p=positionOnMotion(motionPlan(v),motionPlan(v).total);
  v.lotPath=[p,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,slot.aisle),lotPoint(b,slot.u,slot.aisle),parkingSlotPose(b,index)];
  v.lotDistance=0;v.lotBuilding=b.id;if(!lotClear(v,parkingPose(v))){v.lotPath=null;freeParkingSpace(b,v.citizenId);v.stopReason='รอพื้นที่ว่างหลังทางเข้า';v.speed=0;return true;}v.lotReady=false;v.phase='parking_in';v.speed=0;v.stopReason='กำลังเข้าจอด';return true;
