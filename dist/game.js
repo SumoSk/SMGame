@@ -883,6 +883,7 @@ function respawnVehicle(v){
  if(from){from.queue=from.queue.filter(id=>id!==v.id);if(c){from.parked.delete(c.id);from.visitors.delete(c.id);}}
  v.fromId=null;v.fromGate=entrance;v.path=path?[...path]:[entrance];v.pathSet=new Set(v.path);
  v.pos=0;v.progress=0;v.lane=0;v.motionStartPose=null;v.motionSeedLane=null;v.heldPose=null;
+ v.lotPath=null;v.lotDistance=0;v.lotBuilding=null;v.lotReady=false;cleanupParkingVehicle(v);
  v.turnLanes={};v.junctionPasses=[];v.junctionQueueSince={};v.committedJunction=null;
  v.phase='gate_waiting';v.speed=0;v.wait=0;v.lastMovedAt=state.time;v.respawns=(v.respawns||0)+1;
  v.retryAt=0;v.departureRouteVersion=path?state.version:-1;v.nextDepartureRouteRetry=state.time;
@@ -1068,6 +1069,12 @@ function advanceVehicles(realDt,gameDt){
   }
   // Migrate existing saves using the wait counter without resetting it.
   if(!Number.isFinite(v.lastMovedAt))v.lastMovedAt=state.time-Math.max(0,Number.isFinite(v.wait)?v.wait:0);
+  // Last-resort safety valve: a genuinely immobilized car inside a parking lot
+  // cannot use road rerouting. Give it the same long grace period as road cars
+  // before retrying its trip from a city gate; never delete its trip or citizen.
+  if(respawnBudget>0&&v.lotPath&&['departing','parking_in','parking_out'].includes(v.phase)&&state.time-v.lastMovedAt>IMMOBILE_RESPAWN_TIMEOUT){
+   if(respawnVehicle(v)){respawnBudget--;continue;}
+  }
   if(respawnBudget>0&&!v.lotPath&&v.phase!=='departing'&&v.pos+1<v.path.length&&state.time-v.lastMovedAt>IMMOBILE_RESPAWN_TIMEOUT){
    if(respawnVehicle(v)){respawnBudget--;continue;}
   }
