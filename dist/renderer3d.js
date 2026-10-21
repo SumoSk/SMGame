@@ -35,8 +35,7 @@ function climateAt(time,city){
  }
  const rain=Math.max(rainfall(day),rainfall(day-1));
  const wet=Math.max(rain,rainfall(day,150),rainfall(day-1,150)*.7);
- const mist=Math.exp(-Math.pow((minute-365)/145,2))*(.2+.56*hash(day*29+seed,73))*(1-rain*.3);
- return{cloud,rain,wet,mist};
+ return{cloud,rain,wet};
 }
 function hash(a,b=0){return ((Math.sin(a*127.1+b*311.7)*43758.5453)%1+1)%1;}
 
@@ -145,7 +144,8 @@ export class TrafficRenderer{
  disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.geometry&&!([BOX,CYL,CONE,LEAF,BALL].includes(x.geometry)))x.geometry.dispose();});}}
  resize(){this.w=innerWidth;this.h=innerHeight;this.renderer.setSize(this.w,this.h,false);if(this.cam)this.updateCamera(this.cam);}
  createAtmosphere(){
-  this.scene.fog=new THREE.FogExp2('#b3ccd2',.002);
+  // Keep the city unobstructed at every hour: no atmospheric fog/haze.
+  this.scene.fog=null;
   const cv=document.createElement('canvas');cv.width=64;cv.height=64;const c=cv.getContext('2d'),g=c.createRadialGradient(32,32,1,32,32,31);
   g.addColorStop(0,'rgba(255,238,191,.72)');g.addColorStop(.37,'rgba(255,190,116,.28)');g.addColorStop(1,'rgba(255,183,104,0)');
   c.fillStyle=g;c.fillRect(0,0,64,64);this.glowTexture=new THREE.CanvasTexture(cv);
@@ -157,7 +157,6 @@ export class TrafficRenderer{
  updateWeatherLight(state){
   const sun=lightAt(state.time),air=climateAt(state.time,state.city);
   this.scene.background.copy(sun.sky).lerp(new THREE.Color('#738999'),air.cloud*.22+air.rain*.38);
-  this.scene.fog.color.copy(this.scene.background);this.scene.fog.density=.0014+air.mist*.012+air.rain*.006+air.cloud*.0016;
   this.skyLight.intensity=sun.ambient*(1-air.cloud*.14-air.rain*.24);
   this.light.color.copy(sun.sun).lerp(new THREE.Color('#dfe9f0'),air.cloud*.25);
   this.light.intensity=sun.strength*(1-air.cloud*.18-air.rain*.36);
