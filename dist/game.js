@@ -874,7 +874,7 @@ function planForDay(c,day){
 }
 function newCitizen(home){
  const cid=state.nextId++;
- const c={id:cid,profile:profile(cid+state.profileSeq++),homeId:home.id,
+ const c={id:cid,profile:profile(state.profileSeq++),homeId:home.id,
   workId:null,location:'gate',locationId:null,resident:false,removed:false,
   movingOut:false,happy:82,state:'กำลังย้ายเข้า',vehicleId:null,queued:null,
   pending:null,late:false,unemployed:0,problem:'',history:[],scheduled:new Set(),
