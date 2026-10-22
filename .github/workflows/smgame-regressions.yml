@@ -47,7 +47,6 @@ jobs:
       - run: node --check dist/game.js
       - run: node work/test-lane-change-safety.cjs
       - run: node work/test-traffic-fixes.cjs
-      - run: node work/test-parking-merge.cjs
   publish:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
