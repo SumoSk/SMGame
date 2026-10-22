@@ -334,13 +334,83 @@ function prepareLotDeparture(v,dt){
  }
  v.stopReason='กำลังออกจากช่องจอด';if(!advanceLot(v,dt))return false;v.lotReady=true;v.stopReason='รอถนนว่างเพื่อออกจากลาน';return true;
 }
+// Keep parking claims exclusive, and replace one only after finding a viable
+// forward bay. A car already in the one-way aisle must never reverse or teleport.
+function localParkingPoint(b,p){
+ const t=CATALOG[b.key],x=p.x-b.x-.5,y=p.y-b.y-.5;
+ switch(b.rotation||0){
+  case 1:return {u:y,v:t.plotHeight-x};
+  case 2:return {u:t.plotWidth-x,v:t.plotHeight-y};
+  case 3:return {u:t.plotWidth-y,v:x};
+  default:return {u:x,v:y};
+ }
+}
+function parkingArrivalPath(v,b,index,replan=false){
+ const t=CATALOG[b.key],slot=lotSlots(b)[index];
+ if(!slot)return null;
+ const end=parkingSlotPose(b,index),aisle=lotPoint(b,slot.u,slot.aisle);
+ if(!replan){
+  const start=positionOnMotion(motionPlan(v),motionPlan(v).total);
+  return [start,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,slot.aisle),aisle,end];
+ }
+ const start=parkingPose(v);if(!start)return null;
+ const local=localParkingPoint(b,start);
+ if(slot.u<local.u+.8)return null;
+ if(local.u>.85&&Math.abs(local.v-slot.aisle)>.65)return null;
+ const approachU=local.u<.85?.45:Math.min(slot.u-.35,local.u+.35);
+ return [start,lotPoint(b,approachU,slot.aisle),aisle,end];
+}
+function parkingBayObstructed(v,b,index){
+ const pose=parkingSlotPose(b,index);if(!pose)return true;
+ for(const cid of b.parked){
+  if(cid===v.citizenId||parkingIsMoving(cid))continue;
+  const other=parkingSlotPose(b,parkingSpace(b,cid));
+  if(other&&lotCarsOverlap(pose,other,.03))return true;
+ }
+ for(const other of state.vehicles.values()){
+  if(other.id===v.id||other.lotBuilding!==b.id||!other.lotPath)continue;
+  if(b.parkingSlots?.indexOf(other.citizenId)===index)return true;
+  const actual=parkingPose(other);
+  if(actual&&lotCarsOverlap(pose,actual,.06))return true;
+ }
+ return false;
+}
+function assignArrivalParking(v,replan=false){
+ const b=state.buildings.get(v.toId);if(!b||!v.citizenId)return false;
+ if(!b.parkingSlots)b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);
+ const old=b.parkingSlots.indexOf(v.citizenId),slots=lotSlots(b);
+ const current=replan?localParkingPoint(b,parkingPose(v)):null;
+ const options=[];
+ for(let i=0;i<slots.length;i++){
+  if(b.parkingSlots[i]!==null&&b.parkingSlots[i]!==v.citizenId)continue;
+  if(replan&&i===old)continue;
+  if(replan&&slots[i].u<(current?.u??0)+.8)continue;
+  options.push(i);
+ }
+ options.sort((a,b)=>{
+  if(!replan){if(a===old)return -1;if(b===old)return 1;}
+  return (slots[a].u-(current?.u??.45))-(slots[b].u-(current?.u??.45))||a-b;
+ });
+ for(const i of options){
+  if(parkingBankBusy(b,i,true)||parkingBayObstructed(v,b,i))continue;
+  const path=parkingArrivalPath(v,b,i,replan);if(!path)continue;
+  const prevPath=v.lotPath,prevDistance=v.lotDistance,prevBuilding=v.lotBuilding;
+  v.lotPath=path;v.lotDistance=0;v.lotBuilding=b.id;
+  if(!lotClear(v,parkingPose(v))){
+   v.lotPath=prevPath;v.lotDistance=prevDistance;v.lotBuilding=prevBuilding;continue;
+  }
+  if(old>=0&&old!==i)b.parkingSlots[old]=null;
+  b.parkingSlots[i]=v.citizenId;
+  v.lotReady=false;v.parkingReplanAt=state.time+2;
+  v.stopReason=old>=0&&old!==i?'เปลี่ยนช่องจอดใหม่อัตโนมัติ':'กำลังเข้าจอด';
+  return true;
+ }
+ return false;
+}
 function beginParkingArrival(v){
  const b=state.buildings.get(v.toId);if(!b||!v.citizenId)return false;
- const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){v.stopReason='ลานจอดเต็ม';v.speed=0;return true;}
- if(parkingBankBusy(b,index,true)){freeParkingSpace(b,v.citizenId);v.stopReason='รอรถออกจากแถวจอด';v.speed=0;return true;}
- const t=CATALOG[b.key],p=positionOnMotion(motionPlan(v),motionPlan(v).total);
- v.lotPath=[p,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,slot.aisle),lotPoint(b,slot.u,slot.aisle),parkingSlotPose(b,index)];
- v.lotDistance=0;v.lotBuilding=b.id;if(!lotClear(v,parkingPose(v))){v.lotPath=null;freeParkingSpace(b,v.citizenId);v.stopReason='รอพื้นที่ว่างหลังทางเข้า';v.speed=0;return true;}v.lotReady=false;v.phase='parking_in';v.speed=0;v.stopReason='กำลังเข้าจอด';return true;
+ if(!assignArrivalParking(v)){v.stopReason='รอช่องจอดที่เข้าได้';v.speed=0;return true;}
+ v.phase='parking_in';v.speed=0;return true;
 }
 function cleanupParkingVehicle(v,keepDestination=false){
  for(const b of state.buildings.values()){
@@ -2104,8 +2174,14 @@ function advanceVehicles(realDt,gameDt){
     &&state.time-v.lastMovedAt>=IMMOBILE_RESPAWN_TIMEOUT
     &&respawnVehicle(v)){respawnBudget--;continue;}
   if(v.phase==='parking_in'){
-   const done=advanceLot(v,simDt);const gateDistance=Math.hypot(v.lotPath[1].x-v.lotPath[0].x,v.lotPath[1].y-v.lotPath[0].y);
-   if(v.lotDistance>gateDistance+.3)release(v);if(done)arrive(v,true);updateTrafficSpatial(v);continue;
+   const done=advanceLot(v,simDt);
+   const gateDistance=Math.hypot(v.lotPath[1].x-v.lotPath[0].x,v.lotPath[1].y-v.lotPath[0].y);
+   if(v.lotDistance>gateDistance+.3)release(v);
+   if(done)arrive(v,true);
+   else if(state.time-v.lastMovedAt>=2&&state.time>=(v.parkingReplanAt||0)){
+    if(!assignArrivalParking(v,true)){v.parkingReplanAt=state.time+2;v.stopReason='รอทางเข้าช่องจอดว่าง';}
+   }
+   updateTrafficSpatial(v);continue;
   }
   if(v.phase==='parking_out'){
    if(v.mergeEscapeId){v.stopReason='ให้รถบนถนนที่ขวางกันผ่านก่อน';updateTrafficSpatial(v);continue;}
