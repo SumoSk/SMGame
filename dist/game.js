@@ -54,7 +54,7 @@ function parkingSpace(b,cid,allocate=false){
  if(index<0&&allocate){
   const t=CATALOG[b.key],bankCount=Array(t.parkingRows).fill(0),bankCapacity=Array(t.parkingRows).fill(0);
   for(let i=0;i<b.parkingSlots.length;i++){
-   const bank=Math.floor(i/(2*t.parkingColumns));
+   const bank=t.dualParking?Math.floor(i/t.parkingColumns):Math.floor(i/(2*t.parkingColumns));
    bankCapacity[bank]++;
    if(b.parkingSlots[i]!==null)bankCount[bank]++;
   }
@@ -64,7 +64,7 @@ function parkingSpace(b,cid,allocate=false){
   const seed=((Math.imul(Number(cid)||0,2654435761)>>>0)%65536)/65536;
   for(let i=0;i<b.parkingSlots.length;i++){
    if(b.parkingSlots[i]!==null)continue;
-   const bank=Math.floor(i/(2*t.parkingColumns)),col=i%t.parkingColumns;
+   const bank=t.dualParking?Math.floor(i/t.parkingColumns):Math.floor(i/(2*t.parkingColumns)),col=i%t.parkingColumns;
    const occupancy=bankCount[bank]/Math.max(1,bankCapacity[bank]);
    const spread=Math.abs((col+.5)/t.parkingColumns-seed);
    const score=occupancy*100+spread*3+bank*.01;
@@ -449,6 +449,29 @@ function parkingVisuals(b){
  const t=CATALOG[b.key],rects=[];
  const rect=(u,v,w,h,color)=>rects.push({u,v,w,h,color});
  rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.05,t.plotHeight-.05,'#bdc6ae');
+ if(t.dualParking){
+  const slots=lotSlots(b);
+  for(const [zone,aisle,color] of [['A',t.parkingAisle,'#515f62'],['B',t.parkingUpperAisle,'#45656b']]){
+   rect(t.plotWidth/2,aisle,t.plotWidth-1.0,1.28,color);
+   for(const slot of slots)if(slot.zone===zone){
+    rect(slot.u-t.parkingPitch/2,slot.v,.025,1.20,'#e9e6cc');
+    rect(slot.u+t.parkingPitch/2,slot.v,.025,1.20,'#e9e6cc');
+    rect(slot.u,slot.v-.6,t.parkingPitch-.04,.025,'#e9e6cc');
+   }
+   for(let u=1.2;u<t.parkingColumns*t.parkingPitch;u+=1.5)rect(u,aisle,.45,.035,'#c5d2c2');
+  }
+  // The shared entrance runs along the left edge. A and B exit down
+  // distinct corridors to the frontage: neither corridor crosses the other.
+  rect(.45,(t.parkingUpperAisle+t.plotHeight)/2,.8,t.plotHeight-t.parkingUpperAisle+.12,'#58666a');
+  for(const [u,aisle] of [[t.parkingExitA,t.parkingAisle],[t.parkingExitB,t.parkingUpperAisle]]){
+   rect(u,(aisle+t.plotHeight)/2,.8,t.plotHeight-aisle+.08,'#58666a');
+   rect(u,(aisle+t.plotHeight)/2,.025,t.plotHeight-aisle,'#bbc9b9');
+   rect(u,t.plotHeight-.45,.52,.08,'#f3ca88');
+  }
+  rect(.45,t.plotHeight-.45,.52,.08,'#94d9aa');
+  rect(t.plotWidth/2,9.38,t.plotWidth-2.2,.12,'#c5d2c2');
+  return rects;
+ }
  const front=t.size+.22,bottom=t.plotHeight-.12,aisle=t.parkingAisle;
  rect(t.plotWidth/2,(front+bottom)/2,t.plotWidth-.12,bottom-front,'#515f62');
  // Exactly two perimeter stall rows. The center lane is a single continuous
@@ -1859,7 +1882,8 @@ function cellAvailable(i,d,l,vid){const r=state.roads.get(i);if(!r)return false;
 function roadTraversalAvailable(v,pos){const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);return state.roads.has(i)&&lane>=0&&lane<laneCapacity(i,d)&&(junction(i)<3||cellAvailable(i,d,lane,v.id));}
 function occupy(v,pos){const i=v.path[pos],d=dir(i,v.path[Math.min(pos+1,v.path.length-1)]),l=plannedLane(v,pos);v.lane=l;v.occKey=occKey(i,d,l);state.occ.set(v.occKey,v.id);}
 function release(v,keepIntersection=false){if(v.occKey&&state.occ.get(v.occKey)===v.id)state.occ.delete(v.occKey);v.occKey=null;if(!keepIntersection){clearVehicleReservations(v);v.junctionPasses=[];v.committedJunction=null;}}
-function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(c?.vehicleId)return false;const destination=state.buildings.get(toId);if(destination&&parkingFree(destination)<=0)return false;if(kind==='pass'&&state.vehicles.size>=8000)return false;const path=tripRoute(fromId,toId,fromGate,toGate,c?.id);if(!path)return false;const to=state.buildings.get(toId),from=state.buildings.get(fromId);if(kind==='leisure'&&to.visitors.size+to.reservedService>=CATALOG[to.key].service)return false;
+function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(c?.vehicleId)return false;const destination=state.buildings.get(toId);if(destination&&parkingFree(destination)<=0)return false;if(kind==='pass'&&state.vehicles.size>=8000)return false;const fromBuilding=state.buildings.get(fromId);if(c&&fromBuilding&&CATALOG[fromBuilding.key].dualParking)parkingSpace(fromBuilding,c.id,true);
+ const path=tripRoute(fromId,toId,fromGate,toGate,c?.id);if(!path)return false;const to=state.buildings.get(toId),from=state.buildings.get(fromId);if(kind==='leisure'&&to.visitors.size+to.reservedService>=CATALOG[to.key].service)return false;
 const v={id:state.nextId++,trafficModel:2,noUTurnPolicy:1,citizenId:c?.id||null,kind,fromId,toId,fromGate,toGate,path:[...path],pathSet:new Set(path),pos:0,progress:0,lane:0,laneSeed:Math.abs(state.nextId)%4,speed:0,phase:from?'departing':'gate_waiting',wait:0,lastPain:0,deadline,late:false,color:c?citizenCarColor(c.id):TRIPS[kind].color,version:state.version,life:extra.life,stay:extra.stay,closeAt:extra.closeAt,activityEnd:extra.activityEnd,serviceKind:extra.serviceKind,residentReservation:kind==='moveIn',serviceReservation:kind==='leisure',retryAt:0,occKey:null,stopReason:'',routeMissing:false,routeMissingSince:null,committedJunction:null,departureRouteVersion:state.version};state.vehicles.set(v.id,v);if(kind==='moveIn')to.reservedResidents++;if(kind==='leisure')to.reservedService++;
 v.lastMovedAt=state.time;v.respawns=0;
 if(from){parkingSpace(from,c.id,true);from.queue.push(v.id);}if(c){c.vehicleId=v.id;c.location=from?CATALOG[from.key].kind:'travel';c.state=from?'รอออกเดินทาง':TRIPS[kind].name;c.history.push(timeText(state.time)+' '+TRIPS[kind].name+' → '+(to?CATALOG[to.key].name:'ประตูเมือง'));c.history=c.history.slice(-12);}return true;}
