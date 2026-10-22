@@ -974,3 +974,194 @@ body > .map-caption{top:16px!important}
  body>.bottom .builder-zone .build-dock .dock-group-icon{font-size:22px}
  body>.bottom .builder-zone .build-dock .dock-group-name{font-size:9px}
 }
+
+/* SMGAME V6 — structural control-center rebuild.
+   One connected deck, left status+demand, right build tools, centered on desktop/iPad.
+   Expanded tool palette floats ABOVE the deck; opening it never resizes the city HUD. */
+body > .bottom{left:0!important;right:0!important;bottom:12px!important;width:100%;zoom:1!important;z-index:22}
+body > .bottom > .control-deck{
+ display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,2fr)!important;
+ align-items:stretch;gap:0;min-height:250px!important;
+ width:min(1120px,calc(100vw - 80px))!important;max-width:none!important;
+ margin:0 auto!important;transform:translateX(clamp(-80px,-5vw,0px));
+ overflow:visible!important;isolation:isolate;
+ border-radius:15px!important
+}
+body > .bottom .city-dashboard{
+ display:flex!important;flex-direction:column;justify-content:space-between;
+ padding:10px!important;gap:6px!important;min-height:0;
+ border-radius:14px 0 0 14px!important
+}
+body > .bottom .city-dashboard .dashboard-heading{
+ flex:0 0 auto;min-height:30px!important;
+ padding-bottom:3px;border-bottom:1px solid rgba(139,196,201,.2)
+}
+body > .bottom .city-dashboard .stats.dashboard-stats{
+ flex:0 0 auto;min-height:124px!important;
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ grid-template-rows:repeat(3,minmax(0,1fr))!important;
+ gap:5px
+}
+body > .bottom .city-dashboard .city-metric{min-height:36px!important}
+body > .bottom .city-dashboard .metric-money{
+ grid-column:span 2!important;
+ padding:5px 11px!important
+}
+body > .bottom .city-dashboard .dashboard-clock{
+ flex:0 0 auto;min-height:27px;order:3;padding:4px 7px
+}
+body > .bottom .city-dashboard .dashboard-needs{order:2;min-height:48px;flex:1 1 auto}
+body > .bottom .city-dashboard .city-demand-panel{
+ display:block!important;position:relative!important;
+ inset:auto!important;top:auto!important;left:auto!important;right:auto!important;
+ width:100%!important;max-width:100%!important;max-height:72px!important;
+ min-height:40px!important;margin:0!important;padding:5px 8px!important;
+ overflow-y:auto!important;overflow-x:hidden!important;
+ zoom:1!important;box-shadow:none!important;backdrop-filter:none!important;
+ border:1px solid rgba(110,175,180,.32)!important;border-radius:9px!important;
+ background:rgba(7,23,33,.45)!important;color:#e2f3f5;
+ scrollbar-width:thin
+}
+body > .bottom .city-dashboard .city-demand-panel .eyebrow{
+ font-size:9px;letter-spacing:.6px;color:#97cecb;line-height:1.25;
+ position:sticky;top:-5px;padding:2px 0;background:#102b37
+}
+body > .bottom .city-dashboard .city-demand-panel .eyebrow button{
+ color:#9be4db!important;padding:1px 5px!important;font-size:17px
+}
+body > .bottom .city-dashboard .city-demand-panel .section-label{
+ margin:2px 0 4px!important;font-size:10px!important;color:#dff4f1!important
+}
+body > .bottom .city-dashboard .city-demand-panel .tiny{display:none}
+body > .bottom .city-dashboard .city-demand-panel .panel-content{
+ margin:0!important;padding:0!important;line-height:1.3
+}
+body > .bottom .city-dashboard .city-demand-panel .demand-row{
+ font-size:10px!important;padding:3px 0!important
+}
+body > .bottom .city-dashboard .city-demand-panel.collapsed{
+ min-height:27px!important;max-height:29px!important;overflow:hidden!important
+}
+body > .bottom .city-dashboard .city-demand-panel.collapsed .panel-content{
+ display:none!important
+}
+body > .bottom .builder-zone{
+ display:flex!important;flex-direction:column;justify-content:space-between;
+ padding:0 9px!important;min-height:250px!important;
+ border-radius:0 14px 14px 0!important
+}
+body > .bottom .builder-zone .build-dock{position:relative!important;min-height:0}
+body > .bottom .builder-zone .build-dock .dock-head{
+ min-height:39px!important;padding:6px 6px!important;
+ justify-content:space-between
+}
+body > .bottom .builder-zone .build-dock .dock-body{
+ display:flex!important;flex-direction:column!important;justify-content:center!important;
+ flex:1 1 auto;min-height:108px!important;
+}
+body > .bottom .builder-zone .build-dock #categories{
+ display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
+ align-items:stretch;justify-content:space-evenly;min-height:94px!important;
+ flex:0 0 auto!important;gap:8px!important;
+ width:min(610px,100%);max-width:100%;margin:0 auto!important;padding:8px 3px!important;
+}
+body > .bottom .builder-zone .build-dock #categories button{
+ display:flex;flex-direction:column;justify-content:center;align-items:center;
+ min-height:78px!important;height:auto!important;
+ border-radius:10px!important;padding:6px 5px!important;gap:5px!important
+}
+body > .bottom .builder-zone .build-dock .dock-group-icon{font-size:29px!important}
+body > .bottom .builder-zone .build-dock .dock-group-name{
+ font-size:11px!important;line-height:1.2!important
+}
+body > .bottom .builder-zone .build-dock .dock-context{
+ position:absolute!important;inset:auto 6px calc(100% + 10px) 6px!important;
+ display:block;z-index:32!important;
+ margin:0!important;padding:0!important;min-width:0;
+ overflow:hidden!important;max-height:min(36dvh,260px);
+ border:1px solid #72b1b3!important;border-radius:12px!important;
+ background:rgba(9,28,40,.985)!important;
+ box-shadow:0 12px 35px #07131fc9,0 1px 0 #bad9d935 inset!important;
+}
+body > .bottom .builder-zone .build-dock.is-collapsed .dock-context{display:none!important}
+body > .bottom .builder-zone .dock-context-heading{
+ display:flex;justify-content:space-between;align-items:center;gap:8px;
+ padding:7px 10px;border-bottom:1px solid #50748170
+}
+body > .bottom .builder-zone .dock-context-heading strong{color:#f3fff9;font-size:12px}
+body > .bottom .builder-zone .dock-context-heading span{color:#9ebec4;font-size:10px}
+body > .bottom .builder-zone .dock-context #subcategories{
+ padding:4px 8px;gap:5px;min-height:34px
+}
+body > .bottom .builder-zone .dock-context .tools{
+ display:flex;gap:9px;padding:9px 10px 12px;
+ min-height:92px!important;max-height:130px!important;
+ align-items:stretch
+}
+body > .bottom .builder-zone .dock-context .tool{
+ flex:0 0 auto;min-width:100px!important;max-width:130px;
+ min-height:82px!important;gap:4px
+}
+body > .bottom .builder-zone .dock-context .tool strong{font-size:11px}
+body > .bottom .builder-zone > footer{
+ flex:0 0 auto;min-height:39px!important;
+ padding:3px 0!important;margin:0!important
+}
+body > .bottom .builder-zone > footer .playback button{min-width:31px}
+body > .map-tools{top:14px!important}
+/* Laptop and iPad landscape: the entire deck moves to the left of the
+   midpoint so the build zone itself lands close to the screen center. */
+@media(min-width:721px) and (max-width:1199px){
+ body > .bottom > .control-deck{
+  width:min(980px,calc(100vw - 132px))!important;
+  transform:translateX(clamp(-85px,-7vw,0px))
+ }
+ body > .bottom .city-dashboard{padding:7px!important;gap:4px!important}
+ body > .bottom .city-dashboard .city-metric{
+  padding:3px 5px!important;min-height:32px!important
+ }
+ body > .bottom .city-dashboard .city-metric small{font-size:9px}
+ body > .bottom .city-dashboard .city-metric strong{font-size:13px}
+ body > .bottom .city-dashboard .metric-money strong{font-size:16px}
+ body > .bottom .city-dashboard .metric-icon{width:24px;height:25px}
+ body > .bottom .city-dashboard .metric-icon svg{width:16px;height:16px}
+ body > .bottom .city-dashboard .city-demand-panel{max-height:63px!important}
+ body > .bottom .builder-zone .build-dock #categories{gap:3px!important}
+ body > .bottom .builder-zone .build-dock #categories button{padding:5px 1px!important}
+ body > .bottom .builder-zone .build-dock .dock-group-icon{font-size:22px!important}
+ body > .bottom .builder-zone .build-dock .dock-group-name{font-size:9.5px!important}
+ body > .bottom .builder-zone .build-dock .dock-label{font-size:10px}
+ body > .bottom .builder-zone .dock-context-heading span{display:none}
+}
+@media(max-width:720px){
+ body > .bottom{left:4px!important;right:4px!important;width:auto;bottom:4px!important}
+ body > .bottom > .control-deck{
+  display:flex!important;flex-direction:column!important;
+  width:100%!important;min-height:0!important;transform:none!important
+ }
+ body > .bottom .city-dashboard{padding:5px!important;gap:3px!important;border-radius:11px 11px 0 0!important}
+ body > .bottom .city-dashboard .stats.dashboard-stats{
+  display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  grid-template-rows:1fr!important;min-height:40px!important;gap:3px
+ }
+ body > .bottom .city-dashboard .city-metric{grid-column:auto!important;min-height:38px!important}
+ body > .bottom .city-dashboard .metric-money strong{font-size:10px}
+ body > .bottom .city-dashboard .dashboard-needs{display:none!important}
+ body > .bottom .city-dashboard .dashboard-clock{min-height:18px!important}
+ body > .bottom .builder-zone{min-height:114px!important;padding:0 3px!important}
+ body > .bottom .builder-zone .build-dock .dock-body{min-height:48px!important}
+ body > .bottom .builder-zone .build-dock #categories{
+  min-height:50px!important;padding:3px 0!important;gap:2px!important
+ }
+ body > .bottom .builder-zone .build-dock #categories button{min-height:46px!important;padding:3px 0!important;gap:2px!important}
+ body > .bottom .builder-zone .build-dock .dock-group-icon{font-size:19px!important}
+ body > .bottom .builder-zone .build-dock .dock-group-name{font-size:8px!important}
+ body > .bottom .builder-zone .dock-context-heading span{display:none}
+ body > .bottom .builder-zone .build-dock .dock-context{
+  left:2px!important;right:2px!important;bottom:calc(100% + 3px)!important;
+  max-height:40dvh!important
+ }
+ body > .bottom .builder-zone .dock-context .tools{max-height:76px!important;min-height:62px!important;padding:5px}
+ body > .bottom .builder-zone .dock-context .tool{min-width:78px!important;min-height:55px!important}
+ body > .bottom .builder-zone > footer{min-height:27px!important}
+}
