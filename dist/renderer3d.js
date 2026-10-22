@@ -404,7 +404,7 @@ export class TrafficRenderer{
   // Visual-only architecture v5: every component remains within its plot.
   if(this.parking)this.parkingLot(batch,b);
   const t=CATALOG[b.key],id=b.id,s=t.size,W=t.plotWidth||s+2,isHotel=t.kind==='hotel',kind=isHotel?'home':t.kind;
-  const tier=b.key.endsWith('_large')?3:b.key.endsWith('_medium')?2:1;
+  const tier=b.key==='home_dual'?2:b.key.endsWith('_large')?3:b.key.endsWith('_medium')?2:1;
   const turn=-(b.rotation||0)*Math.PI/2;
   const point=(u,v)=>this.parking?.lotPoint(b,u,v)||{x:b.x+u+.5,y:b.y+v+.5};
   const block=(color,u,y,v,w,h,d,finish='matte',glow=false)=>{
