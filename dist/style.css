@@ -1904,3 +1904,36 @@ body>.bottom .builder-zone .dock-context .tool .tool-price{
  body>.bottom .builder-zone .dock-context .tool .tool-parking{font-size:7px!important}
  body>.bottom .builder-zone .dock-context .tool .tool-price{font-size:7.5px!important}
 }
+
+/* SMGAME V12: one-line building name + capacity and visible tool-in-hand state. */
+body>.bottom .builder-zone .dock-context .tool .tool-name{
+ display:block!important;width:100%!important;white-space:nowrap!important;
+ overflow:hidden!important;text-overflow:ellipsis!important;
+}
+body>.bottom .builder-zone .dock-context .tool .tool-name .tool-capacity{
+ display:inline!important;width:auto!important;max-width:none!important;
+ margin-left:3px!important;font:800 inherit!important;
+ color:#267d59!important;white-space:nowrap!important;
+}
+body>.bottom .builder-zone .dock-context .tool.active{
+ position:relative!important;
+ background:#c9eddb!important;
+ border:2px solid #13815c!important;
+ box-shadow:0 0 0 2px #a5ddc3!important;
+ color:#124e38!important;
+}
+body>.bottom .builder-zone .dock-context .tool.active::after{
+ content:"✓";position:absolute;top:2px;right:4px;
+ display:grid;place-items:center;width:15px;height:15px;
+ border-radius:50%;background:#13815c;color:#fff;
+ font:bold 11px/1 Arial,sans-serif;pointer-events:none;
+}
+body>.bottom .builder-zone .dock-context .tool[aria-pressed="true"] .tool-name{
+ color:#15573f!important
+}
+@media(max-width:720px){
+ body>.bottom .builder-zone .dock-context .tool .tool-name .tool-capacity{margin-left:2px!important}
+ body>.bottom .builder-zone .dock-context .tool.active::after{
+  width:12px;height:12px;right:2px;top:2px;font-size:9px
+ }
+}
