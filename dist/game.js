@@ -2370,7 +2370,16 @@ function openCityReport(){const report=cityBugReport(),rows=Object.entries(repor
  report.issues.slice(0,12).forEach((v,i)=>{$('bugCar'+i).onclick=()=>{if(v.pose){cam.x=v.pose.x;cam.y=v.pose.y;follow=v.id;}selected={kind:'vehicle',id:v.id};closeModal();renderInspector();};$('bugTow'+i).onclick=()=>{if(towVehicle(v.id))toast('ลากรถออกแล้ว · ยกเลิกเที่ยวเดินทาง');openCityReport();};});
 }
 $('advisorNext').onclick=e=>{const button=e.target.closest('button');if(!button)return;if(button.hasAttribute('data-advice-report'))openCityReport();else if(button.dataset.adviceCategory){category=button.dataset.adviceCategory;renderTools();}};
-if($('saveGameQuick'))$('saveGameQuick').onclick=quickSaveCloud;
+if($('accountQuick'))$('accountQuick').onclick=openAccountDialog;
+if($('saveGameQuick'))$('saveGameQuick').onclick=openCloudSaveDialog;
+window.SMGameOnAuthChanged=loggedIn=>{
+ const account=$('accountQuick');
+ if(account){
+  account.classList.toggle('is-signed-in',!!loggedIn);
+  account.title=loggedIn?'บัญชีผู้ใช้':'เข้าสู่ระบบ / สมัครสมาชิก';
+  account.setAttribute('aria-label',account.title);
+ }
+};
 $('menu').onclick=()=>{
  modal('<span class="eyebrow">GAME MENU</span><h2>เมนูหลัก</h2><div class="actions"><button id="accountMenu">บัญชีผู้ใช้</button><button id="saveMenu">เซฟเกม</button></div><div class="actions"><button id="menuClose">กลับไปเล่น</button></div>');
  $('menuClose').onclick=closeModal;
