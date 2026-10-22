@@ -14,6 +14,8 @@ if (gate) {
   let user = null;
   let mode = 'login';
   let busy = false;
+  let pendingSave = null;
+  let savingPending = false;
   const notice = $('memberNotice');
 
   function setNotice(message, error = false) {
@@ -34,45 +36,94 @@ if (gate) {
       tab.classList.toggle('active', active);
       tab.setAttribute('aria-selected', String(active));
     }
-    $('memberSubmit').textContent = next === 'signup' ? 'สมัครสมาชิกและเริ่มเล่น' : 'เข้าสู่เกม';
+    $('memberSubmit').textContent = next === 'signup' ? 'สมัครสมาชิกและบันทึกเกม' : 'เข้าสู่ระบบและบันทึกเกม';
     $('memberPassword').setAttribute('autocomplete', next === 'signup' ? 'new-password' : 'current-password');
     setNotice('');
   }
+
   function setUser(next) {
-    const previousId = user?.id;
-    const nextId = next?.id;
-    if (previousId && previousId !== nextId) window.SMGameAuthReset?.();
     user = next || null;
-    setLocked(!user);
-    if (user) setNotice('');
   }
-  gate.querySelectorAll('[data-member-mode]').forEach(tab => tab.addEventListener('click', () => setMode(tab.dataset.memberMode)));
+  function closeMember() {
+    if (busy || savingPending) return;
+    pendingSave = null;
+    $('memberRetrySave').hidden = true;
+    setLocked(false);
+  }
+  function showMember(nextMode = 'signup') {
+    if (busy || savingPending) return;
+    $('memberRetrySave').hidden = true;
+    setMode(nextMode);
+    setLocked(true);
+    $('memberEmail').focus();
+  }
+  async function persistPendingSave() {
+    if (!pendingSave) { setLocked(false); return true; }
+    if (!user || savingPending) return false;
+    savingPending = true;
+    $('memberSubmit').disabled = true;
+    $('memberRetrySave').hidden = true;
+    setNotice('กำลังบันทึกเมืองที่สร้างไว้…');
+    try {
+      const draft = pendingSave;
+      await window.SMGameAccount.save(draft.name, draft.slotId, draft.serialized);
+      pendingSave = null;
+      setNotice('');
+      setLocked(false);
+      window.SMGameOnCloudSaved?.();
+      return true;
+    } catch (error) {
+      setNotice('เข้าสู่ระบบแล้ว แต่ยังบันทึกเกมไม่สำเร็จ: ' +
+        (error?.message || 'กรุณาลองอีกครั้ง') + ' กดลองบันทึกอีกครั้งได้ค่ะ', true);
+      $('memberRetrySave').hidden = false;
+      return false;
+    } finally {
+      savingPending = false;
+      $('memberSubmit').disabled = false;
+    }
+  }
+  gate.querySelectorAll('[data-member-mode]').forEach(tab =>
+    tab.addEventListener('click', () => setMode(tab.dataset.memberMode)));
+  $('memberClose').addEventListener('click', closeMember);
+  $('memberRetrySave').addEventListener('click', persistPendingSave);
   $('memberForm').addEventListener('submit', async event => {
     event.preventDefault();
-    if (busy) return;
+    if (busy || savingPending) return;
+    if (user && pendingSave) { await persistPendingSave(); return; }
     const email = $('memberEmail').value.trim().toLowerCase();
     const password = $('memberPassword').value;
-    if (!email || password.length < 6) { setNotice('กรอกอีเมลและรหัสผ่านอย่างน้อย 6 ตัวอักษรค่ะ', true); return; }
+    if (!email || password.length < 6) {
+      setNotice('กรอกอีเมลและรหัสผ่านอย่างน้อย 6 ตัวอักษรค่ะ', true);
+      return;
+    }
     busy = true;
     $('memberSubmit').disabled = true;
     setNotice('กำลังเชื่อมต่อบัญชี…');
     try {
-      const result = mode === 'signup'
+      const signingUp = mode === 'signup';
+      const result = signingUp
         ? await auth.auth.signUp({ email, password })
         : await auth.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
-      if (result.data.session?.user) {
-        setUser(result.data.session.user);
-      } else if (mode === 'signup') {
+      let session = result.data.session;
+      if (!session && signingUp) {
+        const signedIn = await auth.auth.signInWithPassword({ email, password });
+        if (!signedIn.error) session = signedIn.data.session;
+      }
+      if (session?.user) {
+        setUser(session.user);
+        if (pendingSave) await persistPendingSave();
+        else setLocked(false);
+      } else if (signingUp) {
         setMode('login');
-        setNotice('บัญชีถูกสร้างแล้ว แต่ SUMOWEB ยังเปิดการยืนยันอีเมลอยู่ กรุณาติดต่อผู้ดูแลเกมเพื่อเปิดใช้งาน', true);
+        setNotice('สมัครบัญชีแล้วแต่ยังเข้าสู่ระบบไม่ได้ อาจเปิดการยืนยันอีเมลอยู่ เมืองนี้ยังไม่ถูกบันทึกค่ะ', true);
       } else {
-        setNotice('กรุณายืนยันอีเมลก่อนเข้าสู่เกมค่ะ', true);
+        setNotice('ยังเข้าสู่ระบบไม่ได้ กรุณาตรวจสอบการยืนยันอีเมลค่ะ', true);
       }
     } catch (error) {
       setNotice(error?.message === 'Invalid login credentials'
         ? 'อีเมลหรือรหัสผ่านไม่ถูกต้องค่ะ'
-        : `ดำเนินการไม่สำเร็จ: ${error?.message || 'เชื่อมต่อไม่ได้'}`, true);
+        : 'ดำเนินการไม่สำเร็จ: ' + (error?.message || 'เชื่อมต่อไม่ได้'), true);
     } finally {
       busy = false;
       $('memberSubmit').disabled = false;
@@ -86,6 +137,14 @@ if (gate) {
 
   window.SMGameAccount = {
     get user() { return user; },
+    openSignIn() { pendingSave = null; showMember('login'); },
+    requestSaveLogin(serialized, name) {
+      if (user) return false;
+      if (typeof serialized !== 'string' || !serialized) throw Error('ไม่มีข้อมูลเมืองสำหรับบันทึก');
+      pendingSave = { serialized, name: String(name || 'เซฟด่วน').slice(0, 80), slotId: 'quick-save' };
+      showMember('signup');
+      return true;
+    },
     async listSaves() {
       if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
       const { data, error } = await auth.from('smgame_saves')
