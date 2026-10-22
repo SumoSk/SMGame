@@ -310,10 +310,10 @@ body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,di
 /* RIGHT TOOLBAR V2 — touch-friendly account, save and map controls */
 body > .map-tools{
   zoom:1!important;position:absolute;z-index:23;right:clamp(9px,1.4vw,22px);top:108px;
-  width:74px;max-height:calc(100dvh - 120px);overflow-y:auto;overflow-x:hidden;
-  box-sizing:border-box;padding:7px 7px 9px;display:flex;flex-direction:column;
-  align-items:center;gap:7px;background:rgba(250,254,248,.97);
-  border:1px solid rgba(255,255,255,.94);border-radius:18px;
+  width:62px;max-height:calc(100dvh - 120px);overflow-y:auto;overflow-x:hidden;
+  box-sizing:border-box;padding:5px 5px 7px;display:flex;flex-direction:column;
+  align-items:center;gap:5px;background:rgba(250,254,248,.97);
+  border:1px solid rgba(255,255,255,.94);border-radius:15px;
   box-shadow:0 11px 30px rgba(16,55,47,.19),inset 0 0 0 1px rgba(88,135,105,.06);
   -webkit-backdrop-filter:blur(15px);backdrop-filter:blur(15px);
   scrollbar-width:none;overscroll-behavior:contain;
@@ -326,8 +326,8 @@ body > .map-tools button{font-family:"Noto Sans Thai",Tahoma,sans-serif;flex:non
 body > .map-tools button:focus-visible{outline:2px solid #2e8365;outline-offset:2px}
 body > .map-tools button:active{transform:scale(.95)}
 body > .map-tools .map-account{
-  width:58px;height:59px;gap:3px;padding:5px 2px;
-  border-radius:13px;color:#315f52;background:linear-gradient(145deg,#f2f9ef,#e9f2e9);
+  width:49px;height:50px;gap:2px;padding:4px 2px;
+  border-radius:11px;color:#315f52;background:linear-gradient(145deg,#f2f9ef,#e9f2e9);
   position:relative;
 }
 body > .map-tools .map-account.is-signed-in:after{
@@ -335,53 +335,53 @@ body > .map-tools .map-account.is-signed-in:after{
   border:2px solid #f2f9ef;border-radius:50%;background:#40a574;
 }
 body > .map-tools .map-account:hover{background:#dff0e2}
-body > .map-tools .map-account small{font-size:10px;line-height:1.2;font-weight:700}
+body > .map-tools .map-account small{font-size:9px;line-height:1.2;font-weight:700}
 body > .map-tools .map-rail-svg{display:block;flex:none;overflow:visible}
-body > .map-tools .account-svg{width:26px;height:26px}
+body > .map-tools .account-svg{width:22px;height:22px}
 body > .map-tools .map-save{
-  width:60px;min-height:87px;padding:8px 2px 7px;gap:5px;
-  border-radius:14px;color:#184b3f;
+  width:52px;min-height:73px;padding:6px 2px 5px;gap:4px;
+  border-radius:12px;color:#184b3f;
   background:linear-gradient(153deg,#e4f6d1 0%,#cdeaba 80%,#b7dfa9 100%);
   box-shadow:0 3px 0 #95c99b,0 5px 11px rgba(39,112,77,.17);
   border:1px solid rgba(255,255,255,.7);
 }
 body > .map-tools .map-save:hover{background:linear-gradient(153deg,#edfbde,#bee5ac)}
 body > .map-tools .map-save-art{
-  height:43px;width:43px;margin:0;display:grid;place-items:center;
-  border-radius:13px;background:rgba(255,255,255,.65);
+  height:36px;width:36px;margin:0;display:grid;place-items:center;
+  border-radius:10px;background:rgba(255,255,255,.65);
   box-shadow:0 2px 7px rgba(34,93,61,.11);
 }
-body > .map-tools .save-svg{height:33px;width:33px;filter:drop-shadow(0 1px 0 #fff)}
+body > .map-tools .save-svg{height:28px;width:28px;filter:drop-shadow(0 1px 0 #fff)}
 body > .map-tools .map-save small{
-  font-size:10px;font-weight:800;line-height:1.15;white-space:nowrap;color:#174d3e;
+  font-size:9px;font-weight:800;line-height:1.15;white-space:nowrap;color:#174d3e;
   height:auto;letter-spacing:-.15px;
 }
 body > .map-tools .map-divider{
-  width:40px;height:1px;min-height:1px;flex:none;
+  width:34px;height:1px;min-height:1px;flex:none;
   margin:1px 0;background:linear-gradient(90deg,transparent,#d1e3d5,transparent);
 }
 body > .map-tools .map-utility-group{
   display:flex;flex-direction:column;align-items:center;gap:3px;width:100%;
 }
 body > .map-tools .map-utility{
-  width:43px;height:37px;padding:0;border-radius:10px;color:#477467;background:transparent;
+  width:36px;height:32px;padding:0;border-radius:9px;color:#477467;background:transparent;
 }
 body > .map-tools .map-utility:hover{background:#e5efe5}
 body > .map-tools .map-utility.active{color:#fce5a2;background:#205c4e}
-body > .map-tools .utility-svg{width:22px;height:22px}
+body > .map-tools .utility-svg{width:19px;height:19px}
 @media(max-width:700px){
- body > .map-tools{right:8px;top:82px;width:64px;padding:6px 5px;gap:5px;
-   max-height:calc(100dvh - 90px);border-radius:15px}
- body > .map-tools .map-account{width:52px;height:53px}
- body > .map-tools .map-save{width:52px;min-height:76px}
- body > .map-tools .map-save-art{width:37px;height:37px}
- body > .map-tools .save-svg{width:29px;height:29px}
- body > .map-tools .map-save small{font-size:9px}
- body > .map-tools .map-utility{height:34px;width:40px}
+ body > .map-tools{right:8px;top:82px;width:56px;padding:5px 4px;gap:4px;
+   max-height:calc(100dvh - 90px);border-radius:13px}
+ body > .map-tools .map-account{width:45px;height:46px}
+ body > .map-tools .map-save{width:46px;min-height:65px}
+ body > .map-tools .map-save-art{width:33px;height:33px}
+ body > .map-tools .save-svg{width:25px;height:25px}
+ body > .map-tools .map-save small{font-size:8.5px}
+ body > .map-tools .map-utility{height:30px;width:35px}
 }
 @media(max-height:550px){
  body > .map-tools{top:70px;max-height:calc(100dvh - 75px);gap:3px}
- body > .map-tools .map-account{height:48px}
- body > .map-tools .map-save{min-height:70px}
- body > .map-tools .map-utility{height:29px}
+ body > .map-tools .map-account{height:44px}
+ body > .map-tools .map-save{min-height:60px}
+ body > .map-tools .map-utility{height:27px}
 }
