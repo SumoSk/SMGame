@@ -281,36 +281,23 @@ function prepareParkingMerges(dt){
  }
  for(const road of state.vehicles.values())if(road.parkingEscapeFor&&!parkingEscapePair(road,road.parkingEscapeFor))road.parkingEscapeFor=null;
 }
+// Driveway admission now checks only the single road tile immediately ahead.
+// Parking aisle collisions remain governed by advanceLot/lotClear as each car moves.
 function canCommitParkingMerge(v){
- if(!parkingMergeClear(v))return false;
  const own=parkingMerges.find(g=>g.v===v);
- if(!own)return false;
- for(const other of parkingMerges){
-  if(other===own)break;
-  if((other.priority||other.v.mergeCommitted)&&other.samples.some(p=>mergeTouches(own.samples,p)))return false;
- }
- for(const other of parkingMerges)if(other!==own&&other.v.mergeCommitted&&other.samples.some(p=>mergeTouches(own.samples,p)))return false;
- const plan=motionPlan(v);
- for(let k=0;k<v.path.length;k++){
-  if(!cellAvailable(v.path[k],motionDirection(v.path,k),plannedLane(v,k),v.id))return false;
-  if(plan.nodes[k]>=PARKING_MERGE_RULES.exitClearance)break;
- }
- for(const other of state.vehicles.values())if(other.id!==v.id&&mergeTouches(own.samples,vehiclePosition(other)))return false;
+ if(!own||!parkingMergeClear(v))return false;
  v.mergeCommitted=true;own.priority=true;return true;
 }
-
 function parkingMergeClear(v){
- // The entire joining trajectory must be free, not merely the first road cell.
- if(!v.lotPath)return false;
- const len=lotPathLength(v.lotPath);
- for(let dist=0;dist<=len+.0001;dist+=.085){
-  const pose=lotPathPose(v.lotPath,Math.min(len,dist));
-  for(const other of state.vehicles.values()){
-   if(other.id===v.id||!['driving','stuck','gate_waiting','parking_in','parking_out','departing'].includes(other.phase))continue;
-   if(other.lotBuilding===v.lotBuilding&&other.lotPath)continue;
-   const p=vehiclePosition(other);
-   if(p&&Math.hypot(p.x-pose.x,p.y-pose.y)<.82&&lotCarsOverlap(pose,p,.045))return false;
-  }
+ if(!v.lotPath||!v.path?.[1])return false;
+ const node=v.path[0],d=motionDirection(v.path,0),lane=plannedLane(v,0);
+ if(!cellAvailable(node,d,lane,v.id))return false;
+ // Only check the physical merge point of that same tile, not the whole driveway or road ahead.
+ const entry=positionOnMotion(motionPlan(v),0);
+ for(const other of state.vehicles.values()){
+  if(other.id===v.id||!['driving','stuck','parking_out','parking_in'].includes(other.phase))continue;
+  const p=vehiclePosition(other);
+  if(p&&Math.hypot(p.x-entry.x,p.y-entry.y)<.85&&lotCarsOverlap(entry,p,.04))return false;
  }
  return true;
 }
@@ -587,7 +574,7 @@ function motionPlan(v){
  for(let i=1;i<n;i++)route[i]=route[i-1]+distance(path[i-1],path[i]);
  for(let i=1;i<n-1;i++){const incoming=motionDirection(path,i-1),outgoing=motionDirection(path,i),turn=(outgoing-incoming+4)%4;if(turn)corners.push({pos:i,incoming,outgoing,turn,u:route[i]});}
  const legacy=v.trafficModel===1;
- if(!legacy){if(!v.turnLanes)v.turnLanes={};for(const c of corners){const key=c.pos+':'+path[c.pos]+':'+c.turn;if(v.turnLanes[key]==null)v.turnLanes[key]=chooseTurnLane(v,c);c.lanePair=turnLanePair(v,c,v.turnLanes[key]);}}
+ if(!legacy){if(!v.turnLanes)v.turnLanes={};for(const c of corners){const key=c.pos+':'+path[c.pos]+':'+c.turn;const earlyLeft=state.buildings.has(v.fromId)&&c.turn===3&&c.u<9;if(earlyLeft)v.turnLanes[key]=Math.min(2,laneCapacity(path[c.pos-1],c.incoming),laneCapacity(path[c.pos+1],c.outgoing))-1;else if(v.turnLanes[key]==null)v.turnLanes[key]=chooseTurnLane(v,c);c.lanePair=turnLanePair(v,c,v.turnLanes[key]);}}
  let previousLane=Math.max(0,Math.floor(v.motionSeedLane??v.laneSeed??v.lane??v.id??0));
  let lastCorner=null,nextIndex=0,previousCap=laneCapacity(path[0],motionDirection(path,0));
  for(let i=0;i<n;i++){
@@ -1188,7 +1175,29 @@ while(heap.length&&count++<35000){const cur=heap.pop();if(cur.g!==g.get(cur.key)
 const r=state.roads.get(cur.node);for(const n of r.links){if(cur.key===origin&&firstNext&&!firstNext.includes(n))continue;if(n===cur.prev)continue;const key=`${n}:${cur.node}`,cost=cur.g+distance(cur.node,n)+(n===cur.prev?2:0);if(cost>=(g.get(key)??Infinity))continue;g.set(key,cost);came.set(key,cur.key);heap.push({node:n,prev:cur.node,key,g:cost,f:cost+distance(n,end)});}}
 if(state.routeCache.size>1500)state.routeCache.clear();state.routeCache.set(cacheKey,null);return null;
 }
-function tripRoute(fromId,toId,fromGate,toGate){const from=state.buildings.get(fromId),to=state.buildings.get(toId),aa=from?from.access.filter(a=>a.exit):[{node:fromGate,next:null}],bb=to?to.access.filter(a=>a.entry):[{node:toGate,prev:null}];if(!aa?.length||!bb?.length)return null;const candidates=[];for(const a of aa)for(const b of bb)candidates.push({a,b,d:distance(a.node,b.node)});candidates.sort((a,b)=>a.d-b.d);for(const pair of candidates.slice(0,32)){const p=route(pair.a.node,pair.b.node,pair.a.next,pair.b.prev);if(p)return p;}return null;}
+// A driveway starts in the outer-left lane. If the first intersection is too close
+// to cross over for a right turn, take an available left turn (or straight) and
+// find another forward-only route to the same destination. Never force a U-turn.
+function safeDeparturePath(path,access){
+ if(!path||path.length<3)return path;
+ let travelled=0;
+ for(let i=1;i<path.length-1;i++){
+  travelled+=distance(path[i-1],path[i]);if(travelled>=9)break;
+  if(junction(path[i])<3)continue;
+  const incoming=dir(path[i-1],path[i]),outgoing=dir(path[i],path[i+1]);
+  if((outgoing-incoming+4)%4!==1)break; // no abrupt right-lane crossing needed
+  const links=state.roads.get(path[i])?.links;if(!links)break;
+  for(const wanted of [(incoming+3)%4,incoming]){
+   const next=[...links].find(n=>dir(path[i],n)===wanted);
+   if(next==null)continue;
+   const alternative=route(path[i],access.node,[next],access.prev,path[i-1]);
+   if(alternative?.length>1)return path.slice(0,i).concat(alternative);
+  }
+  break;
+ }
+ return path;
+}
+function tripRoute(fromId,toId,fromGate,toGate){const from=state.buildings.get(fromId),to=state.buildings.get(toId),aa=from?from.access.filter(a=>a.exit):[{node:fromGate,next:null}],bb=to?to.access.filter(a=>a.entry):[{node:toGate,prev:null}];if(!aa?.length||!bb?.length)return null;const candidates=[];for(const a of aa)for(const b of bb)candidates.push({a,b,d:distance(a.node,b.node)});candidates.sort((a,b)=>a.d-b.d);for(const pair of candidates.slice(0,32)){const p=route(pair.a.node,pair.b.node,pair.a.next,pair.b.prev);if(p)return from?safeDeparturePath(p,pair.b):p;}return null;}
 // Citizen habits are stable, but the schedule varies by individual and day.
 // Hashing is deterministic: reloads and high population counts cannot change
 // the calendar or create per-frame random decisions.
