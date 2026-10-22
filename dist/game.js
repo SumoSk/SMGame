@@ -378,6 +378,8 @@ function parkingBayObstructed(v,b,index){
 function assignArrivalParking(v,replan=false){
  const b=state.buildings.get(v.toId);if(!b||!v.citizenId)return false;
  if(!b.parkingSlots)b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);
+ // Preserve the existing staggered allocation policy for the first choice.
+ if(!replan&&b.parkingSlots.indexOf(v.citizenId)<0)parkingSpace(b,v.citizenId,true);
  const old=b.parkingSlots.indexOf(v.citizenId),slots=lotSlots(b);
  const current=replan?localParkingPoint(b,parkingPose(v)):null;
  const options=[];
