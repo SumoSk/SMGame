@@ -984,6 +984,8 @@ let dockGroup='roads';
 function renderTools(){
  const activeGroup=dockGroups.find(g=>g.categories.includes(category))||dockGroups[0];
  dockGroup=activeGroup.key;
+ const groupTitle=$('dockCurrentGroup');
+ if(groupTitle)groupTitle.textContent=activeGroup.name;
  $('categories').innerHTML=dockGroups.map(g=>`<button type="button" data-dock-group="${g.key}" class="${dockGroup===g.key?'active':''}" aria-pressed="${dockGroup===g.key}" title="${g.name}"><span class="dock-group-icon" aria-hidden="true">${g.icon}</span><span class="dock-group-name">${g.name}</span></button>`).join('');
  const sub=$('subcategories');
  if(sub){sub.hidden=activeGroup.categories.length===1;
@@ -2106,9 +2108,17 @@ window.addEventListener('resize',resize);
 $('categories').onclick=e=>{
  const b=e.target.closest('[data-dock-group]');if(!b)return;
  const next=dockGroups.find(g=>g.key===b.dataset.dockGroup);if(!next)return;
+ const sameGroup=next.key===dockGroup;
+ const wasCollapsed=$('buildDock').classList.contains('is-collapsed');
+ if(sameGroup&&!wasCollapsed){
+  // Clicking an already open primary category returns to a clear map.
+  selectTool('hand');
+  setDockCollapsed(true);
+  return;
+ }
  if(!next.categories.includes(category))category=next.categories[0];
  dockGroup=next.key;
- // Switching main sections never places, deletes, or edits city objects.
+ // Main section changes are presentation-only, with no placement action.
  selectTool('hand');
  setDockCollapsed(false);
 };
