@@ -58,12 +58,14 @@ const VEHICLE_PALETTES=[
  ['#e8ebe6','#8594a1','#bdb6a9','#5d686a']
 ];
 function carClassFor(c,id){
+ if(c?.tourist)return 7;
  const group=Math.max(0,Math.min(3,c?.profile?.trait??0)),weights=VEHICLE_WEIGHTS[group];
  let n=hash((c?.id??id)*1.013+37,59)*100;
  for(let i=0;i<weights.length;i++){n-=weights[i];if(n<0)return i;}
  return 0;
 }
 function carPaintFor(c,id,kind,fallback){
+ if(c?.tourist)return '#65c8f2';
  if(!c)return fallback||'#c5d4d9';
  const p=VEHICLE_PALETTES[kind];return p[Math.floor(hash(c.id*1.117+71,43)*p.length)%p.length];
 }
@@ -342,7 +344,7 @@ export class TrafficRenderer{
  building(batch,b,CATALOG,KINDS){
   // Visual-only architecture v5: every component remains within its plot.
   if(this.parking)this.parkingLot(batch,b);
-  const t=CATALOG[b.key],id=b.id,s=t.size,W=t.plotWidth||s+2,kind=t.kind;
+  const t=CATALOG[b.key],id=b.id,s=t.size,W=t.plotWidth||s+2,isHotel=t.kind==='hotel',kind=isHotel?'home':t.kind;
   const tier=b.key.endsWith('_large')?3:b.key.endsWith('_medium')?2:1;
   const turn=-(b.rotation||0)*Math.PI/2;
   const point=(u,v)=>this.parking?.lotPoint(b,u,v)||{x:b.x+u+.5,y:b.y+v+.5};
@@ -386,13 +388,13 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
-  const wall={
+  const wall=isHotel?['#d1e8eb','#cee2e8','#d6e9ec'][tier-1]:{
    home:['#e9dbc9','#e7dfd3','#eae6df'],shop:['#e0bd90','#d7c9b4','#d9e2db'],
    restaurant:['#ddb194','#dcc0a5','#e8ceb7'],mall:['#e6e3d8','#dae4de','#d9e3e5'],
    office:['#cbd5d0','#c2d8da','#d3e0dd'],factory:['#c7c4b5','#bdcbc5','#cbd2ce'],
    park:['#8dab82','#78a982','#7eac80'],pub:['#65586e','#4b5268','#3a3f55']
   }[kind][tier-1];
-  const accent={
+  const accent=isHotel?'#477f9e':{
    home:['#a36f53','#836b58','#6b7d83'],shop:['#b77d50','#728f8b','#4c7e80'],
    restaurant:['#aa7150','#936c53','#9b7758'],mall:['#6a9a99','#548f92','#3c7f8d'],
    office:['#6a959d','#527e8c','#437788'],factory:['#7e918d','#788e8f','#607985'],
@@ -464,6 +466,11 @@ export class TrafficRenderer{
   block('#b2d0d7',cx,.74,front+.075,Math.min(1.54,span*.26),.68,.035,'glass');
   block('#eee8df',cx,1.20,front+.17,Math.min(2.4,span*.40),.12,.39,'metal');
   block('#ffdea3',cx,1.16,front+.19,Math.min(2.0,span*.35),.048,.15,'glass',true);
+  if(isHotel){
+   const signY=H*.68;block('#3d789c',cx,signY,front+.14,.65,.56,.07,'metal');
+   for(const dx of [-.15,.15])block('#edfaff',cx+dx,signY,front+.19,.065,.36,.025,'glass',true);
+   block('#edfaff',cx,signY,front+.19,.30,.06,.025,'glass',true);
+  }
   if(kind==='home'){
    // Cottage -> family house -> villa with layered glazed pavilion and pool.
    const n=tier===1?3:tier===2?4:6;

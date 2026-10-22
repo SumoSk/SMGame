@@ -5,7 +5,16 @@ const crypto = require('node:crypto');
 const root = path.resolve(__dirname, '..');
 const stylesheet = path.join(root, 'dist/style.css');
 const marker = '/* iPad native-size compatibility */';
-const base = fs.readFileSync(stylesheet, 'utf8').split(marker)[0].trimEnd() + '\n';
+const existing = fs.readFileSync(stylesheet, 'utf8');
+let tail = '';
+const markerAt = existing.indexOf(marker);
+if (markerAt >= 0) {
+ const open = existing.indexOf('{', markerAt); let depth = 1, end = open + 1;
+ for (; end < existing.length && depth; end++) { if (existing[end] === '{') depth++; else if (existing[end] === '}') depth--; }
+ if (depth) throw new Error('Unclosed iPad compatibility block');
+ tail = existing.slice(end).trim();
+}
+const base = existing.split(marker)[0].trimEnd() + '\n';
 const overlays = 'body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,dialog)';
 const scale = Number(base.match(/--ui-scale\s*:\s*([.\d]+)/)?.[1]);
 if (!(scale > 0 && scale <= 1)) throw new Error('Missing interface scale');
@@ -35,7 +44,7 @@ if (mediaQueries(base) !== mediaQueries(native)) throw new Error('Responsive bre
 const css = base + '\n' + marker + '\n' +
   '@supports (-webkit-touch-callout:none){\n' +
   'html{-webkit-text-size-adjust:none;text-size-adjust:none}\n' +
-  overlays + '{zoom:1}\n' + native.trim() + '\n}\n';
+  overlays + '{zoom:1}\n' + native.trim() + '\n}\n' + (tail ? '\n' + tail + '\n' : '');
 fs.writeFileSync(stylesheet, css);
 
 const standalone = path.join(root, 'outputs/Traffic-Fixer-Thailand-3D.html');
@@ -45,7 +54,7 @@ fs.writeFileSync(standalone, html.replace(/(<style[^>]*>)[^]*?(<\/style>)/,
   (_, open, close) => open + '\n' + css + close));
 
 const version = crypto.createHash('sha256').update(css).digest('hex').slice(0, 12);
-for (const relative of ['index.html', 'dist/index.html', 'dist/qa.html']) {
+for (const relative of ['index.html', 'dist/index.html', 'dist/qa.html','dist/qa-tourism.html']) {
   const file = path.join(root, relative);
   fs.writeFileSync(file, fs.readFileSync(file, 'utf8')
     .replace(/style\.css(?:\?v=[^"\s]+)?"/g, 'style.css?v=' + version + '"'));

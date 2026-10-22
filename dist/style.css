@@ -297,3 +297,11 @@ body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,di
  .city-time-display{max-width:96%;gap:6px;font-size:10px;padding:4px 8px}
  .city-time-display strong{font-size:12px}
 }
+
+/* Tourism keeps the existing compact HUD and citizen-panel dimensions. */
+.hud .stats{min-width:0}.hud .stats button{min-width:0;padding-left:clamp(4px,1vw,16px);padding-right:clamp(4px,1vw,16px)}
+.tourists-dashboard .citizens-toolbar input{width:100%;min-width:0;box-sizing:border-box;font:inherit}
+.tourists-dashboard .detail-row{font-size:10px;gap:8px;padding:5px 0}.tourists-dashboard .detail-row strong{font-size:11px}
+.tourists-dashboard .citizen-section>p{font-size:10px;line-height:1.65}.tourists-dashboard .citizen-person{margin-top:5px}
+.tourist-itinerary{font-size:inherit}.tourist-itinerary p{padding:4px 0;border-bottom:1px solid #dce8e3}
+@media(max-width:700px){.hud .brand{display:none}.hud .stats button{padding-left:3px;padding-right:3px}.hud .stats small{white-space:nowrap}}
