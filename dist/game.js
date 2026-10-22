@@ -2109,8 +2109,8 @@ function laneChangeSegment(v,plan,s){
  if(v.phase!=='driving'||v.path?.length<2)return null;
  const d=motionDirection(v.path,v.pos),axis=DIR[d];
  for(const p of plan.pieces){
-  if(p.startDistance>s+.45)break;
-  if(p.turn||p.endDistance<s-.20)continue;
+  if(p.startDistance>s+.12)break;
+  if(p.turn||p.endDistance<s-.08)continue;
   const dx=p.p3.x-p.p0.x,dy=p.p3.y-p.p0.y;
   const forward=dx*axis[0]+dy*axis[1];
   const side=dx*axis[1]-dy*axis[0];
@@ -2122,45 +2122,26 @@ function laneChangeSegment(v,plan,s){
  }
  return null;
 }
+// Reciprocal lane swaps may cross only while BOTH cars are changing into
+// different, fully separated lanes. A one-sided cut-in must yield instead.
+function laneSwapClearance(a,b,longitudinalGap){
+ if(!a||!b||a.direction!==b.direction||a.side*b.side>=0)return false;
+ if((a.start-b.start)*(a.end-b.end)>=0)return false;
+ if(Math.abs(a.start-b.start)<.36||Math.abs(a.end-b.end)<.36)return false;
+ return Number.isFinite(longitudinalGap)&&Math.abs(longitudinalGap)<=.65;
+}
 function reciprocalLaneSwap(v,other,plan,s,otherPose){
  if(v.phase!=='driving'||other.phase!=='driving'||v.id===other.id)return false;
  const a=laneChangeSegment(v,plan,s);
  if(!a)return false;
  const otherPlan=motionPlan(other),otherS=motionDistance(other,otherPlan);
  const b=laneChangeSegment(other,otherPlan,otherS);
- if(!b||a.direction!==b.direction||a.side*b.side>=0)return false;
- // Both vehicles must swap sides, rather than converge into one common lane.
- if((a.start-b.start)*(a.end-b.end)>=0)return false;
+ if(!b)return false;
  const start=positionOnMotion(plan,s),d=DIR[a.direction];
  const ahead=(otherPose.x-start.x)*d[0]+(otherPose.y-start.y)*d[1];
- return Math.abs(ahead)<2.2;
+ return laneSwapClearance(a,b,ahead);
 }
-// A lane-change crossing is intentionally non-blocking. Both directions of
-// lane swapping and a single car crossing a neighbouring lane are allowed to
-// ghost for the brief crossing only; vehicles following in the same lane remain
-// physical obstacles after the manoeuvre is complete.
-function laneCrossingPassThrough(v,other,plan,s,otherPose){
- if(v.phase!=='driving'||other.phase!=='driving')return false;
- const a=laneChangeSegment(v,plan,s),otherPlan=motionPlan(other),otherS=motionDistance(other,otherPlan);
- const b=laneChangeSegment(other,otherPlan,otherS);
- if(!a&&!b)return false;
- const d=motionDirection(v.path,v.pos);
- if(d!==motionDirection(other.path,other.pos))return false;
- const dirV=DIR[d],origin=positionOnMotion(plan,s),dx=otherPose.x-origin.x,dy=otherPose.y-origin.y;
- if(Math.abs(dx*dirV[0]+dy*dirV[1])>1.1)return false;
- const lateral=p=>p.x*dirV[1]-p.y*dirV[0];
- const al=lateral(origin),bl=lateral(otherPose);
- const crosses=(segment,otherLane)=>{
-  if(!segment)return false;
-  const lower=Math.min(segment.start,segment.end)-.08,upper=Math.max(segment.start,segment.end)+.08;
-  return otherLane>=lower&&otherLane<=upper&&Math.abs(segment.start-otherLane)>.17;
- };
- return crosses(a,b?.start??bl)||crosses(b,a?.start??al);
-}
-// Once cars are already physically overlapping, treating each as a blocker
-// freezes the whole pack permanently. Give the car ahead the exit; if their
-// longitudinal positions tie, use a stable ID order. The rear still waits,
-// so this is not general-purpose collision ghosting or overtaking.
+// Already overlapping cars may clear in a stable front-to-back order.
 function overlapEscapePriority(v,other,plan,s,otherPose){
  if(v.phase!=='driving'||other.phase!=='driving')return false;
  const origin=positionOnMotion(plan,s),sameDirection=origin.dx*otherPose.dx+origin.dy*otherPose.dy;
@@ -2187,7 +2168,6 @@ function physicalTrafficLimit(v,plan,s,lookahead){
   // Only lateral crossings may ghost. Existing overlaps are released in
   // front-to-back order instead of forcing every vehicle to stop forever.
   if(reciprocalLaneSwap(v,otherCar,plan,s,p)
-   ||laneCrossingPassThrough(v,otherCar,plan,s,p)
    ||overlapEscapePriority(v,otherCar,plan,s,p))continue;
   if(piece&&origin.dx!=null&&p.dx!=null&&Math.abs(origin.dx*p.dy-origin.dy*p.dx)<.01){
    const across=Math.abs(x*origin.dy-y*origin.dx);
@@ -2912,6 +2892,6 @@ $('menu').onclick=()=>{
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){if(!['moveIn','pass'].includes(v.kind)&&v.wait>24){v.late=true;const c=state.citizens.get(v.citizenId);if(c){c.late=true;pain(c,3,'ล่าช้าก่อนข้ามวัน');}}arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();reset();requestAnimationFrame(frame);
 })();
