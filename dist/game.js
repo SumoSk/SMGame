@@ -758,16 +758,32 @@ function serviceGaugeMarkup(r){
 }
 function updateCityAdvisor(){
  const d=cityDemand(),advice=cityAdvice(d,state.stats),set=(id,html)=>{const el=$(id);if(el&&el.innerHTML!==html)el.innerHTML=html;},e=escapeSaveText;
- // Only show the number of unmet places/jobs. 0 means no one is waiting;
- // negative numbers make shortages obvious without verbose cards or gauges.
+ // Three compact figures: total capacity / currently using (including en route) / unmet demand.
+ // Hotel guest reservations include visitors travelling to the hotel as well as those staying.
+ const hotels=[...state.buildings.values()].filter(b=>CATALOG[b.key]?.beds);
+ const hotelCapacity=hotels.reduce((sum,b)=>sum+CATALOG[b.key].beds,0);
+ const hotelBooked=hotels.reduce((sum,b)=>sum+(b.guests?.size||0),0);
+ const wantsHotel=touristPeople().filter(c=>c.enteredAt!=null&&!c.returning&&!c.hotelId&&c.wantsHotel&&c.nights<c.maxNights).length;
+ const hotelUnmet=Math.max(0,wantsHotel-Math.max(0,hotelCapacity-hotelBooked));
+ const touristServiceTrips=new Map();
+ for(const v of state.vehicles.values()){
+  const c=state.citizens.get(v.citizenId);
+  if(!c?.tourist||c.removed||v.kind!=='leisure')continue;
+  const kind=v.serviceKind||CATALOG[state.buildings.get(v.toId)?.key]?.kind;
+  if(!kind)continue;
+  if(!touristServiceTrips.has(kind))touristServiceTrips.set(kind,new Set());
+  const destination=state.buildings.get(v.toId);
+  if(!destination?.visitors.has(c.id))touristServiceTrips.get(kind).add(c.id);
+ }
  const needs=[
-  {kind:'home',label:'บ้าน',waiting:d.housing.people},
-  {kind:'work',label:'งาน',waiting:d.jobs.people},
-  ...d.services.map(r=>({kind:r.kind,label:r.label,waiting:r.waiting}))
+  {kind:'home',label:'บ้าน',capacity:d.housing.capacity,busy:d.housing.used+d.housing.incoming,waiting:d.housing.people},
+  {kind:'work',label:'งาน',capacity:d.jobs.capacity,busy:d.jobs.used,waiting:d.jobs.people},
+  ...d.services.map(r=>({kind:r.kind,label:r.label,capacity:r.capacity,busy:r.used+r.traveling+(touristServiceTrips.get(r.kind)?.size||0),waiting:r.waiting})),
+  {kind:'hotel',label:'โรงแรม',capacity:hotelCapacity,busy:hotelBooked,waiting:hotelUnmet}
  ];
  const html=needs.map(r=>{
   const value=-Math.max(0,r.waiting);
-  return '<div class="mini-need'+(value<0?' shortage':'')+'" data-need-kind="'+r.kind+'"><span>'+e(r.label)+'</span><strong>'+value+'</strong></div>';
+  return '<div class="mini-need'+(value<0?' shortage':'')+'" data-need-kind="'+r.kind+'" title="'+e(r.label)+' · ความจุ '+fmt(r.capacity)+' · กำลังใช้ '+fmt(r.busy)+' · ความต้องการ '+value+'"><span>'+e(r.label)+'</span><div class="mini-need-values"><b class="mini-need-capacity">'+fmt(r.capacity)+'</b><b class="mini-need-busy">'+fmt(r.busy)+'</b><strong class="mini-need-missing">'+value+'</strong></div></div>';
  }).join('');
  set('demand',html);
  set('advisorHeadline',e(advice.headline));set('advisorOverview',e(advice.overview));set('advisorGood',advice.good.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>เริ่มจากบ้านและถนน แล้วรอชีวิตเมืองเริ่มเดินทาง</li>');set('advisorProblems',advice.problems.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>ยังไม่พบปัญหาที่ต้องเร่งแก้จากข้อมูลปัจจุบัน</li>');
