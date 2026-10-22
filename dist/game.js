@@ -970,8 +970,25 @@ function plantLandscapeStroke(d,x,y,spacing=2){
 function drawPlantedTrees2D(){
  for(const t of state.plantedTrees||[]){if(!landscapeClear(t.x,t.y))continue;const a=screen(t.x,t.y);if(a[0]<-60||a[0]>view.w+60||a[1]<-60||a[1]>view.h+60)continue;tree(t.x,t.y,t.kind==='shrub'?.44:t.kind==='banyan'?1.4:t.kind==='palm'?1.15:1);}
 }
-const categories=[['roads','ถนน'],['home','บ้าน'],['work','งาน'],['food','ร้านค้า & อาหาร'],['leisure','พักผ่อน'],['landscape','🌳 ตกแต่งเมือง'],['signals','🚦 ไฟจราจร'],['citizens','👥 ประชาชน'],['tourists','🚐 นักท่องเที่ยว'],['hotel','โรงแรม'],['tracking','โหมดติดตาม'],['manage','จัดการ']];
-function renderTools(){ $('categories').innerHTML=categories.map(([k,n])=>`<button data-category="${k}" class="${category===k?'active':''}">${n}</button>`).join('');let items=[];if(category==='roads'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ลากเพื่อเลื่อน',price:'คลิกเพื่อตรวจสอบ'},...Object.entries(ROADS).map(([k,v])=>({key:k,name:v.name,icon:'═',sub:v.lanes+' เลน · '+v.maint+' / วัน',price:money(v.cost)+' / ช่อง'}))];}else if(category==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(category==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'}];}else if(category==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(category==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(category==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(category==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ถนนหลักรื้อไม่ได้',price:'ค่ารื้อ 20%'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'ค่ารื้อ 10%'}];}else{const kinds=category==='work'?['office','factory']:category==='food'?['shop','restaurant','mall']:category==='leisure'?['park','pub']:category==='hotel'?['hotel']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,sub:t.plotWidth+'×'+t.plotHeight+' · ที่จอด '+t.parkingCapacity+' คัน · '+(t.beds?t.beds+' เตียง':t.residents?t.residents+' คน':t.jobs+' งาน'),price:money(t.cost)}));}$('tools').innerHTML=items.map(t=>`<button class="tool ${tool===t.key?'active':''}" data-tool="${t.key}"><span class="tool-icon">${t.icon}</span><span><strong>${t.name}</strong><small>${t.sub}</small><small class="tool-price">${t.price}</small></span></button>`).join('');}
+const categories=[['roads','ถนน'],['home','บ้าน'],['work','งานและโรงงาน'],['food','ร้านค้าและอาหาร'],['leisure','พักผ่อน'],['landscape','ต้นไม้และตกแต่ง'],['signals','ไฟจราจร'],['citizens','ประชาชน'],['tourists','นักท่องเที่ยว'],['hotel','โรงแรม'],['tracking','ติดตามรถ'],['manage','รื้อถอน']];
+/* Separate WHAT to do (main dock group) from WHICH tool to use.
+   category and tool retain their original keys for save/simulation compatibility. */
+const dockGroups=[
+ {key:'roads',icon:'🛣️',name:'ถนนและจราจร',categories:['roads','signals']},
+ {key:'build',icon:'🏙️',name:'สิ่งปลูกสร้าง',categories:['home','work','food','leisure','hotel']},
+ {key:'green',icon:'🌳',name:'ตกแต่ง',categories:['landscape']},
+ {key:'insights',icon:'📊',name:'ข้อมูลเมือง',categories:['citizens','tourists','tracking']},
+ {key:'manage',icon:'🛠️',name:'จัดการ',categories:['manage']}
+];
+let dockGroup='roads';
+function renderTools(){
+ const activeGroup=dockGroups.find(g=>g.categories.includes(category))||dockGroups[0];
+ dockGroup=activeGroup.key;
+ $('categories').innerHTML=dockGroups.map(g=>`<button type="button" data-dock-group="${g.key}" class="${dockGroup===g.key?'active':''}" aria-pressed="${dockGroup===g.key}" title="${g.name}"><span class="dock-group-icon" aria-hidden="true">${g.icon}</span><span class="dock-group-name">${g.name}</span></button>`).join('');
+ const sub=$('subcategories');
+ if(sub){sub.hidden=activeGroup.categories.length===1;
+ sub.innerHTML=categories.filter(([key])=>activeGroup.categories.includes(key)).map(([k,n])=>`<button type="button" data-category="${k}" class="${category===k?'active':''}" aria-pressed="${category===k}">${n}</button>`).join('');}
+ let items=[];if(category==='roads'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ลากเพื่อเลื่อน',price:'คลิกเพื่อตรวจสอบ'},...Object.entries(ROADS).map(([k,v])=>({key:k,name:v.name,icon:'═',sub:v.lanes+' เลน · '+v.maint+' / วัน',price:money(v.cost)+' / ช่อง'}))];}else if(category==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(category==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'}];}else if(category==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(category==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(category==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(category==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ถนนหลักรื้อไม่ได้',price:'ค่ารื้อ 20%'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'ค่ารื้อ 10%'}];}else{const kinds=category==='work'?['office','factory']:category==='food'?['shop','restaurant','mall']:category==='leisure'?['park','pub']:category==='hotel'?['hotel']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,sub:t.plotWidth+'×'+t.plotHeight+' · ที่จอด '+t.parkingCapacity+' คัน · '+(t.beds?t.beds+' เตียง':t.residents?t.residents+' คน':t.jobs+' งาน'),price:money(t.cost)}));}$('tools').innerHTML=items.map(t=>`<button class="tool ${tool===t.key?'active':''}" data-tool="${t.key}"><span class="tool-icon">${t.icon}</span><span><strong>${t.name}</strong><small>${t.sub}</small><small class="tool-price">${t.price}</small></span></button>`).join('');}
 // The building/control dock is presentation-only; selected tools and the
 // simulation remain untouched while the dock is folded.
 function setDockCollapsed(collapsed){
@@ -2085,21 +2102,43 @@ function confirmAction(title,body,callback){modal(`<span class="eyebrow">CITY PL
 function signalHitAt(x,y){const p=world(x,y),centerX=Math.round(p[0]-(renderer3d?0:.5)),centerY=Math.round(p[1]-(renderer3d?0:.5));let best=22,result=null;for(let yy=centerY-3;yy<=centerY+3;yy++)for(let xx=centerX-3;xx<=centerX+3;xx++){if(!valid(xx,yy))continue;const node=id(xx,yy);if(junction(node)<3)continue;const v=screen(xx+(renderer3d?0:.5),yy+(renderer3d?0:.5),renderer3d?.2:0),dist=Math.hypot(v[0]-x,v[1]-y);if(dist<best){best=dist;result=node;}}return result;}
 function inspectAt(x,y){const signal=tool==='tracking'?null:signalHitAt(x,y);if(signal!=null){selected={kind:'road',id:signal};renderInspector();return;}let closest=null,best=15;for(const v of state.vehicles.values()){if(!['driving','stuck','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;const p=vehiclePosition(v);if(!p)continue;const a=screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0)),dist=Math.hypot(a[0]-x,a[1]-y);if(dist<best){best=dist;closest=v;}}if(closest){selected={kind:'vehicle',id:closest.id};renderInspector();return;}if(renderer3d){const hit=renderer3d.pickBuilding(x,y);if(hit!=null){selected={kind:'building',id:hit};renderInspector();return;}}const p=world(x,y),ix=Math.floor(p[0]),iy=Math.floor(p[1]);if(!valid(ix,iy))return;const b=state.buildGrid[id(ix,iy)];if(b>=0)selected={kind:'building',id:b};else{const i=owner(id(ix,iy));if(state.roads.has(i))selected={kind:'road',id:i};else{selected=null;$('inspector').classList.add('hidden');return;}}renderInspector();}
 function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(!$('dialog').open&&!window.SMGameAuthLocked)tick(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
-window.addEventListener('resize',resize);$('categories').onclick=e=>{const b=e.target.closest('[data-category]');if(b){category=b.dataset.category;if(category==='signals')selectTool('signalManage');else if(category==='citizens')selectTool('citizenDashboard');else if(category==='tourists')selectTool('touristDashboard');else if(category==='tracking')selectTool('tracking');else if(tool==='tracking'||tool==='citizenDashboard'||tool==='touristDashboard')selectTool('hand');else{hideCitizenDashboard();hideTouristDashboard();renderTools();}}};$('tools').onclick=e=>{const b=e.target.closest('[data-tool]');if(b)selectTool(b.dataset.tool);};
+window.addEventListener('resize',resize);
+$('categories').onclick=e=>{
+ const b=e.target.closest('[data-dock-group]');if(!b)return;
+ const next=dockGroups.find(g=>g.key===b.dataset.dockGroup);if(!next)return;
+ if(!next.categories.includes(category))category=next.categories[0];
+ dockGroup=next.key;
+ // Switching main sections never places, deletes, or edits city objects.
+ selectTool('hand');
+ setDockCollapsed(false);
+};
+$('subcategories').onclick=e=>{
+ const b=e.target.closest('[data-category]');if(!b)return;
+ const next=b.dataset.category;
+ const group=dockGroups.find(g=>g.categories.includes(next));
+ if(!group||group.key!==dockGroup)return;
+ category=next;
+ if(next==='signals')selectTool('signalManage');
+ else if(next==='citizens')selectTool('citizenDashboard');
+ else if(next==='tourists')selectTool('touristDashboard');
+ else if(next==='tracking')selectTool('tracking');
+ else selectTool('hand');
+};
+$('tools').onclick=e=>{const b=e.target.closest('[data-tool]');if(b)selectTool(b.dataset.tool);};
 $('toggleDock').onclick=()=>setDockCollapsed(!$('buildDock').classList.contains('is-collapsed'));
 $('exploreCity').onclick=()=>{
  // One-tap touch-safe escape from every construction, demolition and tracking
  // state. Clear any active drag/preview; no building or vehicle is modified.
  cancelInteraction();
- category='roads';
+ category='roads';dockGroup='roads';
  renderTools();
  setDockCollapsed(true);
 };
 
-$('closeTouristsDashboard').onclick=()=>{category='roads';selectTool('hand');};
+$('closeTouristsDashboard').onclick=()=>{category='roads';dockGroup='roads';selectTool('hand');};
 $('touristSearch').oninput=e=>{touristSearch=e.target.value.slice(0,80);touristPage=0;renderTouristDashboard(true);};
 $('touristsDashboardBody').onclick=e=>{const person=e.target.closest('[data-tourist-id]');if(person){hideTouristDashboard();selected={kind:'citizen',id:Number(person.dataset.touristId)};renderInspector(true);}else if(e.target.closest('[data-tourist-more]')){touristPage++;renderTouristDashboard(true);}};
-$('closeCitizensDashboard').onclick=()=>{category='roads';selectTool('hand');};
+$('closeCitizensDashboard').onclick=()=>{category='roads';dockGroup='roads';selectTool('hand');};
 $('citizenSearch').oninput=e=>{citizenSearch=e.target.value.slice(0,80);citizenPage=0;renderCitizenDashboard(true);};
 $('citizenFilters').onclick=e=>{const b=e.target.closest('[data-citizen-filter]');if(b){citizenFilter=b.dataset.citizenFilter;citizenPage=0;renderCitizenDashboard(true);}};
 $('citizensDashboardBody').onclick=e=>{
