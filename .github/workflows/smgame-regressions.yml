@@ -2,6 +2,7 @@ name: SMGame regressions
 on:
   push:
     branches:
+      - main
       - feature/smcity-1.4-landscaping-20261022
   pull_request:
 permissions:
@@ -34,3 +35,23 @@ jobs:
       - name: Legacy suite (baseline 1.4 already has 4 unrelated failures)
         continue-on-error: true
         run: npm test
+  publish:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Mirror checked gameplay files to gh-pages
+        run: |
+          git fetch origin gh-pages
+          git checkout -B gh-pages origin/gh-pages
+          git checkout origin/main -- index.html dist/game.js dist/renderer3d.js dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html dist/game.js dist/renderer3d.js dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
+          if ! git diff --cached --quiet; then
+            git commit -m "publish: synchronize SMGame runtime with main"
+            git push origin HEAD:gh-pages
+          fi
