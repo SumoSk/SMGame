@@ -25,6 +25,16 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'green'}})}});
  assert(get('tools').innerHTML.includes('data-tool="tree:shade"'));
  assert(get('tools').innerHTML.includes('data-tool="treeBrush"'));
+ // Construction cards show actual game capacities and identical dimensions.
+ get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'build'}})}});
+ assert(get('tools').innerHTML.includes('ความจุ 2 คน'),'homes must show resident capacity');
+ assert(get('tools').innerHTML.includes('จอดได้ 2 คัน'),'homes must show parking capacity');
+ get('subcategories').onclick({target:{closest:()=>({dataset:{category:'food'}})}});
+ assert(get('tools').innerHTML.includes('ความจุ 12 คน'),'shops must show service capacity');
+ assert(get('tools').innerHTML.includes('จอดได้ 15 คัน'),'shops must show actual total parking capacity');
+ const uiCss=fs.readFileSync('dist/style.css','utf8');
+ assert(uiCss.includes('flex:0 0 106px!important')&&uiCss.includes('min-width:106px!important;max-width:106px!important'),'desktop cards must use fixed widths regardless of item count');
+ assert(uiCss.includes('height:78px!important;min-height:78px!important;max-height:78px!important'),'desktop cards must use a fixed height');
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
  const source=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
  const {TrafficRenderer,Batch}=new Function('THREE',source+';return {TrafficRenderer,Batch};')(THREE);
