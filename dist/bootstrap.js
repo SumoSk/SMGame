@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=home-dual-zones-20261023';
+import { TrafficRenderer } from './renderer3d.js?v=compact-medium-3d-20261023';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
-await import('./game.js?v=home-dual-zones-120min-20261023');
+await import('./game.js?v=compact-medium-20x8-20261023');
 await import('./member.js?v=toolbar-v2-20261022');
