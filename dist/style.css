@@ -2327,3 +2327,90 @@ body>.bottom .city-dashboard .dashboard-member-buttons>button{
  }
  body>.bottom .city-dashboard .dashboard-member-buttons>button{height:23px!important;min-height:23px!important}
 }
+
+/* V19 — SMCITY v2.4.0. Demand: capacity / active incl. en route / unmet. */
+body>.bottom .city-dashboard .dashboard-title strong{
+ letter-spacing:.6px!important
+}
+body>.bottom .city-dashboard .dashboard-title small{
+ font-size:9px!important;letter-spacing:.15px!important
+}
+body>.bottom .city-control-mini .mini-control-heading{
+ justify-content:flex-start!important;gap:5px!important;
+}
+body>.bottom .city-control-mini .mini-control-heading .mini-demand-legend{
+ display:block!important;flex:0 0 auto!important;
+ font:500 8px/1.2 "Noto Sans Thai",Tahoma,sans-serif!important;
+ letter-spacing:-.1px!important;color:#739383!important;white-space:nowrap!important;
+}
+body>.bottom .city-control-mini .mini-control-heading #collapse{
+ margin-left:auto!important;
+}
+body>.bottom .city-control-mini .mini-needs-list{
+ display:flex!important;flex-direction:column!important;gap:0!important
+}
+body>.bottom .city-control-mini .mini-need{
+ display:flex!important;align-items:center!important;justify-content:flex-start!important;
+ gap:3px!important;width:100%!important;min-width:0!important;
+ min-height:20px!important;max-height:21px!important;
+ padding:1px 2px!important;
+ font-size:10px!important;line-height:1.2!important;
+}
+body>.bottom .city-control-mini .mini-need>span{
+ flex:0 0 58px!important;width:58px!important;max-width:58px!important;
+ min-width:0!important;text-align:left!important;font-size:10px!important;
+}
+body>.bottom .city-control-mini .mini-need-values{
+ display:grid!important;grid-template-columns:repeat(3, minmax(25px,max-content))!important;
+ align-items:center!important;justify-content:start!important;
+ column-gap:3px!important;flex:0 0 auto!important;min-width:0!important;
+}
+body>.bottom .city-control-mini .mini-need-values b,
+body>.bottom .city-control-mini .mini-need-values strong{
+ display:block!important;min-width:0!important;width:auto!important;
+ margin:0!important;padding:0!important;
+ text-align:center!important;white-space:nowrap!important;
+ font:700 10px/1.2 "Noto Sans Thai",Tahoma,sans-serif!important;
+ font-variant-numeric:tabular-nums!important;
+ color:#547b67!important;
+}
+body>.bottom .city-control-mini .mini-need-values .mini-need-busy{
+ color:#335e4a!important
+}
+body>.bottom .city-control-mini .mini-need-values .mini-need-missing{
+ color:#678571!important;font-weight:800!important
+}
+body>.bottom .city-control-mini .mini-need.shortage .mini-need-missing{
+ color:#d32835!important
+}
+@media(min-width:721px) and (max-width:1100px){
+ body>.bottom .city-control-mini .mini-need{min-height:19px!important;max-height:20px!important;gap:2px!important;padding:1px!important}
+ body>.bottom .city-control-mini .mini-need>span{flex-basis:49px!important;width:49px!important;max-width:49px!important;font-size:9px!important}
+ body>.bottom .city-control-mini .mini-need-values{grid-template-columns:repeat(3,minmax(20px,max-content))!important;column-gap:2px!important}
+ body>.bottom .city-control-mini .mini-need-values b,
+ body>.bottom .city-control-mini .mini-need-values strong{font-size:9px!important}
+ body>.bottom .city-control-mini .mini-control-heading .mini-demand-legend{font-size:7px!important}
+}
+@media(max-width:720px){
+ body>.bottom .city-control-mini .mini-needs-list{
+  display:flex!important;flex-direction:column!important;gap:0!important
+ }
+ body>.bottom .city-control-mini .mini-control-heading .mini-demand-legend{font-size:6.5px!important}
+ body>.bottom .city-control-mini .mini-need{
+  min-height:8px!important;max-height:9px!important;
+  width:100%!important;gap:2px!important;padding:0!important;
+  line-height:1!important;font-size:7px!important
+ }
+ body>.bottom .city-control-mini .mini-need>span{
+  flex:0 0 39px!important;width:39px!important;max-width:39px!important;
+  font-size:7px!important;line-height:1!important
+ }
+ body>.bottom .city-control-mini .mini-need-values{
+  grid-template-columns:repeat(3,minmax(15px,max-content))!important;
+  column-gap:1px!important;
+ }
+ body>.bottom .city-control-mini .mini-need-values b,
+ body>.bottom .city-control-mini .mini-need-values strong{
+  font-size:7px!important;line-height:1!important
+ }
+}
