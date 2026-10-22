@@ -2485,3 +2485,17 @@ body>.bottom .builder-zone .toggle-building-labels-icon{
   padding:2px 5px!important;font-size:9px!important
  }
 }
+
+/* V22: authoritative map-label visibility, independent of legacy label CSS. */
+html.building-labels-off .place-building-label,
+html.building-labels-off #buildingLabels .place-building-label{
+ display:none!important;visibility:hidden!important;
+}
+body>.bottom .builder-zone .build-dock .dock-head>.toggle-building-labels{
+ position:relative!important;z-index:3!important;
+ pointer-events:auto!important;touch-action:manipulation!important;
+ max-width:83px!important;white-space:nowrap!important;
+}
+body>.bottom .builder-zone .build-dock .dock-head{
+ position:relative!important;z-index:2!important;
+}
