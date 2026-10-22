@@ -1912,7 +1912,7 @@ body>.bottom .builder-zone .dock-context .tool .tool-name{
 }
 body>.bottom .builder-zone .dock-context .tool .tool-name .tool-capacity{
  display:inline!important;width:auto!important;max-width:none!important;
- margin-left:3px!important;font:800 inherit!important;
+ margin-left:3px!important;font-weight:800!important;font-size:inherit!important;line-height:inherit!important;
  color:#267d59!important;white-space:nowrap!important;
 }
 body>.bottom .builder-zone .dock-context .tool.active{
