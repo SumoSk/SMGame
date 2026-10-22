@@ -2414,3 +2414,35 @@ body>.bottom .city-control-mini .mini-need.shortage .mini-need-missing{
   font-size:7px!important;line-height:1!important
  }
 }
+
+/* V20: neat single-line SMCITY version heading, without the ◈ ornament. */
+body>.bottom .city-dashboard .dashboard-heading{
+ display:flex!important;align-items:center!important;justify-content:space-between!important;
+ gap:5px!important
+}
+body>.bottom .city-dashboard .dashboard-title{
+ display:inline-flex!important;flex-direction:row!important;
+ flex-wrap:nowrap!important;align-items:baseline!important;
+ justify-content:flex-start!important;
+ gap:6px!important;min-width:0!important;white-space:nowrap!important;
+ padding-left:1px!important
+}
+body>.bottom .city-dashboard .dashboard-title>strong{
+ display:inline!important;flex:0 0 auto!important;
+ font:800 14px/1.25 Tahoma,Arial,sans-serif!important;
+ letter-spacing:.35px!important;color:#225b46!important;
+}
+body>.bottom .city-dashboard .dashboard-title>small{
+ display:inline!important;flex:0 0 auto!important;
+ margin:0!important;
+ font:600 10px/1.2 Tahoma,Arial,sans-serif!important;
+ letter-spacing:0!important;color:#71917e!important;
+}
+body>.bottom .city-dashboard .dashboard-actions{
+ flex:0 0 auto!important;display:flex!important;gap:4px!important
+}
+@media(max-width:720px){
+ body>.bottom .city-dashboard .dashboard-title{gap:4px!important}
+ body>.bottom .city-dashboard .dashboard-title>strong{font-size:11px!important}
+ body>.bottom .city-dashboard .dashboard-title>small{display:inline!important;font-size:8px!important}
+}
