@@ -2296,3 +2296,34 @@ body>.bottom .city-dashboard .metric-money{grid-column:span 2!important}
   height:100%!important;padding:1px!important;
  }
 }
+
+/* V18: budget and city metrics ABOVE account / save in the same compact box. */
+body>.bottom .city-dashboard{
+ grid-template-rows:25px 112px minmax(42px,1fr)!important;
+}
+body>.bottom .city-dashboard .stats.dashboard-stats{
+ grid-row:2!important;align-self:stretch!important;
+}
+body>.bottom .city-dashboard .dashboard-shortcuts{
+ grid-row:3!important;align-self:stretch!important;
+ margin:0!important;padding:0 3px!important;
+}
+body>.bottom .city-dashboard .dashboard-member-buttons>button{
+ height:40px!important;
+}
+@media(min-width:721px) and (max-width:1100px){
+ body>.bottom .city-dashboard{grid-template-rows:23px 108px minmax(40px,1fr)!important}
+ body>.bottom .city-dashboard .dashboard-member-buttons>button{height:38px!important}
+}
+@media(max-width:720px){
+ body>.bottom .city-dashboard{
+  grid-template-rows:20px minmax(0,1fr) 25px!important;
+ }
+ body>.bottom .city-dashboard .stats.dashboard-stats{
+  grid-row:2!important;height:100%!important;
+ }
+ body>.bottom .city-dashboard .dashboard-shortcuts{
+  grid-row:3!important;height:25px!important;min-height:25px!important;max-height:25px!important;
+ }
+ body>.bottom .city-dashboard .dashboard-member-buttons>button{height:23px!important;min-height:23px!important}
+}
