@@ -2067,6 +2067,37 @@ function updateTrafficSpatial(v){
  if(!trafficSpatial)return;trafficSpatial.epoch++;const old=trafficSpatial.cars.get(v.id);if(old){const cell=trafficSpatial.cells.get(old.key);cell?.delete(v.id);if(!cell?.size)trafficSpatial.cells.delete(old.key);trafficSpatial.cars.delete(v.id);}
  if(!state.vehicles.has(v.id)||(!['driving','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath)&&!(v.phase==='stuck'&&v.heldPose)))return;const pose=vehiclePosition(v),key=Math.floor(pose.x/2)+':'+Math.floor(pose.y/2);let cell=trafficSpatial.cells.get(key);if(!cell)trafficSpatial.cells.set(key,cell=new Map());const record={id:v.id,pose,key};cell.set(v.id,record);trafficSpatial.cars.set(v.id,record);
 }
+// Only reciprocal, simultaneous lane swaps may phase through one another.
+// Ordinary following, one-sided cut-ins, intersections and parking stay solid.
+function laneChangeSegment(v,plan,s){
+ if(v.phase!=='driving'||v.path?.length<2)return null;
+ const d=motionDirection(v.path,v.pos),axis=DIR[d];
+ for(const p of plan.pieces){
+  if(p.turn||p.endDistance<s-.20||p.startDistance>s+.45)continue;
+  const dx=p.p3.x-p.p0.x,dy=p.p3.y-p.p0.y;
+  const forward=dx*axis[0]+dy*axis[1];
+  const side=dx*axis[1]-dy*axis[0];
+  if(forward<.25||Math.abs(side)<.22)continue;
+  const crossesSignal=plan.junctions.some(g=>p.startDistance<g.clear&&p.endDistance>g.entry);
+  if(crossesSignal)continue;
+  const lateral=p=>p.x*axis[1]-p.y*axis[0];
+  return {direction:d,start:lateral(p.p0),end:lateral(p.p3),side};
+ }
+ return null;
+}
+function reciprocalLaneSwap(v,other,plan,s,otherPose){
+ if(v.phase!=='driving'||other.phase!=='driving'||v.id===other.id)return false;
+ const a=laneChangeSegment(v,plan,s);
+ if(!a)return false;
+ const otherPlan=motionPlan(other),otherS=motionDistance(other,otherPlan);
+ const b=laneChangeSegment(other,otherPlan,otherS);
+ if(!b||a.direction!==b.direction||a.side*b.side>=0)return false;
+ // Both vehicles must swap sides, rather than converge into one common lane.
+ if((a.start-b.start)*(a.end-b.end)>=0)return false;
+ const start=positionOnMotion(plan,s),d=DIR[a.direction];
+ const ahead=(otherPose.x-start.x)*d[0]+(otherPose.y-start.y)*d[1];
+ return Math.abs(ahead)<2.2;
+}
 function physicalTrafficLimit(v,plan,s,lookahead){
  if(!trafficSpatial)return Infinity;const end=Math.min(plan.total,s+lookahead),origin=positionOnMotion(plan,s),x=Math.floor(origin.x/2),y=Math.floor(origin.y/2),key=x+':'+y;let cached=trafficSpatial.candidates.get(v.id),candidates=cached?.key===key&&cached.epoch===trafficSpatial.epoch?cached.ids:null;
  if(!candidates){candidates=[];for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)for(const other of trafficSpatial.cells.get((x+dx)+':'+(y+dy))?.values()||[])if(other.id!==v.id)candidates.push(other.id);trafficSpatial.candidates.set(v.id,{key,epoch:trafficSpatial.epoch,ids:candidates});}
@@ -2079,6 +2110,8 @@ function physicalTrafficLimit(v,plan,s,lookahead){
   const record=trafficSpatial.cars.get(id);if(!record)continue;
   const p=record.pose,x=p.x-origin.x,y=p.y-origin.y;
   if(x*x+y*y>(lookahead+.7)*(lookahead+.7))continue;
+  // Swapping neighbours can overlap only while their lateral paths cross.
+  if(reciprocalLaneSwap(v,otherCar,plan,s,p))continue;
   if(piece&&origin.dx!=null&&p.dx!=null&&Math.abs(origin.dx*p.dy-origin.dy*p.dx)<.01){
    const across=Math.abs(x*origin.dy-y*origin.dx);
    // On a straight stretch, cars in another parallel lane must not hold up the left lane.
