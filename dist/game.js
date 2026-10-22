@@ -32,7 +32,7 @@ for(const t of Object.values(CATALOG)){
  t.plotHeight=Math.ceil(t.size+4.0);
  t.compactParking=false;
  t.parkingLayout=null;
- if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.72;t.plotWidth=20;t.plotHeight=8;t.parkingAisle=6.10;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
+ if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.88;t.plotWidth=20;t.plotHeight=11;t.parkingAisle=9.15;t.parkingUpperAisle=6.55;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
 }
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
 function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
@@ -41,14 +41,14 @@ function lotSlots(b){
  const slots=[];
  for(let n=0;n<t.parkingCapacity;n++){
   const row=Math.floor(n/t.parkingColumns),col=n%t.parkingColumns;
-  const aisle=t.parkingAisle;
+  const aisle=t.dualParking&&row?t.parkingUpperAisle:t.parkingAisle;
   slots.push({index:n,u:(t.dualParking?1:1.42)+(col+.5)*t.parkingPitch,
-   v:aisle+(row?t.parkingRowOffset:-t.parkingRowOffset),aisle,row,zone:t.dualParking?(row?'B':'A'):null});
+   v:aisle+(t.dualParking?-t.parkingRowOffset:row?t.parkingRowOffset:-t.parkingRowOffset),aisle,row,zone:t.dualParking?(row?'B':'A'):null});
  }
  return t.parkingLayout=slots;
 }
 function lotModel(b){const t=CATALOG[b.key],p=lotPoint(b,t.plotWidth/2,t.size/2+.1);return{...b,x:p.x-.5-t.size/2,y:p.y-.5-t.size/2};}
-function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=(CATALOG[b.key].dualParking?0:(slot.row?Math.PI/2:-Math.PI/2))+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
+function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=(CATALOG[b.key].dualParking?Math.PI/2:(slot.row?Math.PI/2:-Math.PI/2))+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
 function citizenCarColor(id){if(state?.citizens.get(id)?.tourist)return '#65c8f2';return ['#f0e8c7','#e5a861','#719ca5','#afc5a2','#bc8fa5','#c8c8c0'][Math.abs(id)%6];}
 function parkingSpace(b,cid,allocate=false){
  if(!b.parkingSlots)b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);
@@ -434,7 +434,7 @@ function beginParkingArrival(v){
  // Admit the car into the driveway before selecting a parking stall. The
  // entrance is not a parking queue, and lack of a bay must not block the road.
  const t=CATALOG[b.key],entry=positionOnMotion(motionPlan(v),motionPlan(v).total);
- v.lotPath=t.dualParking?[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle)]
+ v.lotPath=t.dualParking?[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingUpperAisle)]
   :[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle),lotPoint(b,.72,t.parkingAisle)];
  v.lotDistance=0;v.lotBuilding=b.id;v.parkingStage=true;v.parkingReplanAt=state.time;
  v.phase='parking_in';v.speed=0;v.stopReason='กำลังเข้าลานจอด';
@@ -452,25 +452,40 @@ function parkingVisuals(b){
  const rect=(u,v,w,h,color)=>rects.push({u,v,w,h,color});
  rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.05,t.plotHeight-.05,'#bdc6ae');
  if(t.dualParking){
-  // Compact 60-bay layout: one continuous central street, 30 parallel bays
-  // immediately above it (A) and 30 below it (B). No second aisle.
-  const slots=lotSlots(b),asphalt='#515f62';
-  rect(t.plotWidth/2,t.parkingAisle,t.plotWidth-1.0,1.04,asphalt);
-  for(const slot of slots){
-   rect(slot.u-t.parkingPitch/2,slot.v,.021,.48,'#e9e6cc');
-   rect(slot.u+t.parkingPitch/2,slot.v,.021,.48,'#e9e6cc');
-   const edge=slot.row?slot.v+.26:slot.v-.26;
-   rect(slot.u,edge,t.parkingPitch-.025,.025,'#e9e6cc');
+  // TRUE independent parking zones: two vertical stall rows of 30, each with
+  // its OWN eastbound aisle. Only the left-hand driveway is shared.
+  const slots=lotSlots(b);
+  for(const zone of ['A','B']){
+   const aisle=zone==='A'?t.parkingAisle:t.parkingUpperAisle;
+   const end=zone==='A'?t.parkingExitA:t.parkingExitB;
+   const color=zone==='A'?'#515f62':'#465e65';
+   rect((.78+end)/2,aisle,end-.78,1.02,color);
+   // Painted longitudinal boundaries and directional arrows visibly divide zones.
+   rect((.78+end)/2,aisle-.55,end-.78,.028,'#c5d2c2');
+   rect((.78+end)/2,aisle+.55,end-.78,.028,'#c5d2c2');
+   for(const slot of slots)if(slot.zone===zone){
+    rect(slot.u-t.parkingPitch/2,slot.v,.023,1.05,'#e9e6cc');
+    rect(slot.u+t.parkingPitch/2,slot.v,.023,1.05,'#e9e6cc');
+    rect(slot.u,slot.v-.53,t.parkingPitch-.04,.024,'#e9e6cc');
+   }
+   for(let u=1.2;u<end-1;u+=2.1){
+    rect(u,aisle,.46,.028,'#c5d2c2');
+    rect(u+.18,aisle-.10,.19,.024,'#c5d2c2');
+    rect(u+.18,aisle+.10,.19,.024,'#c5d2c2');
+   }
+   // Colour-coded A/B route markers at the shared driveway fork.
+   rect(1.15,aisle, .35,.24,zone==='A'?'#f1ca85':'#86d1dc');
   }
-  // Shared entry branches into the only central aisle. The two departure
-  // ramps leave from successive points of that same aisle, not a crossing.
-  rect(.45,(t.parkingAisle+t.plotHeight)/2,.66,t.plotHeight-t.parkingAisle+.05,'#58666a');
-  rect(.45,t.plotHeight-.37,.51,.085,'#94d9aa');
-  for(const [u,zone] of [[t.parkingExitA,'A'],[t.parkingExitB,'B']]){
-   rect(u,(t.parkingAisle+t.plotHeight)/2,.52,t.plotHeight-t.parkingAisle+.05,'#58666a');
-   rect(u,t.plotHeight-.37,.49,.085,'#f3ca88');
+  rect(.45,(t.parkingUpperAisle+t.plotHeight)/2,.67,t.plotHeight-t.parkingUpperAisle+.08,'#58666a');
+  rect(.45,t.plotHeight-.43,.50,.09,'#94d9aa');
+  // Zone B exit runs OUTSIDE the full end of Zone A's aisle, so the paths
+  // remain parallel and never cross one another after the shared entrance.
+  for(const [u,aisle,zone] of [[t.parkingExitA,t.parkingAisle,'A'],[t.parkingExitB,t.parkingUpperAisle,'B']]){
+   rect(u,(aisle+t.plotHeight)/2,.52,t.plotHeight-aisle+.08,'#58666a');
+   rect(u,(aisle+t.plotHeight)/2,.026,t.plotHeight-aisle,'#bbc9b9');
+   rect(u,t.plotHeight-.43,.50,.09,'#f3ca88');
+   rect(u,aisle,.31,.20,zone==='A'?'#f1ca85':'#86d1dc');
   }
-  for(let u=1.15;u<t.plotWidth-1.25;u+=1.35)rect(u,t.parkingAisle,.37,.024,'#c5d2c2');
   return rects;
  }
  const front=t.size+.22,bottom=t.plotHeight-.12,aisle=t.parkingAisle;
@@ -2397,7 +2412,7 @@ function roadChanged(cells){state.version++;state.routeCache.clear();state.junct
  for(const c of state.citizens.values())if(c.pending)c.pending.next=state.time+.5;
 }
 function checkBuilding(key,x,y){return checkParkingBuilding(key,x,y);}
-function buildBuilding(key,x,y,confirmed=false){const check=checkBuilding(key,x,y),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true));return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,compactLotV2:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,queue:[],arrivals:0};state.buildings.set(b.id,b);markBuildingPlot(b,b.id);state.money-=t.cost;for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
+function buildBuilding(key,x,y,confirmed=false){const check=checkBuilding(key,x,y),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true));return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,queue:[],arrivals:0};state.buildings.set(b.id,b);markBuildingPlot(b,b.id);state.money-=t.cost;for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
 function demolishBuilding(b,confirmed=false){if(!b)return;const t=CATALOG[b.key],fee=t.cost*.1;if(!confirmed){confirmAction('รื้อ'+t.name,`ค่ารื้อ ${money(fee)}<br>${t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ ผู้ที่กำลังเดินทางมาอาคารนี้จะกลับบ้าน'}`,()=>demolishBuilding(b,true));return;}if(state.money-fee< -10000){toast('งบประมาณไม่พอสำหรับค่ารื้อค่ะ');return;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
 markBuildingPlot(b,-1);state.buildings.delete(b.id);state.money-=fee;for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
 function demolishRoad(i,confirmed=false){const r=state.roads.get(i);if(!r){toast('เลือกช่องที่มีถนนค่ะ');return;}if(r.main){toast('ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ');return;}if(occupancy(i)>0||[...state.vehicles.values()].some(v=>v.path?.[v.pos]===i&&['driving','stuck','parking_in','parking_out'].includes(v.phase))){toast('มีรถอยู่บนถนน รอให้รถผ่านก่อนค่ะ');return;}const fee=ROADS[r.type].cost*.2;if(!confirmed){confirmAction('รื้อถนน',`ค่ารื้อ ${money(fee)} · ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้`,()=>demolishRoad(i,true));return;}if(state.money-fee< -10000){toast('งบประมาณไม่พอสำหรับค่ารื้อค่ะ');return;}for(const n of r.links)state.roads.get(n)?.links.delete(i);state.roads.delete(i);state.money-=fee;roadChanged([i]);updateUI();}
@@ -2636,12 +2651,15 @@ function validateSave(s){
 // Existing medium houses were 24x15. Shift each plot *inside its original
 // footprint*, toward the unchanged roadside edge, so old saves keep access.
 function migrateCompactHomes(){
- const moved=new Set(),oldHeight=15,newHeight=CATALOG.home_dual.plotHeight;
+ // Keep the roadside front edge fixed across both prior home_dual layouts:
+ // original 24x15 -> 20x11, or interim 20x8 -> 20x11.
+ const moved=new Set(),newHeight=CATALOG.home_dual.plotHeight;
  for(const b of state.buildings.values()){
-  if(b.key!=='home_dual'||b.compactLotV2)continue;
-  if(b.rotation===0)b.y+=oldHeight-newHeight;
-  if(b.rotation===3)b.x+=oldHeight-newHeight;
-  b.compactLotV2=true;moved.add(b.id);
+  if(b.key!=='home_dual'||b.compactLotV3)continue;
+  const previousHeight=b.compactLotV2?8:15,delta=previousHeight-newHeight;
+  if(b.rotation===0)b.y+=delta;
+  if(b.rotation===3)b.x+=delta;
+  b.compactLotV2=true;b.compactLotV3=true;moved.add(b.id);
  }
  if(!moved.size)return;
  for(const v of state.vehicles.values()){
