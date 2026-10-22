@@ -651,7 +651,7 @@ function buildingGaugeMetrics(b,approaching){
  const used=t.service?b.visitors.size:t.residents?b.residents.size:b.workers.size;
  return serviceGaugeMetrics({traveling:approaching,used,capacity:t.service||t.residents||t.jobs});
 }
-let placeLabelLayer=null,placeLabelState=null,placeLabels=new Map(),placeLabelCounts=new Map(),placeLabelAt=0,routeWarningMarkers=new Map();
+let placeLabelLayer=null,placeLabelState=null,placeLabels=new Map(),placeLabelCounts=new Map(),placeLabelAt=0,routeWarningMarkers=new Map(),buildingLabelsVisible=true;
 const NO_ROUTE_TIMEOUT=120;
 const IMMOBILE_RESPAWN_TIMEOUT=60;
 function missingRoute(v){return !!v&&(!!v.departureNoRoute||v.phase==='stuck'&&v.routeMissing!==false&&!/พบเส้นทางแล้ว/.test(v.stopReason||''));}
@@ -677,6 +677,7 @@ function updateRouteWarnings(){
  for(const [id,marker]of routeWarningMarkers)if(!visible.has(id)){marker.remove();routeWarningMarkers.delete(id);}
 }
 function updatePlaceLabels(){
+ if(!buildingLabelsVisible)return;
  if(typeof document.createElement!=='function')return;
  if(!placeLabelLayer){placeLabelLayer=document.createElement('div');placeLabelLayer.id='buildingLabels';placeLabelLayer.setAttribute('aria-label','สถานที่และจำนวนรถที่กำลังมา');Object.assign(placeLabelLayer.style,{position:'absolute',inset:'0',pointerEvents:'none',overflow:'hidden'});canvas.insertAdjacentElement('afterend',placeLabelLayer);}
  if(placeLabelState!==state){placeLabelLayer.replaceChildren();placeLabels.clear();routeWarningMarkers.clear();placeLabelState=state;placeLabelAt=0;}
@@ -2141,6 +2142,18 @@ $('tools').onclick=e=>{
  selectTool(b.dataset.tool);
 };
 $('toggleDock').onclick=()=>setDockCollapsed(!$('buildDock').classList.contains('is-collapsed'));
+$('toggleBuildingLabels').onclick=()=>{
+ buildingLabelsVisible=!buildingLabelsVisible;
+ const hidden=!buildingLabelsVisible;
+ const button=$('toggleBuildingLabels');
+ button.classList.toggle('is-hidden',hidden);
+ button.setAttribute('aria-pressed',String(hidden));
+ button.setAttribute('aria-label',hidden?'เปิดป้ายอาคารบนแผนที่':'ปิดป้ายอาคารบนแผนที่');
+ button.title=hidden?'แสดงชื่อและตัวเลขอาคารอีกครั้ง':'ซ่อนชื่อและตัวเลขบนป้ายอาคาร';
+ $('toggleBuildingLabelsText').textContent=hidden?'เปิดป้าย':'ปิดป้าย';
+ for(const label of placeLabels.values())label.element.hidden=hidden;
+ if(!hidden)placeLabelAt=0;
+};
 $('exploreCity').onclick=()=>{
  // One-tap touch-safe escape from every construction, demolition and tracking
  // state. Clear any active drag/preview; no building or vehicle is modified.
