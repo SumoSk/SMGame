@@ -500,6 +500,34 @@ export class TrafficRenderer{
    return;
   }
 
+  if(b.key==='home_dual'){
+   // Purpose-built compact 60-unit residence. Three flat-roof wings live
+   // entirely above the parking band, without extending over the driveway.
+   block('#d4d5cc',W*.5,.115,2.85,W-1.55,.14,4.2,'stone');
+   for(let wing=0;wing<3;wing++){
+    const u=3.55+wing*6.18,z=2.47,w=4.85,d=3.54;
+    block('#d9d8d0',u,1.47,z,w,2.47,d,'stone');
+    block('#e6e6dc',u,2.78,z,w+.18,.14,d+.2,'stone');
+    block('#576f77',u,2.88,z,w+.02,.07,d+.04,'metal');
+    block('#7fabae',u,1.55,4.28,w*.83,1.25,.065,'glass');
+    for(let col=0;col<4;col++){
+     const x=u-w*.38+col*w*.25;
+     for(const level of [.88,1.98]){
+      block('#b2d2d5',x,level,4.33,.60,.43,.036,'glass');
+      block('#e6e7dc',x,level-.29,4.40,.70,.053,.065,'stone');
+     }
+    }
+    block('#c1af92',u,2.26,4.46,w*.88,.10,.15,'wood');
+    block('#d6d8cb',u,2.40,4.51,w*.85,.06,.06,'stone');
+    for(const side of [-1,1])block('#69797a',u+side*w*.45,2.44,4.48,.055,.19,.06,'metal');
+   }
+   // Mark the sole internal street and two separate exits with lighting.
+   for(const x of [1,6,11,16]){
+    pole('#778482',x,.52,5.15,.028,.98,'metal');
+    block('#f1e2b4',x,1.05,5.15,.20,.07,.20,'glass',true);
+   }
+   return;
+  }
   if(tier>=2){
    // Designed compounds: a recognisable anchor building and outdoor rooms.
    // Architecture stays in the original building strip above the parking lot.
