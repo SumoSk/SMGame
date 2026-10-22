@@ -2121,9 +2121,7 @@ body>.bottom .city-dashboard .dashboard-member-buttons>button:hover{
  background:#ddefdd!important;border-color:#9dc6aa!important;
 }
 body>.bottom .city-dashboard .dashboard-member-buttons>button:focus-visible,
-body>.bottom .city-dashboard .dashboard-map-buttons>button:focus-visible{
- outline:2px solid #4f9675!important;outline-offset:1px!important;
-}
+
 body>.bottom .city-dashboard .dashboard-member-buttons>button#saveGameQuick{
  background:#e2f4d5!important;border-color:#b8dba8!important;
  color:#2b6945!important;
@@ -2151,28 +2149,11 @@ body>.bottom .city-dashboard .dashboard-member-buttons small{
  color:inherit!important;font:700 11px/1.2 "Noto Sans Thai",Tahoma,sans-serif!important;
  overflow:hidden!important;text-overflow:ellipsis!important;
 }
-body>.bottom .city-dashboard .dashboard-map-buttons{
- display:flex!important;align-items:center!important;justify-content:center!important;
- flex:0 0 auto!important;gap:5px!important;
- width:100%!important;min-width:0!important;height:25px!important;
-}
-body>.bottom .city-dashboard .dashboard-map-buttons>button{
- width:27px!important;height:24px!important;min-width:27px!important;
- display:grid!important;place-items:center!important;
- padding:2px!important;background:transparent!important;
- border:1px solid transparent!important;border-radius:6px!important;
- color:#527d68!important;cursor:pointer!important;
-}
-body>.bottom .city-dashboard .dashboard-map-buttons>button:hover{
- background:#e0f0e4!important;color:#2b7455!important;
-}
-body>.bottom .city-dashboard .dashboard-map-buttons>button.active{
- background:#2f8063!important;color:white!important;
-}
-body>.bottom .city-dashboard .dashboard-map-buttons svg{
- width:17px!important;height:17px!important;
- display:block!important;
-}
+
+
+
+
+
 @media(min-width:721px) and (max-width:1100px){
  body>.bottom .city-dashboard .dashboard-member-buttons{gap:5px!important}
  body>.bottom .city-dashboard .dashboard-member-buttons>button{
@@ -2183,8 +2164,8 @@ body>.bottom .city-dashboard .dashboard-map-buttons svg{
  body>.bottom .city-dashboard .dashboard-member-buttons .map-rail-svg{width:19px!important;height:19px!important;flex-basis:19px!important}
  body>.bottom .city-dashboard .dashboard-member-buttons .map-save-art{width:22px!important;height:22px!important;flex-basis:22px!important}
  body>.bottom .city-dashboard .dashboard-member-buttons .map-save-art svg{width:20px!important;height:20px!important}
- body>.bottom .city-dashboard .dashboard-map-buttons{gap:3px!important;height:23px!important}
- body>.bottom .city-dashboard .dashboard-map-buttons>button{width:23px!important;min-width:23px!important;height:22px!important}
+ 
+ 
 }
 @media(max-width:720px){
  /* Keep account/save first and all five map actions accessible in a single
@@ -2215,17 +2196,13 @@ body>.bottom .city-dashboard .dashboard-map-buttons svg{
   width:15px!important;height:15px!important
  }
  body>.bottom .city-dashboard .dashboard-member-buttons small{font-size:7px!important}
- body>.bottom .city-dashboard .dashboard-map-buttons{
-  width:auto!important;flex:0 0 auto!important;gap:2px!important;height:23px!important
- }
- body>.bottom .city-dashboard .dashboard-map-buttons>button{
-  width:22px!important;min-width:22px!important;height:22px!important;padding:2px!important
- }
- body>.bottom .city-dashboard .dashboard-map-buttons svg{width:15px!important;height:15px!important}
+ 
+ 
+ 
 }
 
 /* V15: overview only account/save; map controls retained hidden for JS binding. */
-body>.bottom .city-dashboard .map-legacy-controls{display:none!important}
+
 body>.bottom .city-dashboard .dashboard-shortcuts{
  justify-content:center!important;gap:0!important;
 }
@@ -2233,5 +2210,89 @@ body>.bottom .city-dashboard .dashboard-member-buttons{align-items:center!import
 @media(max-width:720px){
  body>.bottom .city-dashboard .dashboard-shortcuts{
   justify-content:center!important;overflow:hidden!important;
+ }
+}
+
+/* V17: the obsolete zoom/center/heat/grid row is deleted from HTML and CSS.
+   Compact City Overview: heading, account+save, and metrics consume the
+   existing height with no phantom shortcut row or unused gap. */
+body>.bottom .city-dashboard{
+ display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+ grid-template-rows:25px minmax(44px,1fr) 112px!important;
+ justify-content:stretch!important;align-content:stretch!important;
+ align-items:stretch!important;
+ column-gap:0!important;row-gap:5px!important;
+ padding:8px 9px!important;min-height:0!important;
+ overflow:hidden!important;
+}
+body>.bottom .city-dashboard .dashboard-heading{
+ grid-row:1!important;min-height:0!important;height:25px!important;
+ margin:0!important;padding:0 0 4px!important;
+}
+body>.bottom .city-dashboard .dashboard-shortcuts{
+ grid-row:2!important;display:flex!important;
+ flex:none!important;min-height:0!important;max-height:none!important;
+ height:100%!important;padding:0 3px!important;
+ align-items:center!important;justify-content:center!important;
+ overflow:hidden!important;
+}
+body>.bottom .city-dashboard .dashboard-member-buttons{
+ display:flex!important;width:100%!important;min-width:0!important;
+ align-items:center!important;justify-content:center!important;
+ gap:8px!important;margin:0!important;
+}
+body>.bottom .city-dashboard .dashboard-member-buttons>button{
+ flex:0 1 124px!important;max-width:124px!important;
+ min-width:0!important;height:42px!important;
+ padding:4px 6px!important;gap:4px!important;
+ border-radius:9px!important;
+}
+body>.bottom .city-dashboard .stats.dashboard-stats{
+ grid-row:3!important;display:grid!important;
+ flex:none!important;width:100%!important;height:112px!important;
+ min-height:0!important;max-height:112px!important;
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ grid-template-rows:repeat(3,minmax(0,1fr))!important;
+ align-items:stretch!important;justify-content:stretch!important;
+ gap:2px 7px!important;margin:0!important;padding:0!important;
+}
+body>.bottom .city-dashboard .city-metric{
+ min-height:0!important;height:auto!important;
+ padding:2px 4px!important;
+}
+body>.bottom .city-dashboard .metric-money{grid-column:span 2!important}
+@media(min-width:721px) and (max-width:1100px){
+ body>.bottom .city-dashboard{grid-template-rows:23px minmax(40px,1fr) 108px!important;padding:6px!important;gap:4px!important}
+ body>.bottom .city-dashboard .dashboard-heading{height:23px!important}
+ body>.bottom .city-dashboard .stats.dashboard-stats{height:108px!important;max-height:108px!important}
+ body>.bottom .city-dashboard .dashboard-member-buttons>button{height:39px!important}
+}
+@media(max-width:720px){
+ body>.bottom .city-dashboard{
+  grid-template-rows:20px 25px minmax(0,1fr)!important;
+  height:98px!important;max-height:98px!important;
+  padding:3px 4px!important;gap:2px!important
+ }
+ body>.bottom .city-dashboard .dashboard-heading{height:20px!important;padding:0!important}
+ body>.bottom .city-dashboard .dashboard-shortcuts{
+  flex:none!important;grid-row:2!important;min-height:25px!important;
+  max-height:25px!important;height:25px!important;
+  padding:0!important;overflow:hidden!important;
+ }
+ body>.bottom .city-dashboard .dashboard-member-buttons{gap:5px!important}
+ body>.bottom .city-dashboard .dashboard-member-buttons>button{
+  flex:0 1 55px!important;width:auto!important;
+  max-width:55px!important;height:23px!important;
+  min-height:23px!important;padding:2px!important;
+ }
+ body>.bottom .city-dashboard .stats.dashboard-stats{
+  grid-row:3!important;min-height:0!important;
+  max-height:none!important;height:100%!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  grid-template-rows:1fr!important;gap:1px!important;
+ }
+ body>.bottom .city-dashboard .city-metric{
+  grid-column:auto!important;min-height:0!important;
+  height:100%!important;padding:1px!important;
  }
 }
