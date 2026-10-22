@@ -1,7 +1,14 @@
 <!doctype html>
-<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#103b39"><title>Traffic Fixer Thailand — เมืองที่ทุกการเดินทางมีความหมาย</title><meta name="description" content="สร้างเมืองไทย วางถนน และแก้ปัญหาจราจรจากชีวิตประชาชนแต่ละคน"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23103b39'/%3E%3Cpath d='M13 3h6v26h-6z' fill='%23f9c75c'/%3E%3Cpath d='M16 5v4m0 4v4m0 4v4' stroke='%23103b39' stroke-width='2'/%3E%3C/svg%3E"><link rel="stylesheet" href="dist/style.css?v=labeltoggle-v23-20261023"></head>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#103b39"><title>Traffic Fixer Thailand — เมืองที่ทุกการเดินทางมีความหมาย</title><meta name="description" content="สร้างเมืองไทย วางถนน และแก้ปัญหาจราจรจากชีวิตประชาชนแต่ละคน"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23103b39'/%3E%3Cpath d='M13 3h6v26h-6z' fill='%23f9c75c'/%3E%3Cpath d='M16 5v4m0 4v4m0 4v4' stroke='%23103b39' stroke-width='2'/%3E%3C/svg%3E"><link rel="stylesheet" href="dist/style.css?v=camerastick-v24-20261023"></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
+<div id="cameraJoystick" class="camera-joystick" role="group" aria-label="จอยควบคุมมุมกล้อง 3D">
+ <button type="button" class="cam-dir cam-up" data-camera-direction="up" aria-label="เงยกล้อง มองจากมุมสูงขึ้น" title="มุมสูงขึ้น">▲</button>
+ <button type="button" class="cam-dir cam-left" data-camera-direction="left" aria-label="หมุนกล้องซ้าย" title="หมุนซ้าย">◀</button>
+ <button type="button" class="cam-dir cam-right" data-camera-direction="right" aria-label="หมุนกล้องขวา" title="หมุนขวา">▶</button>
+ <button type="button" class="cam-dir cam-down" data-camera-direction="down" aria-label="ก้มกล้อง มองจากมุมต่ำลง" title="มุมต่ำลง">▼</button>
+ <button type="button" id="resetCameraAngle" class="cam-reset" aria-label="คืนค่ามุมกล้องเริ่มต้น" title="รีเซ็ตมุมกล้อง">⌂</button>
+</div>
 
 
 <aside id="inspector" class="inspector hidden"><button id="closeInspector" class="close" aria-label="ปิดรายละเอียด">×</button><div id="inspectContent"></div></aside>
@@ -47,4 +54,4 @@
  </section>
 </div>
 <script>window.SMGameAuthLocked = false;</script>
-<script type="module" src="dist/bootstrap.js?v=labeltoggle-v23-20261023"></script></body></html>
+<script type="module" src="dist/bootstrap.js?v=camerastick-v24-20261023"></script></body></html>
