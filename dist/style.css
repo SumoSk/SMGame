@@ -269,31 +269,39 @@ body > :is(.hud,.city-panel,.inspector,.map-tools,.map-caption,.bottom,#toast,di
 .city-time-display strong{font-size:13px;line-height:1.2;font-weight:700;color:#f8df9d}
 
 /* Foldable construction / control dock. The header stays reachable. */
-.build-dock .dock-head{display:flex;align-items:center;justify-content:space-between;gap:7px;
- padding:5px 7px;border-bottom:1px solid #dbe7df}
-.dock-head button{display:inline-flex;align-items:center;justify-content:center;gap:5px;
- min-height:32px;padding:4px 9px;border:1px solid #d5e3d8;border-radius:8px;
- font:600 11px/1.15 "Noto Sans Thai",Tahoma,sans-serif;white-space:nowrap;
+.build-dock .dock-head{display:flex;align-items:center;justify-content:space-between;gap:6px;
+ padding:3px 6px;border-bottom:1px solid #dbe7df}
+.dock-head button{display:inline-flex;align-items:center;justify-content:center;gap:4px;
+ min-height:26px;padding:3px 7px;border:1px solid #d5e3d8;border-radius:6px;
+ font:600 9.5px/1.15 "Noto Sans Thai",Tahoma,sans-serif;white-space:nowrap;
  color:#285a4b;background:#eef5ed;cursor:pointer;touch-action:manipulation}
 .dock-head button:focus-visible{outline:2px solid #4f9b7c;outline-offset:2px}
 .dock-head .explore-city{background:#215a4c;color:#fff9e8;border-color:#215a4c}
-.dock-head .explore-city span{font-size:14px}
+.dock-head .explore-city span{font-size:12px}
 .dock-head .toggle-dock{background:#f8fbf7;color:#426b5b}
 .build-dock.is-collapsed .dock-body{display:none!important}
 .build-dock.is-collapsed .dock-head{border-bottom:0}
 .build-dock .dock-body{min-width:0}
 
-/* Larger physical tap targets on iPad (Safari prevents automatic zoom). */
+/* Compact controls for iPad/touch: match the rest of the scaled dock. */
 @media(hover:none) and (pointer:coarse){
- .dock-head button{min-height:40px;padding:7px 12px;font-size:12px}
- .dock-head .explore-city span{font-size:16px}
+ .dock-head button{min-height:28px;padding:4px 8px;font-size:10px}
+ .dock-head .explore-city span{font-size:12px}
  .city-time-display{padding:6px 12px;font-size:12px}
  .city-time-display strong{font-size:14px}
  .city-panel{max-height:55dvh}
 }
 @media(max-width:700px){
  .build-dock .dock-head{gap:4px;padding:4px 5px}
- .dock-head button{min-height:32px;font-size:10px;padding:4px 7px}
+ .dock-head button{min-height:26px;font-size:9px;padding:3px 6px}
  .city-time-display{max-width:96%;gap:6px;font-size:10px;padding:4px 8px}
  .city-time-display strong{font-size:12px}
 }
+
+/* Tourism keeps the existing compact HUD and citizen-panel dimensions. */
+.hud .stats{min-width:0}.hud .stats button{min-width:0;padding-left:clamp(4px,1vw,16px);padding-right:clamp(4px,1vw,16px)}
+.tourists-dashboard .citizens-toolbar input{width:100%;min-width:0;box-sizing:border-box;font:inherit}
+.tourists-dashboard .detail-row{font-size:10px;gap:8px;padding:5px 0}.tourists-dashboard .detail-row strong{font-size:11px}
+.tourists-dashboard .citizen-section>p{font-size:10px;line-height:1.65}.tourists-dashboard .citizen-person{margin-top:5px}
+.tourist-itinerary{font-size:inherit}.tourist-itinerary p{padding:4px 0;border-bottom:1px solid #dce8e3}
+@media(max-width:700px){.hud .brand{display:none}.hud .stats button{padding-left:3px;padding-right:3px}.hud .stats small{white-space:nowrap}}
