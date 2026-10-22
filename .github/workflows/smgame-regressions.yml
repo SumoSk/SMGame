@@ -35,6 +35,18 @@ jobs:
       - name: Legacy suite (baseline 1.4 already has 4 unrelated failures)
         continue-on-error: true
         run: npm test
+  lane-change-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node work/test-lane-change-safety.cjs
+      - run: node work/test-traffic-fixes.cjs
   publish:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
