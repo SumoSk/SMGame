@@ -176,10 +176,14 @@ export class TrafficRenderer{
     else if(['#dce3d8','#ead78c','#edf0df','#f1eddb'].includes(base))role='marking';
    }
    let tint=base,intensity=0;
-   if(role==='asphalt'){intensity=.24;tint=base||'#56666a';}
-   else if(role==='night-asphalt'){intensity=.42;tint=base||'#56666a';}
-   else if(role==='marking'||role==='road-marking'||role==='night-marking'){intensity=.68;tint=base||'#f4edd8';}
-   else if(role==='lot-base'||role==='night-lot-base'){intensity=.20;tint=base||'#bdc6ae';}
+   if(role==='asphalt'){intensity=.18;tint=base||'#56666a';}
+   else if(role==='night-asphalt'){intensity=.18;tint=base||'#56666a';}
+   else if(role==='marking'||role==='road-marking'||role==='night-marking'){
+    // Road paint reflects ambient light; it should not read as neon at night.
+    intensity=.025;tint=base||'#f4edd8';
+    mesh.material.color.set(tint).multiplyScalar(1-night*.42);
+   }
+   else if(role==='lot-base'||role==='night-lot-base'){intensity=.08;tint=base||'#bdc6ae';}
    if(intensity){mesh.material.emissive.set(tint);mesh.material.emissiveIntensity=night*intensity;}
   });
   for(const set of this.carSets.values()){
@@ -208,9 +212,9 @@ export class TrafficRenderer{
   if(Math.abs(glow-this.lastGlow)>.008){
    for(const group of [this.lampGroup,this.buildingGroup])group.traverse(mesh=>{
     if(!mesh.userData.nightGlow)return;mesh.visible=glow>.015;
-    mesh.material.opacity=.91*glow;mesh.material.emissiveIntensity=1.25+glow*.9;
+    mesh.material.opacity=.78*glow;mesh.material.emissiveIntensity=.70+glow*.55;
    });
-   if(this.streetGlow)this.streetGlow.material.opacity=.42*glow;
+   if(this.streetGlow)this.streetGlow.material.opacity=.24*glow;
    this.lastGlow=glow;
   }
   this.rain.visible=air.rain>.025;
