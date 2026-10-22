@@ -2599,7 +2599,30 @@ function validateSave(s){
  for(const [,c]of s.citizens)if(!Array.isArray(c.scheduled)||!Array.isArray(c.failKinds))throw Error('Invalid citizen');
  for(const [,v]of s.vehicles)if(!Array.isArray(v.pathSet)||!Array.isArray(v.path))throw Error('Invalid vehicle');
 }
-function loadGame(silent=false,slotId=null,rawOverride=null){const previous={state,cam,news};try{const slots=rawOverride===null?readSaveSlots():[],slot=slotId?slots.find(s=>s.id===slotId):slots[0],raw=rawOverride??slot?.data;if(!raw){if(!silent)toast('ยังไม่มีเมืองที่บันทึกไว้ค่ะ');return false;}const s=JSON.parse(raw);validateSave(s);reset(s.city);state.money=s.money;state.time=s.time;state.nextId=s.nextId;state.profileSeq=s.profileSeq??s.citizens.length;state.lastImmigration=s.time;state.lastPass=s.time;state.tourism=s.tourism;state.plantedTrees=s.plantedTrees||[];state.hiddenAutoTrees=s.hiddenAutoTrees||[];state.landscapeVersion=0;state.nextTouristAt=s.nextTouristAt||s.time+3;state.roads=new Map(s.roads.map(([i,r])=>[i,{...r,links:new Set(r.links)}]));state.buildings=new Map(s.buildings.map(([i,b])=>[i,{...b,residents:new Set(b.residents),workers:new Set(b.workers),visitors:new Set(b.visitors),parked:new Set(b.parked),guests:new Set(b.guests||[])}]));state.citizens=new Map(s.citizens.map(([i,c])=>[i,{...c,scheduled:new Set(c.scheduled),failKinds:new Set(c.failKinds)}]));state.vehicles=new Map(s.vehicles.map(([i,v])=>[i,{...v,trafficModel:v.trafficModel??1,pathSet:new Set(v.pathSet)}]));state.signals=new Map(s.signals||[]);state.signalDefaults=s.signalDefaults||state.signalDefaults;state.events=s.events;eventHeapify();cam=s.cam||cam;news=s.news||[];rebuildFootprint();state.buildGrid.fill(-1);for(const b of state.buildings.values()){markBuildingPlot(b,b.id);b.access=accessFor(b);}for(const v of state.vehicles.values())if(['driving','parking_out'].includes(v.phase)||v.phase==='parking_in'&&v.occKey)occupy(v,v.pos);for(const v of state.vehicles.values())if(v.phase==='driving')refreshMotionReservations(v,motionPlan(v),motionDistance(v));reconcile();
+// Existing medium houses were 24x15. Shift each plot *inside its original
+// footprint*, toward the unchanged roadside edge, so old saves keep access.
+function migrateCompactHomes(){
+ const moved=new Set(),oldHeight=15,newHeight=CATALOG.home_dual.plotHeight;
+ for(const b of state.buildings.values()){
+  if(b.key!=='home_dual'||b.compactLotV2)continue;
+  if(b.rotation===0)b.y+=oldHeight-newHeight;
+  if(b.rotation===3)b.x+=oldHeight-newHeight;
+  b.compactLotV2=true;moved.add(b.id);
+ }
+ if(!moved.size)return;
+ for(const v of state.vehicles.values()){
+  if(!moved.has(v.lotBuilding)&&!moved.has(v.fromId)&&!moved.has(v.toId))continue;
+  if(moved.has(v.lotBuilding)&&v.lotPath){
+   v.lotPath=null;v.lotDistance=0;v.lotReady=false;v.lotBuilding=null;
+   v.mergeCommitted=false;v.mergeExitActive=false;v.mergeEscapeId=null;
+   v.parkingStage=false;v.parkingReplanAt=0;v.occKey=null;v.stopReason='';
+   if(v.phase==='parking_in'){v.phase='driving';v.speed=0;}
+   else if(v.phase==='parking_out'){v.phase='departing';v.speed=0;v.departureRouteVersion=-1;v.retryAt=0;}
+  }
+  if(moved.has(v.fromId)&&v.phase==='departing'){v.departureRouteVersion=-1;v.retryAt=0;}
+ }
+}
+function loadGame(silent=false,slotId=null,rawOverride=null){const previous={state,cam,news};try{const slots=rawOverride===null?readSaveSlots():[],slot=slotId?slots.find(s=>s.id===slotId):slots[0],raw=rawOverride??slot?.data;if(!raw){if(!silent)toast('ยังไม่มีเมืองที่บันทึกไว้ค่ะ');return false;}const s=JSON.parse(raw);validateSave(s);reset(s.city);state.money=s.money;state.time=s.time;state.nextId=s.nextId;state.profileSeq=s.profileSeq??s.citizens.length;state.lastImmigration=s.time;state.lastPass=s.time;state.tourism=s.tourism;state.plantedTrees=s.plantedTrees||[];state.hiddenAutoTrees=s.hiddenAutoTrees||[];state.landscapeVersion=0;state.nextTouristAt=s.nextTouristAt||s.time+3;state.roads=new Map(s.roads.map(([i,r])=>[i,{...r,links:new Set(r.links)}]));state.buildings=new Map(s.buildings.map(([i,b])=>[i,{...b,residents:new Set(b.residents),workers:new Set(b.workers),visitors:new Set(b.visitors),parked:new Set(b.parked),guests:new Set(b.guests||[])}]));state.citizens=new Map(s.citizens.map(([i,c])=>[i,{...c,scheduled:new Set(c.scheduled),failKinds:new Set(c.failKinds)}]));state.vehicles=new Map(s.vehicles.map(([i,v])=>[i,{...v,trafficModel:v.trafficModel??1,pathSet:new Set(v.pathSet)}]));state.signals=new Map(s.signals||[]);state.signalDefaults=s.signalDefaults||state.signalDefaults;state.events=s.events;eventHeapify();cam=s.cam||cam;news=s.news||[];migrateCompactHomes();rebuildFootprint();state.buildGrid.fill(-1);for(const b of state.buildings.values()){markBuildingPlot(b,b.id);b.access=accessFor(b);}for(const v of state.vehicles.values())if(['driving','parking_out'].includes(v.phase)||v.phase==='parking_in'&&v.occKey)occupy(v,v.pos);for(const v of state.vehicles.values())if(v.phase==='driving')refreshMotionReservations(v,motionPlan(v),motionDistance(v));reconcile();
  // Existing saves still work: retain the current day's already-queued events,
  // then switch to dynamic routines when the next game day is scheduled.
  for(const c of state.citizens.values()){
