@@ -22,7 +22,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert.equal(g.state.hiddenAutoTrees.length,0);
  const bad=JSON.parse(before);bad.plantedTrees=[{x:-10,y:30,kind:'flower'}];
  assert.equal(g.loadGame(true,null,JSON.stringify(bad)),false,'invalid tree save must be rejected');
- get('categories').onclick({target:{closest:()=>({dataset:{category:'landscape'}})}});
+ get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'green'}})}});
  assert(get('tools').innerHTML.includes('data-tool="tree:shade"'));
  assert(get('tools').innerHTML.includes('data-tool="treeBrush"'));
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
