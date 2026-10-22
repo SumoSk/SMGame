@@ -14,6 +14,9 @@ const catalogData={hotel:[[2,3000,20,0,0,0,2],[3,17500,100,0,0,0,10],[4,65000,35
 for(const [kind,rows] of Object.entries(catalogData))rows.forEach((r,i)=>{const key=kind+'_'+['small','medium','large'][i];CATALOG[key]={key,kind,name:KINDS[kind].name+['เล็ก','กลาง','ใหญ่'][i],size:r[0],cost:r[1],maint:r[2],residents:r[3]||0,jobs:r[4]||0,service:r[5]||0,beds:r[6]||0};});
 // Version 6 of the parking layout is the new v5 architectural masterplan.
 // There are exactly two facing stall rows, one continuous aisle, no inner banks.
+// Preserve the previous home_large key, existing buildings and all v7 saves.
+CATALOG.home_large.name='บ้านเล็ก';
+CATALOG.home_dual={key:'home_dual',kind:'home',name:'บ้านกลาง',size:5,cost:200000,maint:700,residents:60,jobs:0,service:0,beds:0,dualParking:true};
 const PARKING_VERSION=7,LOT_SPEED=1.35;
 for(const t of Object.values(CATALOG)){
  t.parkingCapacity=t.beds||t.residents||t.jobs+t.service;
@@ -27,6 +30,7 @@ for(const t of Object.values(CATALOG)){
  t.plotHeight=Math.ceil(t.size+4.0);
  t.compactParking=false;
  t.parkingLayout=null;
+ if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.plotWidth=24;t.plotHeight=15;t.parkingAisle=11.4;t.parkingUpperAisle=7.5;t.parkingExitA=20;t.parkingExitB=22.7;}
 }
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
 function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
@@ -35,14 +39,14 @@ function lotSlots(b){
  const slots=[];
  for(let n=0;n<t.parkingCapacity;n++){
   const row=Math.floor(n/t.parkingColumns),col=n%t.parkingColumns;
-  const aisle=t.parkingAisle;
+  const aisle=t.dualParking&&row?t.parkingUpperAisle:t.parkingAisle;
   slots.push({index:n,u:1.42+(col+.5)*t.parkingPitch,
-   v:aisle+(row?t.parkingRowOffset:-t.parkingRowOffset),aisle,row});
+   v:t.dualParking?aisle-t.parkingRowOffset:aisle+(row?t.parkingRowOffset:-t.parkingRowOffset),aisle,row,zone:t.dualParking?(row?'B':'A'):null});
  }
  return t.parkingLayout=slots;
 }
 function lotModel(b){const t=CATALOG[b.key],p=lotPoint(b,t.plotWidth/2,t.size/2+.1);return{...b,x:p.x-.5-t.size/2,y:p.y-.5-t.size/2};}
-function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=(slot.row?Math.PI/2:-Math.PI/2)+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
+function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=((CATALOG[b.key].dualParking?0:slot.row)?Math.PI/2:-Math.PI/2)+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
 function citizenCarColor(id){if(state?.citizens.get(id)?.tourist)return '#65c8f2';return ['#f0e8c7','#e5a861','#719ca5','#afc5a2','#bc8fa5','#c8c8c0'][Math.abs(id)%6];}
 function parkingSpace(b,cid,allocate=false){
  if(!b.parkingSlots)b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);
@@ -132,7 +136,7 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
  // A car leaving or entering the lot must not ignore vehicles on the street.
  const b=state.buildings.get(v.lotBuilding);
  if(!ignoreRoadTraffic&&b&&['departing','parking_out'].includes(v.phase)){
-  const t=CATALOG[b.key],entrance=lotPoint(b,.45,t.plotHeight),exit=lotPoint(b,t.plotWidth-.45,t.plotHeight);
+  const t=CATALOG[b.key],entrance=lotPoint(b,.45,t.plotHeight),exit=lotPoint(b,t.dualParking?t.parkingExitB:t.plotWidth-.45,t.plotHeight);
   if(v.phase==='parking_out'||Math.min(Math.hypot(pose.x-entrance.x,pose.y-entrance.y),Math.hypot(pose.x-exit.x,pose.y-exit.y))<1.15)
    for(const other of state.vehicles.values()){
     if(other.id===v.id||!['driving','stuck','parking_out','parking_in','departing'].includes(other.phase))continue;
@@ -157,7 +161,7 @@ function canLeaveParkingSpace(v,points){
  }return true;
 }
 function parkingAccess(b){
- const t=CATALOG[b.key],bounds=buildingBounds(b),center=lotPoint(b,t.plotWidth/2,t.plotHeight/2),entry=lotPoint(b,.45,t.plotHeight),exit=lotPoint(b,t.plotWidth-.45,t.plotHeight),candidates=[];
+ const t=CATALOG[b.key],bounds=buildingBounds(b),center=lotPoint(b,t.plotWidth/2,t.plotHeight/2),entry=lotPoint(b,.45,t.plotHeight),exit=lotPoint(b,t.dualParking?t.parkingExitB:t.plotWidth-.45,t.plotHeight),candidates=[];
  for(let y=b.y-1;y<=b.y+bounds.h;y++)for(let x=b.x-1;x<=b.x+bounds.w;x++){
   const side=(b.rotation||0)===0?y===b.y+bounds.h:(b.rotation||0)===1?x===b.x-1:(b.rotation||0)===2?y===b.y-1:x===b.x+bounds.w;
   if(!side||!valid(x,y))continue;const node=owner(id(x,y)),r=state.roads.get(node);if(!r||candidates.some(a=>a.node===node)||junction(node)>=3)continue;
@@ -166,9 +170,17 @@ function parkingAccess(b){
   if(prev.length&&next.length)candidates.push({node,prev,next,x:nx+.5,y:ny+.5});
  }
  const choose=(p,other)=>candidates.filter(a=>a.node!==other).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
- const a=choose(entry),z=choose(exit,a?.node);if(!a||!z)return [];
+ const a=choose(entry);if(!a)return [];
  const tangent=(p,a)=>(b.rotation||0)%2?Math.abs(p.y-a.y):Math.abs(p.x-a.x);
- if(tangent(entry,a)>1.1||tangent(exit,z)>1.1)return [];
+ if(tangent(entry,a)>1.1)return [];
+ if(t.dualParking){
+  const pa=lotPoint(b,t.parkingExitA,t.plotHeight),pb=lotPoint(b,t.parkingExitB,t.plotHeight);
+  const first=candidates.filter(c=>c.node!==a.node).sort((x,y)=>Math.hypot(x.x-pa.x,x.y-pa.y)-Math.hypot(y.x-pa.x,y.y-pa.y))[0];
+  const second=candidates.filter(c=>c.node!==a.node&&c.node!==first?.node).sort((x,y)=>Math.hypot(x.x-pb.x,x.y-pb.y)-Math.hypot(y.x-pb.x,y.y-pb.y))[0];
+  if(!first||!second||tangent(pa,first)>1.1||tangent(pb,second)>1.1)return [];
+  return [{...a,entry:true,exit:false},{...first,entry:false,exit:true,zone:'A'},{...second,entry:false,exit:true,zone:'B'}];
+ }
+ const z=choose(exit,a.node);if(!z||tangent(exit,z)>1.1)return [];
  return [{...a,entry:true,exit:false},{...z,entry:false,exit:true}];
 }
 function checkParkingBuilding(key,x,y){
@@ -329,7 +341,7 @@ function prepareLotDeparture(v,dt){
  if(!v.lotPath){
   const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){v.stopReason='ไม่พบช่องจอดของรถ';return false;}
   if(parkingBankBusy(b,index,false)){v.stopReason='รอรถเข้าจอดในแถวเดียวกัน';return false;}
-  const t=CATALOG[b.key];v.lotPath=[parkingSlotPose(b,index),lotPoint(b,slot.u,slot.aisle),lotPoint(b,t.plotWidth-.45,slot.aisle),lotPoint(b,t.plotWidth-.45,t.plotHeight-.9)];v.lotDistance=0;v.lotBuilding=b.id;
+  const t=CATALOG[b.key],exitU=t.dualParking?(slot.zone==='A'?t.parkingExitA:t.parkingExitB):t.plotWidth-.45;v.lotPath=[parkingSlotPose(b,index),lotPoint(b,slot.u,slot.aisle),lotPoint(b,exitU,slot.aisle),lotPoint(b,exitU,t.plotHeight-.9)];v.lotDistance=0;v.lotBuilding=b.id;
   if(!canLeaveParkingSpace(v,v.lotPath)){v.lotPath=null;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
  }
  v.stopReason='กำลังออกจากช่องจอด';if(!advanceLot(v,dt))return false;v.lotReady=true;v.stopReason='รอถนนว่างเพื่อออกจากลาน';return true;
@@ -358,6 +370,8 @@ function parkingArrivalPath(v,b,index,replan=false){
  if(slot.u<local.u+.8)return null;
  if(local.u>.85&&Math.abs(local.v-slot.aisle)>.65)return null;
  const approachU=Math.min(slot.u-.35,Math.max(local.u+.12,.75));
+ if(t.dualParking&&local.u<.85&&Math.abs(local.v-slot.aisle)>.15)
+  return [start,lotPoint(b,.45,slot.aisle),lotPoint(b,approachU,slot.aisle),aisle,end];
  return [start,lotPoint(b,approachU,slot.aisle),aisle,end];
 }
 function parkingBayObstructed(v,b,index){
@@ -379,7 +393,7 @@ function assignArrivalParking(v,replan=false,includeOld=false){
  const b=state.buildings.get(v.toId);if(!b||!v.citizenId)return false;
  if(!b.parkingSlots)b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);
  // Preserve the existing staggered allocation policy for the first choice.
- if(!replan&&b.parkingSlots.indexOf(v.citizenId)<0)parkingSpace(b,v.citizenId,true);
+ if(!replan&&!CATALOG[b.key].dualParking&&b.parkingSlots.indexOf(v.citizenId)<0)parkingSpace(b,v.citizenId,true);
  const old=b.parkingSlots.indexOf(v.citizenId),slots=lotSlots(b);
  const current=replan?localParkingPoint(b,parkingPose(v)):null;
  const options=[];
@@ -389,8 +403,12 @@ function assignArrivalParking(v,replan=false,includeOld=false){
   if(replan&&slots[i].u<(current?.u??0)+.8)continue;
   options.push(i);
  }
+ const dual=CATALOG[b.key].dualParking,zoneLoad=[0,0];
+ if(dual)for(let i=0;i<slots.length;i++)if(b.parkingSlots[i]!=null)zoneLoad[slots[i].row]++;
  options.sort((a,b)=>{
   if(!replan){if(a===old)return -1;if(b===old)return 1;}
+  if(dual&&!replan)return zoneLoad[slots[a].row]-zoneLoad[slots[b].row]||slots[a].u-slots[b].u||a-b;
+  if(dual&&replan&&current?.u>.85)return Math.abs(slots[a].aisle-current.v)-Math.abs(slots[b].aisle-current.v)||slots[a].u-slots[b].u||a-b;
   return (slots[a].u-(current?.u??.45))-(slots[b].u-(current?.u??.45))||a-b;
  });
  for(const i of options){
@@ -414,7 +432,8 @@ function beginParkingArrival(v){
  // Admit the car into the driveway before selecting a parking stall. The
  // entrance is not a parking queue, and lack of a bay must not block the road.
  const t=CATALOG[b.key],entry=positionOnMotion(motionPlan(v),motionPlan(v).total);
- v.lotPath=[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle),lotPoint(b,.72,t.parkingAisle)];
+ v.lotPath=t.dualParking?[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle)]
+  :[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle),lotPoint(b,.72,t.parkingAisle)];
  v.lotDistance=0;v.lotBuilding=b.id;v.parkingStage=true;v.parkingReplanAt=state.time;
  v.phase='parking_in';v.speed=0;v.stopReason='กำลังเข้าลานจอด';
  return true;
