@@ -2142,21 +2142,30 @@ $('tools').onclick=e=>{
  selectTool(b.dataset.tool);
 };
 $('toggleDock').onclick=()=>setDockCollapsed(!$('buildDock').classList.contains('is-collapsed'));
-$('toggleBuildingLabels').addEventListener('click',()=>{
+// Removing label nodes is decisive: CSS-only hiding was not reliable here.
+function toggleBuildingLabels(){
  buildingLabelsVisible=!buildingLabelsVisible;
  const hidden=!buildingLabelsVisible;
  const button=$('toggleBuildingLabels');
- // Force-hide at the document level too. This covers ALL existing and future
- // labels regardless of animation-frame updates and legacy style rules.
- document.documentElement.classList.toggle('building-labels-off',hidden);
  button.classList.toggle('is-hidden',hidden);
  button.setAttribute('aria-pressed',String(hidden));
  button.setAttribute('aria-label',hidden?'เปิดป้ายอาคารบนแผนที่':'ปิดป้ายอาคารบนแผนที่');
  button.title=hidden?'แสดงชื่อและตัวเลขอาคารอีกครั้ง':'ซ่อนชื่อและตัวเลขบนป้ายอาคาร';
  $('toggleBuildingLabelsText').textContent=hidden?'เปิดป้าย':'ปิดป้าย';
- for(const label of placeLabels.values())label.element.hidden=hidden;
- if(!hidden)placeLabelAt=0;
-});
+ if(hidden){
+  // Physically remove all building overlays, not just individual hidden flags.
+  // Keep the separate red no-route warnings untouched.
+  for(const label of placeLabels.values())label.element.remove();
+  placeLabels.clear();
+  if(placeLabelLayer)for(const node of placeLabelLayer.querySelectorAll('.place-building-label'))node.remove();
+ }else{
+  placeLabelAt=0;
+  updatePlaceLabels();
+ }
+ document.documentElement?.classList.toggle('building-labels-off',hidden);
+}
+$('toggleBuildingLabels').onclick=toggleBuildingLabels;
+
 $('exploreCity').onclick=()=>{
  // One-tap touch-safe escape from every construction, demolition and tracking
  // state. Clear any active drag/preview; no building or vehicle is modified.
