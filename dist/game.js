@@ -2108,14 +2108,8 @@ window.addEventListener('resize',resize);
 $('categories').onclick=e=>{
  const b=e.target.closest('[data-dock-group]');if(!b)return;
  const next=dockGroups.find(g=>g.key===b.dataset.dockGroup);if(!next)return;
- const sameGroup=next.key===dockGroup;
- const wasCollapsed=$('buildDock').classList.contains('is-collapsed');
- if(sameGroup&&!wasCollapsed){
-  // Clicking an already open primary category returns to a clear map.
-  selectTool('hand');
-  setDockCollapsed(true);
-  return;
- }
+ // Every primary category switches the in-box tool tray; never hides it.
+ // Re-clicking the active icon keeps the tools visible in the same rectangle.
  if(!next.categories.includes(category))category=next.categories[0];
  dockGroup=next.key;
  // Main section changes are presentation-only, with no placement action.
@@ -2141,8 +2135,8 @@ $('exploreCity').onclick=()=>{
  // state. Clear any active drag/preview; no building or vehicle is modified.
  cancelInteraction();
  category='roads';dockGroup='roads';
- renderTools();
- setDockCollapsed(true);
+ selectTool('hand');
+ setDockCollapsed(false);
 };
 
 $('closeTouristsDashboard').onclick=()=>{category='roads';dockGroup='roads';selectTool('hand');};
