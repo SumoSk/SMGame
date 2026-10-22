@@ -574,7 +574,7 @@ function motionPlan(v){
  for(let i=1;i<n;i++)route[i]=route[i-1]+distance(path[i-1],path[i]);
  for(let i=1;i<n-1;i++){const incoming=motionDirection(path,i-1),outgoing=motionDirection(path,i),turn=(outgoing-incoming+4)%4;if(turn)corners.push({pos:i,incoming,outgoing,turn,u:route[i]});}
  const legacy=v.trafficModel===1;
- if(!legacy){if(!v.turnLanes)v.turnLanes={};for(const c of corners){const key=c.pos+':'+path[c.pos]+':'+c.turn;if(v.turnLanes[key]==null)v.turnLanes[key]=chooseTurnLane(v,c);c.lanePair=turnLanePair(v,c,v.turnLanes[key]);}}
+ if(!legacy){if(!v.turnLanes)v.turnLanes={};for(const c of corners){const key=c.pos+':'+path[c.pos]+':'+c.turn;const earlyLeft=state.buildings.has(v.fromId)&&c.turn===3&&c.u<9;if(earlyLeft)v.turnLanes[key]=Math.min(2,laneCapacity(path[c.pos-1],c.incoming),laneCapacity(path[c.pos+1],c.outgoing))-1;else if(v.turnLanes[key]==null)v.turnLanes[key]=chooseTurnLane(v,c);c.lanePair=turnLanePair(v,c,v.turnLanes[key]);}}
  let previousLane=Math.max(0,Math.floor(v.motionSeedLane??v.laneSeed??v.lane??v.id??0));
  let lastCorner=null,nextIndex=0,previousCap=laneCapacity(path[0],motionDirection(path,0));
  for(let i=0;i<n;i++){
