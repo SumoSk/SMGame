@@ -2073,7 +2073,8 @@ function laneChangeSegment(v,plan,s){
  if(v.phase!=='driving'||v.path?.length<2)return null;
  const d=motionDirection(v.path,v.pos),axis=DIR[d];
  for(const p of plan.pieces){
-  if(p.turn||p.endDistance<s-.20||p.startDistance>s+.45)continue;
+  if(p.startDistance>s+.45)break;
+  if(p.turn||p.endDistance<s-.20)continue;
   const dx=p.p3.x-p.p0.x,dy=p.p3.y-p.p0.y;
   const forward=dx*axis[0]+dy*axis[1];
   const side=dx*axis[1]-dy*axis[0];
