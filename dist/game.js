@@ -32,7 +32,7 @@ for(const t of Object.values(CATALOG)){
  t.plotHeight=Math.ceil(t.size+4.0);
  t.compactParking=false;
  t.parkingLayout=null;
- if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.58;t.parkingRowOffset=.72;t.plotWidth=20;t.plotHeight=8;t.parkingAisle=6.10;t.parkingExitA=18.82;t.parkingExitB=19.55;t.compactParking=true;}
+ if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.72;t.plotWidth=20;t.plotHeight=8;t.parkingAisle=6.10;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
 }
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
 function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
@@ -148,7 +148,7 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
    }
  }
  if(b)for(const cid of b.parked){
-  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1&&lotCarsOverlap(pose,p,.015))return false;
+  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1&&lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015))return false;
  }
  return true;
 }
@@ -381,7 +381,7 @@ function parkingBayObstructed(v,b,index){
  for(const cid of b.parked){
   if(cid===v.citizenId||parkingIsMoving(cid))continue;
   const other=parkingSlotPose(b,parkingSpace(b,cid));
-  if(other&&lotCarsOverlap(pose,other,.03))return true;
+  if(other&&lotCarsOverlap(pose,other,CATALOG[b.key].dualParking?0:.03))return true;
  }
  for(const other of state.vehicles.values()){
   if(other.id===v.id||other.lotBuilding!==b.id||!other.lotPath)continue;
