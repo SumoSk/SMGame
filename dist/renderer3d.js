@@ -511,7 +511,7 @@ export class TrafficRenderer{
      }
     }
    };
-   const glyphs={P:['110','101','110','100','100'],U:['101','101','101','101','111'],B:['110','101','110','101','110'],
+   const glyphs={M:['101','111','111','101','101'],P:['110','101','110','100','100'],U:['101','101','101','101','111'],B:['110','101','110','101','110'],
     D:['110','101','101','101','110'],I:['111','010','010','010','111'],N:['101','111','111','111','101'],E:['111','100','110','100','111'],
     S:['111','100','111','001','111'],H:['101','101','111','101','101'],O:['111','101','101','101','111'],T:['111','010','010','010','010'],
     L:['100','100','100','100','111'],C:['111','100','100','100','111'],A:['010','101','111','101','101'],F:['111','100','110','100','100']};
@@ -648,20 +648,124 @@ export class TrafficRenderer{
       if(gw>1.35){courtyard(gx,gw,true);pergola(gx,s*.47,gw*.84,s*.38,1.88);}
      }
     }
+
    }else if(isHotel){
-    // Boutique hotel: central reception plus terraced guest wings.
-    const count=tier===3?3:2,pitch=A/count,w=pitch*.68,d=s*.49;
-    for(let i=0;i<count;i++){
-     const x=L+pitch*(i+.5),z=s*.34,h=i===0?2.55:1.72;
-     solid(x,z,w,d,h,cream);facade(x,z,w,d,h,i===0?3:2);
-     roofCap(x,z,w,d,h+.22);
-     for(let floor=0;floor<(i===0?2:1);floor++){
-      const y=1.09+floor*.82;slab(x,z+d/2+.16,w,.33,y,cream);
-      block('#a2c0bd',x,y+.24,z+d/2+.30,w*.94,.32,.035,'glass');
+    // Resort hotel: terracotta guest wings, individual room balconies and
+    // a low reception/porte-cochere instead of a curtain-wall office block.
+    const wingW=A*.27,wingD=s*.40,back=s*.29,levels=tier===3?3:2,h=levels*.72+.22;
+    for(const side of [-1,1]){
+     const x=mid+side*A*.34,f=back+wingD/2;
+     solid(x,back,wingW,wingD,h,'#e8cba5');
+     gable('#9b6049',x,back,wingW+.08,wingD+.10,h+.23,.36);
+     const rooms=Math.max(1,Math.floor(wingW/.65));
+     for(let floor=0;floor<levels;floor++){
+      const yy=.64+floor*.72;
+      for(let j=0;j<rooms;j++){
+       const xx=x-wingW*.43+wingW*.86*(j+.5)/rooms,bay=wingW*.84/rooms;
+       block('#705a48',xx,yy+.07,f+.04,bay*.74,.55,.07,'wood');
+       block('#658a8b',xx,yy+.07,f+.085,bay*.58,.45,.035,'glass');
+       slab(xx,f+.22,bay*.94,.39,yy-.25,'#f1ddbb');
+       block('#b99a74',xx,yy-.01,f+.39,bay*.92,.27,.035,'wood');
+       for(const q of [-1,1])block('#d3b48a',xx+q*bay*.44,yy-.01,f+.22,.035,.29,.35,'wood');
+       block('#eed8ad',xx,yy+.39,f+.15,bay,.075,.31,'stone');
+      }
+      for(const sideFace of [-1,1])block('#67878a',x+sideFace*(wingW/2+.025),yy+.07,back,.04,.43,wingD*.53,'glass');
      }
-     entry(x,z+d/2+.03,Math.min(w*.65,1.1),1.16);
-     if(i===0)sign('HOTEL',x,h+.02,z+d/2+.07,Math.min(w*.88,1.8),'#577a79');
-     plant(x,s*.85,Math.min(.7,w*.7));
+     // Planted bed beneath each wing; pool belongs to the large resort.
+     if(tier===3&&side===1){
+      slab(x,s*.81,wingW*.94,.58,.18,'#eee0c4');
+      block('#53aaba',x,.23,s*.81,wingW*.81,.03,.43,'water');
+     }else{plant(x,s*.82,wingW*.72);}
+    }
+    const rw=A*.32,rz=s*.44,rd=s*.32;
+    solid(mid,rz,rw,rd,1.10,'#f0dfc3');
+    facade(mid,rz,rw,rd,1.10,1,'#638c8b');
+    gable('#a36d50',mid,rz,rw+.08,rd+.12,1.32,.36);
+    sign('HOTEL',mid,1.37,rz+rd/2+.10,Math.min(1.7,rw*.92),'#77583e','#f5deb1');
+    // Covered arrival court on slender paired pillars.
+    const canopyW=Math.min(A*.42,2.8),arrival=s*.74;
+    slab(mid,arrival,canopyW,.66,.24,'#d7c6aa');
+    for(const q of [-1,1])solid(mid+q*canopyW*.44,arrival+.14,.075,.075,.96,'#d8bd92');
+    block('#e8d7b5',mid,1.29,arrival,canopyW+.06,.12,.72,'stone');
+    block('#9d7451',mid,1.38,arrival,canopyW*.95,.055,.64,'wood');
+    entry(mid,rz+rd/2+.06,Math.min(.72,rw*.70),1.03);
+   }else if(kind==='office'){
+    // Slender staggered glass towers; strong vertical fins and roof crowns.
+    const count=tier===3?3:2,pitch=A/count;
+    for(let i=0;i<count;i++){
+     const x=L+pitch*(i+.5),w=Math.min(3.55,pitch*.53),d=s*(i%2?.42:.48),z=s*.35;
+     const h=(tier===3?5.75:4.25)-i*.78,f=z+d/2;
+     solid(x,z,w,d,h,'#325b70');
+     for(let level=0;level<Math.floor(h/.48);level++){
+      const yy=.48+level*.48;
+      for(const side of [-1,1]){
+       block(level%3?'#6f9eac':'#8fb5bd',x,yy,z+side*(d/2+.025),w*.94,.36,.04,'glass');
+       block('#a6bbc0',x,yy-.22,z+side*(d/2+.05),w*.98,.035,.045,'metal');
+       block('#729da8',x+side*(w/2+.025),yy,z,.035,.36,d*.91,'glass');
+      }
+     }
+     for(const q of [-1,0,1])block('#b6c5c2',x+q*w*.44,h/2+.22,f+.075,.06,h+.10,.10,'metal');
+     // Recessed mechanical crown, not a residential balcony or pitched roof.
+     block('#d9dfd7',x,h+.27,z,w+.10,.12,d+.10,'metal');
+     solid(x-w*.08,z-d*.10,w*.60,d*.61,.50,'#456977',h+.33);
+     block('#a7bfc1',x-w*.08,h+.88,z-d*.10,w*.66,.07,d*.66,'metal');
+     if(i===0)pole('#a4b1ae',x-w*.12,h+1.22,z-d*.1,.025,.65,'metal');
+     const lobbyW=Math.min(pitch*.83,w+1.0);
+     solid(x,s*.64,lobbyW,.66,.79,'#526f75');facade(x,s*.64,lobbyW,.66,.79,1);
+     block('#d5d5c8',x,1.06,s*.64,lobbyW+.12,.10,.78,'stone');
+     entry(x,s*.64+.35,.87,.97);
+     plant(x-lobbyW*.35,s*.86,.44);
+     if(i<count-1){
+      const gx=L+pitch*(i+1);slab(gx,s*.55,pitch-w-.25,s*.44,.17,'#ced2c6');
+      planted(gx,s*.35,.48);sofa(gx,s*.73,Math.min(1.15,pitch-w-.40));
+     }
+    }
+   }else if(kind==='mall'){
+    // Low shopping complex: round skylit atrium and broad retail anchors.
+    const radius=Math.min(1.40,s*.25),z=s*.40;
+    pole('#e4ded0',mid,1.00,z,radius,1.55,'stone');
+    pole('#5c99a5',mid,1.48,z,radius*1.025,.50,'glass');
+    pole('#eee5d3',mid,1.79,z,radius*1.08,.13,'stone');
+    const pp=point(mid,z);
+    batch.add(CONE,'#9bcbd1',pp.x-.5,2.07,pp.y-.5,radius,.46,radius,0,turn,0,id,false,'glass');
+    entry(mid,z+radius+.04,1.30,1.30);
+    sign('MALL',mid,1.67,z+radius+.09,1.55,'#4c7c7a','#f4e5b8');
+    const wingW=Math.min(9,A*.28),wingD=s*.46;
+    for(const side of [-1,1]){
+     const x=mid+side*(radius+.40+wingW/2),zz=s*.35,f=zz+wingD/2;
+     solid(x,zz,wingW,wingD,1.24,'#e5dfce');
+     // Oversized solid upper fascia and colourful individual shopfronts.
+     block('#bd9d72',x,1.37,f+.04,wingW*.97,.35,.13,'stone');
+     const shops=Math.max(3,Math.floor(wingW/1.25));
+     for(let j=0;j<shops;j++){
+      const xx=x-wingW*.46+wingW*.92*(j+.5)/shops,bay=wingW*.88/shops;
+      block(['#557e79','#bb805a','#718ca0'][j%3],xx,.87,f+.09,bay,.62,.08,'glass');
+      block('#e7d4ac',xx,1.22,f+.22,bay,.09,.40,'stone');
+      block('#d6e0cd',xx,.84,f+.14,.035,.62,.04,'metal');
+     }
+     // Broad stepped roof, skylights and roof-top planters.
+     block('#f0e8d8',x,1.55,zz,wingW+.14,.14,wingD+.15,'stone');
+     for(const q of [-1,1]){
+      block('#8fbac0',x+q*wingW*.26,1.70,zz,wingW*.24,.19,wingD*.48,'glass');
+      block('#c7bfa3',x+q*wingW*.29,1.70,zz-wingD*.37,wingW*.27,.19,.22,'stone');
+      block('#688a5d',x+q*wingW*.29,1.85,zz-wingD*.37,wingW*.25,.15,.18);
+     }
+     for(const q of [-1,1]){plant(x+q*wingW*.38,s*.86,.55);dining(x+q*wingW*.22,s*.80,false);}
+     const outer=side<0?x-wingW/2-L:R-(x+wingW/2);
+     if(outer>2){
+      const px=side<0?L+outer/2:R-outer/2;
+      courtyard(px,Math.min(4.6,outer*.80),true);pergola(px,s*.43,Math.min(3.8,outer*.65),s*.29,1.55);
+      if(outer>10)for(const q of [-1,1]){
+       const ax=px+q*outer*.29,aw=Math.min(5.4,outer*.26),ad=s*.39,az=s*.35;
+       solid(ax,az,aw,ad,1.52,q<0?'#d3bfa0':'#d5ded0');
+       block('#f0e9db',ax,1.80,az,aw+.14,.13,ad+.13,'stone');
+       block('#85aeb7',ax,.87,az+ad/2+.045,aw*.86,.87,.065,'glass');
+       for(let j=0;j<5;j++)block('#e8e0cd',ax-aw*.42+j*aw*.21,.87,az+ad/2+.09,.045,.94,.045,'metal');
+       sign('SHOP',ax,1.46,az+ad/2+.13,1.36,q<0?'#a17652':'#5f7e75');
+       entry(ax,az+ad/2+.12,1.04,1.20);
+       for(const k of [-1,1])plant(ax+k*aw*.35,s*.84,.50);
+      }
+     }
     }
    }else{
     const count=Math.max(2,Math.min(kind==='office'?5:6,Math.ceil(A/10))),pitch=A/count;
