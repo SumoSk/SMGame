@@ -20,4 +20,16 @@ jobs:
       - run: node work/test-landscaping.cjs
       - run: npm run test:tourism
       - run: npm run build
+      - name: Check the untouched 1.4 baseline test
+        run: |
+          cp dist/game.js /tmp/new-game.js
+          git fetch --depth 1 origin refs/heads/backup/smcity-1.4-2026-10-22-pre-trees
+          git show FETCH_HEAD:dist/game.js > dist/game.js
+          set +e
+          node work/test-game.cjs > /tmp/baseline-test.log 2>&1
+          code=$?
+          set -e
+          cp /tmp/new-game.js dist/game.js
+          echo "Baseline test exit code: $code"
+          grep -E 'assert\(|No residents arrived|Cannot read properties' /tmp/baseline-test.log | head -20 || true
       - run: npm test
