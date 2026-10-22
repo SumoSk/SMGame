@@ -72,6 +72,7 @@ if (gate) {
 
   function setUser(next) {
     user = next || null;
+    window.SMGameOnAuthChanged?.(!!user);
   }
   function closeMember() {
     if (busy || savingPending) return;
