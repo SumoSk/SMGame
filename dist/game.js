@@ -2135,6 +2135,40 @@ function reciprocalLaneSwap(v,other,plan,s,otherPose){
  const ahead=(otherPose.x-start.x)*d[0]+(otherPose.y-start.y)*d[1];
  return Math.abs(ahead)<2.2;
 }
+// A lane-change crossing is intentionally non-blocking. Both directions of
+// lane swapping and a single car crossing a neighbouring lane are allowed to
+// ghost for the brief crossing only; vehicles following in the same lane remain
+// physical obstacles after the manoeuvre is complete.
+function laneCrossingPassThrough(v,other,plan,s,otherPose){
+ if(v.phase!=='driving'||other.phase!=='driving')return false;
+ const a=laneChangeSegment(v,plan,s),otherPlan=motionPlan(other),otherS=motionDistance(other,otherPlan);
+ const b=laneChangeSegment(other,otherPlan,otherS);
+ if(!a&&!b)return false;
+ const d=motionDirection(v.path,v.pos);
+ if(d!==motionDirection(other.path,other.pos))return false;
+ const dirV=DIR[d],origin=positionOnMotion(plan,s),dx=otherPose.x-origin.x,dy=otherPose.y-origin.y;
+ if(Math.abs(dx*dirV[0]+dy*dirV[1])>1.1)return false;
+ const lateral=p=>p.x*dirV[1]-p.y*dirV[0];
+ const al=lateral(origin),bl=lateral(otherPose);
+ const crosses=(segment,otherLane)=>{
+  if(!segment)return false;
+  const lower=Math.min(segment.start,segment.end)-.08,upper=Math.max(segment.start,segment.end)+.08;
+  return otherLane>=lower&&otherLane<=upper&&Math.abs(segment.start-otherLane)>.17;
+ };
+ return crosses(a,b?.start??bl)||crosses(b,a?.start??al);
+}
+// Once cars are already physically overlapping, treating each as a blocker
+// freezes the whole pack permanently. Give the car ahead the exit; if their
+// longitudinal positions tie, use a stable ID order. The rear still waits,
+// so this is not general-purpose collision ghosting or overtaking.
+function overlapEscapePriority(v,other,plan,s,otherPose){
+ if(v.phase!=='driving'||other.phase!=='driving')return false;
+ const origin=positionOnMotion(plan,s),sameDirection=origin.dx*otherPose.dx+origin.dy*otherPose.dy;
+ if(!(sameDirection>.88)||!capsulesOverlap(origin,otherPose))return false;
+ // The normal traffic limit still applies to cars that are not overlapping.
+ const dx=otherPose.x-origin.x,dy=otherPose.y-origin.y,otherAhead=dx*origin.dx+dy*origin.dy;
+ return otherAhead<-.06||(Math.abs(otherAhead)<=.06&&v.id<other.id);
+}
 function physicalTrafficLimit(v,plan,s,lookahead){
  if(!trafficSpatial)return Infinity;const end=Math.min(plan.total,s+lookahead),origin=positionOnMotion(plan,s),x=Math.floor(origin.x/2),y=Math.floor(origin.y/2),key=x+':'+y;let cached=trafficSpatial.candidates.get(v.id),candidates=cached?.key===key&&cached.epoch===trafficSpatial.epoch?cached.ids:null;
  if(!candidates){candidates=[];for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)for(const other of trafficSpatial.cells.get((x+dx)+':'+(y+dy))?.values()||[])if(other.id!==v.id)candidates.push(other.id);trafficSpatial.candidates.set(v.id,{key,epoch:trafficSpatial.epoch,ids:candidates});}
@@ -2150,12 +2184,15 @@ function physicalTrafficLimit(v,plan,s,lookahead){
   const record=trafficSpatial.cars.get(id);if(!record)continue;
   const p=record.pose,x=p.x-origin.x,y=p.y-origin.y;
   if(x*x+y*y>(lookahead+.7)*(lookahead+.7))continue;
-  // Swapping neighbours can overlap only while their lateral paths cross.
-  if(reciprocalLaneSwap(v,otherCar,plan,s,p))continue;
+  // Only lateral crossings may ghost. Existing overlaps are released in
+  // front-to-back order instead of forcing every vehicle to stop forever.
+  if(reciprocalLaneSwap(v,otherCar,plan,s,p)
+   ||laneCrossingPassThrough(v,otherCar,plan,s,p)
+   ||overlapEscapePriority(v,otherCar,plan,s,p))continue;
   if(piece&&origin.dx!=null&&p.dx!=null&&Math.abs(origin.dx*p.dy-origin.dy*p.dx)<.01){
    const across=Math.abs(x*origin.dy-y*origin.dx);
    // On a straight stretch, cars in another parallel lane must not hold up the left lane.
-   if(motionDirection(v.path,v.pos)===motionDirection(otherCar.path,otherCar.pos)&&plannedLane(v,v.pos)!==plannedLane(otherCar,otherCar.pos)&&across>=.22)continue;
+   if(motionDirection(v.path,v.pos)===motionDirection(otherCar.path,otherCar.pos)&&plannedLane(v,v.pos)!==plannedLane(otherCar,otherCar.pos)&&across>=.32)continue;
    if(across>=.32)continue;
   }
   near.push(p);
