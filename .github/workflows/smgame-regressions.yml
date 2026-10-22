@@ -17,6 +17,7 @@ jobs:
       - run: npm ci
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
-      - run: npm test
+      - run: node work/test-landscaping.cjs
       - run: npm run test:tourism
       - run: npm run build
+      - run: npm test
