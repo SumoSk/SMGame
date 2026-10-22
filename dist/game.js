@@ -1749,6 +1749,9 @@ function attemptLife(c,kind,toId,deadline,extra={}){if(c.locationId===toId)retur
 function plannedLane(v,pos){return motionPlan(v).lanes[pos]??0;}
 function occKey(i,d,l){return `${i}:${d}:${l}`;}
 function cellAvailable(i,d,l,vid){const r=state.roads.get(i);if(!r)return false;const key=occKey(i,d,l),o=state.occ.get(key),res=state.reservations.get(key);if(parkingClaimed(key,vid)||o&&o!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},o)||res&&res.id!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},res.id))return false;const cap=laneCapacity(i,d);let same=0,total=0;for(let dd=0;dd<4;dd++)for(let ll=0;ll<4;ll++){const o=state.occ.get(occKey(i,dd,ll));if(o&&o!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},o)){total++;if(dd===d)same++;}}return l>=0&&l<cap&&same<cap&&(junction(i)>=3||total<cap*2);}
+// Road traffic may pass a road tile held by another vehicle; a physical same-lane leader still governs spacing.
+// Keep signalised intersections on the original exclusive admission rules.
+function roadTraversalAvailable(v,pos){const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);return state.roads.has(i)&&lane>=0&&lane<laneCapacity(i,d)&&(junction(i)<3||cellAvailable(i,d,lane,v.id));}
 function occupy(v,pos){const i=v.path[pos],d=dir(i,v.path[Math.min(pos+1,v.path.length-1)]),l=plannedLane(v,pos);v.lane=l;v.occKey=occKey(i,d,l);state.occ.set(v.occKey,v.id);}
 function release(v,keepIntersection=false){if(v.occKey&&state.occ.get(v.occKey)===v.id)state.occ.delete(v.occKey);v.occKey=null;if(!keepIntersection){clearVehicleReservations(v);v.junctionPasses=[];v.committedJunction=null;}}
 function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(c?.vehicleId)return false;const destination=state.buildings.get(toId);if(destination&&parkingFree(destination)<=0)return false;if(kind==='pass'&&state.vehicles.size>=8000)return false;const path=tripRoute(fromId,toId,fromGate,toGate);if(!path)return false;const to=state.buildings.get(toId),from=state.buildings.get(fromId);if(kind==='leisure'&&to.visitors.size+to.reservedService>=CATALOG[to.key].service)return false;
@@ -1879,7 +1882,7 @@ function queueAllows(v,pos,connector){
 function signalRequired(node){return junction(node)>=3;}
 function junctionExitAvailable(v,pos){
  for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionLookahead);k++)
-  if(!cellAvailable(v.path[k],motionDirection(v.path,k),plannedLane(v,k),v.id))return false;
+  if(!roadTraversalAvailable(v,k))return false;
  // A free *logical* lane is not enough if a car is physically sitting at the
  // downstream side of the junction (for example during a lane change).
  if(trafficSpatial){
@@ -1939,17 +1942,32 @@ function physicalTrafficLimit(v,plan,s,lookahead){
  if(!candidates){candidates=[];for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)for(const other of trafficSpatial.cells.get((x+dx)+':'+(y+dy))?.values()||[])if(other.id!==v.id)candidates.push(other.id);trafficSpatial.candidates.set(v.id,{key,epoch:trafficSpatial.epoch,ids:candidates});}
  if(!candidates.length)return Infinity;
  const piece=plan.pieces.find(p=>p.line&&p.startDistance<=s&&p.endDistance>=end),near=[];
- for(const id of candidates){if(parkingEscapePair(v,id))continue;const record=trafficSpatial.cars.get(id);if(!record)continue;const p=record.pose,x=p.x-origin.x,y=p.y-origin.y;if(x*x+y*y>(lookahead+.7)*(lookahead+.7))continue;if(piece&&origin.dx!=null&&p.dx!=null&&Math.abs(origin.dx*p.dy-origin.dy*p.dx)<.01&&Math.abs(x*origin.dy-y*origin.dx)>=.32)continue;near.push(p);}
+ for(const id of candidates){
+  const otherCar=state.vehicles.get(id);
+  // Road cars ghost through parked, departing and route-stuck vehicles, not through moving same-lane leaders.
+  if(!otherCar||otherCar.phase!=='driving'||parkingEscapePair(v,id))continue;
+  const record=trafficSpatial.cars.get(id);if(!record)continue;
+  const p=record.pose,x=p.x-origin.x,y=p.y-origin.y;
+  if(x*x+y*y>(lookahead+.7)*(lookahead+.7))continue;
+  if(piece&&origin.dx!=null&&p.dx!=null&&Math.abs(origin.dx*p.dy-origin.dy*p.dx)<.01){
+   const across=Math.abs(x*origin.dy-y*origin.dx);
+   // On a straight stretch, cars in another parallel lane must not hold up the left lane.
+   if(motionDirection(v.path,v.pos)===motionDirection(otherCar.path,otherCar.pos)&&plannedLane(v,v.pos)!==plannedLane(otherCar,otherCar.pos)&&across>=.22)continue;
+   if(across>=.32)continue;
+  }
+  near.push(p);
+ }
  if(!near.length)return Infinity;let safe=s;
  for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(const other of near)if(capsulesOverlap(p,other))return Math.max(s,safe-.025);safe=along;if(along===end)break;}
  return Infinity;
 }
 function motionBarrier(v,plan,s,budget=-1){
  const scan=Math.min(3,Math.max(.8,(v.speed||0)*(v.speed||0)/9.6+.3,budget>=0?budget+.1:0));
- const physical=physicalTrafficLimit(v,plan,s,scan),parkingLimit=parkingRoadLimit(v,plan,s,scan);
- let limit=Math.min(physical,parkingLimit),reason=parkingLimit<=physical&&Number.isFinite(parkingLimit)?'รอรถออกจากลานจอด':Number.isFinite(physical)?'เว้นระยะรถ':'';
+ // Cars already on the road have priority: the parking exit must yield, not stop all road traffic.
+ const physical=physicalTrafficLimit(v,plan,s,scan);
+ let limit=physical,reason=Number.isFinite(physical)?'เว้นระยะรถ':'';
  const nextPos=v.pos+1;
- if(nextPos<v.path.length&&!cellAvailable(v.path[nextPos],motionDirection(v.path,nextPos),plannedLane(v,nextPos),v.id)){
+ if(nextPos<v.path.length&&!roadTraversalAvailable(v,nextPos)){
   const cellLimit=Math.max(s,plan.nodes[nextPos]-TRAFFIC_RULES.vehicleHalfLength*2-.08);if(cellLimit<limit){limit=cellLimit;reason='รถคันหน้าขวาง';}
  }
  const lookahead=Math.max(4,(v.speed||0)*(v.speed||0)/9.6+1,budget>=0?budget+.5:0);
@@ -2006,7 +2024,8 @@ function emergencyRightReroute(v,alerts){
  const node=v.path[v.pos],next=v.path[v.pos+1],direction=dir(node,next);
  if(laneCapacity(node,direction)<2||junction(node)>=3||junction(next)>=3)return false;
  const oldLane=plannedLane(v,v.pos),rightLane=oldLane-1;
- if(rightLane<0)return false;
+ // The outer (left) lane stays in its queue; it must not jump right to escape its leader.
+ if(rightLane<0||oldLane===laneCapacity(node,direction)-1)return false;
  const pose=vehiclePosition(v);
  // Only affected cars approaching the entry/exit should jump. Preserve
  // legitimate traffic heading INTO the lot rather than diverting it.
@@ -2159,7 +2178,7 @@ function advanceVehicles(realDt,gameDt){
    if(step>0){s+=step;budget-=step;v.progress=Math.min(1,(s-plan.nodes[v.pos])/Math.max(1e-10,end-plan.nodes[v.pos]));}
    if(s>=end-1e-9){
     const nextPos=v.pos+1,d=motionDirection(v.path,nextPos),lane=plannedLane(v,nextPos);
-    if(!cellAvailable(v.path[nextPos],d,lane,v.id)){blocked=gate.reason||'รถคันหน้าขวาง';v.speed=0;break;}
+    if(!roadTraversalAvailable(v,nextPos)){blocked=gate.reason||'รถคันหน้าขวาง';v.speed=0;break;}
     // Pair-specific recovery never steals the parking car's logical lane.
     release(v,true);v.pos=nextPos;v.progress=0;
     const roadKey=occKey(v.path[nextPos],d,lane);
@@ -2202,7 +2221,7 @@ function checkBuilding(key,x,y){return checkParkingBuilding(key,x,y);}
 function buildBuilding(key,x,y,confirmed=false){const check=checkBuilding(key,x,y),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true));return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,queue:[],arrivals:0};state.buildings.set(b.id,b);markBuildingPlot(b,b.id);state.money-=t.cost;for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
 function demolishBuilding(b,confirmed=false){if(!b)return;const t=CATALOG[b.key],fee=t.cost*.1;if(!confirmed){confirmAction('รื้อ'+t.name,`ค่ารื้อ ${money(fee)}<br>${t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ ผู้ที่กำลังเดินทางมาอาคารนี้จะกลับบ้าน'}`,()=>demolishBuilding(b,true));return;}if(state.money-fee< -10000){toast('งบประมาณไม่พอสำหรับค่ารื้อค่ะ');return;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
 markBuildingPlot(b,-1);state.buildings.delete(b.id);state.money-=fee;for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
-function demolishRoad(i,confirmed=false){const r=state.roads.get(i);if(!r){toast('เลือกช่องที่มีถนนค่ะ');return;}if(r.main){toast('ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ');return;}if(occupancy(i)>0){toast('มีรถอยู่บนถนน รอให้รถผ่านก่อนค่ะ');return;}const fee=ROADS[r.type].cost*.2;if(!confirmed){confirmAction('รื้อถนน',`ค่ารื้อ ${money(fee)} · ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้`,()=>demolishRoad(i,true));return;}if(state.money-fee< -10000){toast('งบประมาณไม่พอสำหรับค่ารื้อค่ะ');return;}for(const n of r.links)state.roads.get(n)?.links.delete(i);state.roads.delete(i);state.money-=fee;roadChanged([i]);updateUI();}
+function demolishRoad(i,confirmed=false){const r=state.roads.get(i);if(!r){toast('เลือกช่องที่มีถนนค่ะ');return;}if(r.main){toast('ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ');return;}if(occupancy(i)>0||[...state.vehicles.values()].some(v=>v.path?.[v.pos]===i&&['driving','stuck','parking_in','parking_out'].includes(v.phase))){toast('มีรถอยู่บนถนน รอให้รถผ่านก่อนค่ะ');return;}const fee=ROADS[r.type].cost*.2;if(!confirmed){confirmAction('รื้อถนน',`ค่ารื้อ ${money(fee)} · ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้`,()=>demolishRoad(i,true));return;}if(state.money-fee< -10000){toast('งบประมาณไม่พอสำหรับค่ารื้อค่ะ');return;}for(const n of r.links)state.roads.get(n)?.links.delete(i);state.roads.delete(i);state.money-=fee;roadChanged([i]);updateUI();}
 function confirmAction(title,body,callback){modal(`<span class="eyebrow">CITY PLANNING</span><h2>${title}</h2><p>${body}</p><div class="actions"><button id="cancelDialog">ยกเลิก</button><button id="confirmDialog" class="primary">ยืนยัน</button></div>`);$('cancelDialog').onclick=closeModal;$('confirmDialog').onclick=()=>{closeModal();callback();};}
 function signalHitAt(x,y){const p=world(x,y),centerX=Math.round(p[0]-(renderer3d?0:.5)),centerY=Math.round(p[1]-(renderer3d?0:.5));let best=22,result=null;for(let yy=centerY-3;yy<=centerY+3;yy++)for(let xx=centerX-3;xx<=centerX+3;xx++){if(!valid(xx,yy))continue;const node=id(xx,yy);if(junction(node)<3)continue;const v=screen(xx+(renderer3d?0:.5),yy+(renderer3d?0:.5),renderer3d?.2:0),dist=Math.hypot(v[0]-x,v[1]-y);if(dist<best){best=dist;result=node;}}return result;}
 function inspectAt(x,y){const signal=tool==='tracking'?null:signalHitAt(x,y);if(signal!=null){selected={kind:'road',id:signal};renderInspector();return;}let closest=null,best=15;for(const v of state.vehicles.values()){if(!['driving','stuck','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;const p=vehiclePosition(v);if(!p)continue;const a=screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0)),dist=Math.hypot(a[0]-x,a[1]-y);if(dist<best){best=dist;closest=v;}}if(closest){selected={kind:'vehicle',id:closest.id};renderInspector();return;}if(renderer3d){const hit=renderer3d.pickBuilding(x,y);if(hit!=null){selected={kind:'building',id:hit};renderInspector();return;}}const p=world(x,y),ix=Math.floor(p[0]),iy=Math.floor(p[1]);if(!valid(ix,iy))return;const b=state.buildGrid[id(ix,iy)];if(b>=0)selected={kind:'building',id:b};else{const i=owner(id(ix,iy));if(state.roads.has(i))selected={kind:'road',id:i};else{selected=null;$('inspector').classList.add('hidden');return;}}renderInspector();}
