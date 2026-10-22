@@ -25,13 +25,21 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'green'}})}});
  assert(get('tools').innerHTML.includes('data-tool="tree:shade"'));
  assert(get('tools').innerHTML.includes('data-tool="treeBrush"'));
- // Construction cards show actual game capacities and identical dimensions.
+ // Road selection is the first subsection under the building tab.
  get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'build'}})}});
- assert(get('tools').innerHTML.includes('ความจุ 2 คน'),'homes must show resident capacity');
- assert(get('tools').innerHTML.includes('จอดได้ 2 คัน'),'homes must show parking capacity');
+ assert(get('tools').innerHTML.includes('data-tool="small"'),'small road tool must be present');
+ assert(get('tools').innerHTML.includes('data-tool="medium"'),'medium road tool must be present');
+ assert(get('tools').innerHTML.includes('data-tool="large"'),'large road tool must be present');
+ assert(!get('tools').innerHTML.includes('data-tool="hand"'),'road submenu only has three road sizes');
+ get('subcategories').onclick({target:{closest:()=>({dataset:{category:'home'}})}});
+ assert(get('tools').innerHTML.includes('class="tool-capacity">2</span>'),'homes must display bare numeric resident capacity');
+ assert(get('tools').innerHTML.includes('class="tool-capacity">30</span>'),'large homes must display capacity 30');
+ assert(get('tools').innerHTML.includes('130,000'),'large homes must display bare price');
+ assert(!get('tools').innerHTML.includes('tool-parking'),'building cards must not show redundant parking capacity');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'food'}})}});
- assert(get('tools').innerHTML.includes('ความจุ 12 คน'),'shops must show service capacity');
- assert(get('tools').innerHTML.includes('จอดได้ 15 คัน'),'shops must show actual total parking capacity');
+ assert(get('tools').innerHTML.includes('class="tool-capacity">12</span>'),'shops must show bare numeric service capacity');
+ get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'traffic'}})}});
+ assert(get('tools').innerHTML.includes('data-tool="signalManage"'),'traffic top-level group must show signal management');
  const uiCss=fs.readFileSync('dist/style.css','utf8');
  assert(uiCss.includes('flex:0 0 106px!important')&&uiCss.includes('min-width:106px!important;max-width:106px!important'),'desktop cards must use fixed widths regardless of item count');
  assert(uiCss.includes('height:78px!important;min-height:78px!important;max-height:78px!important'),'desktop cards must use a fixed height');
