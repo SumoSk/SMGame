@@ -7,7 +7,7 @@ const gameVersion=hash(game),rendererVersion=hash(renderer),memberVersion=hash(m
 const bootstrap=`import { TrafficRenderer } from './renderer3d.js?v=${rendererVersion}';\nwindow.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);\nawait import('./game.js?v=${gameVersion}');\nawait import('./member.js?v=${memberVersion}');\n`;
 fs.writeFileSync(path.join(root,'dist/bootstrap.js'),bootstrap);
 const version=hash(bootstrap);
-for(const name of ['index.html','dist/index.html','dist/qa.html']){
+for(const name of ['index.html','dist/index.html','dist/qa.html','dist/qa-tourism.html']){
  const file=path.join(root,name);
  fs.writeFileSync(file,read(name).replace(/bootstrap\.js(?:\?v=[^"\s]+)?"/g,'bootstrap.js?v='+version+'"'));
 }
