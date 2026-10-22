@@ -339,7 +339,7 @@ body > .map-tools .map-account small{font-size:9px;line-height:1.2;font-weight:7
 body > .map-tools .map-rail-svg{display:block;flex:none;overflow:visible}
 body > .map-tools .account-svg{width:22px;height:22px}
 body > .map-tools .map-save{
-  width:52px;min-height:73px;padding:6px 2px 5px;gap:4px;
+  width:50px;min-height:73px;padding:6px 2px 5px;gap:4px;
   border-radius:12px;color:#184b3f;
   background:linear-gradient(153deg,#e4f6d1 0%,#cdeaba 80%,#b7dfa9 100%);
   box-shadow:0 3px 0 #95c99b,0 5px 11px rgba(39,112,77,.17);
