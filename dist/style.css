@@ -1764,3 +1764,51 @@ body>.bottom .builder-zone .build-dock.is-collapsed .dock-body{display:flex!impo
  body>.bottom .builder-zone .build-dock .dock-group-icon{font-size:17px!important}
  body>.bottom .builder-zone .build-dock .dock-group-name{font-size:8px!important}
 }
+
+/* SMGAME V9: selected tools use the entire central in-box rectangle.
+   Removed the redundant heading from HTML; keep category tabs if needed. */
+body>.bottom .builder-zone .build-dock .dock-context{
+ padding:0!important;margin:4px 0 2px!important;
+ min-height:94px!important;
+ flex:1 1 auto!important;
+}
+body>.bottom .builder-zone .dock-context .tools{
+ display:flex!important;flex:1 1 auto!important;
+ align-items:stretch!important;justify-content:stretch!important;
+ width:100%!important;min-width:0!important;max-width:100%!important;
+ min-height:60px!important;max-height:none!important;
+ gap:6px!important;padding:6px!important;
+ overflow-x:auto!important;overflow-y:hidden!important;
+}
+body>.bottom .builder-zone .dock-context .tool{
+ flex:1 0 84px!important;min-width:84px!important;max-width:none!important;
+ min-height:56px!important;height:auto!important;
+ padding:5px 4px!important;justify-content:center!important;
+ gap:3px!important
+}
+body>.bottom .builder-zone .dock-context .tool strong{
+ font-size:10px!important
+}
+body>.bottom .builder-zone .dock-context .tool-icon{
+ width:25px!important;height:25px!important;font-size:22px!important
+}
+body>.bottom .builder-zone .dock-context .tool .tool-price{
+ font-size:9px!important
+}
+@media(max-width:720px){
+ body>.bottom .builder-zone .build-dock .dock-context{
+  min-height:64px!important;margin:2px 0!important
+ }
+ body>.bottom .builder-zone .dock-context .tools{
+  min-height:46px!important;padding:4px!important;gap:4px!important
+ }
+ body>.bottom .builder-zone .dock-context .tool{
+  flex:1 0 68px!important;min-width:68px!important;
+  min-height:42px!important;padding:3px 2px!important
+ }
+ body>.bottom .builder-zone .dock-context .tool-icon{
+  width:19px!important;height:19px!important;font-size:18px!important
+ }
+ body>.bottom .builder-zone .dock-context .tool strong{font-size:8.5px!important}
+ body>.bottom .builder-zone .dock-context .tool .tool-price{font-size:7.5px!important}
+}
