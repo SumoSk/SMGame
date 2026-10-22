@@ -132,3 +132,12 @@ Focused checks: node work/test-dynamic-citizens.cjs, node work/test-citizens-das
 ตรวจระบบใหม่ด้วย `npm run test:tourism` ครอบคลุมเกณฑ์รับคน เพดาน รายได้และส่วนลด โรงแรม เซฟ การรื้ออาคาร การจำลองต่อเนื่อง 30 ชั่วโมงเกม และโมเดลโรงแรม/รถตู้ 3 มิติ
 
 การเทียบชุดทดสอบเดิมทั้ง 26 ชุดกับ commit สำรอง: ผ่าน 14 ชุด และไม่ผ่าน 12 ชุดตรงกันทั้งก่อนและหลังแก้ (ชุดเก่าบางตัวอิงผังลานจอด/หน้าจอและกฎจราจรคนละรุ่น) ไม่มีชุดเดิมที่ผ่านแล้วเปลี่ยนเป็นไม่ผ่านจากงานนี้
+
+
+## Parking exit arbitration — 2026-10-23
+- Pre-change version 2 snapshots: `backup-version-2-20261023` (main) and `backup-version-2-20261023-pages` (published site). Older backups are preserved.
+- Departures wait inside the driveway and check the full merge trajectory plus downstream room. A temporary claim protects the exit until the car clears it.
+- After 3 simulation seconds of waiting, approaching road cars yield; cars already in the corridor can clear it.
+- A mutually blocked pair must remain stationary for 2 simulation seconds before the road car may pass through that parking car only. Other cars, signals and junction rules still apply. The parking car holds still during recovery; following road traffic is held back.
+- Blanket outgoing-car ghost mode is removed, including migration of active old-save merges. Existing 60-game-minute recovery remains.
+- Focused verification: syntax, an unobstructed trip, waiting for an occupied lane and then completing the trip, and a mutually blocked pair recovering before the departure completes. No full local regression run.
