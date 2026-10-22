@@ -129,9 +129,29 @@ function lotCarsOverlap(a,b,margin=.035){
  }
  return true;
 }
+// A single shared driveway is an admission point, not a spawn pad. Keep a
+// second arriving car on its road route until the first clears the entrance.
+function parkingEntranceOccupied(v,b,entry){
+ for(const other of state.vehicles.values()){
+  if(other.id===v.id||other.phase!=='parking_in'||other.toId!==b.id||!other.lotPath)continue;
+  const pose=parkingPose(other);
+  if(pose&&Math.hypot(pose.x-entry.x,pose.y-entry.y)<.92)return true;
+ }
+ return false;
+}
+// Repair saves produced by older versions: two parking_in cars could be
+// spawned at the exact same point. Let the older car clear the entrance,
+// while the younger vehicle waits until their physical bodies separate.
+function overlappingEntranceLeader(v,other){
+ if(v.phase!=='parking_in'||other.phase!=='parking_in'||v.toId!==other.toId||!v.lotPath||!other.lotPath||v.id>=other.id)return false;
+ if((other.lotDistance||0)>.12||(v.lotDistance||0)>1.4)return false;
+ const a=v.lotPath[0],b=other.lotPath[0];
+ return Math.hypot(a.x-b.x,a.y-b.y)<.24;
+}
 function lotClear(v,pose,ignoreRoadTraffic=false){
  for(const other of state.vehicles.values()){
   if(other.id===v.id||other.lotBuilding!==v.lotBuilding||!other.lotPath)continue;
+  if(overlappingEntranceLeader(v,other))continue;
   if(lotCarsOverlap(pose,parkingPose(other)))return false;
  }
  // The first/last metres of the driveway are shared with live road traffic.
@@ -434,6 +454,7 @@ function beginParkingArrival(v){
  // Admit the car into the driveway before selecting a parking stall. The
  // entrance is not a parking queue, and lack of a bay must not block the road.
  const t=CATALOG[b.key],entry=positionOnMotion(motionPlan(v),motionPlan(v).total);
+ if(parkingEntranceOccupied(v,b,entry)){v.speed=0;v.stopReason='รอรถคันหน้าพ้นปากทางเข้า';return true;}
  v.lotPath=t.dualParking?[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle)]
   :[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle),lotPoint(b,.72,t.parkingAisle)];
  v.lotDistance=0;v.lotBuilding=b.id;v.parkingStage=true;v.parkingReplanAt=state.time;
@@ -2122,7 +2143,10 @@ function physicalTrafficLimit(v,plan,s,lookahead){
  for(const id of candidates){
   const otherCar=state.vehicles.get(id);
   // Road cars ghost through parked, departing and route-stuck vehicles, not through moving same-lane leaders.
-  if(!otherCar||otherCar.phase!=='driving'||parkingEscapePair(v,id))continue;
+  if(!otherCar||parkingEscapePair(v,id))continue;
+  // A car entering this same destination is still physically at the road
+  // gate. Only arriving traffic must yield; passing traffic keeps priority.
+  if(otherCar.phase!=='driving'&&!(otherCar.phase==='parking_in'&&v.toId!=null&&otherCar.toId===v.toId&&otherCar.lotPath))continue;
   const record=trafficSpatial.cars.get(id);if(!record)continue;
   const p=record.pose,x=p.x-origin.x,y=p.y-origin.y;
   if(x*x+y*y>(lookahead+.7)*(lookahead+.7))continue;
