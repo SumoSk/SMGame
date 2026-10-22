@@ -281,36 +281,23 @@ function prepareParkingMerges(dt){
  }
  for(const road of state.vehicles.values())if(road.parkingEscapeFor&&!parkingEscapePair(road,road.parkingEscapeFor))road.parkingEscapeFor=null;
 }
+// Driveway admission now checks only the single road tile immediately ahead.
+// Parking aisle collisions remain governed by advanceLot/lotClear as each car moves.
 function canCommitParkingMerge(v){
- if(!parkingMergeClear(v))return false;
  const own=parkingMerges.find(g=>g.v===v);
- if(!own)return false;
- for(const other of parkingMerges){
-  if(other===own)break;
-  if((other.priority||other.v.mergeCommitted)&&other.samples.some(p=>mergeTouches(own.samples,p)))return false;
- }
- for(const other of parkingMerges)if(other!==own&&other.v.mergeCommitted&&other.samples.some(p=>mergeTouches(own.samples,p)))return false;
- const plan=motionPlan(v);
- for(let k=0;k<v.path.length;k++){
-  if(!cellAvailable(v.path[k],motionDirection(v.path,k),plannedLane(v,k),v.id))return false;
-  if(plan.nodes[k]>=PARKING_MERGE_RULES.exitClearance)break;
- }
- for(const other of state.vehicles.values())if(other.id!==v.id&&mergeTouches(own.samples,vehiclePosition(other)))return false;
+ if(!own||!parkingMergeClear(v))return false;
  v.mergeCommitted=true;own.priority=true;return true;
 }
-
 function parkingMergeClear(v){
- // The entire joining trajectory must be free, not merely the first road cell.
- if(!v.lotPath)return false;
- const len=lotPathLength(v.lotPath);
- for(let dist=0;dist<=len+.0001;dist+=.085){
-  const pose=lotPathPose(v.lotPath,Math.min(len,dist));
-  for(const other of state.vehicles.values()){
-   if(other.id===v.id||!['driving','stuck','gate_waiting','parking_in','parking_out','departing'].includes(other.phase))continue;
-   if(other.lotBuilding===v.lotBuilding&&other.lotPath)continue;
-   const p=vehiclePosition(other);
-   if(p&&Math.hypot(p.x-pose.x,p.y-pose.y)<.82&&lotCarsOverlap(pose,p,.045))return false;
-  }
+ if(!v.lotPath||!v.path?.[1])return false;
+ const node=v.path[0],d=motionDirection(v.path,0),lane=plannedLane(v,0);
+ if(!cellAvailable(node,d,lane,v.id))return false;
+ // Only check the physical merge point of that same tile, not the whole driveway or road ahead.
+ const entry=positionOnMotion(motionPlan(v),0);
+ for(const other of state.vehicles.values()){
+  if(other.id===v.id||!['driving','stuck','parking_out','parking_in'].includes(other.phase))continue;
+  const p=vehiclePosition(other);
+  if(p&&Math.hypot(p.x-entry.x,p.y-entry.y)<.85&&lotCarsOverlap(entry,p,.04))return false;
  }
  return true;
 }
