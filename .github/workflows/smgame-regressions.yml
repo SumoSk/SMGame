@@ -19,8 +19,11 @@ jobs:
       - run: npm ci
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
-      - run: node work/test-landscaping.cjs
       - run: node work/test-lane-change-safety.cjs
+      - run: node work/test-motion.cjs
+      - run: node work/test-traffic-fixes.cjs
+      - run: node work/test-parking-merge.cjs
+      - run: node work/test-landscaping.cjs
       - run: npm run test:tourism
       - run: npm run build
       - name: Regenerate downloadable game and cache hashes on the feature branch
