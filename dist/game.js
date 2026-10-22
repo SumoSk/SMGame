@@ -15,6 +15,8 @@ for(const [kind,rows] of Object.entries(catalogData))rows.forEach((r,i)=>{const 
 // Version 6 of the parking layout is the new v5 architectural masterplan.
 // There are exactly two facing stall rows, one continuous aisle, no inner banks.
 // Preserve the previous home_large key, existing buildings and all v7 saves.
+CATALOG.home_small.name='บ้านรุ่นเก่า 2 คน';
+CATALOG.home_medium.name='บ้านรุ่นเก่า 10 คน';
 CATALOG.home_large.name='บ้านเล็ก';
 CATALOG.home_dual={key:'home_dual',kind:'home',name:'บ้านกลาง',size:5,cost:200000,maint:700,residents:60,jobs:0,service:0,beds:0,dualParking:true};
 const PARKING_VERSION=7,LOT_SPEED=1.35;
