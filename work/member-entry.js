@@ -36,7 +36,7 @@ if (gate) {
       tab.classList.toggle('active', active);
       tab.setAttribute('aria-selected', String(active));
     }
-    $('memberSubmit').textContent = next === 'signup' ? 'สมัครสมาชิกและบันทึกเกม' : 'เข้าสู่ระบบและบันทึกเกม';
+    $('memberSubmit').textContent = next === 'signup' ? 'สมัครสมาชิกและบันทึกเกม' : (pendingSave ? 'เข้าสู่ระบบและบันทึกเกม' : 'เข้าสู่ระบบ');
     $('memberPassword').setAttribute('autocomplete', next === 'signup' ? 'new-password' : 'current-password');
     setNotice('');
   }
