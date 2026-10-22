@@ -357,7 +357,7 @@ function parkingArrivalPath(v,b,index,replan=false){
  const local=localParkingPoint(b,start);
  if(slot.u<local.u+.8)return null;
  if(local.u>.85&&Math.abs(local.v-slot.aisle)>.65)return null;
- const approachU=local.u<.85?.45:Math.min(slot.u-.35,local.u+.35);
+ const approachU=Math.min(slot.u-.35,Math.max(local.u+.12,.75));
  return [start,lotPoint(b,approachU,slot.aisle),aisle,end];
 }
 function parkingBayObstructed(v,b,index){
@@ -375,7 +375,7 @@ function parkingBayObstructed(v,b,index){
  }
  return false;
 }
-function assignArrivalParking(v,replan=false){
+function assignArrivalParking(v,replan=false,includeOld=false){
  const b=state.buildings.get(v.toId);if(!b||!v.citizenId)return false;
  if(!b.parkingSlots)b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);
  // Preserve the existing staggered allocation policy for the first choice.
@@ -385,7 +385,7 @@ function assignArrivalParking(v,replan=false){
  const options=[];
  for(let i=0;i<slots.length;i++){
   if(b.parkingSlots[i]!==null&&b.parkingSlots[i]!==v.citizenId)continue;
-  if(replan&&i===old)continue;
+  if(replan&&i===old&&!includeOld)continue;
   if(replan&&slots[i].u<(current?.u??0)+.8)continue;
   options.push(i);
  }
@@ -411,8 +411,13 @@ function assignArrivalParking(v,replan=false){
 }
 function beginParkingArrival(v){
  const b=state.buildings.get(v.toId);if(!b||!v.citizenId)return false;
- if(!assignArrivalParking(v)){v.stopReason='รอช่องจอดที่เข้าได้';v.speed=0;return true;}
- v.phase='parking_in';v.speed=0;return true;
+ // Admit the car into the driveway before selecting a parking stall. The
+ // entrance is not a parking queue, and lack of a bay must not block the road.
+ const t=CATALOG[b.key],entry=positionOnMotion(motionPlan(v),motionPlan(v).total);
+ v.lotPath=[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle),lotPoint(b,.72,t.parkingAisle)];
+ v.lotDistance=0;v.lotBuilding=b.id;v.parkingStage=true;v.parkingReplanAt=state.time;
+ v.phase='parking_in';v.speed=0;v.stopReason='กำลังเข้าลานจอด';
+ return true;
 }
 function cleanupParkingVehicle(v,keepDestination=false){
  for(const b of state.buildings.values()){
@@ -2179,9 +2184,18 @@ function advanceVehicles(realDt,gameDt){
    const done=advanceLot(v,simDt);
    const gateDistance=Math.hypot(v.lotPath[1].x-v.lotPath[0].x,v.lotPath[1].y-v.lotPath[0].y);
    if(v.lotDistance>gateDistance+.3)release(v);
+   if(v.parkingStage){
+    // Once inside the aisle, choose a free forward stall. If none is
+    // currently usable, wait IN the lot and retry without occupying the road.
+    if(done&&state.time>=(v.parkingReplanAt||0)){
+     if(assignArrivalParking(v,true,true))v.parkingStage=false;
+     else{v.parkingReplanAt=state.time+2;v.stopReason='อยู่ในลานจอด · หาช่องว่าง';}
+    }
+    updateTrafficSpatial(v);continue;
+   }
    if(done)arrive(v,true);
    else if(state.time-v.lastMovedAt>=2&&state.time>=(v.parkingReplanAt||0)){
-    if(!assignArrivalParking(v,true)){v.parkingReplanAt=state.time+2;v.stopReason='รอทางเข้าช่องจอดว่าง';}
+    if(!assignArrivalParking(v,true)){v.parkingReplanAt=state.time+2;v.stopReason='หาช่องจอดถัดไป';}
    }
    updateTrafficSpatial(v);continue;
   }
