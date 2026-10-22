@@ -1175,7 +1175,29 @@ while(heap.length&&count++<35000){const cur=heap.pop();if(cur.g!==g.get(cur.key)
 const r=state.roads.get(cur.node);for(const n of r.links){if(cur.key===origin&&firstNext&&!firstNext.includes(n))continue;if(n===cur.prev)continue;const key=`${n}:${cur.node}`,cost=cur.g+distance(cur.node,n)+(n===cur.prev?2:0);if(cost>=(g.get(key)??Infinity))continue;g.set(key,cost);came.set(key,cur.key);heap.push({node:n,prev:cur.node,key,g:cost,f:cost+distance(n,end)});}}
 if(state.routeCache.size>1500)state.routeCache.clear();state.routeCache.set(cacheKey,null);return null;
 }
-function tripRoute(fromId,toId,fromGate,toGate){const from=state.buildings.get(fromId),to=state.buildings.get(toId),aa=from?from.access.filter(a=>a.exit):[{node:fromGate,next:null}],bb=to?to.access.filter(a=>a.entry):[{node:toGate,prev:null}];if(!aa?.length||!bb?.length)return null;const candidates=[];for(const a of aa)for(const b of bb)candidates.push({a,b,d:distance(a.node,b.node)});candidates.sort((a,b)=>a.d-b.d);for(const pair of candidates.slice(0,32)){const p=route(pair.a.node,pair.b.node,pair.a.next,pair.b.prev);if(p)return p;}return null;}
+// A driveway starts in the outer-left lane. If the first intersection is too close
+// to cross over for a right turn, take an available left turn (or straight) and
+// find another forward-only route to the same destination. Never force a U-turn.
+function safeDeparturePath(path,access){
+ if(!path||path.length<3)return path;
+ let travelled=0;
+ for(let i=1;i<path.length-1;i++){
+  travelled+=distance(path[i-1],path[i]);if(travelled>=9)break;
+  if(junction(path[i])<3)continue;
+  const incoming=dir(path[i-1],path[i]),outgoing=dir(path[i],path[i+1]);
+  if((outgoing-incoming+4)%4!==1)break; // no abrupt right-lane crossing needed
+  const links=state.roads.get(path[i])?.links;if(!links)break;
+  for(const wanted of [(incoming+3)%4,incoming]){
+   const next=[...links].find(n=>dir(path[i],n)===wanted);
+   if(next==null)continue;
+   const alternative=route(path[i],access.node,[next],access.prev,path[i-1]);
+   if(alternative?.length>1)return path.slice(0,i).concat(alternative);
+  }
+  break;
+ }
+ return path;
+}
+function tripRoute(fromId,toId,fromGate,toGate){const from=state.buildings.get(fromId),to=state.buildings.get(toId),aa=from?from.access.filter(a=>a.exit):[{node:fromGate,next:null}],bb=to?to.access.filter(a=>a.entry):[{node:toGate,prev:null}];if(!aa?.length||!bb?.length)return null;const candidates=[];for(const a of aa)for(const b of bb)candidates.push({a,b,d:distance(a.node,b.node)});candidates.sort((a,b)=>a.d-b.d);for(const pair of candidates.slice(0,32)){const p=route(pair.a.node,pair.b.node,pair.a.next,pair.b.prev);if(p)return from?safeDeparturePath(p,pair.b):p;}return null;}
 // Citizen habits are stable, but the schedule varies by individual and day.
 // Hashing is deterministic: reloads and high population counts cannot change
 // the calendar or create per-frame random decisions.
