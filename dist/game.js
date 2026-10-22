@@ -2239,9 +2239,34 @@ async function openLoadDialog(){
 }
 // All visible save operations use the authenticated Supabase account.
 // Historic local saves are left on the device but are never read or written by the game menus.
+let quickCloudSaving = false;
+const quickSaveName = () => 'เซฟด่วน · '+CITIES[state.city].name;
+async function quickSaveCloud(){
+ const api=window.SMGameAccount;
+ if(quickCloudSaving)return;
+ if(!api?.user){
+  if(api?.requestSaveLogin)api.requestSaveLogin(snapshot(),quickSaveName());
+  else toast('ระบบสมาชิกยังไม่พร้อม กรุณาลองอีกครั้งค่ะ');
+  return;
+ }
+ quickCloudSaving=true;
+ const button=$('saveGameQuick');
+ if(button)button.disabled=true;
+ try {
+  await api.save(quickSaveName(),'quick-save',snapshot());
+  toast('บันทึกเกมออนไลน์แล้วค่ะ');
+ } catch(e) {
+  console.error('Quick save failed:',e);
+  toast('บันทึกไม่สำเร็จ: '+(e.message||'กรุณาลองอีกครั้ง'));
+ } finally {
+  quickCloudSaving=false;
+  if(button)button.disabled=false;
+ }
+}
+window.SMGameOnCloudSaved=()=>toast('บันทึกเกมออนไลน์แล้วค่ะ');
 async function openCloudSaveDialog(){
  const api=window.SMGameAccount;
- if(!api?.user){toast('กรุณาเข้าสู่ระบบก่อนค่ะ');return;}
+ if(!api?.user){quickSaveCloud();return;}
  let slots;
  try{slots=await api.listSaves();}
  catch(e){console.error('Online saves:',e);toast('อ่านเซฟออนไลน์ไม่ได้ กรุณาลองอีกครั้งค่ะ');return;}
@@ -2296,7 +2321,7 @@ async function openCloudSaveDialog(){
 }
 function openAccountDialog(){
  const api=window.SMGameAccount;
- if(!api?.user){toast('กรุณาเข้าสู่ระบบก่อนค่ะ');return;}
+ if(!api?.user){api?.openSignIn?.();return;}
  modal(`<span class="eyebrow">MY ACCOUNT</span><h2>บัญชีผู้ใช้</h2>
  <p>อีเมล: <strong>${escapeSaveText(api.user.email||'')}</strong></p>
  <h3>เปลี่ยนรหัสผ่าน</h3>
@@ -2321,13 +2346,13 @@ function openAccountDialog(){
   finally{button.disabled=false;}
  };
  $('accountSignOut').onclick=()=>{
-  confirmAction('ออกจากระบบ','เมืองที่ยังไม่ได้บันทึกออนไลน์จะหายไป กรุณาบันทึกก่อนออกจากระบบ',async()=>{
+  confirmAction('ออกจากระบบ','ออกจากบัญชีโดยไม่ปิดเมืองปัจจุบัน ถ้ายังไม่เซฟออนไลน์ เมืองนี้อาจหายเมื่อปิดหน้าเว็บ',async()=>{
    try{await api.signOut();closeModal();}
    catch(e){console.error('Sign out:',e);toast('ออกจากระบบไม่สำเร็จค่ะ');}
   });
  };
 }
-window.SMGameAuthReset=()=>reset();
+window.SMGameAuthReset=()=>{}; // Authentication must never erase the active guest city.
 function cityBugReport(){
  const reasons={},vehicles=[],issues=[];
  for(const v of state.vehicles.values()){const reason=v.phase==='stuck'?(v.stopReason||'ไม่มีเส้นทาง'):v.phase==='gate_waiting'||v.phase==='departing'?'รอออกจากอาคาร/ประตู':v.stopReason||'กำลังเดินทาง';reasons[reason]=(reasons[reason]||0)+1;
@@ -2345,6 +2370,7 @@ function openCityReport(){const report=cityBugReport(),rows=Object.entries(repor
  report.issues.slice(0,12).forEach((v,i)=>{$('bugCar'+i).onclick=()=>{if(v.pose){cam.x=v.pose.x;cam.y=v.pose.y;follow=v.id;}selected={kind:'vehicle',id:v.id};closeModal();renderInspector();};$('bugTow'+i).onclick=()=>{if(towVehicle(v.id))toast('ลากรถออกแล้ว · ยกเลิกเที่ยวเดินทาง');openCityReport();};});
 }
 $('advisorNext').onclick=e=>{const button=e.target.closest('button');if(!button)return;if(button.hasAttribute('data-advice-report'))openCityReport();else if(button.dataset.adviceCategory){category=button.dataset.adviceCategory;renderTools();}};
+$('saveGameQuick').onclick=quickSaveCloud;
 $('menu').onclick=()=>{
  modal('<span class="eyebrow">GAME MENU</span><h2>เมนูหลัก</h2><div class="actions"><button id="accountMenu">บัญชีผู้ใช้</button><button id="saveMenu">เซฟเกม</button></div><div class="actions"><button id="menuClose">กลับไปเล่น</button></div>');
  $('menuClose').onclick=closeModal;
