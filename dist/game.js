@@ -346,6 +346,11 @@ function parkingMergeClear(v){
 // parking aisle. Grant a single vehicle the junction until its rear bumper
 // clears it, then prefer the waiting opposite approach. This uses game
 // vehicle positions, not an animated light that can disagree with movement.
+// A proper internal signalized T-junction at the RIGHT driveway of the two
+// grand-home parking banks. A single crossing token covers the entire turn;
+// vehicles wait on independent physical stop lines, never in the crossing.
+// Queue priority is demand-actuated and alternates whenever both approaches
+// have a car ready. The signal is intentionally independent of city roads.
 function grandSignalMayCross(v){
  const crossing=v.grandCrossing,b=state.buildings.get(v.lotBuilding);
  if(!crossing||!b||!CATALOG[b.key]?.stackedParking||crossing.cleared)return true;
@@ -353,27 +358,42 @@ function grandSignalMayCross(v){
  if(crossing.granted)return control.holder===v.id;
  if(control.holder!=null){
   const holder=state.vehicles.get(control.holder);
-  if(holder?.grandCrossing&&!holder.grandCrossing.cleared)return false;
-  control.holder=null;
+  if(holder?.lotBuilding===b.id&&holder.grandCrossing?.granted&&!holder.grandCrossing.cleared)return false;
+  control.holder=null; // Discard stale reservations recovered from old saves.
  }
- const other=crossing.approach==='front'?'rear':'front';
- const otherWaiting=[...state.vehicles.values()].some(car=>car.id!==v.id&&car.lotBuilding===b.id&&
+ const ready=car=>car.lotBuilding===b.id&&car.phase==='departing'&&car.lotPath&&
   car.grandCrossing&&!car.grandCrossing.cleared&&!car.grandCrossing.granted&&
-  car.grandCrossing.approach===other&&car.phase==='departing'&&
-  (car.lotDistance||0)>=car.grandCrossing.stopAt-.15);
- if(otherWaiting&&control.lastServed===crossing.approach){
-  control.green=other;return false;
+  (car.lotDistance||0)>=car.grandCrossing.stopAt-.10;
+ const waiting=[...state.vehicles.values()].filter(car=>ready(car));
+ const front=waiting.filter(car=>car.grandCrossing.approach==='front').sort((a,b)=>a.id-b.id);
+ const rear=waiting.filter(car=>car.grandCrossing.approach==='rear').sort((a,b)=>a.id-b.id);
+ // Only the first waiting vehicle from a direction may enter the crossing.
+ const own=crossing.approach==='rear'?rear:front;
+ if(own[0]&&own[0].id!==v.id)return false;
+ const opposite=crossing.approach==='rear'?front:rear;
+ // When both queues are real and not moving, yield to the opposite approach
+ // that missed the preceding green; if opposite cannot reach the stop line
+ // it is NOT allowed to force this approach to wait forever.
+ if(opposite.length&&control.lastServed===crossing.approach){
+  control.green=opposite[0].grandCrossing.approach;
+  return false;
  }
- // Do not enter the marked junction if another car occupies its exit.
- for(const otherCar of state.vehicles.values()){
-  if(otherCar.id===v.id||otherCar.lotBuilding!==b.id||!otherCar.lotPath)continue;
+ // Protect the exit spine and actual junction footprint. Opposing vehicles
+ // stopped BEFORE their respective setback are not an artificial conflict.
+ for(const other of state.vehicles.values()){
+  if(other.id===v.id||other.lotBuilding!==b.id||!other.lotPath)continue;
+  const their=parkingPose(other);
+  if(!their)continue;
+  const otherCrossing=other.grandCrossing;
+  if(otherCrossing&&!otherCrossing.granted&&!otherCrossing.cleared&&
+     (other.lotDistance||0)<=otherCrossing.stopAt+.06)continue;
   for(const d of [crossing.crossingAt,crossing.clearAt,crossing.clearAt+.18]){
-   const here=lotPathPose(v.lotPath,Math.min(lotPathLength(v.lotPath),d));
-   const there=parkingPose(otherCar);
-   if(there&&lotCarsOverlap(here,there,.11))return false;
+   const our=lotPathPose(v.lotPath,Math.min(lotPathLength(v.lotPath),d));
+   if(lotCarsOverlap(our,their,.06))return false;
   }
  }
- crossing.granted=true;control.holder=v.id;control.green=crossing.approach;
+ crossing.granted=true;control.holder=v.id;
+ control.green=crossing.approach;
  return true;
 }
 function grandSignalRelease(v){
@@ -435,7 +455,7 @@ function prepareLotDeparture(v,dt){
   if(t.stackedParking){
    const junctionSegment=slot.zone==='rear'?4:3;
    const crossingAt=lotPathLength(v.lotPath.slice(0,junctionSegment));
-   v.grandCrossing={approach:slot.zone,crossingAt,stopAt:Math.max(0,crossingAt-.75),clearAt:crossingAt+.77,granted:false,cleared:false};
+   v.grandCrossing={approach:slot.zone,crossingAt,stopAt:Math.max(0,crossingAt-1.12),clearAt:crossingAt+1.02,granted:false,cleared:false};
   }
   if(!canLeaveParkingSpace(v,v.lotPath)){v.lotPath=null;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
  }
@@ -552,39 +572,39 @@ function parkingVisuals(b){
  const rect=(u,v,w,h,color)=>rects.push({u,v,w,h,color});
  rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.05,t.plotHeight-.05,'#bdc6ae');
  if(t.stackedParking){
-  // Two compact double-sided courts are behind the street-facing round villa.
-  // Both retain their own eastbound aisle and meet edge-to-edge, with NO
-  // redundant lane between their facing rows.
-  const rear=t.parkingRearAisle,front=t.parkingAisle,offset=t.parkingRowOffset;
-  const bottom=rear-offset-.64,top=front+offset+.64;
-  rect(t.plotWidth/2,(bottom+top)/2,t.plotWidth-.12,top-bottom,'#515f62');
+  // TWO faithful copies of the home_small court, face-to-face in depth.
+  // Each court has its OWN central one-way lane. No extra lane or scenery.
+  const rear=t.parkingRearAisle,front=t.parkingAisle;
   for(const aisle of [rear,front]){
-   // The banks share the same width, pitch and markings as the small home.
-   for(let row=0;row<2;row++)for(let col=0;col<t.parkingColumns;col++){
-    const stall=lotSlots(b)[((aisle===rear?0:2)+row)*t.parkingColumns+col];
-    rect(stall.u-t.parkingPitch/2,stall.v,.025,1.24,'#e9e6cc');
-    rect(stall.u+t.parkingPitch/2,stall.v,.025,1.24,'#e9e6cc');
-    rect(stall.u,stall.v+(row?.62:-.62),t.parkingPitch-.04,.025,'#e9e6cc');
-   }
-   for(let u=1.10;u<t.plotWidth-1.10;u+=2.10){
-    rect(u,aisle,.50,.035,'#c5d2c2');
-    rect(u+.19,aisle-.11,.19,.03,'#c5d2c2');
-    rect(u+.19,aisle+.11,.19,.03,'#c5d2c2');
-   }
+   const bottom=aisle-t.parkingRowOffset-.64,top=aisle+t.parkingRowOffset+.64;
+   rect(t.plotWidth/2,(bottom+top)/2,t.plotWidth-.12,top-bottom,'#515f62');
   }
+  // Side-access driveways are drawn beneath white/cream bay markings.
   for(const u of [.45,t.plotWidth-.45]){
    rect(u,(rear+t.plotHeight)/2,.72,t.plotHeight-rear+.08,'#58666a');
    rect(u,(rear+t.plotHeight)/2,.023,t.plotHeight-rear,'#bbc9b9');
   }
-  // Stop lines and a marked compact junction where the rear outlet crosses
-  // the front court aisle on the RIGHT edge; front and rear use live signals.
-  const stopU=t.plotWidth-1.20,exitU=t.plotWidth-.45;
-  rect(stopU,front,.045,.84,'#f3ca88');
-  rect(exitU,front-.75,.67,.043,'#f3ca88');
-  rect(exitU,front,.82,.82,'#58666a');
-  rect(exitU,front,.62,.028,'#e5e6d0');
+  for(const aisle of [rear,front]){
+   const rowStart=aisle===rear?0:2;
+   for(let row=0;row<2;row++)for(let col=0;col<t.parkingColumns;col++){
+    const slot=lotSlots(b)[(rowStart+row)*t.parkingColumns+col];
+    rect(slot.u-t.parkingPitch/2,slot.v,.025,1.24,'#e9e6cc');
+    rect(slot.u+t.parkingPitch/2,slot.v,.025,1.24,'#e9e6cc');
+    rect(slot.u,slot.v+(row?.62:-.62),t.parkingPitch-.04,.025,'#e9e6cc');
+   }
+   for(let u=1.1;u<t.plotWidth-1.1;u+=2.1){
+    rect(u,aisle,.58,.035,'#c5d2c2');
+    rect(u+.21,aisle-.11,.20,.03,'#c5d2c2');
+    rect(u+.21,aisle+.11,.20,.03,'#c5d2c2');
+   }
+  }
+  const exitU=t.plotWidth-.45;
+  // Stop lines are BEHIND the actual crossing; traffic lights control the
+  // intersection at (exitU,front), not imaginary mid-aisle merge points.
+  rect(exitU-1.12,front,.033,.83,'#e9e6cc');
+  rect(exitU,front-1.12,.62,.033,'#e9e6cc');
   rect(.45,t.plotHeight-.45,.52,.08,'#94d9aa');
-  rect(t.plotWidth-.45,t.plotHeight-.45,.52,.08,'#f3ca88');
+  rect(exitU,t.plotHeight-.45,.52,.08,'#f3ca88');
   return rects;
  }
  if(t.dualParking){
