@@ -890,7 +890,7 @@ export class TrafficRenderer{
     block('#ddd3c2',x,.22+height/2,back-.095,width+.17,height+.17,.13,'stone');
     block(color,x,.20+height/2,back-.171,width,height,.065,'metal');
     block('#ddbd79',x+width*.27,.77,back-.213,.042,.08,.032,'metal');
-    block('#bdac92',x,.17,back-.32,width+.20,.082,.25,'stone');
+    block('#bdac92',x,.17,back-.24,width+.20,.082,.24,'stone');
    };
    const parapet=(x,z,width,depth,y,c='#d1c5b4')=>{
     for(const side of[-1,1])block(c,x+side*(width/2-.047),y,z,.09,.30,depth-.05,'stone');
@@ -1006,7 +1006,7 @@ export class TrafficRenderer{
      for(const dx of[-ww*.41,ww*.41])
       block('#f6c964',x+dx,.25,back-.26,.065,.09,.035,'glass',true);
      const px=x+ww*.22;
-     for(let p=0;p<3;p++)block(p%2?'#927653':'#ab8866',px,.22+p*.14,back-.44,.41,.14,.26,'wood');
+     for(let p=0;p<3;p++)block(p%2?'#927653':'#ab8866',px,.22+p*.14,back-.22,.41,.14,.22,'wood');
     }
     // East wall: machine exhaust, silos, service catwalk and grilles.
     for(const side of[-1,1]){
@@ -1044,7 +1044,7 @@ export class TrafficRenderer{
      rearDoor(x,Math.min(.50,bay*.66),.97,'#5d7a7b');
      if(level>=2)rearPane(x,2.09,Math.min(.47,bay*.58),.43,'#5a9194');
      for(let k=0;k<3;k++){
-      const yy=.22+k*.17,z=back-.40;
+      const yy=.22+k*.17,z=back-.24;
       block(k%2?'#c6ae88':'#b19772',x-bay*.22,yy,z,.26,.16,.24,'wood');
      }
     }
@@ -1124,7 +1124,14 @@ export class TrafficRenderer{
      // not an enlarged tiny roadside café.
      block('#b17e63',leftCenter,top+.25,v,principalWidth*.76,.075,mainD*.58,'wood');
      parapet(leftCenter,v,principalWidth*.78,mainD*.61,top+.39,'#d3b597');
-     for(const side of[-1,1])table(leftCenter+side*principalWidth*.22,v, false);
+     // Rooftop dining furniture is installed at the actual roof level.
+     for(const side of[-1,1]){
+      const xx=leftCenter+side*principalWidth*.22;
+      pole('#8b624c',xx,top+.49,v,.036,.35,'wood');
+      pole('#d1aa81',xx,top+.70,v,.19,.045,'wood');
+      for(const dx of[-.25,.25])block('#ae8e6d',xx+dx,top+.50,v,.22,.055,.20,'wood');
+      block('#ffe0a7',xx,top+.77,v,.055,.06,.052,'glass',true);
+     }
      block('#a27853',leftCenter,top+.72,v-.27,principalWidth*.63,.08,.14,'wood');
     }
    }else if(family==='mall'){
@@ -1199,7 +1206,7 @@ export class TrafficRenderer{
      lantern(vx,face+.60,'#efb3f5',.79);
      planter(vx,baseV+availableDepth-.74,.19);
     }
-    const rearDeck=Math.max(back-.26,baseV+.20);
+    const rearDeck=Math.max(back-.21,baseV+.24);
     for(const z of[back+.26,face-.24]){
      block('#7c5c75',u,.27,z,maxTierW*.49,.13,.23,'wood');
      for(let i=0;i<4;i++)block('#d99fdc',u-maxTierW*.18+i*maxTierW*.12,.39,z,.08,.06,.12,'glass',true);
