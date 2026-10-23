@@ -7,7 +7,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert.equal(home.plotHeight,13,'keep existing grand-house plots/save footprints intact');
  assert(home.parkingAisle<7&&home.parkingRearAisle<home.parkingAisle,'both parking banks are behind the street-front building');
  const buildingsource=fs.readFileSync('dist/renderer3d.js','utf8');
- assert(buildingsource.includes('const u=W*.5,v=t.plotHeight-3.04'),'circular residence must face roadside');
+ assert(buildingsource.includes('const u=W*.5,v=9.42,scale=.87'),'circular residence must face roadside');
  assert(buildingsource.includes('updateGrandSignals()'),'live signal must update every frame');
  g.state.money=1e9;
  const b=g.buildBuilding('home_grand',160,148-home.plotHeight,true);
@@ -48,7 +48,8 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const {TrafficRenderer}=new Function('THREE',source+';return {TrafficRenderer};')(THREE);
  const renderer=Object.create(TrafficRenderer.prototype);renderer.parking=g;renderer.buildingGroup=new THREE.Group();
  renderer.makeBuildings(g.state,g.CATALOG,{});
- assert(renderer.grandSignalLights.length===2,'two live traffic lamps must be rendered at the crossing');
+ assert.equal(renderer.grandSignalLights.length,8,'two poles with red and green lenses on both faces');
+ assert.equal(new Set(renderer.grandSignalLights.map(l=>l.approach)).size,2);
  renderer.updateGrandSignals();
  console.log(JSON.stringify({passed:true,compact:[home.plotWidth,home.plotHeight],parkingBack:true,frontVilla:true,signal:'actual crossing',rearPassed:seenRear,frontPassed:seenFront,mutualExclusion:!signalConflict,steps:elapsed}));
 })().catch(e=>{console.error(e);process.exitCode=1;});

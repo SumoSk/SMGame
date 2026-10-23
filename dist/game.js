@@ -36,7 +36,7 @@ for(const t of Object.values(CATALOG)){
  t.compactParking=false;
  t.parkingLayout=null;
  if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.88;t.plotWidth=20;t.plotHeight=11;t.parkingAisle=9.15;t.parkingUpperAisle=6.55;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
- if(t.stackedParking){t.parkingColumns=15;t.parkingRows=2;t.parkingPhysicalRows=4;t.parkingPitch=.55;t.parkingRowOffset=.79;t.parkingAisle=4.90;t.parkingRearAisle=2.05;t.plotWidth=11;t.plotHeight=13;t.compactParking=true;}
+ if(t.stackedParking){t.parkingColumns=15;t.parkingRows=2;t.parkingPhysicalRows=4;t.parkingPitch=.55;t.parkingRowOffset=.79;t.parkingAisle=4.90;t.parkingRearAisle=2.05;t.plotWidth=11;t.plotHeight=13;t.compactParking=true;t.frontageEntranceU=3.0;t.frontageExitU=8.0;t.frontageV=12.43;}
 }
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
 function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
@@ -165,7 +165,7 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
  // A car leaving or entering the lot must not ignore vehicles on the street.
  const b=state.buildings.get(v.lotBuilding);
  if(!ignoreRoadTraffic&&b&&['departing','parking_out'].includes(v.phase)){
-  const t=CATALOG[b.key],entrance=lotPoint(b,.45,t.plotHeight),exit=lotPoint(b,t.dualParking?t.parkingExitB:t.plotWidth-.45,t.plotHeight);
+  const t=CATALOG[b.key],entrance=lotPoint(b,t.frontageEntranceU??.45,t.plotHeight),exit=lotPoint(b,t.frontageExitU??(t.dualParking?t.parkingExitB:t.plotWidth-.45),t.plotHeight);
   if(v.phase==='parking_out'||Math.min(Math.hypot(pose.x-entrance.x,pose.y-entrance.y),Math.hypot(pose.x-exit.x,pose.y-exit.y))<1.15)
    for(const other of state.vehicles.values()){
     if(other.id===v.id||!['driving','stuck','parking_out','parking_in','departing'].includes(other.phase))continue;
@@ -190,7 +190,7 @@ function canLeaveParkingSpace(v,points){
  }return true;
 }
 function parkingAccess(b){
- const t=CATALOG[b.key],bounds=buildingBounds(b),center=lotPoint(b,t.plotWidth/2,t.plotHeight/2),entry=lotPoint(b,.45,t.plotHeight),exit=lotPoint(b,t.dualParking?t.parkingExitB:t.plotWidth-.45,t.plotHeight),candidates=[];
+ const t=CATALOG[b.key],bounds=buildingBounds(b),center=lotPoint(b,t.plotWidth/2,t.plotHeight/2),entry=lotPoint(b,t.frontageEntranceU??.45,t.plotHeight),exit=lotPoint(b,t.frontageExitU??(t.dualParking?t.parkingExitB:t.plotWidth-.45),t.plotHeight),candidates=[];
  for(let y=b.y-1;y<=b.y+bounds.h;y++)for(let x=b.x-1;x<=b.x+bounds.w;x++){
   const side=(b.rotation||0)===0?y===b.y+bounds.h:(b.rotation||0)===1?x===b.x-1:(b.rotation||0)===2?y===b.y-1:x===b.x+bounds.w;
   if(!side||!valid(x,y))continue;const node=owner(id(x,y)),r=state.roads.get(node);if(!r||candidates.some(a=>a.node===node)||junction(node)>=3)continue;
@@ -478,6 +478,9 @@ function parkingArrivalPath(v,b,index,replan=false){
  const end=parkingSlotPose(b,index),aisle=lotPoint(b,slot.u,slot.aisle);
  if(!replan){
   const start=positionOnMotion(motionPlan(v),motionPlan(v).total);
+  if(t.stackedParking)return [
+   start,lotPoint(b,t.frontageEntranceU,t.frontageV),
+   lotPoint(b,.45,t.frontageV),lotPoint(b,.45,slot.aisle),aisle,end];
   return [start,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,slot.aisle),aisle,end];
  }
  const start=parkingPose(v);if(!start)return null;
@@ -554,7 +557,10 @@ function beginParkingArrival(v){
  // entrance is not a parking queue, and lack of a bay must not block the road.
  const t=CATALOG[b.key],entry=positionOnMotion(motionPlan(v),motionPlan(v).total);
  if(parkingEntranceOccupied(v,b,entry)){v.speed=0;v.stopReason='รอรถคันหน้าพ้นปากทางเข้า';return true;}
- v.lotPath=t.dualParking||t.stackedParking?[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle)]
+ v.lotPath=t.stackedParking?[
+   entry,lotPoint(b,t.frontageEntranceU,t.frontageV),
+   lotPoint(b,.45,t.frontageV),lotPoint(b,.45,t.parkingAisle)]
+  :t.dualParking?[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle)]
   :[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle),lotPoint(b,.72,t.parkingAisle)];
  v.lotDistance=0;v.lotBuilding=b.id;v.parkingStage=true;v.parkingReplanAt=state.time;
  v.phase='parking_in';v.speed=0;v.stopReason='กำลังเข้าลานจอด';
@@ -579,7 +585,8 @@ function parkingVisuals(b){
    const bottom=aisle-t.parkingRowOffset-.64,top=aisle+t.parkingRowOffset+.64;
    rect(t.plotWidth/2,(bottom+top)/2,t.plotWidth-.12,top-bottom,'#515f62');
   }
-  // Side-access driveways are drawn beneath white/cream bay markings.
+  // Side access spines feed a single purpose-built arrival promenade in front
+  // of the villa. The street access gates are centered around its entry.
   for(const u of [.45,t.plotWidth-.45]){
    rect(u,(rear+t.plotHeight)/2,.72,t.plotHeight-rear+.08,'#58666a');
    rect(u,(rear+t.plotHeight)/2,.023,t.plotHeight-rear,'#bbc9b9');
@@ -598,13 +605,35 @@ function parkingVisuals(b){
     rect(u+.21,aisle+.11,.20,.03,'#c5d2c2');
    }
   }
+  // Street-facing, one-way paved access apron: east-facing facade stays
+  // behind the lane, with compact rounded-looking corner caps and curb lines.
+  const entranceU=t.frontageEntranceU,gateOut=t.frontageExitU,forecourt=t.frontageV;
+  const sideL=.45,sideR=t.plotWidth-.45;
+  rect(t.plotWidth/2,forecourt,t.plotWidth-.75,.71,'#58666a');
+  for(const u of [entranceU,gateOut]){
+   rect(u,(t.plotHeight+forecourt)/2,.69,t.plotHeight-forecourt+.08,'#58666a');
+  }
+  // Curbed forecourt edges; break the curb at the two gates and side turns.
+  rect((sideL+entranceU)/2,forecourt-.39,entranceU-sideL-.63,.035,'#bbc9b9');
+  rect((gateOut+sideR)/2,forecourt-.39,sideR-gateOut-.63,.035,'#bbc9b9');
+  rect(t.plotWidth/2,forecourt+.40,gateOut-entranceU-1.0,.033,'#bbc9b9');
+  rect(entranceU,forecourt-.04,.18,.18,'#94d9aa');
+  rect(gateOut,forecourt-.04,.18,.18,'#f3ca88');
+  // Thin directional strokes keep the frontage legible without filling it.
+  for(const u of [1.70,9.40]){
+   rect(u,forecourt,.34,.028,'#c5d2c2');
+   rect(u-.12,forecourt-.095,.12,.023,'#c5d2c2');
+   rect(u-.12,forecourt+.095,.12,.023,'#c5d2c2');
+  }
   const exitU=t.plotWidth-.45;
   // Stop lines are BEHIND the actual crossing; traffic lights control the
   // intersection at (exitU,front), not imaginary mid-aisle merge points.
   rect(exitU-1.12,front,.033,.83,'#e9e6cc');
   rect(exitU,front-1.12,.62,.033,'#e9e6cc');
-  rect(.45,t.plotHeight-.45,.52,.08,'#94d9aa');
-  rect(exitU,t.plotHeight-.45,.52,.08,'#f3ca88');
+  // Gate arrows belong to the new street-facing entrance/exit, not the
+  // original far-corner access points.
+  rect(entranceU,t.plotHeight-.15,.47,.045,'#94d9aa');
+  rect(gateOut,t.plotHeight-.15,.47,.045,'#f3ca88');
   return rects;
  }
  if(t.dualParking){
@@ -2593,7 +2622,11 @@ function advanceVehicles(realDt,gameDt){
     // Only one vehicle per lot is in the street-merge corridor at once.
     // Clearance and a temporary driveway claim are checked before moving.
     const start=parkingPose(v),end=positionOnMotion(motionPlan(v),0);
-    v.lotPath=[start,end];v.lotDistance=0;v.lotReady=false;
+    const t=CATALOG[from.key];
+    v.lotPath=t.stackedParking?[
+     start,lotPoint(from,t.plotWidth-.45,t.frontageV),
+     lotPoint(from,t.frontageExitU,t.frontageV),end]:[start,end];
+    v.lotDistance=0;v.lotReady=false;
     v.mergeCommitted=false;v.mergePolicy=2;v.mergeWaitSeconds=0;v.mergeAdmitted=null;v.mergeDrainStarted=false;v.mergeEscapeId=null;v.phase='parking_out';v.stopReason='รอช่องทางออกสู่ถนน';
     updateTrafficSpatial(v);continue;
    }
@@ -2674,7 +2707,7 @@ function roadChanged(cells){state.version++;state.routeCache.clear();state.junct
  for(const c of state.citizens.values())if(c.pending)c.pending.next=state.time+.5;
 }
 function checkBuilding(key,x,y){return checkParkingBuilding(key,x,y);}
-function buildBuilding(key,x,y,confirmed=false){const check=checkBuilding(key,x,y),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true));return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,grandFrontLayout:!!t.stackedParking,compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,queue:[],arrivals:0};state.buildings.set(b.id,b);markBuildingPlot(b,b.id);state.money-=t.cost;for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
+function buildBuilding(key,x,y,confirmed=false){const check=checkBuilding(key,x,y),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true));return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,queue:[],arrivals:0};state.buildings.set(b.id,b);markBuildingPlot(b,b.id);state.money-=t.cost;for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
 function demolishBuilding(b,confirmed=false){if(!b)return;const t=CATALOG[b.key],fee=t.cost*.1;if(!confirmed){confirmAction('รื้อ'+t.name,`ค่ารื้อ ${money(fee)}<br>${t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ ผู้ที่กำลังเดินทางมาอาคารนี้จะกลับบ้าน'}`,()=>demolishBuilding(b,true));return;}if(state.money-fee< -10000){toast('งบประมาณไม่พอสำหรับค่ารื้อค่ะ');return;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
 markBuildingPlot(b,-1);state.buildings.delete(b.id);state.money-=fee;for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
 function demolishRoad(i,confirmed=false){const r=state.roads.get(i);if(!r){toast('เลือกช่องที่มีถนนค่ะ');return;}if(r.main){toast('ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ');return;}if(occupancy(i)>0||[...state.vehicles.values()].some(v=>v.path?.[v.pos]===i&&['driving','stuck','parking_in','parking_out'].includes(v.phase))){toast('มีรถอยู่บนถนน รอให้รถผ่านก่อนค่ะ');return;}const fee=ROADS[r.type].cost*.2;if(!confirmed){confirmAction('รื้อถนน',`ค่ารื้อ ${money(fee)} · ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้`,()=>demolishRoad(i,true));return;}if(state.money-fee< -10000){toast('งบประมาณไม่พอสำหรับค่ารื้อค่ะ');return;}for(const n of r.links)state.roads.get(n)?.links.delete(i);state.roads.delete(i);state.money-=fee;roadChanged([i]);updateUI();}
@@ -2927,6 +2960,16 @@ function migrateCompactHomes(){
 function loadGame(silent=false,slotId=null,rawOverride=null){const previous={state,cam,news};try{const slots=rawOverride===null?readSaveSlots():[],slot=slotId?slots.find(s=>s.id===slotId):slots[0],raw=rawOverride??slot?.data;if(!raw){if(!silent)toast('ยังไม่มีเมืองที่บันทึกไว้ค่ะ');return false;}const s=JSON.parse(raw);validateSave(s);reset(s.city);state.money=s.money;state.time=s.time;state.nextId=s.nextId;state.profileSeq=s.profileSeq??s.citizens.length;state.lastImmigration=s.time;state.lastPass=s.time;state.tourism=s.tourism;state.plantedTrees=s.plantedTrees||[];state.hiddenAutoTrees=s.hiddenAutoTrees||[];state.landscapeVersion=0;state.nextTouristAt=s.nextTouristAt||s.time+3;state.roads=new Map(s.roads.map(([i,r])=>[i,{...r,links:new Set(r.links)}]));state.buildings=new Map(s.buildings.map(([i,b])=>[i,{...b,residents:new Set(b.residents),workers:new Set(b.workers),visitors:new Set(b.visitors),parked:new Set(b.parked),guests:new Set(b.guests||[])}]));state.citizens=new Map(s.citizens.map(([i,c])=>[i,{...c,scheduled:new Set(c.scheduled),failKinds:new Set(c.failKinds)}]));state.vehicles=new Map(s.vehicles.map(([i,v])=>[i,{...v,trafficModel:v.trafficModel??1,pathSet:new Set(v.pathSet)}]));state.signals=new Map(s.signals||[]);state.signalDefaults=s.signalDefaults||state.signalDefaults;state.events=s.events;eventHeapify();cam=s.cam||cam;news=s.news||[];migrateCompactHomes();rebuildFootprint();state.buildGrid.fill(-1);for(const b of state.buildings.values()){markBuildingPlot(b,b.id);b.access=accessFor(b);}// Previously saved grand homes share the exact same 11x13 footprint, so
  // relocate only internal geometry and reset in-flight lot manoeuvres.
  // Preserve citizens, parking reservations and every existing save.
+ for(const b of state.buildings.values())if(b.key==='home_grand'&&!b.grandFrontageV3){
+  b.grandFrontageV3=true;
+  b.grandSignal=null;
+  for(const v of state.vehicles.values())if(v.lotBuilding===b.id&&v.lotPath){
+   grandSignalRelease(v);v.grandCrossing=null;v.lotPath=null;v.lotDistance=0;
+   v.lotReady=false;v.lotBuilding=null;v.parkingStage=false;
+   if(v.phase==='parking_in'){v.phase='driving';v.speed=0;v.parkingReplanAt=0;}
+   else if(v.phase==='parking_out'){v.phase='departing';v.mergeCommitted=false;v.departureRouteVersion=-1;v.speed=0;}
+  }
+ }
  for(const b of state.buildings.values())if(b.key==='home_grand'&&!b.grandFrontLayout){
   b.grandFrontLayout=true;b.grandSignal=null;
   for(const v of state.vehicles.values())if(v.lotBuilding===b.id&&v.lotPath){
