@@ -371,16 +371,28 @@ export class TrafficRenderer{
  // Decorative street lighting; no changes to roads, routing or collision.
  this.disposeGroup(this.lampGroup);this.streetGlow=null;
  const poles=new Batch(),spots=[];
+ const blockedAccess=[];
+ for(const building of state.buildings.values())for(const access of building.access||[])blockedAccess.push([access.x-.5,access.y-.5]);
+ const lampConflicts=(lx,lz)=>blockedAccess.some(([ax,az])=>Math.hypot(lx-ax,lz-az)<1.45);
  for(const [node,road] of state.roads){
   if(spots.length>=2500||road.links.size!==2||junction(node)!==2)continue;
   const x=node%300,z=Math.floor(node/300),links=[...road.links],a=links[0],b=links[1];
   const horiz=Math.floor(a/300)===z&&Math.floor(b/300)===z&&(a-node)*(b-node)<0;
   const vert=a%300===x&&b%300===x&&(Math.floor(a/300)-z)*(Math.floor(b/300)-z)<0;
   if(!horiz&&!vert||horiz&&x%9!==0||vert&&z%9!==0)continue;
-  const sign=(Math.floor(x/9)+Math.floor(z/9))%2?1:-1;
-  const offset=(ROADS[road.type]?.visualWidth||1.55)/2+.36;
-  const px=x+(vert?sign*offset:0),pz=z+(horiz?sign*offset:0);
-  const hx=px-(vert?sign*.31:0),hz=pz-(horiz?sign*.31:0);
+  const baseSign=(Math.floor(x/9)+Math.floor(z/9))%2?1:-1;
+  // Keep street lamps visually in the carriageway / verge band, not deep on
+  // the sidewalk, and never let them block building access points.
+  const offset=Math.max(.28,(ROADS[road.type]?.visualWidth||1.55)/2-.06);
+  let chosen=null;
+  for(const sign of [baseSign,-baseSign]){
+   const px=x+(vert?sign*offset:0),pz=z+(horiz?sign*offset:0);
+   const hx=px-(vert?sign*.31:0),hz=pz-(horiz?sign*.31:0);
+   if(lampConflicts(px,pz)||lampConflicts(hx,hz))continue;
+   chosen={px,pz,hx,hz};break;
+  }
+  if(!chosen)continue;
+  const {px,pz,hx,hz}=chosen;
   poles.add(CYL,'#536b73',px,.76,pz,.035,1.52,.035);
   poles.box('#667980',(px+hx)/2,1.49,(pz+hz)/2,vert?.37:.08,.055,horiz?.37:.08);
   poles.add(BALL,'#d4d5bf',hx,1.46,hz,.12,.09,.12);
@@ -506,22 +518,37 @@ export class TrafficRenderer{
   }
 
   if(b.key==='home_grand'){
-   // Redesigned street-front villa: every architectural element lives in
-   // v >= 7.15, where the last parking bay ends at v = 6.31. The slim
-   // 0.84-unit setback protects the two banks and both driveway spines.
+   // Street-front villa with a fully landscaped forecourt. Keep all visual
+   // elements inside the plot and clear of the left entry / right exit lanes.
    const u=W*.5,v=9.42,scale=.87;
    const disc=(color,yy,r,hh,finish='stone',glow=false)=>{
     const p=point(u,v);
     batch.add(CYL_SMOOTH,color,p.x-.5,yy,p.y-.5,r*scale,hh,r*scale,0,0,0,id,glow,finish);
    };
-   // Street-front villa is proportionally fitted between the parking rows
-   // and the new frontage drive. All architectural meshes stop BEFORE
-   // the front asphalt at v = 12.075 (asphalt and roof never intersect).
+   // Replace the blank white apron with a podium terrace and side courts.
+   block('#d7d2c7',u,.06,v+.18,8.85,.10,4.95,'stone');
+   block('#e8e1d5',u,.11,v+.38,7.95,.04,4.05,'stone');
+   block('#d0cabd',u,.03,v-1.20,6.10,.07,1.10,'stone');
+   // Left reflecting pool court.
+   block('#dde3dd',u-3.24,.10,v+.06,1.88,.10,2.16,'stone');
+   block('#65a8b9',u-3.24,.17,v+.06,1.52,.04,1.80,'water');
+   block('#cce6ea',u-3.24,.19,v+.06,1.18,.010,1.46,'water');
+   // Right family court with small playground.
+   block('#ddd7c9',u+3.18,.10,v+.12,1.98,.10,2.26,'stone');
+   block('#7c9f72',u+3.18,.15,v+.12,1.62,.03,1.90,'stone');
+   // Rear pocket gardens and low hedges.
+   for(const [x,z,w,d] of [[u-1.88,v-1.28,1.34,.52],[u+1.88,v-1.28,1.34,.52],[u,v-1.62,2.22,.44]]){
+    block('#6f9770',x,.18,z,w,.09,d,'stone');
+    block('#89ae7f',x,.24,z,w-.12,.06,d-.10,'stone');
+   }
+   for(const [x,z,s] of [[u-4.18,v-1.34,.62],[u-3.76,v+1.48,.54],[u+4.02,v-1.22,.62],[u+3.68,v+1.52,.54],[u-2.46,v-2.08,.46],[u+2.52,v-2.08,.46]])planted(x,z,s);
+   // Main circular building.
    disc('#c9c4b8',.12,2.79,.17,'stone');
    disc('#ede5d7',.35,2.65,.30,'stone');
    disc('#eee7de',1.75,2.51,2.67,'stone');
    for(const [y,h] of [[.96,.72],[1.90,.75],[2.82,.57]]){
     disc('#6e9eaa',y,2.555,h,'glass');
+    disc('#ffd7a1',y+.03,2.34,h*.19,'glass',true);
     disc('#bfd7db',y+h*.30,2.563,.068,'glass');
    }
    // Continuous curved balconies and cream horizontal floor rings.
@@ -539,19 +566,45 @@ export class TrafficRenderer{
    disc('#6f8288',3.49,2.52,.075,'metal');
    disc('#f2eae0',3.60,2.31,.18,'stone');
    disc('#95c0c9',3.79,1.05,.32,'glass');
+   disc('#fff0c3',3.80,.78,.12,'glass',true);
    disc('#eae6dc',4.00,1.13,.09,'stone');
    // Public arrival entrance faces the road (positive local v).
    block('#537e8e',u,.80,v+2.53*scale,1.26,1.18,.055,'glass');
+   block('#ffe2b0',u,.81,v+2.58*scale,.94,.72,.018,'glass',true);
    block('#f3e9d9',u,1.52,v+2.60*scale,1.65,.11,.29,'stone');
    block('#bea386',u,1.60,v+2.60*scale,1.62,.048,.30,'metal');
    block('#e7dfd3',u,.11,v+2.76*scale,1.33,.055,.19,'stone');
-   // Lamp posts, planters and path stay strictly inside the front facade
-   // apron; NOT within u < 1 or u > 10 (the two driving channels).
-   for(const x of [u-1.46,u+1.46]){
-    lantern(x,v+2.42*scale,'#ffe2b4',.92);
-    block('#dacdb9',x,.19,v+2.68*scale,.38,.15,.27,'stone');
-    block('#6f9a75',x,.30,v+2.68*scale,.31,.10,.20);
+   block('#d8d0c3',u,.12,v+2.14,2.02,.07,.74,'stone');
+   block('#e8dfd2',u,.18,v+2.33,1.62,.05,.52,'stone');
+   // Shorter lamps are pulled inward so they never block the entry lane.
+   for(const x of [u-.92,u+.92]){
+    lantern(x,v+1.96,'#ffe2b4',.68);
+    block('#dacdb9',x,.17,v+2.10,.34,.12,.24,'stone');
+    block('#6f9a75',x,.27,v+2.10,.28,.09,.18,'stone');
    }
+   // Wall lights beside the front door.
+   for(const x of [u-.56,u+.56])block('#ffd9a6',x,1.04,v+2.53*scale,.09,.18,.05,'glass',true);
+   // Gate island sign: low, illuminated, and clear of both drive lanes.
+   const gateIslandZ=12.34;
+   block('#d8cfbf',u,.12,gateIslandZ,2.48,.12,.60,'stone');
+   block('#efe6d8',u,.18,gateIslandZ,2.24,.05,.42,'stone');
+   block('#6f8c77',u,.24,gateIslandZ,1.88,.10,.24,'stone');
+   block('#c69b72',u,.28,gateIslandZ,1.18,.06,.07,'wood');
+   block('#314754',u,.60,gateIslandZ-.02,1.18,.40,.14,'metal');
+   block('#e8f2f0',u,.62,gateIslandZ+.055,.94,.18,.026,'glass',true);
+   block('#fff1c8',u,.62,gateIslandZ+.073,.72,.09,.01,'glass',true);
+   for(const x of [u-.42,u+.42]){
+    block('#c8bea9',x,.12,gateIslandZ+.15,.20,.08,.20,'stone');
+    block('#ffdba8',x,.21,gateIslandZ+.15,.11,.05,.11,'glass',true);
+   }
+   // Small play set and loungers add life to both side courts.
+   pole('#c7b08a',u+3.56,.48,v+.06,.045,.72,'wood');
+   pole('#c7b08a',u+2.92,.48,v+.06,.045,.72,'wood');
+   block('#b49267',u+3.24,.84,v+.06,.74,.05,.06,'wood');
+   block('#86a6c4',u+3.03,.42,v+.36,.24,.06,.58,'metal');
+   block('#d9b764',u+3.22,.27,v-.18,.52,.05,.18,'wood');
+   block('#d7d7d0',u-3.36,.26,v-.58,.56,.06,.24,'stone');
+   block('#d7d7d0',u-2.96,.26,v-.34,.56,.06,.24,'stone');
    return;
   }
 
@@ -1254,48 +1307,11 @@ export class TrafficRenderer{
  makeBuildings(state,CATALOG,KINDS){
   this.disposeGroup(this.buildingGroup);
   const batch=new Batch();this.grandSignalLights=[];
-  for(const building of state.buildings.values()){
-   this.building(batch,building,CATALOG,KINDS);
-   if(building.key!=='home_grand')continue;
-   const t=CATALOG[building.key],exitU=t.plotWidth-.45,front=t.parkingAisle;
-   // True miniature intersection signals, mounted off the moving lanes.
-   // Two distinct stop bars meet at the right T-junction (u=10.55,v=4.90);
-   // the two poles sit in opposite curb pockets, NOT on the asphalt.
-   for(const [approach,u,v] of [
-    ['front',t.plotWidth-.93,front-.47],
-    ['rear',t.plotWidth-.95,front-1.22]
-   ]){
-    const p=this.parking.lotPoint(building,u,v),light=new THREE.Group();
-    const stem=new THREE.Mesh(CYL,new THREE.MeshStandardMaterial({color:'#536368',metalness:.38,roughness:.6}));
-    stem.scale.set(.041,.82,.041);stem.position.y=.42;light.add(stem);
-    const neck=new THREE.Mesh(BOX,new THREE.MeshStandardMaterial({color:'#e4e3d9',roughness:.7}));
-    neck.scale.set(.29,.52,.22);neck.position.y=1.04;light.add(neck);
-    const housing=new THREE.Mesh(BOX,new THREE.MeshStandardMaterial({color:'#25363d',roughness:.5}));
-    housing.scale.set(.25,.47,.23);housing.position.y=1.05;light.add(housing);
-    for(const side of [-1,1]){
-     for(const [kind,y,bright,dim] of [['red',1.16,'#ff655a','#573631'],['green',.955,'#8eee86','#315443']]){
-      const lens=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({color:dim}));
-      lens.scale.set(.088,.088,.038);lens.position.set(0,y,side*.135);
-      light.add(lens);
-      this.grandSignalLights.push({building,approach,kind,lens,bright,dim});
-     }
-    }
-    const hood=new THREE.Mesh(BOX,new THREE.MeshStandardMaterial({color:'#384b50',metalness:.15}));
-    hood.scale.set(.30,.044,.29);hood.position.y=1.31;light.add(hood);
-    light.position.set(p.x-.5,0,p.y-.5);
-    this.buildingGroup.add(light);
-   }
-  }
+  for(const building of state.buildings.values())this.building(batch,building,CATALOG,KINDS);
   this.buildingGroup.add(batch.build());
   this.lastNightVisibility=-1;
  }
- updateGrandSignals(){
-  for(const item of this.grandSignalLights||[]){
-   const active=(item.building.grandSignal?.green||'front')===item.approach;
-   const show=(active&&item.kind==='green')||(!active&&item.kind==='red');
-   item.lens.material.color.set(show?item.bright:item.dim);
-  }
- }
+ updateGrandSignals(){}
 
  createCars(){
   this.carModels=VEHICLE_TYPES.map((_,i)=>carGeometries(i));

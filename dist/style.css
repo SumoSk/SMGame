@@ -2993,3 +2993,11 @@ body>.bottom .builder-zone .build-dock .dock-head>.toggle-building-labels{
   width:22px!important;min-width:22px!important;max-width:22px!important;
  }
 }
+
+/* Traffic incident reports live exclusively inside the hamburger main menu.
+   A vertical list prevents the third option from wrapping out of view. */
+dialog:has(.smcity-menu-list){width:min(360px,calc(100vw - 28px));max-height:calc(100dvh - 32px);padding:18px}
+dialog .smcity-menu-list{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:12px}
+dialog .smcity-menu-list>button{display:block;width:100%;min-height:45px;text-align:left;padding:10px 12px;border:1px solid #d1e1d6;border-radius:9px;background:#fff;font-size:13px;font-weight:600;line-height:1.5;white-space:normal}
+dialog .smcity-menu-list>button:hover,dialog .smcity-menu-list>button:focus-visible{background:#eaf4ec;border-color:#78ad91}
+dialog .smcity-menu-list>button>small{display:block;font-size:10px;color:#637f70;font-weight:400;margin-top:2px}

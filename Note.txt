@@ -1,0 +1,2 @@
+cd D:\WebPalmy\SMGame
+py -m http.server 5500
