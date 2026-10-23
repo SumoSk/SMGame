@@ -146,6 +146,32 @@ if (gate) {
       showMember('signup');
       return true;
     },
+    async saveIncidentLog(entry) {
+      if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
+      const type = entry.eventType === 'collision' || entry.eventType === 'breakdown' ? entry.eventType : 'legacy';
+      const { error } = await auth.from('smgame_incident_logs').insert({
+        id: entry.eventId,
+        user_id: user.id,
+        occurred_at: entry.at,
+        city: String(entry.city || 'unknown').slice(0, 60),
+        game_time: Math.max(0, Number(entry.gameTime) || 0),
+        event_type: type,
+        reason: String(entry.reason || 'เหตุจราจร').slice(0, 500),
+        place: String(entry.place || 'ถนน').slice(0, 120),
+        vehicle_count: Math.max(1, Math.min(8, entry.vehicles?.length || 1)),
+        reward_baht: entry.award === 5000 ? 5000 : 0,
+        details: entry,
+      });
+      if (error && error.code !== '23505') throw error; // Duplicate client ID = already synchronized.
+    },
+    async listIncidentLogs() {
+      if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
+      const { data, error } = await auth.from('smgame_incident_logs')
+        .select('id,occurred_at,details').eq('user_id', user.id)
+        .order('occurred_at', { ascending: false }).limit(80);
+      if (error) throw error;
+      return data || [];
+    },
     async listSaves() {
       if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
       const { data, error } = await auth.from('smgame_saves')

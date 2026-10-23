@@ -1217,7 +1217,43 @@ function openTrafficIncident(vehicleId){
  return true;
 }
 function manualIncidentLogs(){try{const value=JSON.parse(localStorage.getItem(INCIDENT_LOG_KEY)||'[]');return Array.isArray(value)?value:[];}catch{return [];}}
-function writeManualIncidentLog(entry){try{const list=manualIncidentLogs();list.unshift(entry);localStorage.setItem(INCIDENT_LOG_KEY,JSON.stringify(list.slice(0,80)));return true;}catch{return false;}}
+function saveManualIncidentCache(list){try{localStorage.setItem(INCIDENT_LOG_KEY,JSON.stringify(list.slice(0,80)));return true;}catch{return false;}}
+function normalizeManualIncidentLogs(){
+ const logs=manualIncidentLogs();let changed=false;
+ for(const entry of logs)if(!entry.eventId){entry.eventId=crypto.randomUUID();changed=true;}
+ if(changed)saveManualIncidentCache(logs);
+ return logs;
+}
+function markIncidentLocal(eventId,patch){
+ const logs=manualIncidentLogs(),entry=logs.find(e=>e.eventId===eventId);
+ if(entry){Object.assign(entry,patch);saveManualIncidentCache(logs);}
+}
+let incidentCloudSyncing=false;
+async function syncManualIncidentLogs(){
+ const account=window.SMGameAccount,user=account?.user;
+ if(!user||typeof account.saveIncidentLog!=='function'||incidentCloudSyncing)return;
+ incidentCloudSyncing=true;
+ try{
+  for(let i=0;i<80;i++){
+   const entry=normalizeManualIncidentLogs().slice().reverse().find(e=>!e.cloudSyncedFor&&(!e.userId||e.userId===user.id));
+   if(!entry)break;
+   markIncidentLocal(entry.eventId,{userId:user.id});
+   await account.saveIncidentLog({...entry,userId:user.id});
+   markIncidentLocal(entry.eventId,{cloudSyncedFor:user.id});
+  }
+ }catch(error){console.warn('SMCITY incident log cloud sync:',error);}
+ finally{incidentCloudSyncing=false;}
+}
+function writeManualIncidentLog(entry){
+ try{
+  entry.eventId=crypto.randomUUID();
+  entry.userId=window.SMGameAccount?.user?.id||null;
+  const list=normalizeManualIncidentLogs();list.unshift(entry);
+  const saved=saveManualIncidentCache(list);
+  if(saved&&entry.userId)void syncManualIncidentLogs();
+  return saved;
+ }catch(error){console.warn('Local incident log:',error);return false;}
+}
 function resolveIncident(id){
  scanIncidents(true);const found=incidentForVehicle.get(id);
  if(!found)return false;
@@ -1259,14 +1295,50 @@ function resolveIncident(id){
  toast((eventType==='collision'?'รถชน':'รถเสีย')+' · ช่วยเหลือสำเร็จ '+ids.length+' คัน'+(awarded?' · ได้รับ '+money(awarded):' · ครบโควตารางวัลวันนี้แล้ว')+(stored?' · บันทึก Log แล้ว':' · ไม่สามารถเก็บ Log ในเบราว์เซอร์ได้'));
  return true;
 }
-function exportManualIncidentLogs(){const payload={format:'SMCITY-manual-incidents',version:1,exportedAt:new Date().toISOString(),events:manualIncidentLogs()};
+function exportManualIncidentLogs(logs=normalizeManualIncidentLogs()){
+ const payload={format:'SMCITY-manual-incidents',version:2,exportedAt:new Date().toISOString(),events:logs};
  const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
  const a=document.createElement('a');a.href=url;a.download='SMCITY-manual-incidents-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
 }
-function openManualIncidentLog(){const logs=manualIncidentLogs();
- const rows=logs.slice(0,30).map((e,i)=>'<div style="padding:9px 0;border-bottom:1px solid #dce4de"><strong>#'+(logs.length-i)+' · '+(e.eventType==='collision'?'รถชน':e.eventType==='breakdown'?'รถเสีย':escapeSaveText(e.place||'เหตุจราจร'))+'</strong><p>'+escapeSaveText(e.reason||'')+' · '+(e.vehicles?.length||0)+' คัน · วันที่ '+escapeSaveText(new Date(e.at).toLocaleString('th-TH'))+' · เงินช่วยเหลือ '+money(e.award||0)+'</p><details><summary>รายละเอียดการระงับเหตุ</summary><p>'+escapeSaveText((e.outcomes||[]).map(x=>'รถ #'+x.id+': '+x.method).join(' · '))+'</p></details></div>').join('');
- modal('<span class="eyebrow">TRAFFIC INCIDENT LOG</span><h2>ดู Log รายงาน</h2><p>เก็บเฉพาะเหตุที่กดระงับด้วยมือ ไม่บันทึกเหตุยกอัตโนมัติ · เก็บสูงสุด 80 รายการในเบราว์เซอร์นี้</p><p><b>ระงับแล้ว '+logs.length+' เหตุการณ์</b></p>'+(rows||'<p>ยังไม่มีประวัติการระงับเหตุด้วยมือค่ะ</p>')+'<div class="actions"><button class="primary" id="downloadIncidentLogs">ส่งออก JSON</button><button id="closeIncidentLogs">กลับไปเล่น</button></div>');
- $('downloadIncidentLogs').onclick=exportManualIncidentLogs;$('closeIncidentLogs').onclick=closeModal;
+function incidentLogListMarkup(logs){
+ return logs.slice(0,50).map((e,i)=>'<div style="padding:9px 0;border-bottom:1px solid #dce4de"><strong>#'+(logs.length-i)+' · '+(e.eventType==='collision'?'รถชน':e.eventType==='breakdown'?'รถเสีย':escapeSaveText(e.place||'เหตุจราจร'))+'</strong><p>'+escapeSaveText(e.reason||'')+' · '+(e.vehicles?.length||0)+' คัน · วันที่ '+escapeSaveText(new Date(e.at).toLocaleString('th-TH'))+' · เงินช่วยเหลือ '+money(e.award||0)+'</p><details><summary>รายละเอียดการระงับเหตุ</summary><p>'+escapeSaveText((e.outcomes||[]).map(x=>'รถ #'+x.id+': '+x.method).join(' · '))+'</p></details></div>').join('');
+}
+function openManualIncidentLog(){
+ const account=window.SMGameAccount,user=account?.user,userId=user?.id;
+ const local=normalizeManualIncidentLogs().filter(e=>!e.userId||e.userId===userId);
+ let displayed=local;
+ const status=user?'กำลังเชื่อม Supabase…':'กำลังเล่นแบบผู้เยี่ยมชม: Log จะเก็บในเครื่องและซิงก์เมื่อเข้าสู่ระบบ';
+ modal('<span class="eyebrow">TRAFFIC INCIDENT LOG</span><h2>ดู Log รายงาน</h2><p>บันทึกเฉพาะเหตุที่ผู้เล่นกดช่วยเหลือ ไม่รวมเหตุที่ระบบแก้อัตโนมัติ</p><p id="incidentCloudStatus">'+status+'</p><p><b id="incidentLogCount">ระงับแล้ว '+local.length+' เหตุการณ์</b></p><div id="incidentLogRows">'+(incidentLogListMarkup(local)||'<p>ยังไม่มีประวัติการช่วยเหลือค่ะ</p>')+'</div><div class="actions"><button class="primary" id="downloadIncidentLogs">ส่งออก JSON</button><button id="syncIncidentLogsBtn" '+(user?'':'hidden')+'>ซิงก์ Supabase</button><button id="closeIncidentLogs">กลับไปเล่น</button></div>');
+ const active=()=>$('dialog').open&&!!$('incidentLogRows');
+ const render=(logs,message)=>{
+  if(!active())return;
+  displayed=logs;
+  $('incidentCloudStatus').textContent=message;
+  $('incidentLogCount').textContent='ระงับแล้ว '+logs.length+' เหตุการณ์';
+  $('incidentLogRows').innerHTML=incidentLogListMarkup(logs)||'<p>ยังไม่มีประวัติการช่วยเหลือค่ะ</p>';
+ };
+ $('downloadIncidentLogs').onclick=()=>exportManualIncidentLogs(displayed);
+ $('closeIncidentLogs').onclick=closeModal;
+ async function loadCloud(){
+  if(!userId||!account?.listIncidentLogs)return;
+  await syncManualIncidentLogs();
+  try{
+   const remote=await account.listIncidentLogs();
+   if(window.SMGameAccount?.user?.id!==userId)return;
+   const cloud=remote.map(r=>({...r.details,eventId:r.id,userId,cloudSyncedFor:userId}));
+   const unsynced=normalizeManualIncidentLogs().filter(e=>(!e.userId||e.userId===userId)&&e.cloudSyncedFor!==userId);
+   const seen=new Set(),combined=[];
+   for(const entry of [...cloud,...unsynced].sort((a,b)=>Date.parse(b.at||0)-Date.parse(a.at||0))){
+    if(entry.eventId&&seen.has(entry.eventId))continue;
+    if(entry.eventId)seen.add(entry.eventId);
+    combined.push(entry);
+   }
+   const pending=unsynced.length;
+   render(combined.slice(0,80),'Supabase · '+remote.length+' รายการ'+(pending?' · รอซิงก์ '+pending+' รายการ':' · ซิงก์แล้ว'));
+  }catch(error){console.warn('SMCITY incident log cloud load:',error);render(normalizeManualIncidentLogs().filter(e=>!e.userId||e.userId===userId),'เชื่อม Supabase ไม่สำเร็จ · แสดง Log ที่อยู่ในเครื่อง');}
+ }
+ $('syncIncidentLogsBtn').onclick=()=>{if(active())$('incidentCloudStatus').textContent='กำลังซิงก์ Supabase…';void loadCloud();};
+ if(userId)void loadCloud();
 }
 function updateIncidentMarkers(){
  const now=Date.now();if(now-incidentRenderAt<150)return;incidentRenderAt=now;
@@ -3397,6 +3469,7 @@ $('advisorNext').onclick=e=>{const button=e.target.closest('button');if(!button)
 if($('accountQuick'))$('accountQuick').onclick=openAccountDialog;
 if($('saveGameQuick'))$('saveGameQuick').onclick=openCloudSaveDialog;
 window.SMGameOnAuthChanged=loggedIn=>{
+ if(loggedIn)void syncManualIncidentLogs();
  const account=$('accountQuick');
  if(account){
   account.classList.toggle('is-signed-in',!!loggedIn);
@@ -3416,6 +3489,6 @@ $('menu').onclick=()=>{
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){if(!['moveIn','pass'].includes(v.kind)&&v.wait>24){v.late=true;const c=state.citizens.get(v.citizenId);if(c){c.late=true;pain(c,3,'ล่าช้าก่อนข้ามวัน');}}arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,renderTools,dockItems,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,renderTools,dockItems,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();reset();requestAnimationFrame(frame);
 })();
