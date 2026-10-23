@@ -411,7 +411,7 @@ export class TrafficRenderer{
  updateSignals(signalColor){const lit={red:'#ff6855',yellow:'#ffd56b',green:'#9eeb96'},dim={red:'#4d302e',yellow:'#494230',green:'#2b473f'};for(const s of this.signals||[]){const active=signalColor(s.node,s.axis);for(const [name,lens]of Object.entries(s.lenses))lens.material.color.set(name===active?lit[name]:dim[name]);}}
  roof(batch,x,z,w,d,base,color,id){const angle=Math.atan2(.55,d/2),length=Math.hypot(d/2,.55);for(const sign of[-1,1])batch.add(BOX,color,x,base+.275,z+sign*d/4,w+.18,.10,length+.11,sign*angle,0,0,id);for(let k=-w/2+.12;k<w/2;k+=.22){for(const sign of[-1,1])batch.add(BOX,'#b86d48',x+k,base+.3,z+sign*d/4,.023,.035,length+.12,sign*angle,0,0,id);}batch.box('#ce8054',x,base+.57,z,w+.19,.07,.08,0,id);}
  window(batch,x,y,z,w,h,side,id){if(side==='front'){batch.box('#385d69',x,y,z,w,h,.025,0,id);if(hash(x+id,y+z)>.36)batch.box('#ffdf9d',x,y,z+.034,w*.76,h*.78,.012,0,id,true);batch.box('#dddac4',x,y,z+.02,.026,h+.04,.022,0,id);batch.box('#e9e6d4',x,y-h/2-.035,z+.04,w+.1,.06,.075,0,id);}else{batch.box('#456d75',x,y,z,.025,h,w,0,id);if(hash(z+id,x+y)>.40)batch.box('#ffe2ad',x+.035,y,z,.012,h*.77,w*.73,0,id,true);batch.box('#ede7d3',x+.02,y-h/2-.035,z,.075,.06,w+.08,0,id);}}
- parkingLot(batch,b){for(const rect of this.parking.parkingVisuals(b)){const p=this.parking.lotPoint(b,rect.u,rect.v);const asphalt=['#515f62','#58666a','#465e65'].includes(rect.color),marking=['#e9e6cc','#c5d2c2','#bbc9b9','#94d9aa','#f3ca88','#e5e6d0','#f1ca85','#86d1dc'].includes(rect.color);batch.box(rect.color,p.x-.5,rect.color==='#bdc6ae'?.025:(rect.color==='#515f62'||b.key==='home_grand'&&asphalt)?.065:.09,p.y-.5,rect.w,.012,rect.h,-(b.rotation||0)*Math.PI/2,b.id,false,asphalt?'night-asphalt':marking?'night-marking':'night-lot-base');}}
+ parkingLot(batch,b){for(const rect of this.parking.parkingVisuals(b)){const p=this.parking.lotPoint(b,rect.u,rect.v),asphalt=['#515f62','#58666a','#465e65'].includes(rect.color),marking=['#e9e6cc','#c5d2c2','#bbc9b9','#94d9aa','#f3ca88','#e5e6d0','#f1ca85','#86d1dc'].includes(rect.color),ground=['#bdc6ae','#9baaa0','#96af8f'].includes(rect.color);const y=ground?.025:asphalt?.065:marking?.102:.085;batch.box(rect.color,p.x-.5,y,p.y-.5,rect.w,.012,rect.h,-(b.rotation||0)*Math.PI/2,b.id,false,asphalt?'night-asphalt':marking?'night-marking':'night-lot-base');}}
  building(batch,b,CATALOG,KINDS){
   // Visual-only architecture v5: every component remains within its plot.
   if(this.parking)this.parkingLot(batch,b);
@@ -459,8 +459,11 @@ export class TrafficRenderer{
   // Dedicated architecture pod; parking logic and markings are independent.
   // All walls remain ahead of the parking courts and between the side drives.
   if(t.plannedParking){
-   const level=t.modelTier||1,u=t.plotWidth*.5,v=t.plotHeight-3.52;
-   const w=Math.min(t.plotWidth-2.95,level===1?4.45:level===2?6.15:7.45),d=2.94;
+   const level=t.modelTier||1,u=t.plotWidth*.5;
+   // Model follows the actual 50% front parcel, not the size label.
+   const zoneStart=t.parkingZoneDepth,zoneDepth=t.buildingZoneDepth;
+   const d=zoneDepth>=6?4.25:1.96,v=zoneStart+.22+d/2;
+   const w=Math.min(t.plotWidth-2.95,level===1?4.45:level===2?6.15:7.45);
    const colors={
     home:['#e6d9c8','#e9e5dc','#ede9e2'],office:['#c8dbe0','#c4d8e0','#d5e5e6'],
     factory:['#d2d6cf','#c8d0c8','#bec9c9'],shop:['#e8cdaa','#d9ddd0','#d6e3de'],
@@ -472,9 +475,12 @@ export class TrafficRenderer{
    const h=kind==='office'?2.5+level*.85:kind==='factory'?1.5+level*.42:
     kind==='home'?1.5+level*.57:kind==='mall'?2.1+level*.53:1.6+level*.47;
    const front=v+d/2;
-   // Back of the pad is beyond the final painted parking-row boundary.
-   block('#c6cebf',u,.10,v,t.plotWidth-2.3,.14,3.64,'stone');
-   block('#e7e4d9',u,.21,v+.08,w+.48,.07,d+.20,'stone');
+   // Fill the entire useful building parcel with landscaped ground up to the
+   // real frontage road; never leave the former white apron behind the bays.
+   const gardenEnd=t.frontageV-.46,gardenDepth=Math.max(.1,gardenEnd-zoneStart);
+   block('#8fa88b',u,.048,zoneStart+gardenDepth/2,t.plotWidth-1.74,.045,gardenDepth,'stone');
+   block('#c6cebf',u,.11,v,t.plotWidth-2.3,.14,d+.40,'stone');
+   block('#e7e4d9',u,.21,v+.08,w+.40,.07,d+.16,'stone');
    if(kind==='park'){
     block('#7fb18b',u,.24,v,t.plotWidth-2.55,.08,3.2);
     block('#e4d6bd',u,.30,v,t.plotWidth-2.70,.04,.29,'stone');
