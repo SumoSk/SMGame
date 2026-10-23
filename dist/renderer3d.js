@@ -736,11 +736,11 @@ export class TrafficRenderer{
     }
     block(c,x,y+.09,z+.132,.20,.08,.015,'wood');
    };
-   const fixture=(x,z,wide=1,height=.95)=>{
-    block('#e3dbce',x,.29+height*.43,z,wide,height*.82,.33,'stone');
-    block('#53707a',x,.24+height*.90,z,wide+.13,.08,.40,'metal');
+   const fixture=(x,z,wide=1,baseY=0,height=.95)=>{
+    block('#e3dbce',x,baseY+.29+height*.43,z,wide,height*.82,.33,'stone');
+    block('#53707a',x,baseY+.24+height*.90,z,wide+.13,.08,.40,'metal');
     for(let i=0;i<3;i++)for(let j=0;j<4;j++){
-     const xx=x-wide*.37+i*wide*.37,yy=.35+j*height*.185;
+     const xx=x-wide*.37+i*wide*.37,yy=baseY+.35+j*height*.185;
      block((i+j)%3===0?'#daaa49':(i+j)%3===1?'#658d86':'#8ea2b0',
       xx,yy,z+.199,wide*.17,.14,.055,'stone');
     }
@@ -962,7 +962,7 @@ export class TrafficRenderer{
       block(tone===0?yellow:tone===1?'#cda35b':'#edd186',x,yy+1.26,zz,1.52,.08,1.16,'stone');
       for(let j=0;j<3;j++){
        const pz=zz-.37+j*.37;
-       fixture(x,pz,.50,yy+.61);
+       fixture(x,pz,.50,yy,.62);
        block(i%2?'#f8d380':'#8ea6a4',shopFace+(side===0?.09:-.09),yy+.89,pz,.13,.16,.23,'stone');
       }
       block('#ffe3a8',shopFace,yy+1.43,zz,.10,.11,.40,'glass',true);
@@ -1024,7 +1024,7 @@ export class TrafficRenderer{
     }
     // Partial rooftop yellow-louver sunshade above the bar only.
     const sunZ=rz-rd*.32;
-    for(const x of[rx-.60,rx+.60])pillar(x,sunZ,6.05);
+    for(const x of[rx-.60,rx+.60])block('#c9b47b',x,5.31,sunZ,.062,1.62,.064,'metal');
     block('#f2c146',rx,6.12,sunZ,1.51,.10,.68,'metal');
     for(let i=0;i<8;i++)block('#fff0bf',rx-.61+i*.175,6.19,sunZ,.042,.033,.68,'metal');
     // Stair landing, flower beds and illuminated rooftop sign.
