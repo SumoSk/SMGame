@@ -26,7 +26,7 @@ CATALOG.home_grand={key:'home_grand',kind:'home',name:'บ้านใหญ่'
 const CAPACITY_PLAN={"home_large":[20,0,0],"home_dual":[40,0,0],"home_grand":[60,0,0],"office_small":[0,15,0],"office_medium":[0,30,0],"office_large":[0,60,0],"factory_small":[0,20,0],"factory_medium":[0,40,0],"factory_large":[0,60,0],"shop_small":[0,2,8],"shop_medium":[0,4,16],"shop_large":[0,8,32],"restaurant_small":[0,3,10],"restaurant_medium":[0,6,20],"restaurant_large":[0,10,40],"mall_small":[0,3,12],"mall_medium":[0,6,24],"mall_large":[0,12,48],"park_small":[0,1,14],"park_medium":[0,2,28],"park_large":[0,4,56],"pub_small":[0,2,8],"pub_medium":[0,4,16],"pub_large":[0,8,32]};
 for(const [key,[residents,jobs,service]] of Object.entries(CAPACITY_PLAN))Object.assign(CATALOG[key],{residents,jobs,service});
 for(const t of Object.values(CATALOG))if((t.kind==='home'&&['home_large','home_dual'].includes(t.key))||(!['hotel','home'].includes(t.kind))){t.plannedParking=true;t.modelTier=t.key==='home_large'?1:t.key==='home_dual'?2:t.key.endsWith('_small')?1:t.key.endsWith('_medium')?2:3;}
-const PARKING_VERSION=8,LOT_SPEED=1.35;
+const PARKING_VERSION=9,LOT_SPEED=1.35;
 for(const t of Object.values(CATALOG)){
  t.parkingCapacity=t.beds||t.residents||t.jobs+t.service;
  t.parkingColumns=Math.ceil(t.parkingCapacity/2);
@@ -42,14 +42,21 @@ for(const t of Object.values(CATALOG)){
  if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.88;t.plotWidth=20;t.plotHeight=11;t.parkingAisle=9.15;t.parkingUpperAisle=6.55;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
  if(t.stackedParking){t.parkingColumns=15;t.parkingRows=2;t.parkingPhysicalRows=4;t.parkingPitch=.55;t.parkingRowOffset=.79;t.parkingAisle=4.90;t.parkingRearAisle=2.05;t.plotWidth=11;t.plotHeight=13;t.compactParking=true;t.frontageEntranceU=3.0;t.frontageExitU=8.0;t.frontageV=12.43;}
  if(t.plannedParking){
-  const banks=t.parkingCapacity>30?2:1;
+  // Parking is sized FIRST. Compare the one-bank and two-bank plot areas,
+  // including real side-drive clearance. Building takes the other 50%.
+  const candidate=banks=>{
+   const columns=Math.ceil(t.parkingCapacity/(2*banks));
+   const width=Math.max(6,Math.ceil(2.33+columns*.55));
+   const height=banks===1?8:13;
+   return {banks,columns,width,height,area:width*height};
+  };
+  const best=[candidate(1),candidate(2)].sort((a,b)=>a.area-b.area||a.banks-b.banks)[0];
   t.dualParking=false;t.stackedParking=true;t.compactParking=true;
-  t.parkingRows=banks;t.parkingPhysicalRows=banks*2;
-  t.parkingColumns=Math.ceil(t.parkingCapacity/(banks*2));
-  t.parkingPitch=.55;t.parkingRowOffset=.79;
-  t.parkingAisle=4.90;t.parkingRearAisle=banks===2?2.05:4.90;
-  t.plotWidth=Math.max(t.modelTier===3?11:t.modelTier===2?10:9,Math.ceil(2.42+(t.parkingColumns-.5)*t.parkingPitch));
-  t.plotHeight=t.modelTier===3?13:12;
+  t.parkingRows=best.banks;t.parkingPhysicalRows=best.banks*2;
+  t.parkingColumns=best.columns;t.parkingPitch=.55;t.parkingRowOffset=.79;
+  t.parkingRearAisle=2.05;t.parkingAisle=best.banks===2?4.90:2.05;
+  t.plotWidth=best.width;t.plotHeight=best.height;
+  t.parkingZoneDepth=t.plotHeight/2;t.buildingZoneDepth=t.plotHeight/2;
   t.frontageEntranceU=+(t.plotWidth*.275).toFixed(2);
   t.frontageExitU=+(t.plotWidth-t.frontageEntranceU).toFixed(2);
   t.frontageV=t.plotHeight-.57;t.parkingLayout=null;
@@ -71,7 +78,7 @@ function lotSlots(b){
  }
  return t.parkingLayout=slots;
 }
-function lotModel(b){const t=CATALOG[b.key],p=lotPoint(b,t.plotWidth/2,t.plannedParking?t.plotHeight-3.35:t.size/2+.1);return{...b,x:p.x-.5-t.size/2,y:p.y-.5-t.size/2};}
+function lotModel(b){const t=CATALOG[b.key],scale=t.plannedParking?Math.min(t.size,t.plotWidth-2,t.buildingZoneDepth-1.35):t.size,p=lotPoint(b,t.plotWidth/2,t.plannedParking?t.parkingZoneDepth+t.buildingZoneDepth/2:t.size/2+.1);return{...b,x:p.x-.5-scale/2,y:p.y-.5-scale/2,visualSize:scale};}
 function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=(CATALOG[b.key].dualParking?Math.PI/2:(slot.row%2?Math.PI/2:-Math.PI/2))+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
 function citizenCarColor(id){if(state?.citizens.get(id)?.tourist)return '#65c8f2';return ['#f0e8c7','#e5a861','#719ca5','#afc5a2','#bc8fa5','#c8c8c0'][Math.abs(id)%6];}
 function parkingSpace(b,cid,allocate=false){
@@ -593,10 +600,13 @@ function syncParkingSlots(){for(const b of state.buildings.values()){if(!b.parki
 function parkingVisuals(b){
  const t=CATALOG[b.key],rects=[];
  const rect=(u,v,w,h,color)=>rects.push({u,v,w,h,color});
- rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.05,t.plotHeight-.05,'#bdc6ae');
+ if(t.plannedParking){
+  rect(t.plotWidth/2,t.parkingZoneDepth/2,t.plotWidth-.05,t.parkingZoneDepth-.05,'#9baaa0');
+  rect(t.plotWidth/2,t.parkingZoneDepth+t.buildingZoneDepth/2,t.plotWidth-.05,t.buildingZoneDepth-.05,'#96af8f');
+ }else rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.05,t.plotHeight-.05,'#bdc6ae');
  if(t.stackedParking){
   // Shared grand-house banks, one for compact or two for large lots.
-  const rear=t.parkingRearAisle,front=t.parkingAisle;
+  const rear=t.parkingRearAisle,front=t.parkingRows>1?t.parkingAisle:t.parkingRearAisle;
   const aisles=t.parkingRows>1?[rear,front]:[rear];
   for(const aisle of aisles){
    const bottom=aisle-t.parkingRowOffset-.64,top=aisle+t.parkingRowOffset+.64;
@@ -654,7 +664,7 @@ function parkingVisuals(b){
   rect(t.plotWidth/2,forecourt+.39,gateOut-entranceU-.95,.032,'#bbc9b9');
   // Pavement striping follows actual travel direction (right-to-left along
   // this forecourt) and the real centered entrance and exit.
-  for(const u of [2.00,9.00]){
+  for(const u of [Math.max(1.3,entranceU-.7),Math.min(t.plotWidth-1.3,gateOut+.7)]){
    rect(u,forecourt,.34,.027,'#c5d2c2');
    rect(u-.12,forecourt-.085,.13,.025,'#c5d2c2');
    rect(u-.12,forecourt+.085,.13,.025,'#c5d2c2');
@@ -669,7 +679,7 @@ function parkingVisuals(b){
    rect(islandMid,forecourt+.17,islandGap-.36,.032,'#bbc9b9');
    rect(islandMid,islandTop-.16,islandGap-.46,.032,'#bbc9b9');
    rect(islandMid,(forecourt+islandTop)/2,islandGap-1.08,.28,'#7ea072');
-   rect(islandMid,(forecourt+islandTop)/2,islandGap-1.46,.10,'#d7b38c');
+   rect(islandMid,(forecourt+islandTop)/2,Math.max(.08,islandGap-1.46),.10,'#d7b38c');
    for(const u of [islandMid-1.05,islandMid+1.05])rect(u,(forecourt+islandTop)/2,.22,.22,'#f1ca85');
   }
   rect(entranceU,forecourt-.06,.17,.13,'#94d9aa');
@@ -897,7 +907,7 @@ function signalAllows(i,entering){const phase=signalPhase(i);return phase>=0&&ph
 function stopProgress(v,pos){const node=v.path[pos],prev=v.path[Math.max(0,pos-1)];if(node==null||prev==null)return 0;const gap=Math.max(.05,1-TRAFFIC_RULES.stopLineOffset-TRAFFIC_RULES.vehicleHalfLength);return Math.min(.24,Math.max(.04,gap));}
 function nextTurn(v,pos){for(let n=pos;n<Math.min(pos+4,v.path.length-2);n++){const d1=dir(v.path[n],v.path[n+1]),d2=dir(v.path[n+1],v.path[n+2]);if(d1!==d2)return(d2-d1+4)%4;}return 0;}
 function occupancy(i){let n=0;for(let d=0;d<4;d++)for(let l=0;l<4;l++)if(state.occ.has(`${i}:${d}:${l}`))n++;return n;}
-function drawBuilding(b,ghost=false){const plot=b;drawParking2D(plot);b=lotModel(plot);const t=CATALOG[b.key],k=KINDS[t.kind],s=t.size,x=b.x,y=b.y,p=screen(x,y);if(p[0]<-180||p[0]>view.w+100||p[1]<-80||p[1]>view.h+180)return;ctx.save();if(ghost)ctx.globalAlpha=.62;
+function drawBuilding(b,ghost=false){const plot=b;drawParking2D(plot);b=lotModel(plot);const t=CATALOG[b.key],k=KINDS[t.kind],s=b.visualSize||t.size,x=b.x,y=b.y,p=screen(x,y);if(p[0]<-180||p[0]>view.w+100||p[1]<-80||p[1]>view.h+180)return;ctx.save();if(ghost)ctx.globalAlpha=.62;
 box(x+.06,y+.06,s-.12,s-.12,2,'#d9d7ba','#a3b38d','#bbc39e');
 if(t.kind==='park'){box(x+.25,y+.25,s-.5,s-.5,3,'#8abb75','#739b66','#86aa72');poly([screen(x+.3,y+s*.45,4),screen(x+s-.3,y+s*.45,4),screen(x+s-.3,y+s*.63,4),screen(x+.3,y+s*.63,4)],'#e3d9b5');tree(x+s*.28,y+s*.3,1.1);tree(x+s*.73,y+s*.28,1.3);tree(x+s*.7,y+s*.8,.9);const f=screen(x+s*.45,y+s*.75,5);ctx.fillStyle='#d9d6b7';ctx.beginPath();ctx.ellipse(...f,9*cam.z,6*cam.z,0,0,7);ctx.fill();ctx.fillStyle='#83bfba';ctx.beginPath();ctx.ellipse(...f,6*cam.z,4*cam.z,0,0,7);ctx.fill();}
 else{const tall=t.kind==='office'?s*8:t.kind==='mall'?s*4:t.kind==='home'?s*4+3:s*3.5,height=tall;const bx=x+.26,by=y+.3,bw=s-.55,bh=s-.8;const sh=[screen(bx+bw,by),screen(bx+bw+height/T*.65,by+.6),screen(bx+bw+height/T*.65,by+bh+.6),screen(bx,by+bh+.1)];poly(sh,'#294b3924');box(bx,by,bw,bh,height,k.color,'#76988d',t.kind==='home'?'#efdcb2':'#d9e1cf');
