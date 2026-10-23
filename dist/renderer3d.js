@@ -456,6 +456,256 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
+  // BLUE DINING COLLECTION — game-native, open-plan restaurant sculpture.
+  // PARKING-FIRST parcels: 7x8 / 10x8 / 10x13, with the rear HALF
+  // completely reserved for 13 / 26 / 50 genuine parking spaces.
+  // All kitchens, tables, furniture and lights are true 3D, never a billboard.
+  if(t.kind==='restaurant'){
+   const level=t.modelTier||1;
+   const blue='#123b72',royal='#205998',navy='#142f53',lightBlue='#4b9abd';
+   const midnight='#18304c',cream='#e7dbc7',slate='#71808a',gold='#e4b67d';
+   const cx=t.plotWidth/2,siteBack=t.parkingZoneDepth;
+   const rear=siteBack+.31,front=Math.min(t.plotHeight-1.13,siteBack+t.buildingZoneDepth-.98);
+   const space=front-rear,mid=(front+rear)/2;
+   const kitchenX=level===1?2.23:level===2?3.08:3.02;
+   const kitchenW=level===1?2.19:level===2?2.95:3.47;
+   const kitchenZ=rear+(level===3?.90:.70);
+   const diningX=level===1?4.85:level===2?6.95:7.00;
+   const long=level===3;
+   // Open-plan tiled land. Use a meandering terracotta-blue border so the
+   // restaurant NEVER looks like a large cuboid when viewed from the air.
+   block('#d4cabc',cx,.145,mid,t.plotWidth-1.77,.09,space+.40,'stone');
+   block('#b6cbd0',kitchenX,.204,kitchenZ,kitchenW+.30,.045,level===3?2.25:1.66,'stone');
+   block('#e5d8bf',diningX,.203,mid,level===1?2.28:level===2?3.43:3.48,.050,space-.18,'stone');
+   // The kitchen has a LOW back wall and two SHORT side splashes only.
+   // No filled-in storey or roof across the dining area.
+   const kitchenRear=kitchenZ-(long?1.01:.76);
+   block('#d5dfdf',kitchenX,.89,kitchenRear,kitchenW,1.30,.13,'stone');
+   block(blue,kitchenX,1.45,kitchenRear+.08,kitchenW,.14,.20,'metal');
+   for(const side of[-1,1]){
+    const x=kitchenX+side*kitchenW*.49;
+    block('#d6e1df',x,.65,kitchenZ-.35,.095,.87,.81,'stone');
+    block(royal,x,1.15,kitchenZ-.48,.13,.10,.67,'metal');
+   }
+   // Slender blue cantilever roof covers only the back third of the kitchen:
+   // from the isometric camera, burners and preparation stations stay exposed.
+   const shadeZ=kitchenRear+.10;
+   block(navy,kitchenX,2.21,shadeZ,kitchenW+.41,.13,.55,'metal');
+   block(royal,kitchenX,2.30,shadeZ+.23,kitchenW+.49,.075,.15,'metal');
+   for(let i=0;i<Math.max(5,level*4+3);i++){
+    const x=kitchenX-kitchenW*.46+i*kitchenW*.92/(Math.max(5,level*4+3)-1);
+    block('#91bfd1',x,2.31,shadeZ+.12,.026,.030,.47,'metal');
+   }
+   for(const x of[kitchenX-kitchenW*.45,kitchenX+kitchenW*.45]){
+    pole('#516d80',x,1.13,kitchenRear+.29,.034,2.22,'metal');
+    block('#ffe1a7',x,2.30,kitchenRear+.45,.12,.09,.12,'glass',true);
+   }
+   // Back preparation line: stainless bench, range hobs, hood, tiled
+   // splashback, dishwasher, sink with faucet and visible ingredients.
+   block('#8ca0a7',kitchenX,.70,kitchenRear+.24,kitchenW*.85,.16,.37,'metal');
+   block('#c5d4d4',kitchenX,.84,kitchenRear+.24,kitchenW*.90,.055,.41,'metal');
+   for(let i=0;i<4;i++){
+    const x=kitchenX-kitchenW*.37+i*kitchenW*.24;
+    block('#637c87',x,.88,kitchenRear+.28,.25,.035,.28,'metal');
+    for(const side of[-1,1]){
+     const p=point(x+side*.062,kitchenRear+.28);
+     batch.add(CYL,'#242d35',p.x-.5,.919,p.y-.5,.065,.026,.065,0,0,0,id,false,'metal');
+     pole('#f6aa68',x+side*.062,.938,kitchenRear+.28,.031,.025,'glass',true);
+    }
+   }
+   block('#526b7b',kitchenX,1.59,kitchenRear+.13,kitchenW*.50,.22,.37,'metal');
+   block('#82939b',kitchenX,1.77,kitchenRear+.13,kitchenW*.54,.072,.41,'metal');
+   for(const x of[kitchenX-kitchenW*.25,kitchenX+kitchenW*.25]){
+    block('#75868c',x,1.23,kitchenRear+.05,.055,.52,.15,'metal');
+    block('#aab9ba',x,1.51,kitchenRear+.11,.20,.065,.25,'metal');
+   }
+   // The serving side is a glazed, OPEN counter, deliberately not a wall.
+   const serviceZ=kitchenZ+.49;
+   block('#2d5c84',kitchenX,.55,serviceZ,kitchenW*.90,.56,.39,'wood');
+   block('#b5c7ca',kitchenX,.89,serviceZ,kitchenW*.96,.090,.52,'metal');
+   block('#4d91a8',kitchenX,.51,serviceZ+.226,kitchenW*.84,.27,.030,'glass');
+   for(let i=0;i<Math.max(3,level+2);i++){
+    const x=kitchenX-kitchenW*.36+i*kitchenW*.72/Math.max(2,level+1);
+    pole('#e6d2aa',x,.995,serviceZ,.060,.075,'stone');
+    pole(i%2?'#76ab77':'#bd6849',x,1.051,serviceZ,.038,.046,'stone');
+   }
+   const sinkX=kitchenX+kitchenW*.34;
+   block('#d9e7e6',sinkX,.91,kitchenRear+.13,.32,.045,.30,'metal');
+   block('#648b99',sinkX,.945,kitchenRear+.13,.20,.023,.19,'water');
+   pole('#acbec2',sinkX,1.06,kitchenRear+.16,.017,.25,'metal');
+   block('#c4d2d1',sinkX,1.19,kitchenRear+.24,.12,.024,.025,'metal');
+   for(let i=0;i<Math.min(3,level+1);i++){
+    const x=kitchenX-kitchenW*.42+i*.31;
+    block('#74835e',x,1.13,kitchenRear+.06,.19,.20,.18,'stone');
+    block('#76a15f',x,1.27,kitchenRear+.06,.15,.09,.15,'stone');
+   }
+   // Seating kit: ground and rooftop tables have proper chairs, plates,
+   // glassware, table lamps and thin structural legs.
+   const placeTable=(x,z,elevation=0,formal=false,scale=1)=>{
+    const rr=(formal?.29:.255)*scale;
+    pole(formal?'#5d7181':'#5b7380',x,elevation+.46,z,.042*scale,.47*scale,'metal');
+    const p=point(x,z);
+    batch.add(CYL,formal?'#e9e2d4':'#b78e69',
+     p.x-.5,elevation+.70*scale,p.y-.5,rr,.078*scale,rr,0,0,0,id,false,formal?'stone':'wood');
+    const chairs=formal?4:4;
+    for(let j=0;j<chairs;j++){
+     const a=j*Math.PI*2/chairs,xx=x+Math.sin(a)*.41*scale,zz=z+Math.cos(a)*.41*scale;
+     block(formal?'#355b80':'#56768b',xx,elevation+.37*scale,zz,.21*scale,.075*scale,.23*scale,'wood');
+     block(formal?'#23466c':'#557fa0',xx+Math.sin(a)*.095*scale,elevation+.57*scale,
+      zz+Math.cos(a)*.095*scale,.075*scale,.36*scale,.23*scale,'wood');
+     block('#8a8076',xx,elevation+.19*scale,zz,.032*scale,.29*scale,.033*scale,'metal');
+    }
+    for(const i of[-1,0,1]){
+     const px=x+i*.12*scale;
+     const plate=point(px,z+.042*scale);
+     batch.add(CYL,formal?'#f3eee2':'#e9ebdc',
+      plate.x-.5,elevation+.751*scale,plate.y-.5,.050*scale,.011*scale,.050*scale,0,0,0,id,false,'stone');
+    }
+    pole('#ffe3af',x,elevation+.84*scale,z,.024*scale,.095*scale,'glass',true);
+    pole('#b6c6c8',x+.12*scale,elevation+.84*scale,z-.08*scale,.018*scale,.16*scale,'glass');
+   };
+   // Side-hung pergola, not a second rectangular building.
+   const pergola=(x,z,w,d,height=1.82)=>{
+    for(const dx of[-w*.46,w*.46])for(const dz of[-d*.43,d*.43]){
+     pole('#466c91',x+dx,height*.53,z+dz,.038,height,'metal');
+     block('#ffe0a4',x+dx,height+.01,z+dz,.10,.085,.10,'glass',true);
+    }
+    for(const dz of[-d*.45,d*.45])
+     block(navy,x,height,z+dz,w+.16,.085,.07,'metal');
+    for(let i=0;i<Math.max(3,Math.floor(w/.22));i++){
+     const xx=x-w*.42+(i+.5)*w*.84/Math.max(3,Math.floor(w/.22));
+     block(royal,xx,height+.046,z,.042,.065,d*.97,'metal');
+    }
+   };
+   const plant=(x,z,r=.26)=>{
+    block('#b7b19c',x,.34,z,r*1.22,.22,r*1.03,'stone');
+    block('#4e8663',x,.56,z,r*.98,.26,r*.91,'stone');
+    block('#89b97d',x,.76,z,r*.64,.16,r*.63,'stone');
+    if(level===3)block('#d7bca3',x,.82,z,.10,.07,.13,'stone');
+   };
+   const pixel={
+    A:['010','101','111','101','101'],B:['110','101','110','101','110'],
+    C:['111','100','100','100','111'],E:['111','100','110','100','111'],
+    F:['111','100','110','100','100'],I:['111','010','010','010','111'],
+    L:['100','100','100','100','111'],N:['101','111','111','111','101'],
+    O:['111','101','101','101','111'],P:['110','101','110','100','100'],
+    R:['110','101','110','101','101'],S:['111','100','111','001','111'],
+    T:['111','010','010','010','010'],U:['101','101','101','101','111']};
+   const sign=(word,x,y,z,width)=>{
+    const text=word.replace(/[^A-Z]/g,''),px=Math.min(.075,width/(text.length*4+2));
+    block(navy,x,y,z,width,.52,.095,'metal');
+    block('#d5ad77',x,y+.26,z+.052,width+.08,.034,.065,'metal');
+    for(let i=0;i<text.length;i++)for(let row=0;row<5;row++)for(let col=0;col<3;col++){
+     if(pixel[text[i]]?.[row]?.[col]==='1'){
+      const xx=x-(text.length*4-1)*px/2+(i*4+col)*px;
+      block('#f9ddb1',xx,y+(2-row)*px,z+.055,px*.78,px*.83,.020,'glass',true);
+     }
+    }
+   };
+   const name=level===1?'BLUE CAFE':level===2?'BLUE BISTRO':'FINE DINING';
+   // Steel uprights hold a sign above the kitchen without closing its view.
+   const signY=level===1?2.65:2.78;
+   for(const dx of[-kitchenW*.40,kitchenW*.40])
+    pole(blue,kitchenX+dx,signY-.30,kitchenRear+.26,.032,.64,'metal');
+   sign(name,kitchenX,signY,kitchenRear+.56,Math.min(kitchenW+.28,level===3?3.42:kitchenW+.20));
+   // Floor tile accents and distinctive blue aisle to the dining area.
+   block('#2d729a',cx,.239,front+.05,Math.min(1.06,t.plotWidth*.16),.029,.23,'stone');
+   for(let i=0;i<5;i++){
+    const x=cx-.43+i*.215;
+    block(i%2?'#d8dfd9':'#4a90b0',x,.257,front+.04,.12,.015,.12,'stone');
+   }
+   // Outdoor seats are naturally laid out in the remaining 50% footprint.
+   if(level===1){
+    for(const [x,z] of[[4.17,rear+.84],[5.48,rear+.90],[4.81,front-.32]])
+     placeTable(x,z,0,false,.82);
+    pergola(4.84,mid,2.14,space-.42,1.90);
+    plant(1.14,front-.15,.18);plant(5.96,rear+.10,.18);
+    // The café has a narrow public pickup shelf and sheltered stools.
+    block('#3a6f95',kitchenX,.45,serviceZ+.36,kitchenW*.64,.09,.16,'wood');
+    for(const dx of[-.45,.0,.45])pole('#b1bdbe',kitchenX+dx,.28,serviceZ+.64,.095,.37,'metal');
+   }else if(level===2){
+    for(const [x,z] of[[5.55,rear+.72],[7.65,rear+.72],[5.55,front-.42],[7.65,front-.42]])
+     placeTable(x,z,0,false,.91);
+    pergola(6.72,mid,3.61,space-.25,2.04);
+    // Open bar with stools to distinguish the medium terrace.
+    block('#214e7c',kitchenX,1.22,serviceZ+.18,kitchenW*.79,.085,.23,'stone');
+    for(const dx of[-.70,-.25,.24,.69])pole('#cdd5cb',kitchenX+dx,.44,serviceZ+.73,.096,.41,'metal');
+    for(const x of[1.12,8.92])plant(x,front-.23,.20);
+   }else{
+    // Large five-star is a stepped *open-air* restaurant, not a skyscraper.
+    // Ground floor: visible show kitchen left, dining on the right, water wall.
+    for(const [x,z] of[[5.66,rear+2.96],[7.54,rear+3.02],
+     [5.66,front-.40],[7.55,front-.40],[5.55,rear+1.49]])
+     placeTable(x,z,0,true,.85);
+    // A dedicated fine-dining step-up deck sits at the FRONT of the 50% site.
+    block('#d8e3df',6.86,.21,front-.14,3.52,.12,1.06,'stone');
+    for(const x of[5.18,8.55])plant(x,front-.27,.28);
+    // Rooftop is a raised, narrower open terrace above RIGHT rear only.
+    // The left-side demonstration kitchen remains visible from above.
+    const roofX=6.89,roofZ=rear+1.46,roofW=3.60,roofD=2.40,roofY=2.41;
+    for(const sx of[-1,1])for(const sz of[-1,1])
+     block('#557da0',roofX+sx*roofW*.46,1.29,roofZ+sz*roofD*.44,.095,2.34,.095,'metal');
+    block('#e5ded1',roofX,roofY,roofZ,roofW,.15,roofD,'stone');
+    block('#356b9d',roofX,roofY+.095,roofZ,roofW-.22,.048,roofD-.20,'stone');
+    for(const dz of[-1,1]){
+     block('#8ac8d0',roofX,roofY+.38,roofZ+dz*roofD*.47,roofW-.12,.54,.043,'glass');
+     for(let i=0;i<7;i++){
+      const xx=roofX-roofW*.43+i*roofW*.86/6;
+      block('#d4e5e5',xx,roofY+.38,roofZ+dz*roofD*.47,.027,.55,.050,'metal');
+     }
+    }
+    for(const side of[-1,1]){
+     block('#8ac8d0',roofX+side*roofW*.48,roofY+.38,roofZ,.044,.54,roofD-.06,'glass');
+     for(let i=0;i<5;i++)block('#d2e5e9',roofX+side*roofW*.48,roofY+.37,
+      roofZ-roofD*.38+i*roofD*.19,.049,.51,.027,'metal');
+    }
+    // Rooftop tables are actually 2.4 units ABOVE ground, never on grade.
+    for(const [x,z] of[[5.91,roofZ-.47],[7.58,roofZ-.48],[6.79,roofZ+.54]])
+     placeTable(x,z,roofY+.10,true,.83);
+    // Roof garden and open bar with stools and drink bottles.
+    block(navy,roofX,roofY+.55,roofZ-roofD*.30,1.40,.66,.31,'wood');
+    block('#dcb58d',roofX,roofY+.94,roofZ-roofD*.30,1.55,.080,.43,'wood');
+    for(let i=0;i<6;i++){
+     const x=roofX-.60+i*.24;
+     pole(i%2?'#9ecdbd':'#d9b48a',x,roofY+1.14,roofZ-roofD*.33,.055,.27,'glass');
+    }
+    for(const x of[roofX-roofW*.40,roofX+roofW*.40])
+     plant(x,roofZ+roofD*.28,.17);
+    // Open lightweight rooftop canopy is confined to the BAR, not all tables.
+    const canopyZ=roofZ-roofD*.28;
+    for(const x of[roofX-.69,roofX+.69])pole(blue,x,roofY+1.65,canopyZ,.033,2.19,'metal');
+    block(navy,roofX,roofY+2.78,canopyZ,1.60,.095,.72,'metal');
+    for(let i=0;i<9;i++){
+     const x=roofX-.68+i*.17;
+     block(lightBlue,x,roofY+2.85,canopyZ,.037,.04,.74,'metal');
+    }
+    // Real water feature, kept OUTSIDE any parking aisle.
+    const waterX=8.84,waterZ=rear+3.22;
+    block('#d9e4de',waterX,.44,waterZ,.19,.62,1.14,'stone');
+    block('#4d9fc1',waterX,.46,waterZ+.060,.025,.46,.99,'water');
+    block('#94ddeb',waterX,.28,waterZ+.16,.045,.09,.90,'glass',true);
+    block('#538e9e',waterX,.17,waterZ+.20,.30,.12,1.18,'water');
+    // Five-star navigation: staff kitchen, terrace and side service walk.
+    for(let i=0;i<6;i++)block('#f0d8a9',1.09,.29,rear+.54+i*.72,.17,.11,.39,'stone');
+    for(const x of[1.14,8.91])for(const z of[rear+.22,front-.33])plant(x,z,.17);
+   }
+   // Every elevation is intentional: rear has kitchen / exhaust, front is
+   // open tables / welcoming path, sides are landscaping or roof support.
+   for(const x of[kitchenX-kitchenW*.40,kitchenX+kitchenW*.40]){
+    pole('#7a8b90',x,1.68,kitchenRear-.12,.045,.54,'metal');
+    block('#a1afb1',x,1.98,kitchenRear-.12,.19,.17,.19,'metal');
+   }
+   // Kitchen rear storage shelving, window and colored bottles.
+   for(const y of[1.09,1.36]){
+    block('#7293a0',kitchenX,y,kitchenRear+.105,kitchenW*.60,.055,.22,'metal');
+    for(let i=0;i<Math.min(7,level*2+3);i++){
+     const x=kitchenX-kitchenW*.28+i*kitchenW*.56/Math.max(1,Math.min(7,level*2+3)-1);
+     pole(i%2?'#79a976':'#d19b6e',x,y+.12,kitchenRear+.13,.035,.17,'glass');
+    }
+   }
+   return;
+  }
+
   // ART-DIRECTED CITY COLLECTION — distinct sculpted assets for every playable
   // home (except preserved home_grand), office, factory, shop, restaurant, mall,
   // park, pub and hotel tier. All parts live in a parking-first plot; no traffic
