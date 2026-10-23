@@ -501,10 +501,9 @@ export class TrafficRenderer{
   }
 
   if(b.key==='home_grand'){
-   // Signature grand residence: a low-rise circular luxury building, based on
-   // the small home's cream stone and blue glass, enlarged to fill the compact
-   // rear plot. Parking is two tightly stacked banks directly in front.
-   const u=W*.5,v=3.05;
+   // Street-facing circular luxury residence, with two complete parking
+   // courts hidden behind it. Its original round architecture is preserved.
+   const u=W*.5,v=t.plotHeight-3.04;
    const disc=(color,yy,r,hh,finish='stone',glow=false)=>{
     const p=point(u,v);
     batch.add(CYL_SMOOTH,color,p.x-.5,yy,p.y-.5,r,hh,r,0,0,0,id,glow,finish);
@@ -538,8 +537,8 @@ export class TrafficRenderer{
    block('#547781',u,.79,v+2.53,1.30,1.20,.055,'glass');
    block('#dfddcf',u,1.51,v+2.57,1.65,.11,.44,'stone');
    block('#c3ad91',u,1.59,v+2.59,1.62,.052,.38,'metal');
-   block('#e7dfd3',u,.095,5.90,1.32,.05,.26,'stone');
-   for(const x of [u-1.65,u+1.65])lantern(x,5.64,'#ffdcaa',1.04);
+   block('#e7dfd3',u,.095,v+2.74,1.32,.05,.26,'stone');
+   for(const x of [u-1.65,u+1.65])lantern(x,v+2.52,'#ffdcaa',1.04);
    return;
   }
 
@@ -1239,7 +1238,40 @@ export class TrafficRenderer{
    lantern(x,s*.94,kind==='pub'?'#e6a4e6':'#ffe5b0',.80+tier*.11);
   }
  }
- makeBuildings(state,CATALOG,KINDS){this.disposeGroup(this.buildingGroup);const b=new Batch();for(const building of state.buildings.values())this.building(b,building,CATALOG,KINDS);this.buildingGroup.add(b.build());this.lastNightVisibility=-1;}
+ makeBuildings(state,CATALOG,KINDS){
+  this.disposeGroup(this.buildingGroup);
+  const batch=new Batch();this.grandSignalLights=[];
+  for(const building of state.buildings.values()){
+   this.building(batch,building,CATALOG,KINDS);
+   if(building.key!=='home_grand')continue;
+   const t=CATALOG[building.key],exitU=t.plotWidth-.45,front=t.parkingAisle;
+   // Two actual traffic-light poles at the STOP lines of the internal T-junction.
+   // These are separate live materials, not static road-junction decorations.
+   for(const [approach,u,v] of [['front',exitU-1.12,front+.53],['rear',exitU+.02,front-.98]]){
+    const p=this.parking.lotPoint(building,u,v),light=new THREE.Group();
+    const stem=new THREE.Mesh(CYL,new THREE.MeshStandardMaterial({color:'#647373',metalness:.4}));
+    stem.scale.set(.037,.53,.037);stem.position.y=.47;light.add(stem);
+    const head=new THREE.Mesh(BOX,new THREE.MeshStandardMaterial({color:'#293b42',roughness:.5}));
+    head.scale.set(.18,.34,.14);head.position.y=1.06;light.add(head);
+    const red=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({color:'#e65f57'}));
+    red.scale.set(.05,.05,.03);red.position.set(0,1.15,.085);
+    const green=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({color:'#365448'}));
+    green.scale.set(.05,.05,.03);green.position.set(0,.98,.085);
+    light.add(red,green);light.position.set(p.x-.5,0,p.y-.5);
+    this.buildingGroup.add(light);
+    this.grandSignalLights.push({building,approach,red,green});
+   }
+  }
+  this.buildingGroup.add(batch.build());
+  this.lastNightVisibility=-1;
+ }
+ updateGrandSignals(){
+  for(const item of this.grandSignalLights||[]){
+   const green=(item.building.grandSignal?.green||'front')===item.approach;
+   item.red.material.color.set(green?'#443735':'#ff6156');
+   item.green.material.color.set(green?'#86d987':'#294f38');
+  }
+ }
 
  createCars(){
   this.carModels=VEHICLE_TYPES.map((_,i)=>carGeometries(i));
@@ -1314,7 +1346,7 @@ export class TrafficRenderer{
  }
  render({state,cam,hover,drag,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,signalColor,checkBuilding,parking}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}
  const roadKey=[state.version,state.roads.size,heat].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}const buildKey=[state.buildings.size,...state.buildings.keys()].join(':');if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}this.trees(state,cam);this.cars(state,vehiclePosition,CATALOG);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding);
- this.updateSignals(signalColor);this.updateWeatherLight(state);
+ this.updateSignals(signalColor);this.updateGrandSignals();this.updateWeatherLight(state);
  if(heat){if(!this.heatGroup){this.heatGroup=new THREE.Group();this.scene.add(this.heatGroup);}if(!this.heatAt||state.time-this.heatAt>1){this.heatAt=state.time;this.disposeGroup(this.heatGroup);const b=new Batch();for(const[i,r]of state.roads){if(r.load<.1&&r.wait<.1)continue;const color=r.wait>3?'#ce6156':r.wait>.5?'#eda858':'#92c77b';b.box(color,i%300,.13,Math.floor(i/300),ROADS[r.type].width*.92,.018,.9);}this.heatGroup.add(b.build(false));}this.heatGroup.visible=true;}else if(this.heatGroup)this.heatGroup.visible=false;
  const v=state.vehicles.get(follow);this.routeLine.visible=!!v;if(v){const points=v.path.slice(v.pos).map(i=>new THREE.Vector3(i%300,.2,Math.floor(i/300)));this.routeLine.geometry.dispose();this.routeLine.geometry=new THREE.BufferGeometry().setFromPoints(points);}
  if(debug||ROADS[tool]||CATALOG[tool]||tool.startsWith('tree:')||tool==='treeRow'||tool==='treeBrush'||tool==='eraseTree'){if(!this.grid){this.grid=new THREE.GridHelper(80,80,'#dfefba','#d0e0a0');this.grid.material.transparent=true;this.grid.material.opacity=.2;this.grid.position.y=.125;this.scene.add(this.grid);}this.grid.visible=true;this.grid.position.x=Math.round(cam.x);this.grid.position.z=Math.round(cam.y);}else if(this.grid)this.grid.visible=false;
