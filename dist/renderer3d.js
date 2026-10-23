@@ -1057,7 +1057,7 @@ export class TrafficRenderer{
    const cx=W/2,B=P+.48,F=t.plotHeight-.94,D=F-B;
    const hot='#d872a0',pink='#ed9fbe',light='#facbd8',rose='#bc688d';
    const pale='#fff0ed',white='#f5f0e7',silver='#cad4d4',glass='#90c8d1';
-   const lavender='#bba6d4',gold='#e2be86',wood='#ad927c',green='#75a47b';
+   const lavender='#bba6d4',gold='#e2be86',wood='#ad927c',green='#75a47b',glow='#ffdfb6';
    const mat=(x,y,z,w,d,col=white)=>block(col,x,y,z,w,.08,d,'stone');
    const beam=(x,y,z,w,d,col=pink)=>block(col,x,y,z,w,.075,d,'metal');
    const column=(x,z,h,y=.24,color='#e6dbd5')=>block(color,x,y+h/2,z,.08,h,.08,'stone');
