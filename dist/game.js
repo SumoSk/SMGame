@@ -6,6 +6,9 @@ const ctx=renderer3d?null:canvas.getContext('2d');
 const W=300,H=300,T=18,DIR=[[1,0],[0,1],[-1,0],[0,-1]],fmt=n=>Math.round(n).toLocaleString('th-TH'),money=n=>'฿'+fmt(n);
 const ROADS={small:{name:'ถนนเล็ก',lanes:2,cost:50,maint:.5,speed:3,width:2,visualWidth:1.55},medium:{name:'ถนนกลาง',lanes:4,cost:150,maint:1,speed:4.5,width:2,visualWidth:2.35},large:{name:'ถนนใหญ่',lanes:8,cost:600,maint:5,speed:6,width:4,visualWidth:3.72}};
 const TRAFFIC_RULES={stopLineOffset:.52,vehicleHalfLength:.28,maxIntersectionLookahead:3,maxIntersectionReservation:3};
+// Never change lanes just because one is a little faster. Only react to real
+// obstruction, with ample room before a turn/junction and a clear swept path.
+const ADAPTIVE_LANE_RULES={minWait:2,obstacleAhead:2.2,turnBuffer:9,junctionBuffer:5,cooldown:8,sweep:3.1};
 const GAME_MINUTES_PER_SECOND=.8;
 const CITIES={phuket:{name:'ภูเก็ต',en:'PHUKET ISLAND',sub:'เกาะเล็ก ๆ กับความเป็นไปได้ที่ยิ่งใหญ่',terrain:'island'},bangkok:{name:'กรุงเทพฯ',en:'BANGKOK METROPOLIS',sub:'เชื่อมสองฝั่งเมือง ให้ทุกชีวิตไปต่อ',terrain:'river'},chiangmai:{name:'เชียงใหม่',en:'CHIANG MAI',sub:'เมืองเหนือที่เติบโต ในจังหวะของคุณ',terrain:'mountain'},korat:{name:'โคราช',en:'NAKHON RATCHASIMA',sub:'ประตูสู่อีสาน ทุกเส้นทางเริ่มที่นี่',terrain:'through'}};
 const KINDS={hotel:{name:'โรงแรม',icon:'▣',color:'#b8dfe9',roof:'#4f93ad'},home:{name:'บ้าน',icon:'⌂',color:'#e9b871',roof:'#db8558'},shop:{name:'ร้านค้า',icon:'▤',color:'#f4c76c',roof:'#d79c3e'},restaurant:{name:'ร้านอาหาร',icon:'♨',color:'#eaa080',roof:'#c76251'},mall:{name:'ห้าง',icon:'▥',color:'#cee7db',roof:'#5d9c98'},office:{name:'สำนักงาน',icon:'▥',color:'#b9d5da',roof:'#4f8598'},factory:{name:'โรงงาน',icon:'⚙',color:'#c4c9b4',roof:'#7d8c81'},park:{name:'สวน',icon:'♧',color:'#8aba70',roof:'#5b9658'},pub:{name:'ผับ',icon:'♫',color:'#bfa6c8',roof:'#88618e'}};
@@ -2623,7 +2626,8 @@ function prepareJunctionQueues(){
 function junctionPriority(request,node){
  const c=request.connector;let priority=c.turn===2?2:c.turn===1?1:0;
  // A movement that has waited a full signal cycle joins the oldest-first tier.
- return state.time-request.at>=signalCycle(node)?0:priority;
+ // Long waits become first-come-first-served, but never override a red light.
+  return state.time-request.at>=Math.min(signalCycle(node),18)?-1:priority;
 }
 function queueAllows(v,pos,connector){
  const node=v.path[pos],queue=state.junctionQueues?.get(node);if(!queue)return true;
@@ -2642,7 +2646,7 @@ function junctionExitAvailable(v,pos){
  if(trafficSpatial){
   const plan=motionPlan(v),junctionTurn=plan.junctions.find(g=>g.pos===pos);
   if(junctionTurn){
-   for(const beyond of [.18,.6]){
+   for(const beyond of [.18,.6,1.05,1.4]){
     const pose=positionOnMotion(plan,Math.min(plan.total,junctionTurn.clear+beyond));
     const ix=Math.floor(pose.x/2),iy=Math.floor(pose.y/2);
     for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)
@@ -2749,7 +2753,7 @@ function physicalTrafficLimit(v,plan,s,lookahead){
   if(!otherCar||parkingEscapePair(v,id))continue;
   // A car entering this same destination is still physically at the road
   // gate. Only arriving traffic must yield; passing traffic keeps priority.
-  if(otherCar.phase!=='driving'&&!(otherCar.phase==='parking_in'&&v.toId!=null&&otherCar.toId===v.toId&&otherCar.lotPath))continue;
+  if(otherCar.phase!=='driving'&&!(otherCar.phase==='stuck'&&otherCar.heldPose)&&!(otherCar.phase==='parking_in'&&v.toId!=null&&otherCar.toId===v.toId&&otherCar.lotPath))continue;
   const record=trafficSpatial.cars.get(id);if(!record)continue;
   const p=record.pose,x=p.x-origin.x,y=p.y-origin.y;
   if(x*x+y*y>(lookahead+.7)*(lookahead+.7))continue;
@@ -2807,6 +2811,62 @@ function enforceNoUTurn(v){
 // A car approaching an occupied parking entrance may jump to the next RIGHT
 // lane. Search a new forward-only route at the same moment: the physical pose,
 // route, planned lane and occupancy must all agree in this one synchronous step.
+// Lane changes begin at the real current pose, not at a shifted/teleported one.
+// The existing reciprocal-swap rule remains the only normal collision exception.
+function laneChangeCorridorClear(v,plan,distance=ADAPTIVE_LANE_RULES.sweep){
+ if(!trafficSpatial||!plan?.total)return false;
+ const end=Math.min(plan.total,distance);
+ for(let travel=.12;travel<=end+.12;travel+=.12){
+  const pose=positionOnMotion(plan,Math.min(end,travel)),cx=Math.floor(pose.x/2),cy=Math.floor(pose.y/2);
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)
+   for(const other of trafficSpatial.cells.get((cx+dx)+':'+(cy+dy))?.values()||[]){
+    if(other.id===v.id||Math.hypot(other.pose.x-pose.x,other.pose.y-pose.y)>1.15)continue;
+    if(capsulesOverlap(pose,other.pose))return false;
+   }
+ }
+ return true;
+}
+function commitSafeLaneChange(v,newLane,reason,newRoute=null){
+ if(v.phase!=='driving'||v.mergeExitActive||v.parkingEscapeFor||!v.path?.[v.pos+2])return false;
+ if(state.time<(v.adaptiveLaneUntil||0))return false;
+ const direction=motionDirection(v.path,v.pos),oldLane=plannedLane(v,v.pos);
+ if(Math.abs(newLane-oldLane)!==1||newLane<0||newLane>=laneCapacity(v.path[v.pos],direction))return false;
+ const path=newRoute||v.path.slice(v.pos);
+ if(path.length<3||path[0]!==v.path[v.pos]||path[1]!==v.path[v.pos+1])return false;
+ for(const node of path.slice(0,3))
+  if(!state.roads.has(node)||junction(node)>=3||laneCapacity(node,direction)<=newLane)return false;
+ if(!cellAvailable(path[0],direction,newLane,v.id)||!cellAvailable(path[1],direction,newLane,v.id))return false;
+ const actual=vehiclePosition(v);
+ const proposal={...v,path:[...path],pathSet:new Set(path),pos:0,progress:0,
+  motionStartPose:{...actual},motionSeedLane:newLane,emergencyInitialLane:newLane,
+  turnLanes:{},junctionPasses:[],junctionQueueSince:{},committedJunction:null};
+ const plan=motionPlan(proposal);
+ if(plan.lanes[0]!==newLane||plan.lanes[1]!==newLane||plan.total<1)return false;
+ const forward=DIR[direction],ahead=positionOnMotion(plan,Math.min(1,plan.total));
+ if((ahead.x-actual.x)*forward[0]+(ahead.y-actual.y)*forward[1]<.05)return false;
+ if(!laneChangeCorridorClear(v,plan))return false;
+ release(v);Object.assign(v,proposal);
+ v.adaptiveLaneUntil=state.time+ADAPTIVE_LANE_RULES.cooldown;
+ v.stopReason=reason;v.routeCheckedVersion=state.version;
+ occupy(v,0);updateTrafficSpatial(v);
+ return true;
+}
+function attemptAdaptiveLaneChange(v){
+ if(v.phase!=='driving'||v.mergeExitActive||v.parkingEscapeFor||v.path.length<8)return false;
+ if((v.wait||0)<ADAPTIVE_LANE_RULES.minWait||(v.speed||0)>.55||state.time<(v.adaptiveLaneUntil||0))return false;
+ if(v.pos<1||v.pos+5>=v.path.length)return false;
+ const plan=motionPlan(v),s=motionDistance(v,plan),d=motionDirection(v.path,v.pos);
+ const current=plannedLane(v,v.pos),cap=laneCapacity(v.path[v.pos],d);
+ if(cap<2||laneChangeSegment(v,plan,s))return false;
+ if(plan.turns.some(t=>t.endDistance>s&&t.startDistance<s+ADAPTIVE_LANE_RULES.turnBuffer))return false;
+ if(plan.junctions.some(g=>g.clear>s&&g.entry<s+ADAPTIVE_LANE_RULES.junctionBuffer))return false;
+ for(let i=v.pos;i<Math.min(v.path.length,v.pos+5);i++)
+  if(junction(v.path[i])>=3||laneCapacity(v.path[i],d)!==cap||motionDirection(v.path,i)!==d)return false;
+ const limit=physicalTrafficLimit(v,plan,s,ADAPTIVE_LANE_RULES.obstacleAhead);
+ if(!Number.isFinite(limit)||limit>s+ADAPTIVE_LANE_RULES.obstacleAhead-.05)return false;
+ for(const lane of [current+1,current-1])if(lane>=0&&lane<cap&&commitSafeLaneChange(v,lane,'เปลี่ยนเลนหลบคิวอย่างปลอดภัย'))return true;
+ return false;
+}
 function parkingGateAlerts(){
  const alerts=[],seen=new Set();
  for(const car of state.vehicles.values()){
@@ -2833,7 +2893,7 @@ function emergencyRightReroute(v,alerts){
  if(laneCapacity(node,direction)<2||junction(node)>=3||junction(next)>=3)return false;
  const oldLane=plannedLane(v,v.pos),rightLane=oldLane-1;
  // The outer (left) lane stays in its queue; it must not jump right to escape its leader.
- if(rightLane<0||oldLane===laneCapacity(node,direction)-1)return false;
+ if(rightLane<0)return false; // Can use a neighboring lane on four-lane roads.
  const pose=vehiclePosition(v);
  // Only affected cars approaching the entry/exit should jump. Preserve
  // legitimate traffic heading INTO the lot rather than diverting it.
@@ -2874,19 +2934,16 @@ function emergencyRightReroute(v,alerts){
  if(!newPath)newPath=v.path.slice(v.pos);
  if(newPath.length<2||newPath[1]!==next)return false;
  const candidate={...v,path:[...newPath],pathSet:new Set(newPath),pos:0,progress:0,
-  motionStartPose:targetPose,motionSeedLane:rightLane,emergencyInitialLane:rightLane,
+  motionStartPose:{...pose},motionSeedLane:rightLane,emergencyInitialLane:rightLane,
   turnLanes:{},junctionPasses:[],junctionQueueSince:{},committedJunction:null};
  const candidatePlan=motionPlan(candidate);
  if(!candidatePlan.total||plannedLane(candidate,0)!==rightLane)return false;
- // Switch physical and logical lane in a single commit, with no intermediate
- // state where both lanes think they contain the same car.
- release(v);
- Object.assign(v,candidate);
+ // Test the entire changing corridor before committing the physical lane.
+ if(!laneChangeCorridorClear(v,candidatePlan))return false;
+ if(!commitSafeLaneChange(v,rightLane,'หลบขวาฉุกเฉินและคำนวณเส้นทางใหม่',newPath))return false;
  v.speed=Math.min(v.speed||0,2);
  v.emergencyRightUntil=state.time+6;
- v.stopReason='หลบขวาฉุกเฉินและคำนวณเส้นทางใหม่';
- v.routeCheckedVersion=state.version;v.lastMovedAt=state.time;
- occupy(v,0);updateTrafficSpatial(v);
+ v.lastMovedAt=state.time;
  return true;
 }
 function advanceVehicles(realDt,gameDt){
@@ -2982,6 +3039,7 @@ function advanceVehicles(realDt,gameDt){
   if(v.routeCheckedVersion!==state.version){v.routeCheckedVersion=state.version;if(!remainingRouteValid(v)){strandVehicle(v,'เส้นทางเดิมขาด');continue;}}
   if(v.pos+1>=v.path.length){arrive(v);continue;}
   if(emergencyAlerts.length)emergencyRightReroute(v,emergencyAlerts);
+  attemptAdaptiveLaneChange(v);
   if(v.mergeGhostUntil!=null&&motionDistance(v)>=v.mergeGhostUntil-1e-8)v.mergeGhostUntil=null;
   // Claim only a free lane; a pair-specific recovery cannot steal occupancy.
   if(!v.occKey&&state.roads.has(v.path[v.pos])){
@@ -3478,17 +3536,36 @@ function openAccountDialog(){
 }
 window.SMGameAuthReset=()=>{}; // Authentication must never erase the active guest city.
 function cityBugReport(){
- const reasons={},vehicles=[],issues=[];
- for(const v of state.vehicles.values()){const reason=v.phase==='stuck'?(v.stopReason||'ไม่มีเส้นทาง'):v.phase==='gate_waiting'||v.phase==='departing'?'รอออกจากอาคาร/ประตู':v.stopReason||'กำลังเดินทาง';reasons[reason]=(reasons[reason]||0)+1;
- const pose=vehiclePosition({...v,turnLanes:{...v.turnLanes}});vehicles.push({id:v.id,phase:v.phase,reason,wait:v.wait||0,speed:v.speed||0,node:v.path[v.pos],pos:v.pos,lane:v.lane,pose,nextRouteRetry:v.nextRouteRetry??null,departureNoRoute:!!v.departureNoRoute,junctionPasses:v.junctionPasses||[]});
- if(canTowVehicle(v))issues.push({id:v.id,reason,wait:v.wait||0,node:v.path[v.pos],pose});}
- issues.sort((a,b)=>Number(state.vehicles.get(b.id)?.phase==='stuck')-Number(state.vehicles.get(a.id)?.phase==='stuck')||b.wait-a.wait);
+ // Use the root-cause incident map refreshed by tick() every three game minutes.
+ // Do not rescan from the report: motion planning can initialize vehicle fields.
+
+ const reasons={},categories={},vehicles=[],issues=[],suspected=[],normalQueues=[];
+ for(const v of state.vehicles.values()){
+  const reason=v.phase==='stuck'?(v.stopReason||'ไม่มีเส้นทาง'):v.phase==='gate_waiting'||v.phase==='departing'?'รอออกจากอาคาร/ประตู':v.stopReason||'กำลังเดินทาง';
+  reasons[reason]=(reasons[reason]||0)+1;
+  const incident=incidentForVehicle.get(v.id),noRoute=missingRoute(v),stalled=incidentStoppedFor(v);
+  const parking=['parking_in','parking_out'].includes(v.phase)||v.phase==='departing'&&!!v.fromId;
+  const category=noRoute?'ไม่มีเส้นทาง':incident?.reason==='รถทับซ้อนหรือแย่งช่องทาง'?'รถซ้อนทับ/เปลี่ยนเลนขัดแย้ง':incident&&parking?'รถค้างผิดปกติในลานจอด':incident?'รถหยุดผิดปกติ':reason==='ไฟแดง'?'รอไฟแดงตามปกติ':reason==='คิวแยก'?'รอคิวทางแยก':/เว้นระยะ|คันหน้าขวาง|รอรถข้างหน้า/.test(reason)?'รถติดตามปกติ':parking?'กำลังเข้าออกลานจอด':v.phase==='gate_waiting'?'รอเข้าเมือง':v.phase==='departing'?'รอออกอาคาร':'กำลังเดินทาง';
+  const suspicious=!!incident||noRoute;
+  categories[category]=(categories[category]||0)+1;
+  const pose=vehiclePosition({...v,turnLanes:{...v.turnLanes}});
+  const data={id:v.id,phase:v.phase,reason,category,suspicious,stalledMinutes:stalled,incidentId:incident?.id??null,adaptiveLaneUntil:v.adaptiveLaneUntil??null,
+   wait:v.wait||0,speed:v.speed||0,node:v.path[v.pos],pos:v.pos,lane:v.lane,pose,nextRouteRetry:v.nextRouteRetry??null,departureNoRoute:!!v.departureNoRoute,junctionPasses:v.junctionPasses||[]};
+  vehicles.push(data);
+  if(suspicious)suspected.push({id:v.id,category,reason,stalledMinutes:stalled});
+  else if((v.wait||0)>=12||stalled>=12)normalQueues.push({id:v.id,category,reason,stalledMinutes:stalled});
+  // Preserve manual towing for long queues, but do not call them bugs.
+  if(canTowVehicle(v))issues.push({id:v.id,reason,category,suspicious,wait:v.wait||0,node:v.path[v.pos],pose});
+ }
+ issues.sort((a,b)=>Number(b.suspicious)-Number(a.suspicious)||Number(state.vehicles.get(b.id)?.phase==='stuck')-Number(state.vehicles.get(a.id)?.phase==='stuck')||b.wait-a.wait);
  const orphanReservations=[];for(const [key,r]of state.reservations)if((r.passes||[r]).some(p=>!state.vehicles.has(p.id)))orphanReservations.push(key);
  const brokenLinks=[];for(const [node,r]of state.roads)for(const n of r.links)if(!state.roads.get(n)?.links.has(node))brokenLinks.push([node,n]);
- return{format:'SMGame-city-bug-report',version:1,createdAt:new Date().toISOString(),build:'stranded-recovery-v3',city:state.city,time:state.time,paused:state.speed===0,speed:state.speed,summary:{roads:state.roads.size,buildings:state.buildings.size,vehicles:state.vehicles.size,reasons},issues,orphanReservations,brokenLinks,vehicles,reservations:[...state.reservations],runtimeErrors:[...runtimeErrors],save:JSON.parse(snapshot())};
+ return{format:'SMGame-city-bug-report',version:2,createdAt:new Date().toISOString(),build:'traffic-rules-v2',city:state.city,time:state.time,paused:state.speed===0,speed:state.speed,
+  summary:{roads:state.roads.size,buildings:state.buildings.size,vehicles:state.vehicles.size,reasons,categories,incidents:incidentCases.size,suspectedVehicles:suspected.length,normalQueueVehicles:normalQueues.length},
+  issues,suspected,normalQueues,orphanReservations,brokenLinks,vehicles,reservations:[...state.reservations],runtimeErrors:[...runtimeErrors],save:JSON.parse(snapshot())};
 }
 function openCityReport(){const report=cityBugReport(),rows=Object.entries(report.summary.reasons).map(([reason,count])=>'<li>'+escapeSaveText(reason)+' · '+count+' คัน</li>').join('');
- modal('<span class="eyebrow">CITY DIAGNOSTICS</span><h2>ตรวจเมือง / รายงานบัค</h2><p>'+ (report.paused?'เมืองหยุดเวลาอยู่ กดเล่นต่อเพื่อให้รถขยับ':'เมืองกำลังเดินเวลา')+'</p><p>รถ '+report.summary.vehicles+' คัน · รอนาน/ไม่มีเส้นทาง '+report.issues.length+' คัน</p><ul>'+rows+'</ul><p>ลิงก์ถนนผิดปกติ '+report.brokenLinks.length+' · การจองรถที่หายไป '+report.orphanReservations.length+' · ข้อผิดพลาดโปรแกรม '+report.runtimeErrors.length+'</p><p>ไฟล์รายงานรวมเมือง เส้นทางรถ และเหตุผลที่หยุด แนบไฟล์นี้ให้อริสเพื่อตรวจเมืองที่มีปัญหาได้</p><div class="actions"><button id="exportCityBug" class="primary">ดาวน์โหลดรายงานเมือง</button><button id="reportClose">กลับไปเล่น</button></div>'+report.issues.slice(0,12).map((v,i)=>'<p><button id="bugCar'+i+'">ดูรถ #'+v.id+'</button> <button id="bugTow'+i+'">ลากรถออก</button> '+escapeSaveText(v.reason)+' · รอ '+Math.round(v.wait)+' นาทีในเกม</p>').join(''));
+ modal('<span class="eyebrow">CITY DIAGNOSTICS</span><h2>ตรวจเมือง / รายงานบัค</h2><p>'+ (report.paused?'เมืองหยุดเวลาอยู่ กดเล่นต่อเพื่อให้รถขยับ':'เมืองกำลังเดินเวลา')+'</p><p>รถ '+report.summary.vehicles+' คัน · สงสัยผิดปกติ '+report.summary.suspectedVehicles+' คัน · เหตุต้นเหตุ '+report.summary.incidents+' เหตุ · รอคิวปกตินาน '+report.summary.normalQueueVehicles+' คัน</p><ul>'+rows+'</ul><p><b>ประเภทการจราจร</b></p><ul>'+Object.entries(report.summary.categories).sort((a,b)=>b[1]-a[1]).map(([name,count])=>'<li>'+escapeSaveText(name)+' · '+count+' คัน</li>').join('')+'</ul><p>รถที่สามารถลากออกได้ '+report.issues.length+' คัน (รวมรถรอคิวนาน)</p><p>ลิงก์ถนนผิดปกติ '+report.brokenLinks.length+' · การจองรถที่หายไป '+report.orphanReservations.length+' · ข้อผิดพลาดโปรแกรม '+report.runtimeErrors.length+'</p><p>ไฟล์รายงานรวมเมือง เส้นทางรถ และเหตุผลที่หยุด แนบไฟล์นี้ให้อริสเพื่อตรวจเมืองที่มีปัญหาได้</p><div class="actions"><button id="exportCityBug" class="primary">ดาวน์โหลดรายงานเมือง</button><button id="reportClose">กลับไปเล่น</button></div>'+report.issues.slice(0,12).map((v,i)=>'<p><button id="bugCar'+i+'">ดูรถ #'+v.id+'</button> <button id="bugTow'+i+'">ลากรถออก</button> '+escapeSaveText(v.reason)+' · รอ '+Math.round(v.wait)+' นาทีในเกม</p>').join(''));
  $('reportClose').onclick=closeModal;
  $('exportCityBug').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='SMGame-bug-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);};
  report.issues.slice(0,12).forEach((v,i)=>{$('bugCar'+i).onclick=()=>{if(v.pose){cam.x=v.pose.x;cam.y=v.pose.y;follow=v.id;}selected={kind:'vehicle',id:v.id};closeModal();renderInspector();};$('bugTow'+i).onclick=()=>{if(towVehicle(v.id))toast('ลากรถออกแล้ว · ยกเลิกเที่ยวเดินทาง');openCityReport();};});
@@ -3517,6 +3594,6 @@ $('menu').onclick=()=>{
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){if(!['moveIn','pass'].includes(v.kind)&&v.wait>24){v.late=true;const c=state.citizens.get(v.citizenId);if(c){c.late=true;pain(c,3,'ล่าช้าก่อนข้ามวัน');}}arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,renderTools,dockItems,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,renderTools,dockItems,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();reset();requestAnimationFrame(frame);
 })();
