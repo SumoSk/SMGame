@@ -32,8 +32,8 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(get('tools').innerHTML.includes('data-tool="large"'),'large road tool must be present');
  assert(!get('tools').innerHTML.includes('data-tool="hand"'),'road submenu only has three road sizes');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'home'}})}});
- assert(get('tools').innerHTML.includes('class="tool-capacity">2</span>'),'homes must display bare numeric resident capacity');
- assert(get('tools').innerHTML.includes('class="tool-capacity">30</span>'),'large homes must display capacity 30');
+ assert(get('tools').innerHTML.includes('class="tool-capacity">30</span>'),'small current home must show its 30-person capacity');
+ assert(get('tools').innerHTML.includes('class="tool-capacity">60</span>'),'dual-parking home must show its 60-person capacity');
  assert(get('tools').innerHTML.includes('130,000'),'large homes must display bare price');
  assert(!get('tools').innerHTML.includes('tool-parking'),'building cards must not show redundant parking capacity');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'food'}})}});
