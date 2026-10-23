@@ -19,6 +19,9 @@ CATALOG.home_small.name='บ้านรุ่นเก่า 2 คน';
 CATALOG.home_medium.name='บ้านรุ่นเก่า 10 คน';
 CATALOG.home_large.name='บ้านเล็ก';
 CATALOG.home_dual={key:'home_dual',kind:'home',name:'บ้านกลาง',size:5,cost:200000,maint:700,residents:60,jobs:0,service:0,beds:0,dualParking:true};
+// New large home is an additional type: two complete small-home parking banks
+// stacked front-to-back, not stretched sideways. Existing homes remain intact.
+CATALOG.home_grand={key:'home_grand',kind:'home',name:'บ้านใหญ่',size:6,cost:285000,maint:980,residents:60,jobs:0,service:0,beds:0,stackedParking:true};
 const PARKING_VERSION=7,LOT_SPEED=1.35;
 for(const t of Object.values(CATALOG)){
  t.parkingCapacity=t.beds||t.residents||t.jobs+t.service;
@@ -33,6 +36,7 @@ for(const t of Object.values(CATALOG)){
  t.compactParking=false;
  t.parkingLayout=null;
  if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.88;t.plotWidth=20;t.plotHeight=11;t.parkingAisle=9.15;t.parkingUpperAisle=6.55;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
+ if(t.stackedParking){t.parkingColumns=15;t.parkingRows=2;t.parkingPhysicalRows=4;t.parkingPitch=.55;t.parkingRowOffset=.79;t.parkingAisle=10.40;t.parkingRearAisle=7.55;t.plotWidth=11;t.plotHeight=13;t.compactParking=true;}
 }
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
 function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
@@ -41,14 +45,17 @@ function lotSlots(b){
  const slots=[];
  for(let n=0;n<t.parkingCapacity;n++){
   const row=Math.floor(n/t.parkingColumns),col=n%t.parkingColumns;
-  const aisle=t.dualParking&&row?t.parkingUpperAisle:t.parkingAisle;
+  const stackedBank=t.stackedParking?Math.floor(row/2):0;
+  const aisle=t.stackedParking?(stackedBank?t.parkingAisle:t.parkingRearAisle):t.dualParking&&row?t.parkingUpperAisle:t.parkingAisle;
+  const rowSide=t.stackedParking?row%2:row;
   slots.push({index:n,u:(t.dualParking?1:1.42)+(col+.5)*t.parkingPitch,
-   v:aisle+(t.dualParking?-t.parkingRowOffset:row?t.parkingRowOffset:-t.parkingRowOffset),aisle,row,zone:t.dualParking?(row?'B':'A'):null});
+   v:aisle+(t.dualParking?-t.parkingRowOffset:rowSide?t.parkingRowOffset:-t.parkingRowOffset),
+   aisle,row,zone:t.stackedParking?(stackedBank?'front':'rear'):t.dualParking?(row?'B':'A'):null});
  }
  return t.parkingLayout=slots;
 }
 function lotModel(b){const t=CATALOG[b.key],p=lotPoint(b,t.plotWidth/2,t.size/2+.1);return{...b,x:p.x-.5-t.size/2,y:p.y-.5-t.size/2};}
-function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=(CATALOG[b.key].dualParking?Math.PI/2:(slot.row?Math.PI/2:-Math.PI/2))+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
+function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=(CATALOG[b.key].dualParking?Math.PI/2:(slot.row%2?Math.PI/2:-Math.PI/2))+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
 function citizenCarColor(id){if(state?.citizens.get(id)?.tourist)return '#65c8f2';return ['#f0e8c7','#e5a861','#719ca5','#afc5a2','#bc8fa5','#c8c8c0'][Math.abs(id)%6];}
 function parkingSpace(b,cid,allocate=false){
  if(!b.parkingSlots)b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);
@@ -391,6 +398,8 @@ function parkingArrivalPath(v,b,index,replan=false){
  const local=localParkingPoint(b,start);
  if(slot.u<local.u+.8)return null;
  if(local.u>.85&&Math.abs(local.v-slot.aisle)>.65)return null;
+ if(t.stackedParking&&Math.abs(local.v-slot.aisle)>.15)
+  return [start,lotPoint(b,.45,slot.aisle),aisle,end];
  const approachU=Math.min(slot.u-.35,Math.max(local.u+.12,.75));
  if(t.dualParking&&local.u<.85&&Math.abs(local.v-slot.aisle)>.15)
   return [start,lotPoint(b,.45,slot.aisle),lotPoint(b,approachU,slot.aisle),aisle,end];
@@ -455,7 +464,7 @@ function beginParkingArrival(v){
  // entrance is not a parking queue, and lack of a bay must not block the road.
  const t=CATALOG[b.key],entry=positionOnMotion(motionPlan(v),motionPlan(v).total);
  if(parkingEntranceOccupied(v,b,entry)){v.speed=0;v.stopReason='รอรถคันหน้าพ้นปากทางเข้า';return true;}
- v.lotPath=t.dualParking?[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle)]
+ v.lotPath=t.dualParking||t.stackedParking?[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle)]
   :[entry,lotPoint(b,.45,t.plotHeight-.4),lotPoint(b,.45,t.parkingAisle),lotPoint(b,.72,t.parkingAisle)];
  v.lotDistance=0;v.lotBuilding=b.id;v.parkingStage=true;v.parkingReplanAt=state.time;
  v.phase='parking_in';v.speed=0;v.stopReason='กำลังเข้าลานจอด';
@@ -472,6 +481,34 @@ function parkingVisuals(b){
  const t=CATALOG[b.key],rects=[];
  const rect=(u,v,w,h,color)=>rects.push({u,v,w,h,color});
  rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.05,t.plotHeight-.05,'#bdc6ae');
+ if(t.stackedParking){
+  // Two identical double-sided parking banks touch at their stall markings.
+  // Each bank already owns a drive aisle: never add a corridor between them.
+  const rear=t.parkingRearAisle,front=t.parkingAisle,offset=t.parkingRowOffset;
+  const bottom=rear-offset-.64,top=front+offset+.64;
+  rect(t.plotWidth/2,(bottom+top)/2,t.plotWidth-.12,top-bottom,'#515f62');
+  for(const aisle of [rear,front]){
+   // The banks share the same width, pitch and markings as the small home.
+   for(let row=0;row<2;row++)for(let col=0;col<t.parkingColumns;col++){
+    const stall=lotSlots(b)[((aisle===rear?0:2)+row)*t.parkingColumns+col];
+    rect(stall.u-t.parkingPitch/2,stall.v,.025,1.24,'#e9e6cc');
+    rect(stall.u+t.parkingPitch/2,stall.v,.025,1.24,'#e9e6cc');
+    rect(stall.u,stall.v+(row?.62:-.62),t.parkingPitch-.04,.025,'#e9e6cc');
+   }
+   for(let u=1.10;u<t.plotWidth-1.10;u+=2.10){
+    rect(u,aisle,.50,.035,'#c5d2c2');
+    rect(u+.19,aisle-.11,.19,.03,'#c5d2c2');
+    rect(u+.19,aisle+.11,.19,.03,'#c5d2c2');
+   }
+  }
+  for(const u of [.45,t.plotWidth-.45]){
+   rect(u,(rear+t.plotHeight)/2,.72,t.plotHeight-rear+.08,'#58666a');
+   rect(u,(rear+t.plotHeight)/2,.023,t.plotHeight-rear,'#bbc9b9');
+  }
+  rect(.45,t.plotHeight-.45,.52,.08,'#94d9aa');
+  rect(t.plotWidth-.45,t.plotHeight-.45,.52,.08,'#f3ca88');
+  return rects;
+ }
  if(t.dualParking){
   // TRUE independent parking zones: two vertical stall rows of 30, each with
   // its OWN eastbound aisle. Only the left-hand driveway is shared.
@@ -1244,7 +1281,7 @@ const dockGroups=[
 let dockGroup='build';
 function toggleTrafficHeat(){heat=!heat;renderTools();}
 function dockItems(currentCategory){
- let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(currentCategory==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'},{key:'trafficHeat',name:'ความหนาแน่นจราจร',icon:'🌡️',sub:'เปิดหรือปิดแผนที่แสดงความหนาแน่น',price:'แตะเพื่อสลับการแสดงผล'}];}else if(currentCategory==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(currentCategory==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ถนนหลักรื้อไม่ได้',price:'ค่ารื้อ 20%'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'ค่ารื้อ 10%'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_large','home_dual'].includes(t.key))).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
+ let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(currentCategory==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'},{key:'trafficHeat',name:'ความหนาแน่นจราจร',icon:'🌡️',sub:'เปิดหรือปิดแผนที่แสดงความหนาแน่น',price:'แตะเพื่อสลับการแสดงผล'}];}else if(currentCategory==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(currentCategory==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ถนนหลักรื้อไม่ได้',price:'ค่ารื้อ 20%'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'ค่ารื้อ 10%'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_large','home_dual','home_grand'].includes(t.key))).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
 // New two-level dock: five main sections stay visible. Only Buildings has
