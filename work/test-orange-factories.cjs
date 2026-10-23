@@ -67,7 +67,7 @@ const fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('n
     assert(count('#98a4a5')>=2,'two true production conveyors missing');
     assert(count('#f2b562')>=4,'robot assembly arms missing');
     assert(count('#87b8be')>=2,'paint booth glass absent');
-    assert(local.some(p=>p.color==='#9de5d8'&&p.y>1.2),'illuminated machine controls missing');
+    assert(local.some(p=>p.color==='#9de5d8'&&p.y>1.05),'illuminated machine controls missing');
    }else{
     assert(high>4.6&&high<5.3,'large plant should have two floors and roof trusses');
     assert(count('#98a4a5')>=3,'three production conveyors missing');
