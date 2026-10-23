@@ -36,7 +36,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  g.state.money=1e9;
  const built=g.buildBuilding('home_grand',160,148-t.plotHeight,true);
  assert(built,'grand house must have road connection');
- assert.equal(built.access.length,2,'reuse small home's entry and exit');
+ assert.equal(built.access.length,2,'reuse two road access points from small-home design');
  assert.equal(built.parkingSlots.length,60);
  const snapshot=g.snapshot();assert(g.loadGame(true,null,snapshot),'new house saves and loads');
  assert(g.state.buildings.get(built.id)?.key==='home_grand');
