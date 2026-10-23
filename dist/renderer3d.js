@@ -604,6 +604,80 @@ export class TrafficRenderer{
       planter(x,z,.20);
      }
     }
+    // PARK: each cardinal edge has its own purpose. The rear faces parking,
+    // the front opens to the street, left is a planted walking trail and the
+    // right is a quiet leisure terrace. No generic building walls are used.
+    const gateZ=baseV+availableDepth-.56;
+    const rearZ=parkStart+.17;
+    for(const xx of [u-pw*.42,u+pw*.42]){
+     pole('#c8ab83',xx,.79,gateZ,.065,1.11,'wood');
+     block('#e4d8b7',xx,1.39,gateZ,.16,.11,.19,'stone');
+     block('#ffe6ae',xx,1.47,gateZ,.12,.11,.12,'glass',true);
+     block('#b69b73',xx,.23,rearZ,.38,.12,.34,'wood');
+     block('#c7b48e',xx,.34,rearZ,.24,.12,.24,'stone');
+    }
+    block('#b6986b',u,1.51,gateZ,pw*.67,.15,.14,'wood');
+    block('#e6d8bd',u,1.60,gateZ,pw*.44,.065,.17,'stone');
+    for(let q=0;q<Math.min(10,level*3+2);q++){
+     const x=u-pw*.33+(q+.5)*pw*.66/Math.min(10,level*3+2);
+     block('#819e74',x,.20,gateZ-.21,.12,.25,.21,'stone');
+    }
+    // Two differently surfaced side paths and their landscaped boundaries.
+    const walkN=level===1?4:level===2?7:11;
+    for(let k=0;k<walkN;k++){
+     const zz=parkStart+.29+(k+.5)*(parkDepth-.53)/walkN;
+     const ll=u-pw*.44,rr=u+pw*.44;
+     block('#cbb99b',ll,.28,zz,.35,.035,(parkDepth-.53)/walkN-.04,'stone');
+     block('#e5dbc5',rr,.28,zz,.33,.035,(parkDepth-.53)/walkN-.04,'stone');
+     if(k%2===0){
+      block('#658457',ll-.35,.33,zz,.22,.27,.23,'stone');
+      block('#86ad7b',rr+.32,.34,zz,.23,.33,.22,'stone');
+     }
+     if(k%3===0)block('#e7b6ba',rr+.34,.58,zz,.13,.11,.17,'stone');
+    }
+    // The back edge presents a real park side too: lattice arbor and bench.
+    for(const xx of[u-pw*.27,u+pw*.27]){
+     block('#a18262',xx,.53,rearZ+.12,.78,.09,.24,'wood');
+     for(const offset of[-.26,.26])
+      pole('#7e684f',xx+offset,.58,rearZ+.10,.024,.75,'wood');
+     block('#e2d0ad',xx,1.00,rearZ+.14,.84,.065,.35,'wood');
+    }
+    // Small city garden gets a shallow herb maze; medium gets gazebo, large
+    // a sheltered pavilion with terraces and spectator-style seating.
+    if(level===1){
+     for(let i=0;i<3;i++)for(const side of[-1,1]){
+      const xx=u+side*(pw*.25),zz=parkStart+.55+i*.48;
+      block('#c6ad8a',xx,.24,zz,.69,.10,.25,'wood');
+      block(i%2?'#698657':'#72966c',xx,.36,zz,.61,.13,.18,'stone');
+      for(let n=0;n<4;n++)block('#e7c0a2',xx-.22+n*.14,.45,zz,.073,.062,.06,'stone');
+     }
+    }else{
+     const pavilionX=u+pw*.22,pavilionZ=parkStart+parkDepth*.73;
+     const pavW=Math.min(1.54,pw*.27),pavD=level===3?1.44:1.08;
+     block('#b8a280',pavilionX,.24,pavilionZ,pavW,.16,pavD,'wood');
+     for(const sign of[-1,1])for(const dz of[-1,1])
+      pole('#bba882',pavilionX+sign*pavW*.40,.84,pavilionZ+dz*pavD*.39,.043,1.13,'wood');
+     block('#786c5b',pavilionX,1.53,pavilionZ,pavW+.17,.13,pavD+.16,'wood');
+     const pp=point(pavilionX,pavilionZ);
+     batch.add(PITCHED_ROOF,'#9d6356',pp.x-.5,1.61,pp.y-.5,pavW+.19,.44,pavD+.17,0,turn,0,id,false,'stone');
+     for(let j=0;j<4;j++){
+      const xx=pavilionX-pavW*.31+j*pavW*.21;
+      block('#e5dcc1',xx,.34,pavilionZ,.20,.08,.25,'stone');
+     }
+     if(level===3){
+      const amphX=u-pw*.24,amphZ=parkStart+parkDepth*.75;
+      for(let i=0;i<4;i++){
+       const width=Math.max(.65,2.25-i*.33);
+       block(i%2?'#bda887':'#d4c3a2',amphX,.25+i*.16,amphZ+i*.23,width,.12,.36,'stone');
+      }
+      // Wooden deck and reading shelter at the western walk.
+      block('#987b60',amphX,.27,parkStart+.51,2.00,.13,.82,'wood');
+      for(const dx of[-.81,.81]){
+       pole('#baa58b',amphX+dx,.90,parkStart+.51,.036,1.20,'wood');
+       block('#ffe7bb',amphX+dx,1.55,parkStart+.51,.12,.15,.12,'glass',true);
+      }
+     }
+    }
     return;
    }
    const upper=family==='office'?2.32+level*1.34:family==='hotel'?1.50+level*1.04:
@@ -1383,6 +1457,68 @@ export class TrafficRenderer{
    for(const x of[cx-.49,cx+.49]){
     block('#9c8a7c',x,.24,6.81,.19,.26,.18,'stone');
     block('#f6d9a4',x,.41,6.81,.13,.085,.13,'glass',true);
+   }
+   // Four complete elevations for the hand-built small pub.
+   // Rear service door is away from the front party terrace; both sides have
+   // brick details, asymmetric windows and working-looking fixtures.
+   const rearWall=cz-bd/2;
+   for(let row=0;row<11;row++){
+    const yy=.36+row*.232;
+    block(row%2?'#8f685c':'#ab836b',cx,yy,rearWall-.039,bw-.22,.035,.034,'stone');
+    for(let j=0;j<6;j++){
+     const xx=cx-bw*.42+(j+.5)*bw*.84/6+(row%2?.06:0);
+     block('#c6a38b',xx,yy+.113,rearWall-.045,.026,.16,.026,'stone');
+    }
+   }
+   const kitchenX=cx-bw*.22;
+   block('#d5c3a8',kitchenX,.86,rearWall-.08,.62,1.19,.10,'stone');
+   block('#715247',kitchenX,.83,rearWall-.14,.50,1.05,.053,'wood');
+   block('#e5c08a',kitchenX+.16,.81,rearWall-.184,.033,.095,.025,'metal');
+   block('#b8b0a0',kitchenX,.17,rearWall-.28,.72,.072,.31,'stone');
+   // An upstairs rear window with glowing amber light.
+   for(const xx of[cx+.35,cx+.89]){
+    block('#bda88b',xx,2.17,rearWall-.094,.39,.56,.083,'stone');
+    block('#556879',xx,2.17,rearWall-.150,.30,.45,.048,'glass');
+    block('#f9d9a4',xx,2.08,rearWall-.185,.20,.24,.014,'glass',true);
+    block('#e4cab0',xx,1.85,rearWall-.21,.46,.08,.14,'stone');
+   }
+   const sideLeft=cx-bw/2,sideRight=cx+bw/2;
+   for(const side of[-1,1]){
+    const sx=side<0?sideLeft:sideRight;
+    for(let k=0;k<2;k++){
+     const zz=cz-.47+k*.75;
+     block('#d6bea2',sx+side*.058,1.24,zz,.11,.72,.41,'stone');
+     block('#456378',sx+side*.109,1.24,zz,.055,.61,.30,'glass');
+     block('#eec48e',sx+side*.145,1.13,zz,.017,.27,.23,'glass',true);
+     for(const y of[.92,1.54])
+      block('#d2b89b',sx+side*.149,y,zz,.021,.044,.46,'stone');
+    }
+    block('#bda083',sx+side*.083,2.53,cz,.12,.11,bd*.83,'stone');
+    for(let k=0;k<4;k++){
+     const zz=cz-bd*.32+k*bd*.21;
+     block('#896f5f',sx+side*.11,2.64,zz,.12,.17,.038,'wood');
+    }
+    block('#9f866a',sx+side*.12,.34,cz-.77,.23,.19,.28,'stone');
+    block('#628060',sx+side*.13,.50,cz-.77,.26,.15,.23,'stone');
+   }
+   // Side A has a lit projecting room sign; side B has an outdoor lantern.
+   block('#775249',sideLeft-.17,2.31,cz+.49,.27,.052,.11,'metal');
+   block('#f2c995',sideLeft-.29,2.10,cz+.49,.044,.25,.23,'glass',true);
+   block('#4a4e56',sideRight+.14,1.83,cz-.45,.16,.39,.13,'metal');
+   block('#ffdfb3',sideRight+.21,1.82,cz-.45,.092,.25,.075,'glass',true);
+   // Slated shingles on the visible side slopes. These are short rows rather
+   // than a blank roof prism, without adding dynamic lights to the scene.
+   for(const side of[-1,1])for(let i=0;i<7;i++){
+    const sx=cx+side*(.18+i*.15);
+    for(let j=0;j<7;j++){
+     const zz=cz-bd*.37+j*bd*.125;
+     block((i+j)%2?'#3f4959':'#525b69',sx,roofY+.31-i*.035,zz,.125,.025,.18,'stone');
+    }
+   }
+   // Rear terrace planting sits outside parking paint and away from the gate.
+   for(const x of[cx-.93,cx+.98]){
+    block('#b09a83',x,.21,rearWall-.16,.27,.25,.19,'wood');
+    block('#67845c',x,.42,rearWall-.16,.24,.19,.20,'stone');
    }
    return;
   }
