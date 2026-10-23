@@ -456,6 +456,348 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
+  // ART-DIRECTED CITY COLLECTION — distinct sculpted assets for every playable
+  // home (except preserved home_grand), office, factory, shop, restaurant, mall,
+  // park, pub and hotel tier. All parts live in a parking-first plot; no traffic
+  // or capacity calculation is touched by visual model building.
+  if((t.plannedParking&&b.key!=='pub_small')||t.kind==='hotel'){
+   const hotel=t.kind==='hotel',level=hotel?(b.key.endsWith('large')?3:b.key.endsWith('medium')?2:1):(t.modelTier||1);
+   const W=t.plotWidth,baseV=hotel?0:t.parkingZoneDepth;
+   const availableDepth=hotel?t.size:t.buildingZoneDepth;
+   const u=W/2,buildingW=Math.max(1.55,Math.min(W-2.18,1.8+level*1.6));
+   const d=Math.max(.88,Math.min(availableDepth-(hotel?.48:1.48),availableDepth>=6?4.48:2.12));
+   const v=baseV+(hotel?availableDepth/2:.43+d/2),face=v+d/2;
+   const family=hotel?'hotel':t.kind,nightColor=family==='pub'?'#e7a0f2':'#ffe0a9';
+   const palette={
+    home:['#ebdfd1','#dcd9d0','#e5e2d9'],office:['#cbdade','#c6d9df','#d7e4e7'],
+    factory:['#c5c6bd','#bfc9c7','#b4c7c9'],shop:['#edd8b9','#d9dbd1','#d3e0d8'],
+    restaurant:['#dab59a','#d9bfa5','#e5cebc'],mall:['#dae5dd','#c8dfde','#e0e7e4'],
+    park:['#83b584','#8ab98d','#7dae85'],pub:['#716071','#545568','#42435e'],
+    hotel:['#e1d0ba','#e8dac7','#e4ded7']
+   };
+   const trim={home:'#ad835e',office:'#5d919e',factory:'#708b8e',shop:'#b99567',
+    restaurant:'#ab795d',mall:'#4a9099',park:'#ecd7ac',pub:'#b781dc',hotel:'#b49567'}[family];
+   const stone=palette[family][level-1],ink=family==='pub'?'#363247':'#3e5057';
+   const cover=(x,z,w,h)=>block('#bfbeb1',x,.10,z,w,.10,h,'stone');
+   const roofFlat=(x,z,w,depth,y,c='#575b5d')=>{
+    block('#e5ded1',x,y,z,w+.23,.14,depth+.20,'stone');
+    block(c,x,y+.10,z,w+.14,.075,depth+.12,'metal');
+    for(const xx of [x-w*.44,x+w*.44])block('#e5ded1',xx,y+.20,z,.085,.25,depth+.17,'stone');
+   };
+   const windowFront=(x,y,z,ww=.48,hh=.55,color='#527f91')=>{
+    block('#e6d8c6',x,y,z,ww+.13,hh+.13,.09,'stone');
+    block(color,x,y,z+.06,ww,hh,.052,'glass');
+    block('#fbe0ae',x,y-.08,z+.09,ww*.77,hh*.44,.014,'glass',true);
+    block('#cbdadd',x,y,z+.10,.025,hh*.97,.019,'metal');
+    block('#e5d2ae',x,y-hh/2-.09,z+.09,ww+.19,.077,.15,'stone');
+   };
+   const glassBand=(x,y,z,ww,hh,pieces=4,c='#57899a')=>{
+    block(c,x,y,z,ww,hh,.055,'glass');
+    const n=Math.max(2,pieces);
+    for(let i=0;i<=n;i++){
+     const xx=x-ww/2+ww*i/n;
+     block('#d9e7e6',xx,y,z+.044,.031,hh+.05,.026,'metal');
+    }
+    for(let i=0;i<n;i++){
+     const xx=x-ww/2+(i+.5)*ww/n;
+     if((i+level)%3!==1)block('#ffe3b4',xx,y-.10,z+.045,ww/n*.56,hh*.32,.016,'glass',true);
+    }
+   };
+   const planter=(x,z,r=.33)=>{
+    block('#bea78b',x,.28,z,r*1.10,.31,r*.83,'stone');
+    block('#557d4e',x,.52,z,r*.95,.23,r*.95,'stone');
+    block('#8fa95f',x,.71,z,r*.64,.16,r*.68,'stone');
+   };
+   const table=(x,z,umb=false)=>{
+    pole('#7a5b48',x,.48,z,.042,.55,'wood');
+    pole('#bf9c72',x,.76,z,.31,.06,'wood');
+    for(const side of[-1,1]){
+     const xx=x+side*.36;
+     block('#987257',xx,.48,z,.25,.065,.27,'wood');
+     block('#655348',xx,.30,z,.034,.29,.038,'metal');
+    }
+    if(umb){
+     pole('#6b665b',x,1.23,z,.021,.92,'metal');
+     const p=point(x,z);batch.add(CONE,'#b28e78',p.x-.5,1.64,p.y-.5,.54,.32,.54,0,turn,0,id,false,'wood');
+    }else pole('#ffdb9c',x,.86,z,.045,.10,'glass',true);
+   };
+   const bulbString=(x1,z1,x2,z2,y=1.55,n=5)=>{
+    for(let k=0;k<n;k++){
+     const a=(k+.5)/n,x=x1+(x2-x1)*a,z=z1+(z2-z1)*a;
+     block('#795c49',x,y+.08,z,.05,.03,.052,'wood');
+     block('#ffe4aa',x,y,z,.105,.13,.11,'glass',true);
+    }
+   };
+   const glyph={A:['010','101','111','101','101'],B:['110','101','110','101','110'],
+    C:['111','100','100','100','111'],D:['110','101','101','101','110'],
+    E:['111','100','110','100','111'],F:['111','100','110','100','100'],
+    G:['111','100','101','101','111'],H:['101','101','111','101','101'],
+    I:['111','010','010','010','111'],K:['101','101','110','101','101'],
+    L:['100','100','100','100','111'],M:['101','111','111','101','101'],
+    N:['101','111','111','111','101'],O:['111','101','101','101','111'],
+    P:['110','101','110','100','100'],R:['110','101','110','101','101'],
+    S:['111','100','111','001','111'],T:['111','010','010','010','010'],
+    U:['101','101','101','101','111'],W:['101','101','111','111','101'],
+    Y:['101','101','010','010','010']};
+   const sign=(word,x,y,z,width,bg='#35474c',fg='#ffe0ac')=>{
+    const clean=word.toUpperCase().replace(/[^A-Z]/g,''),unit=Math.min(.125,width/(4*clean.length+1));
+    const sw=(4*clean.length+1)*unit;
+    block(bg,x,y,z,sw+.15,unit*7.3,.13,'metal');
+    block('#c1a37c',x,y+unit*3.8,z+.075,sw+.18,.04,.042,'metal');
+    for(let i=0;i<clean.length;i++){
+     for(let a=0;a<5;a++)for(let col=0;col<3;col++)
+      if(glyph[clean[i]]?.[a][col]==='1'){
+       const xx=x-sw/2+(i*4+col+1.5)*unit,yy=y+(2-a)*unit;
+       block(fg,xx,yy,z+.078,unit*.75,unit*.78,.027,'glass',true);
+      }
+    }
+   };
+   const entry=(x,z,wide=1)=>{
+    block('#ddd1c4',x,.94,z,wide+.20,1.42,.13,'stone');
+    block('#3f5057',x,.90,z+.10,wide,1.26,.065,'wood');
+    for(const q of[-1,1]){
+     block('#a8d0cd',x+q*wide*.23,1.08,z+.145,wide*.34,.53,.027,'glass');
+     block('#ffe1ad',x+q*wide*.23,1.03,z+.164,wide*.23,.23,.011,'glass',true);
+    }
+    block(trim,x,1.61,z+.23,wide+.59,.13,.51,'stone');
+    block('#e8dbbd',x,.17,z+.33,wide+.44,.075,.43,'stone');
+   };
+   // Lightly planted, fully covered architecture half with clear entry streets.
+   if(!hotel){
+    const landEnd=Math.min(t.frontageV-.39,baseV+availableDepth-.22);
+    const length=Math.max(.38,landEnd-baseV);
+    cover(u,baseV+length/2,W-1.80,length);
+    block('#8ba985',u,.17,baseV+length/2,W-1.95,.034,length-.10,'stone');
+    for(const side of[-1,1])for(let n=0;n<2;n++){
+     const x=u+side*(W*.5-.94),z=baseV+.67+n*Math.max(.60,(length-1.18));
+     planter(x,z,.21);
+    }
+   }
+   if(family==='park'){
+    // Four-way promenade, illuminated fountain and ascending pavilion; the
+    // largest tier has a stepped pond and more shaded gazebos.
+    const pw=W-2.0,parkStart=baseV+.34,parkDepth=Math.min(availableDepth-.77,availableDepth>=6?5.10:2.75);
+    block('#79aa7b',u,.24,parkStart+parkDepth/2,pw,.11,parkDepth,'stone');
+    block('#e6d8bc',u,.29,parkStart+parkDepth/2,pw-.10,.042,.26,'stone');
+    block('#e6d8bc',u,.29,parkStart+parkDepth/2,.28,.042,parkDepth-.10,'stone');
+    const fountainV=parkStart+parkDepth*.48;
+    pole('#ddd9ce',u,.38,fountainV,level===3?.75:.58,.25,'stone');
+    pole('#4d97b0',u,.53,fountainV,level===3?.63:.46,.055,'water');
+    pole('#e8e4d3',u,.78,fountainV,.11,.47,'stone');
+    pole('#fff5c5',u,.99,fountainV,.052,.12,'glass',true);
+    for(const side of[-1,1]){
+     const x=u+side*(pw*.33),z=parkStart+parkDepth*.31;
+     block('#c9ae86',x,.65,z,Math.min(1.10,pw*.26),.15,.90,'wood');
+     block('#e4d5b5',x,1.35,z,Math.min(1.20,pw*.27),.13,1.01,'stone');
+     for(const dx of[-.42,.42])pole('#c8b593',x+dx,.90,z,.036,.85,'wood');
+     planted(x,parkStart+parkDepth*.80,.31+level*.05);
+     planter(x,parkStart+parkDepth*.56,.32);
+     lantern(x,parkStart+parkDepth*.12,'#ffe1b4',.86);
+     if(level>=2){
+      pole('#c3b597',x,1.45,z,.020,.17,'metal');
+      block('#ffe7b2',x,1.57,z,.16,.15,.15,'glass',true);
+     }
+    }
+    if(level===3){
+     for(let j=0;j<6;j++){
+      const x=u+Math.cos(j*Math.PI/3)*pw*.22,z=parkStart+parkDepth*.79+Math.sin(j*Math.PI/3)*.42;
+      planter(x,z,.20);
+     }
+    }
+    return;
+   }
+   const upper=family==='office'?2.32+level*1.34:family==='hotel'?1.50+level*1.04:
+    family==='mall'?1.75+level*.80:family==='pub'?1.65+level*.77:
+    family==='factory'?1.25+level*.45:family==='home'?1.35+level*.58:1.40+level*.54;
+   const maxTierW=Math.max(1.5,Math.min(buildingW, W-2.08));
+   const mainD=d,top=upper+.24;
+   // Categories now differ in actual massing, not just a changed paint color.
+   if(family==='home'){
+    const wing=level===2?maxTierW*.48:maxTierW*.74;
+    const center=level===2?u-maxTierW*.24:u;
+    block(stone,center,.24+upper/2,v,wing,upper,mainD,'stone');
+    if(level===2){
+     const sideX=u+maxTierW*.26;
+     block('#e8e0d0',sideX,.24+(upper-.37)/2,v+.17,maxTierW*.46,upper-.37,mainD*.82,'stone');
+     block('#567e88',u,upper*.67,face+.09,maxTierW*.60,.53,.060,'glass');
+     block('#e8d9c5',u,upper*.56,face+.37,maxTierW*.63,.13,.52,'wood');
+    }
+    gable(level===1?'#49566b':'#363e4d',center,v,wing+.26,mainD+.25,top,.62);
+    if(level===2)gable('#44485a',u+maxTierW*.26,v+.17,maxTierW*.46+.24,mainD*.82+.18,top-.36,.51);
+    for(const yy of level===2?[1.10,2.15]:[1.18]){
+     for(const xx of [center-wing*.28,center+wing*.28])
+      windowFront(xx,yy,face+.06,.35,.44,'#5b8995');
+    }
+    entry(center,face+.17,.77);
+    block('#b8956d',center,1.83,face+.30,1.35,.10,.48,'wood');
+    for(const side of[-1,1]){
+     const x=center+side*wing*.42;
+     planted(x,baseV+availableDepth-.93,.25);
+     lantern(x,face+.34,'#ffe7bb',.89);
+    }
+   }else if(family==='office'){
+    // A compact glass business pavilion grows into a setback office tower.
+    const podiumH=1.13+level*.16;
+    block('#c9d9d9',u,.24+podiumH/2,v,maxTierW,podiumH,mainD,'stone');
+    const towerW=maxTierW*(level===1?.88:level===2?.78:.72);
+    const towerD=mainD*(level===1?.91:.83);
+    block('#5f899b',u,.24+upper/2,v-.10,towerW,upper,towerD,'glass');
+    const floors=level+2;
+    for(let floor=0;floor<floors;floor++){
+     const yy=.55+(upper-.58)*(floor+.5)/floors;
+     glassBand(u,yy,v+towerD/2+.04,towerW*.90,(upper-.34)/floors*.74,level*2+3,'#36677c');
+     block('#dce8e7',u,yy+(upper-.34)/floors*.42,v+towerD/2+.07,towerW*.97,.067,.09,'stone');
+    }
+    roofFlat(u,v-.10,towerW,towerD,top,'#445666');
+    if(level>=2){
+     block('#5d7e83',u,top+.36,v-.19,towerW*.28,.58,towerD*.25,'metal');
+     for(const side of[-1,1])pole('#e2f2ec',u+side*towerW*.30,top+.34,v,.048,.22,'glass',true);
+    }
+    entry(u,face+.10,.96);
+    sign('WORK',u,1.97,face+.18,Math.min(2.20,maxTierW*.76),'#30464f','#e5f8ee');
+    for(const side of[-1,1])planter(u+side*maxTierW*.47,face+.29,.21);
+   }else if(family==='factory'){
+    // Sawtooth industrial sheds and working loading doors, with rooftop tanks.
+    const units=level===1?1:level===2?2:3;
+    const partW=(maxTierW-.14*(units-1))/units;
+    for(let i=0;i<units;i++){
+     const x=u-maxTierW/2+partW/2+i*(partW+.14);
+     block(stone,x,.23+upper/2,v,partW,upper,mainD,'stone');
+     gable('#77848a',x,v,partW+.11,mainD+.08,top-.13,.32);
+     const frontX=x;
+     block('#526b73',frontX,.84,face+.07,partW*.72,.98,.080,'metal');
+     for(let y=.51;y<1.27;y+=.21)
+      block('#b1c2c3',frontX,y,face+.12,partW*.65,.029,.033,'metal');
+     block('#f4b177',x,1.46,face+.15,.20,.12,.12,'glass',true);
+     for(const z of[v-.32,v+.32]){
+      block('#95c6cc',x,upper+.36,z,partW*.37,.044,.23,'glass');
+     }
+    }
+    for(let i=0;i<level;i++){
+     const x=u-maxTierW*.32+i*maxTierW*.32;
+     pole('#7a8084',x,top+.31,v-.31,.15,.69,'metal');
+     pole('#c6d0c9',x,top+.74,v-.31,.18,.09,'metal');
+    }
+    sign('WORK',u,1.93,face+.16,Math.min(2.35,maxTierW*.86),'#485c62','#f4ddb8');
+    if(level>=2)for(const side of[-1,1])
+     block('#b4b9ad',u+side*maxTierW*.39,.36,face+.32,.55,.43,.40,'stone');
+   }else if(family==='shop'){
+    const bays=level===1?1:level===2?2:4;
+    block(stone,u,.24+upper/2,v,maxTierW,upper,mainD,'stone');
+    roofFlat(u,v,maxTierW,mainD,top,'#4d6b6e');
+    const bayW=maxTierW/bays;
+    for(let i=0;i<bays;i++){
+     const x=u-maxTierW/2+(i+.5)*bayW;
+     glassBand(x,.99,face+.06,bayW*.81,1.22,3,'#508f95');
+     block(i%2?'#c99d6b':'#b27967',x,1.62,face+.38,bayW*.89,.12,.61,'wood');
+     for(let j=0;j<5;j++)
+      block(j%2?'#f1e5c8':'#a85f58',x-bayW*.39+j*bayW*.195,1.56,face+.69,bayW*.19,.045,.17,'wood');
+     block('#dbc6a6',x,.24,face+.48,bayW*.81,.06,.21,'stone');
+     if(level>=2)windowFront(x,2.20,face+.07,Math.min(.65,bayW*.67),.50,'#729da7');
+    }
+    sign('SHOP',u,level===1?2.09:top-.29,face+.15,Math.min(2.8,maxTierW*.84),'#4d736e','#fff1bd');
+    if(level===3){
+     block('#75aeaf',u,top+.30,v,maxTierW*.36,.28,mainD*.48,'glass');
+     for(const side of[-1,1])planter(u+side*maxTierW*.45,face+.30,.27);
+    }
+   }else if(family==='restaurant'){
+    const left=level>=2?u-maxTierW*.22:u,ww=level>=2?maxTierW*.56:maxTierW;
+    block(stone,left,.24+upper/2,v,ww,upper,mainD,'stone');
+    gable('#694d43',left,v,ww+.23,mainD+.20,top,.50);
+    if(level>=2){
+     const right=u+maxTierW*.30;
+     block('#765448',right,.24+(upper-.49)/2,v+.27,maxTierW*.40,upper-.49,mainD*.82,'stone');
+     gable('#815d48',right,v+.27,maxTierW*.40+.16,mainD*.82+.14,top-.49,.36);
+    }
+    for(const x of[left-ww*.26,left+ww*.26])
+     windowFront(x,1.08,face+.06,Math.min(.48,ww*.25),.60,'#5e8794');
+    entry(left,face+.13,.85);
+    sign('BISTRO',left,level===1?2.26:top-.36,face+.17,Math.min(ww*.89,2.85),'#524037','#ffe4b8');
+    const terraceX=level>=2?u+maxTierW*.25:u+maxTierW*.36;
+    const terraceZ=baseV+availableDepth-(hotel?.68:.96);
+    for(const dz of[-.34,.27]){
+     table(terraceX,Math.min(t.frontageV-.85,terraceZ+dz),level===3);
+    }
+    bulbString(u-maxTierW*.43,face+.40,u+maxTierW*.43,face+.40,1.54,level===3?8:5);
+    for(const side of[-1,1])planter(u+side*maxTierW*.45,face+.35,.22);
+   }else if(family==='mall'){
+    const sideW=maxTierW*.28,centerW=maxTierW*.43;
+    const elevation=upper-.20;
+    for(const side of[-1,1]){
+     const x=u+side*maxTierW*.36;
+     block('#d6e3df',x,.24+elevation/2,v,sideW,elevation,mainD,'stone');
+     for(const yy of[1.02,1.95,2.87].filter(y=>y<elevation+.14))
+      glassBand(x,yy,face+.10,sideW*.76,.63,2,'#4e909c');
+     roofFlat(x,v,sideW,mainD,elevation+.32,'#719ca0');
+    }
+    block('#4a8792',u,.24+upper/2,v,centerW,upper,mainD,'glass');
+    glassBand(u,upper*.48+.22,face+.12,centerW*.92,upper*.69,level+3,'#3f8795');
+    roofFlat(u,v,centerW+.17,mainD,top+.16,'#9abdc4');
+    block('#a8d6da',u,top+.38,v,centerW*.81,.36,mainD*.36,'glass');
+    entry(u,face+.24,.96);
+    sign('MALL',u,top-.48,face+.21,Math.min(centerW+.47,2.35),'#376c75','#f7eed1');
+    for(const side of[-1,1])planter(u+side*maxTierW*.46,face+.32,.24);
+   }else if(family==='pub'){
+    // The small pub is independently handcrafted above. Medium and large
+    // become premium music venues with real staggered rooms and rooftop decks.
+    const mainW=maxTierW*(level===2?.72:.80);
+    const wingW=(maxTierW-mainW)*.64,sideX=u+maxTierW*.40;
+    block('#554c62',u,.24+upper/2,v,mainW,upper,mainD,'stone');
+    block('#344254',sideX,.24+(upper-.55)/2,v+.27,wingW,upper-.55,mainD*.76,'stone');
+    gable(level===2?'#333646':'#242d3c',u,v,mainW+.23,mainD+.20,top,.56);
+    for(const yy of[1.05,2.12,3.17,4.26].filter(y=>y<upper-.17)){
+     glassBand(u,yy,face+.07,mainW*.81,.54,6,'#5f597e');
+     for(const side of[-1,1])block('#dca3fa',u+side*mainW*.47,yy,face+.13,.076,.58,.09,'glass',true);
+    }
+    block('#9251ae',u,1.78,face+.36,mainW*.63,.10,.53,'stone');
+    entry(u,face+.25,.85);
+    sign(level===2?'PUB':'CLUB',u,top-.40,face+.22,Math.min(2.7,mainW*.82),'#2c293e','#f3b9fd');
+    for(const side of[-1,1]){
+     const x=u+side*mainW*.49;
+     lantern(x,face+.19,'#f6bff6',.85);
+    }
+    const deckZ=Math.min(t.frontageV-.87,baseV+availableDepth-.90);
+    for(const xx of[u-maxTierW*.25,u+maxTierW*.25])
+     table(xx,deckZ,false);
+    if(level===3){
+     block('#af8b72',u,top+.19,v,mainW*.70,.08,mainD*.43,'wood');
+     for(const side of[-1,1])block('#d4b3dd',u+side*mainW*.35,top+.43,v,.07,.46,mainD*.43,'glass');
+     bulbString(u-mainW*.30,v+.18,u+mainW*.30,v+.18,top+.64,7);
+    }
+   }else if(family==='hotel'){
+    const floorN=level===1?2:level===2?3:6;
+    const hotelW=Math.min(W-1.62,level===1?2.7:level===2?3.65:6.5);
+    const hotelD=d;
+    block(stone,u,.24+upper/2,v,hotelW,upper,hotelD,'stone');
+    if(level===1)gable('#4b5360',u,v,hotelW+.21,hotelD+.23,top,.53);
+    else roofFlat(u,v,hotelW,hotelD,top,'#70898b');
+    for(let floor=0;floor<floorN;floor++){
+     const yy=.58+(upper-.55)*(floor+.48)/floorN;
+     const windows=level===1?2:level===2?3:6;
+     for(let i=0;i<windows;i++){
+      const x=u-hotelW*.44+(i+.5)*hotelW*.88/windows;
+      windowFront(x,yy,face+.052,Math.min(.49,hotelW*.65/windows),Math.max(.24,(upper-.52)/floorN*.54),'#618e9d');
+      if(level>=2)
+       block('#e9dbbd',x,yy-.35,face+.24,Math.min(.52,hotelW*.75/windows),.073,.40,'stone');
+     }
+    }
+    entry(u,face+.16,level===3?1.12:.79);
+    sign('HOTEL',u,top-(level===1?.21:.34),face+.18,Math.min(2.65,hotelW*.87),'#655543','#ffe8b7');
+    for(const side of[-1,1])planter(u+side*hotelW*.47,Math.min(t.plotHeight-.40,face+.24),.24);
+    if(level>=2){
+     block('#699eaa',u,top+.33,v,hotelW*.42,.21,hotelD*.38,'glass');
+     block('#e8e5d8',u,top+.50,v,hotelW*.48,.06,hotelD*.44,'stone');
+    }
+    if(level===3){
+     block('#75b2c4',u,top+.60,v-.31,hotelW*.38,.055,hotelD*.36,'water');
+     for(const side of[-1,1])block('#e6e7df',u+side*hotelW*.22,top+.62,v-.31,.20,.055,hotelD*.38,'stone');
+    }
+   }
+   // Detail budget scales with building footprint; decorative features are
+   // batched and use existing night emissive materials, not point lights.
+   return;
+  }
+
   // SMALL PUB — bespoke "LOCAL PUB" brick tavern, not the shared cuboid.
   // Footprint: 6x8, with 10-car parking in the rear 0..4 and the pub/patio
   // entirely inside the forward 4..7 area. Vehicle spines at u=.45/5.55
