@@ -26,8 +26,19 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     const dx=p.x-b.x,dz=p.z-b.y;
     const uv=rot===0?{u:dx,v:dz}:rot===1?{u:dz,v:t.plotHeight-dx}:
       rot===2?{u:t.plotWidth-dx,v:t.plotHeight-dz}:{u:t.plotWidth-dz,v:dx};
-    return {...uv,y:p.y,color:p.color,glow:p.glow};
+    return {...uv,y:p.y,color:p.color,glow:p.glow,sx:p.sx,sz:p.sz};
    });
+   if(t.plannedParking){
+    // Verify full geometry footprint, including its half-size in both local
+    // axes. 0.08 is allowed for low edging tolerance, not for parked cars.
+    const intruders=positioned.filter(p=>p.v-p.sz/2<t.parkingZoneDepth-.08);
+    assert.equal(intruders.length,0,key+' rotation '+rot+
+      ': physical decoration intrudes on rear parking: '+JSON.stringify(intruders.slice(0,3)));
+    const spineIntruders=positioned.filter(p=>p.u-p.sx/2<.69||
+      p.u+p.sx/2>t.plotWidth-.69);
+    assert.equal(spineIntruders.length,0,key+' rotation '+rot+
+      ': physical decoration blocks a side car lane: '+JSON.stringify(spineIntruders.slice(0,3)));
+   }
    const u=t.plotWidth/2, v=t.kind==='hotel'?t.size/2:t.parkingZoneDepth+t.buildingZoneDepth/2;
    const sides={
     front:positioned.filter(p=>p.v>v+.43),
