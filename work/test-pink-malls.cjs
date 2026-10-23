@@ -60,7 +60,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     assert(count('#e2c3d1')>0&&count('#6daec6')>0,'public plaza fountain missing');
     assert(count('#b8997e')>=2,'community benches missing');
     assert(count('#fce4bb')>=2,'open single-floor shops missing');
-    assert(actualFloors.length===0,'small mall should not use large mall second floors');
+    assert(actualFloors.length===1,'small mall should have one ground storey only');
    }else if(test.floors===2){
     assert(height>4.0&&height<5.2,'lifestyle gallery MUST be exactly two floors');
     assert(count('#f3e8e2')>=2,'actual second floor balconies missing');
