@@ -3366,3 +3366,122 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleE
 :root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleEyeComfort[aria-pressed="true"]:hover{
  background:#d6dfe8!important;color:#13161c!important;
 }
+
+
+/* SMCITY v2.4.3: collapse the WHOLE city control deck, not only its tools.
+   Keep a compact one-line clock/speed rail with the reopen button. */
+body>.bottom>.control-deck.tools-collapsed{
+ display:flex!important;flex-direction:row!important;align-items:center!important;
+ justify-content:center!important;grid-template-columns:none!important;
+ width:min(660px,calc(100vw - 12px))!important;
+ max-width:calc(100vw - 12px)!important;
+ min-width:0!important;height:40px!important;min-height:40px!important;
+ max-height:40px!important;margin:0 auto!important;
+ padding:1px 4px!important;gap:0!important;
+ transform:none!important;overflow:visible!important;
+ border-radius:9px!important;
+}
+body>.bottom>.control-deck.tools-collapsed>.city-dashboard,
+body>.bottom>.control-deck.tools-collapsed>.city-control-mini{
+ display:none!important;visibility:hidden!important;
+}
+body>.bottom>.control-deck.tools-collapsed>.builder-zone{
+ display:flex!important;flex:1 1 100%!important;align-items:center!important;
+ width:100%!important;min-width:0!important;
+ height:36px!important;min-height:0!important;max-height:36px!important;
+ margin:0!important;padding:0!important;
+ border:0!important;border-radius:8px!important;
+ background:transparent!important;
+ overflow:visible!important;
+}
+body>.bottom>.control-deck.tools-collapsed .builder-zone>.build-dock{
+ display:flex!important;flex:1 1 100%!important;flex-direction:column!important;
+ justify-content:center!important;
+ width:100%!important;min-width:0!important;max-width:100%!important;
+ height:36px!important;min-height:36px!important;max-height:36px!important;
+ margin:0!important;padding:0!important;
+ border:0!important;border-radius:8px!important;
+ background:transparent!important;box-shadow:none!important;
+ overflow:visible!important;
+}
+body>.bottom>.control-deck.tools-collapsed .builder-zone .build-dock .dock-body,
+body>.bottom>.control-deck.tools-collapsed .builder-zone .build-dock #categories,
+body>.bottom>.control-deck.tools-collapsed .builder-zone .build-dock .dock-context,
+body>.bottom>.control-deck.tools-collapsed .builder-zone>footer{
+ display:none!important;visibility:hidden!important;
+ flex:0 0 0!important;width:0!important;height:0!important;
+ min-height:0!important;max-height:0!important;
+ margin:0!important;padding:0!important;overflow:hidden!important;
+}
+body>.bottom>.control-deck.tools-collapsed .builder-zone .build-dock .dock-head{
+ display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+ justify-content:space-between!important;align-items:center!important;
+ flex:0 0 36px!important;
+ width:100%!important;height:36px!important;min-height:36px!important;
+ max-height:36px!important;min-width:0!important;
+ margin:0!important;padding:2px 4px!important;gap:5px!important;
+ background:transparent!important;border:0!important;
+ overflow:hidden!important;
+}
+body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-timebar{
+ display:flex!important;flex-direction:row!important;align-items:center!important;
+ flex:1 1 auto!important;justify-content:flex-start!important;
+ width:auto!important;min-width:0!important;max-width:none!important;
+ padding:0!important;margin:0!important;gap:9px!important;
+ overflow:hidden!important;
+}
+body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-clock{
+ display:flex!important;flex-direction:row!important;align-items:center!important;
+ flex:0 1 auto!important;min-width:0!important;width:auto!important;
+ gap:5px!important;white-space:nowrap!important;overflow:hidden!important;
+}
+body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-speed{
+ display:flex!important;flex:0 0 auto!important;align-items:center!important;
+ width:auto!important;min-width:0!important;max-width:none!important;
+ margin:0!important;padding:0!important;
+}
+body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-speed .playback{
+ display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+ gap:2px!important;margin:0!important;padding:2px!important;
+}
+body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-display-actions,
+body>.bottom>.control-deck.tools-collapsed .builder-zone #status,
+body>.bottom>.control-deck.tools-collapsed .builder-zone .edition{
+ display:none!important;visibility:hidden!important;
+}
+body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-head>#toggleDock{
+ display:inline-flex!important;order:3!important;flex:0 0 auto!important;
+ align-items:center!important;justify-content:center!important;
+ width:auto!important;max-width:none!important;min-width:27px!important;
+ height:27px!important;min-height:27px!important;max-height:27px!important;
+ margin:0!important;padding:2px 7px!important;
+ white-space:nowrap!important;cursor:pointer!important;pointer-events:auto!important;
+}
+@media(max-width:720px){
+ body>.bottom>.control-deck.tools-collapsed{
+  height:36px!important;min-height:36px!important;max-height:36px!important;
+  width:calc(100vw - 10px)!important;padding:1px 2px!important;
+ }
+ body>.bottom>.control-deck.tools-collapsed>.builder-zone,
+ body>.bottom>.control-deck.tools-collapsed .builder-zone>.build-dock{
+  height:33px!important;min-height:33px!important;max-height:33px!important;
+ }
+ body>.bottom>.control-deck.tools-collapsed .builder-zone .build-dock .dock-head{
+  height:33px!important;min-height:33px!important;max-height:33px!important;
+  flex-basis:33px!important;gap:2px!important;padding:1px 2px!important;
+ }
+ body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-timebar{
+  gap:3px!important;
+ }
+ body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-clock{
+  gap:3px!important;
+ }
+ body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-speed .playback{
+  gap:0!important;padding:1px!important;
+ }
+ body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-head>#toggleDock{
+  flex-basis:23px!important;width:23px!important;min-width:23px!important;
+  max-width:23px!important;height:23px!important;min-height:23px!important;
+  max-height:23px!important;padding:1px!important;
+ }
+}
