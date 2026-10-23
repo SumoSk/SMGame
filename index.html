@@ -1,5 +1,260 @@
 <!doctype html>
-<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#103b39"><title>SMCITY v2.4.1 — เมืองที่ทุกการเดินทางมีความหมาย</title><meta name="description" content="สร้างเมืองไทย วางถนน และแก้ปัญหาจราจรจากชีวิตประชาชนแต่ละคน"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23103b39'/%3E%3Cpath d='M13 3h6v26h-6z' fill='%23f9c75c'/%3E%3Cpath d='M16 5v4m0 4v4m0 4v4' stroke='%23103b39' stroke-width='2'/%3E%3C/svg%3E"><script>(function(){try{if(localStorage.getItem('smcity-eye-comfort-theme-v1')==='gray')document.documentElement.classList.add('smcity-gray-ui')}catch(_){}})();</script><link rel="stylesheet" href="dist/style.css?v=smcity-black-ui-20261024"></head>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#103b39"><title>SMCITY v2.4.2 — เมืองที่ทุกการเดินทางมีความหมาย</title><meta name="description" content="สร้างเมืองไทย วางถนน และแก้ปัญหาจราจรจากชีวิตประชาชนแต่ละคน"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23103b39'/%3E%3Cpath d='M13 3h6v26h-6z' fill='%23f9c75c'/%3E%3Cpath d='M16 5v4m0 4v4m0 4v4' stroke='%23103b39' stroke-width='2'/%3E%3C/svg%3E"><script>(function(){try{if(localStorage.getItem('smcity-theme-v242')!=='light')document.documentElement.classList.add('smcity-gray-ui')}catch(_){document.documentElement.classList.add('smcity-gray-ui')}})();</script><link rel="stylesheet" href="dist/style.css?v=v242-black-inline-fallback"><style id="smcity-dark-mode-v242">
+/* SMCITY v2.4.2 — high-contrast BLACK interface mode.
+   Keep the current theme class and localStorage key so existing choices survive.
+   Only app panels, controls and dialogs are themed; never recolor the 3D world. */
+:root.smcity-gray-ui{
+ --ink:#f5f7fa;
+ --muted:#b4bdc9;
+ --paper:#121317;
+ --line:#343943;
+ --green:#83d9ac;
+ --shadow:0 7px 28px rgba(0,0,0,.50);
+ --sm-dark-outer:#090a0c;
+ --sm-dark-panel:#101115;
+ --sm-dark-card:#1b1d23;
+ --sm-dark-hover:#2c3039;
+ --sm-dark-stroke:#353b45;
+ --sm-dark-text:#f6f7fa;
+ --sm-dark-muted:#bdc4cf;
+}
+:root.smcity-gray-ui body{
+ color:var(--sm-dark-text);
+}
+:root.smcity-gray-ui body>.bottom>.control-deck{
+ background:var(--sm-dark-outer)!important;
+ border-color:#333840!important;
+ box-shadow:0 6px 28px rgba(0,0,0,.56)!important;
+ color:var(--sm-dark-text)!important;
+ --deck-border:#363b44;
+ --ui-v8-border:#363b44;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard,
+:root.smcity-gray-ui body>.bottom .city-control-mini,
+:root.smcity-gray-ui body>.bottom .builder-zone,
+:root.smcity-gray-ui body>.bottom .city-control-mini .city-panel{
+ background:var(--sm-dark-panel)!important;
+ border-color:var(--sm-dark-stroke)!important;
+ color:var(--sm-dark-text)!important;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard .city-metric,
+:root.smcity-gray-ui body>.bottom .city-dashboard .dashboard-member-buttons>button,
+:root.smcity-gray-ui body>.bottom .city-control-mini .city-demand-panel,
+:root.smcity-gray-ui body>.bottom .city-control-mini .mini-need,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-head,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-timebar,
+:root.smcity-gray-ui body>.bottom .city-control-mini .panel-content,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-body{
+ background:var(--sm-dark-panel)!important;
+ border-color:var(--sm-dark-stroke)!important;
+ box-shadow:none!important;
+ color:var(--sm-dark-text)!important;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard .city-metric,
+:root.smcity-gray-ui body>.bottom .city-dashboard .dashboard-member-buttons>button,
+:root.smcity-gray-ui body>.bottom .city-control-mini .mini-need{
+ background:var(--sm-dark-card)!important;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard .city-metric:hover,
+:root.smcity-gray-ui body>.bottom .city-dashboard .dashboard-member-buttons>button:hover,
+:root.smcity-gray-ui body>.bottom .builder-zone button:hover{
+ background:var(--sm-dark-hover)!important;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard :is(.dashboard-title strong,.dashboard-title small,.city-metric strong,.dashboard-actions button,.dashboard-member-buttons>button,.dashboard-member-buttons>button small),
+:root.smcity-gray-ui body>.bottom .city-control-mini :is(.mini-control-heading strong,.mini-demand-legend,.mini-need span,.mini-need strong),
+:root.smcity-gray-ui body>.bottom .builder-zone :is(.dock-clock,.dock-clock strong,.dock-label,#day,#clock,#status,.edition){
+ color:var(--sm-dark-text)!important;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard :is(.city-metric small,.city-metric em,.metric-arrow),
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool .tool-price,
+:root.smcity-gray-ui body>.bottom .city-control-mini .mini-demand-legend{
+ color:var(--sm-dark-muted)!important;
+}
+:root.smcity-gray-ui body>.bottom .city-control-mini .mini-need.shortage strong{
+ color:#ff898c!important;
+}
+:root.smcity-gray-ui body>.bottom .city-control-mini .mini-need.shortage span{
+ color:#f7b1b1!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tools,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock #categories,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-speed .playback,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .dock-context-heading{
+ background:var(--sm-dark-outer)!important;
+ border-color:var(--sm-dark-stroke)!important;
+ scrollbar-color:#5b626f transparent!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories button,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock #categories button,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-speed .playback button:not(.active),
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head>button{
+ background:var(--sm-dark-card)!important;
+ border-color:var(--sm-dark-stroke)!important;
+ color:var(--sm-dark-text)!important;
+ box-shadow:none!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool :is(strong,small,.tool-capacity,.tool-parking,.tool-price),
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock #categories button :is(.dock-group-name,.dock-group-icon),
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories button{
+ color:var(--sm-dark-text)!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool :is(.tool-parking,.tool-price){
+ color:var(--sm-dark-muted)!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool-icon{
+ background:#282d35!important;
+ color:#ffffff!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool:hover,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories button:hover,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock #categories button:hover{
+ background:var(--sm-dark-hover)!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool.active,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories button.active,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock #categories button.active,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-speed .playback button.active{
+ background:#34404a!important;
+ border-color:#93b2c5!important;
+ color:#fff!important;
+ box-shadow:inset 0 0 0 1px #708b9c!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool.active .tool-icon{
+ background:#3a4b57!important;
+ color:#fff!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head>button:hover,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-speed .playback button:not(.active):hover{
+ background:var(--sm-dark-hover)!important;
+ border-color:#70808f!important;
+}
+:root.smcity-gray-ui :is(.hud,.city-panel,.map-tools,.city-advisor,#inspector,.citizens-dashboard,dialog,.member-card){
+ background:var(--sm-dark-panel)!important;
+ border-color:var(--sm-dark-stroke)!important;
+ color:var(--sm-dark-text)!important;
+ box-shadow:0 8px 30px rgba(0,0,0,.55)!important;
+}
+:root.smcity-gray-ui :is(.hud,.city-panel,.map-tools,.city-advisor,#inspector,.citizens-dashboard,dialog,.member-card) :is(h1,h2,h3,strong,summary,label){
+ color:var(--sm-dark-text)!important;
+}
+:root.smcity-gray-ui :is(#inspector,.citizens-dashboard,dialog,.member-card) :is(p,small,em,.detail-row,.citizen-detail,.member-intro){
+ color:var(--sm-dark-muted)!important;
+}
+:root.smcity-gray-ui #inspector :is(button.action,.detail-row,.signal-control,.tag),
+:root.smcity-gray-ui :is(.citizens-top,.citizens-toolbar,.citizen-kpi,.citizen-signal-grid div,.citizen-issue,.citizen-person,.citizen-empty,.citizen-note,.citizen-more){
+ background:var(--sm-dark-card)!important;
+ border-color:var(--sm-dark-stroke)!important;
+ color:var(--sm-dark-text)!important;
+}
+:root.smcity-gray-ui :is(.citizens-toolbar input,.citizens-filters button,dialog input,dialog select,dialog textarea,.member-card input){
+ background:#202329!important;
+ border-color:#525c68!important;
+ color:#ffffff!important;
+}
+:root.smcity-gray-ui :is(.citizens-toolbar input,dialog input,dialog textarea,.member-card input)::placeholder{
+ color:#a1aab7!important;
+ opacity:1;
+}
+:root.smcity-gray-ui .citizens-filters button{
+ background:var(--sm-dark-card)!important;
+ color:var(--sm-dark-text)!important;
+}
+:root.smcity-gray-ui .citizens-filters button.active{
+ background:#3a4c59!important;
+ border-color:#7b9aae!important;
+ color:#ffffff!important;
+}
+:root.smcity-gray-ui :is(.citizen-person:hover,.citizen-person:focus-visible){
+ background:var(--sm-dark-hover)!important;
+ border-color:#798897!important;
+}
+:root.smcity-gray-ui .citizen-bar-track{
+ background:#3a4049!important;
+}
+:root.smcity-gray-ui dialog :is(p,li,small){
+ color:var(--sm-dark-muted)!important;
+}
+:root.smcity-gray-ui dialog .smcity-menu-list>button{
+ background:var(--sm-dark-card)!important;
+ border-color:var(--sm-dark-stroke)!important;
+ color:var(--sm-dark-text)!important;
+}
+:root.smcity-gray-ui dialog .smcity-menu-list>button:hover{
+ background:var(--sm-dark-hover)!important;
+ border-color:#788897!important;
+}
+:root.smcity-gray-ui dialog .smcity-menu-list>button>small{
+ color:var(--sm-dark-muted)!important;
+}
+:root.smcity-gray-ui dialog :is(.actions button,button:not(.primary):not(.member-submit)){
+ color:var(--sm-dark-text)!important;
+}
+:root.smcity-gray-ui dialog :is(.actions button:not(.primary),button:not(.primary):not(.member-submit)){
+ background:var(--sm-dark-card)!important;
+ border-color:var(--sm-dark-stroke)!important;
+}
+:root.smcity-gray-ui dialog :is(.actions button.primary,.member-submit){
+ background:#395a70!important;
+ color:#ffffff!important;
+}
+:root.smcity-gray-ui .member-card :is(.member-tabs button,.member-notice){
+ background:var(--sm-dark-card)!important;
+ color:var(--sm-dark-text)!important;
+ border-color:var(--sm-dark-stroke)!important;
+}
+:root.smcity-gray-ui #cameraJoystick{
+ background:rgba(17,20,26,.94)!important;
+ border-color:#59626c!important;
+}
+:root.smcity-gray-ui #cameraJoystick button{
+ color:#f2f4f8!important;
+}
+:root.smcity-gray-ui #cameraJoystick button:hover{
+ background:#303743!important;
+}
+:root.smcity-gray-ui :is(.time-card,.need-card,.tool-hint){
+ background:var(--sm-dark-card)!important;
+ border-color:var(--sm-dark-stroke)!important;
+ color:var(--sm-dark-text)!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleEyeComfort{
+ background:#f0f3f7!important;
+ border-color:#dce1e8!important;
+ color:#15181c!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleBuildingLabels{
+ background:var(--sm-dark-card)!important;
+ border-color:var(--sm-dark-stroke)!important;
+ color:#ffffff!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleBuildingLabels.is-hidden{
+ background:#333b44!important;
+ border-color:#7a8999!important;
+}
+
+/* Override the original late-positioned toggle repair with true black controls. */
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>button{
+ background:#1b1d23!important;
+ border-color:#454b55!important;
+ color:#f6f7fa!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleEyeComfort[aria-pressed="true"]{
+ background:#f0f3f7!important;
+ border-color:#dce1e8!important;
+ color:#13161c!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>button:hover{
+ background:#313740!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleEyeComfort[aria-pressed="true"]:hover{
+ background:#d6dfe8!important;color:#13161c!important;
+}
+
+</style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
 <div id="cameraJoystick" class="camera-joystick" role="group" aria-label="จอยควบคุมมุมกล้อง 3D">
@@ -17,7 +272,7 @@
 <div class="map-caption"><span class="compass">N ↑</span><span id="mapLabel">PHUKET ISLAND<small>อ่าวไทย · อันดามัน</small></span></div>
 <div class="bottom"><details id="cityAdvisor" class="city-advisor" open><summary><span class="advisor-avatar" aria-hidden="true">อ</span><span><small>ที่ปรึกษาเมือง</small><strong id="advisorHeadline">มาดูเมืองของเรากันค่ะ</strong></span><span class="advisor-chevron" aria-hidden="true">⌄</span></summary><div class="advisor-body"><p id="advisorOverview"></p><div class="advisor-columns"><section><h3>สิ่งที่ไปได้ดี</h3><ul id="advisorGood"></ul></section><section><h3>เรื่องที่ควรดูแล</h3><ul id="advisorProblems"></ul></section></div><div class="advisor-next"><h3>ทำอะไรก่อนดี</h3><ol id="advisorNext"></ol></div></div></details><span id="hint" class="ui-legacy-hidden" hidden aria-hidden="true"></span><div class="control-deck" aria-label="แผงควบคุมเมือง">
  <section class="city-dashboard" aria-label="ภาพรวมเมือง">
-  <div class="dashboard-heading"><div class="dashboard-title" aria-label="SMCITY เวอร์ชัน 2.4.1"><strong>SMCITY</strong><small>v2.4.1</small></div><div class="dashboard-actions"><button type="button" id="help" aria-label="วิธีเล่น" title="วิธีเล่น">?</button><button type="button" id="menu" aria-label="เมนูหลักและบัญชี" title="เมนูหลัก">☰</button></div></div>
+  <div class="dashboard-heading"><div class="dashboard-title" aria-label="SMCITY เวอร์ชัน 2.4.2"><strong>SMCITY</strong><small>v2.4.2</small></div><div class="dashboard-actions"><button type="button" id="help" aria-label="วิธีเล่น" title="วิธีเล่น">?</button><button type="button" id="menu" aria-label="เมนูหลักและบัญชี" title="เมนูหลัก">☰</button></div></div>
   <div class="stats dashboard-stats" aria-label="ตัวชี้วัดของเมือง"><button type="button" class="city-metric metric-money" data-inspect="money" aria-label="งบประมาณ — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 9h20M17 14h.01"/></svg></span><span class="metric-text"><small>งบประมาณ</small><strong id="money">฿500,000</strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-population" data-inspect="population" aria-label="ประชาชน — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M2.5 20v-2a6.5 6.5 0 0 1 13 0v2M17 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 2.5 4.5V20"/></svg></span><span class="metric-text"><small>ประชาชน</small><strong id="population">0 <em>คน</em></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-tourists" data-inspect="tourists" aria-label="นักท่องเที่ยว — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="14" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2M4 12h16M9 11v3m6-3v3"/></svg></span><span class="metric-text"><small>นักท่องเที่ยว</small><strong id="tourists">0 <em>คน</em></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-happiness" data-inspect="happiness" aria-label="ความสุข — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c2.5 3 5.5 3 8 0M8 9h.01M16 9h.01"/></svg></span><span class="metric-text"><small>ความสุข</small><strong id="happy">100<em>%</em></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-traffic" data-inspect="traffic" aria-label="การจราจร — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="3"/><circle cx="12" cy="7" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="17" r="1"/></svg></span><span class="metric-text"><small>การจราจร</small><strong id="flow">100<em>%</em></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button></div>
   <div class="dashboard-shortcuts" aria-label="บัญชีและเซฟเกม">
  <div class="dashboard-member-buttons" role="group" aria-label="บัญชีและเซฟเกม"><button type="button" id="accountQuick" class="map-account" title="บัญชีผู้ใช้ / เข้าสู่ระบบ" aria-label="บัญชีผู้ใช้และเข้าสู่ระบบ"><svg class="map-rail-svg account-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.7 20c.4-3.9 3.1-6 7.3-6s6.9 2.1 7.3 6"/></svg><small>บัญชี</small></button><button type="button" id="saveGameQuick" class="map-save" title="เซฟหรือโหลดเกมออนไลน์" aria-label="เซฟและโหลดเกมออนไลน์"><span class="map-save-art"><svg class="map-rail-svg save-svg" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M5 4.5h17l5 5V26a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="#fdfef8"/><path d="M10 4.5v10h12v-10"/><path d="M12.5 6.5h6.5v5h-6.5z" fill="#e6f5d9" stroke-width="1.3"/><path d="M10 28v-10h12v10" fill="#d5edc9"/><path d="M13 22h6" stroke-width="1.6"/></svg></span><small>เซฟ / โหลด</small></button></div>
@@ -56,23 +311,23 @@
 <script>window.SMGameAuthLocked = false;</script>
 <script>
 (function(){
- const key='smcity-eye-comfort-theme-v1';
+ const key='smcity-theme-v242';
  const root=document.documentElement,button=document.getElementById('toggleEyeComfort');
  if(!button)return;
- const sync=function(){
+ function sync(){
   const dark=root.classList.contains('smcity-gray-ui');
   button.setAttribute('aria-pressed',String(dark));
-  button.setAttribute('aria-label',dark?'กลับไปใช้ธีมปกติ':'เปิดธีมดำตัวหนังสือขาว');
-  button.title=dark?'กลับสู่ธีมปกติ':'ธีมดำพื้นหลังดำตัวอักษรสีขาว';
- };
+  button.setAttribute('aria-label',dark?'เปลี่ยนเป็นธีมสว่าง':'เปลี่ยนเป็นธีมดำ');
+  button.title=dark?'สลับเป็นธีมสว่าง':'สลับเป็นธีมดำ';
+ }
  button.addEventListener('click',function(){
   const dark=root.classList.toggle('smcity-gray-ui');
-  try{localStorage.setItem(key,dark?'gray':'default')}catch(_){}
+  try{localStorage.setItem(key,dark?'dark':'light')}catch(_){}
   sync();
  });
- window.addEventListener('storage',function(e){
-  if(e.key!==key)return;
-  root.classList.toggle('smcity-gray-ui',e.newValue==='gray');
+ window.addEventListener('storage',function(event){
+  if(event.key!==key)return;
+  root.classList.toggle('smcity-gray-ui',event.newValue!=='light');
   sync();
  });
  sync();
