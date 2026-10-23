@@ -47,9 +47,11 @@ assert.equal(d.moods.reduce((a,b)=>a+b,0),80);
 assert.equal(d.rush.length,12);assert.equal(d.lifestyles.reduce((a,b)=>a+b,0),80);
 assert(d.rush.some(n=>n>0),'rush plan chart should contain real planned trips');
 assert(d.problems.some(([k])=>k==='เดินทางไปทำงานไม่ได้'));
+assert(get('categories').innerHTML.includes('data-dock-group="insights"'),'city data must be reachable as a main group');
+get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'insights'}})}});
 const tools=get('tools').innerHTML;
-assert(!get('categories').innerHTML,'nested categories are intentionally removed');
-assert(tools.includes('data-tool="citizenDashboard"')&&tools.includes('data-tool="touristDashboard"'));
+assert(get('subcategories').hidden&&get('subcategories').innerHTML==='','city data must not require submenu navigation');
+assert(tools.includes('data-tool="citizenDashboard"')&&tools.includes('data-tool="touristDashboard"')&&tools.includes('data-tool="tracking"'));
 assert(tools.indexOf('data-category="citizens"')<tools.indexOf('data-category="tourists"'));
 game.selectTool('citizenDashboard');
 assert(!get('citizensDashboard').classList.contains('hidden'));
@@ -80,7 +82,7 @@ game.selectTool('citizenDashboard');
 assert(!get('citizensDashboard').classList.contains('hidden'));
 get('closeCitizensDashboard').onclick();
 assert(get('citizensDashboard').classList.contains('hidden'));
-assert(get('tools').innerHTML.includes('data-category="citizens"'));
+assert(get('categories').innerHTML.includes('data-dock-group="insights"'),'city information remains accessible through main navigation');
 // Large populations only render the first 40 cards.
 game.reset();
 for(let i=0;i<5000;i++){const c=game.newCitizen(home);c.resident=true;}
