@@ -500,6 +500,13 @@ export class TrafficRenderer{
     pole('#516d80',x,1.13,kitchenRear+.29,.034,2.22,'metal');
     block('#ffe1a7',x,2.30,kitchenRear+.45,.12,.09,.12,'glass',true);
    }
+   // Three pendant lamps over the service pass: legible at dusk while
+   // keeping the open kitchen and rear parking court visible from above.
+   for(const dx of[-kitchenW*.26,0,kitchenW*.26]){
+    pole('#8497a3',kitchenX+dx,1.92,kitchenRear+.76,.019,.39,'metal');
+    block('#b7c7cd',kitchenX+dx,1.69,kitchenRear+.76,.19,.095,.19,'metal');
+    block('#ffe1a7',kitchenX+dx,1.62,kitchenRear+.76,.135,.12,.14,'glass',true);
+   }
    // Back preparation line: stainless bench, range hobs, hood, tiled
    // splashback, dishwasher, sink with faucet and visible ingredients.
    block('#8ca0a7',kitchenX,.70,kitchenRear+.24,kitchenW*.85,.16,.37,'metal');
