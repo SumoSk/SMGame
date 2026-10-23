@@ -3,7 +3,7 @@ const noop=()=>{};
 function makeNode(){const classes=new Set(['hidden']);return {
  textContent:'',innerHTML:'',value:'',scrollTop:0,style:{},children:[],
  dataset:{},classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),toggle:(x,v)=>{if(v===false)classes.delete(x);else if(v===true)classes.add(x);else if(classes.has(x))classes.delete(x);else classes.add(x)},contains:x=>classes.has(x)},
- addEventListener:noop,querySelectorAll:()=>[],showModal(){this.open=true},close(){this.open=false},getContext:()=>new Proxy({},{get:()=>noop}),setPointerCapture:noop};}
+ setAttribute:noop,addEventListener:noop,querySelectorAll:()=>[],showModal(){this.open=true},close(){this.open=false},getContext:()=>new Proxy({},{get:()=>noop}),setPointerCapture:noop};}
 let game;const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,makeNode());return elements.get(id)};
 const page=fs.readFileSync('dist/index.html','utf8'),css=fs.readFileSync('dist/style.css','utf8');
 assert(page.includes('id="citizensDashboard"'));
