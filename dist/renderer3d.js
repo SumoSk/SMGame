@@ -1002,6 +1002,14 @@ export class TrafficRenderer{
      pole('#ffe3aa',xx,2.94,zz,.095,.12,'glass',true);
     }
     block('#d7bc77',lightX,3.83,lightZ,.17,.14,.18,'metal');
+    // Suspended second ring of warm globes makes the open central atrium
+    // recognisable from the camera as a luxury mall after sunset.
+    for(let i=0;i<8;i++){
+     const a=i*Math.PI/4+Math.PI/8;
+     const xx=lightX+Math.cos(a)*.38,zz=lightZ+Math.sin(a)*.38;
+     pole('#ac9a79',xx,3.53,zz,.019,.37,'metal');
+     pole('#ffe3aa',xx,3.29,zz,.065,.12,'glass',true);
+    }
     // Front glass lobby is open from above, and the real roof is limited
     // to a LOUNGE at the left-hand wing, leaving escalators exposed.
     block('#ebc85b',u,4.34,frontZ-.02,5.34,.13,.25,'metal');
