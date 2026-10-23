@@ -793,6 +793,217 @@ export class TrafficRenderer{
      for(const side of[-1,1])block('#e6e7df',u+side*hotelW*.22,top+.62,v-.31,.20,.055,hotelD*.38,'stone');
     }
    }
+
+   // FOUR-FACADE ATELIER. Local +v faces the road, -v is the service/back
+   // elevation, +/-u are different, individually constructed side elevations.
+   // The helper moves all pieces with the building's cardinal rotation.
+   const back=v-mainD/2,sideLeft=u-maxTierW/2,sideRight=u+maxTierW/2;
+   const xWall=(side,x,z,y,depth,height,color,frame='#e1d0b6')=>{
+    const edge=x+side*.048;
+    block(frame,edge,y,z,.092,height+.12,depth+.12,'stone');
+    block(color,edge+side*.049,y,z,.037,height,depth,'glass');
+    block('#d6c4aa',edge+side*.074,y-height*.48,z,.050,.065,depth+.15,'stone');
+    block('#f9deb4',edge+side*.071,y-height*.11,z,.014,height*.37,depth*.67,'glass',true);
+    block('#e9e1d3',edge+side*.081,y,z,.021,height*.94,.027,'metal');
+   };
+   const rearPane=(x,y,width=.40,height=.51,color='#577c84')=>{
+    block('#cbbfae',x,y,back-.066,width+.12,height+.12,.09,'stone');
+    block(color,x,y,back-.119,width,height,.033,'glass');
+    block('#ffe2b5',x,y-.055,back-.148,width*.67,height*.35,.015,'glass',true);
+    block('#a58a6e',x,y-height*.5-.055,back-.20,width+.18,.09,.18,'wood');
+   };
+   const rearDoor=(x,width=.65,height=1.18,color='#59646b')=>{
+    block('#ddd3c2',x,.22+height/2,back-.095,width+.17,height+.17,.13,'stone');
+    block(color,x,.20+height/2,back-.171,width,height,.065,'metal');
+    block('#ddbd79',x+width*.27,.77,back-.213,.042,.08,.032,'metal');
+    block('#bdac92',x,.17,back-.32,width+.20,.082,.25,'stone');
+   };
+   const parapet=(x,z,width,depth,y,c='#d1c5b4')=>{
+    for(const side of[-1,1])block(c,x+side*(width/2-.047),y,z,.09,.30,depth-.05,'stone');
+    for(const side of[-1,1])block(c,x,y,z+side*(depth/2-.047),width-.05,.30,.09,'stone');
+   };
+   const tinyVent=(x,y,z,ww=.43,hh=.30)=>{
+    block('#839195',x,y,z,ww+.07,hh+.07,.09,'metal');
+    for(let q=0;q<4;q++)block('#465e68',x,y-hh*.37+q*hh*.24,z+.061,ww*.82,.027,.02,'metal');
+   };
+   const downPipe=(x,z,y,h)=>{
+    pole('#748181',x,y,z,.029,h,'metal');
+    block('#d8bca3',x,y+h*.5,z,.085,.08,.085,'metal');
+    block('#d8bca3',x,y-h*.5,z,.085,.08,.085,'metal');
+   };
+   const stripes=(x,z,y,ww,hh,cl='#dde6df')=>{
+    for(let q=0;q<5;q++)
+     block(cl,x-ww/2+(q+.5)*ww/5,y,z,ww/5-.012,hh,.030,'glass');
+   };
+   if(family==='home'){
+    // HOME: warm rear kitchen and utility door, covered garden veranda on the
+    // right and a deliberately plainer laundry wall on the left.
+    const mainBack=back-.06;
+    rearDoor(u-maxTierW*.23,.51,.98,'#7e6552');
+    for(const x of[u+maxTierW*.06,u+maxTierW*.31])
+     rearPane(x,1.09,.36,.46,'#527c89');
+    for(const x of[u-maxTierW*.30,u+maxTierW*.30]){
+     block('#d4d2bd',x,1.60,back-.21,.63,.10,.32,'wood');
+     for(let i=0;i<3;i++)block(i%2?'#bdad8c':'#eee5cf',x-.23+i*.23,1.64,back-.26,.19,.025,.28,'wood');
+    }
+    const leftX=u-maxTierW*.49,rightX=u+maxTierW*.49;
+    xWall(-1,leftX,v-.29,1.15,.49,.61,'#658594');
+    xWall(-1,leftX,v+.42,2.03,.34,.45,'#7295a0');
+    // Exposed masonry service pipe, meter and washing line.
+    downPipe(leftX-.07,v+.71,1.12,1.45);
+    block('#c8c9c0',leftX-.13,.78,v-.83,.23,.30,.15,'metal');
+    block('#60716c',leftX-.27,.79,v-.83,.065,.20,.065,'metal');
+    for(let j=0;j<5;j++)block('#d0c9b6',leftX-.09,.53,v-.73+j*.22,.042,.04,.13,'stone');
+    xWall(1,rightX,v-.43,1.18,.47,.64,'#6f979c');
+    xWall(1,rightX,v+.41,2.11,.44,.58,'#6a8f9b');
+    block('#d5c4a8',rightX+.19,1.77,v+.32,.43,.11,1.02,'wood');
+    for(const zz of[v-.15,v+.63])
+     pole('#b09b80',rightX+.31,1.0,zz,.037,1.49,'wood');
+    if(level===2){
+     // Medium home reads as an occupied two-wing residence, not a large box.
+     for(const zz of[v-.50,v+.10,v+.70])
+      block('#e6dcbe',rightX+.27,2.40,zz,.47,.07,.35,'stone');
+     block('#9b795d',rightX+.32,2.64,v+.19,.06,.39,1.17,'wood');
+     for(let i=0;i<5;i++)
+      block('#b8a58b',rightX+.39,2.40,v-.34+i*.22,.025,.33,.026,'wood');
+     planter(u-maxTierW*.35,baseV+availableDepth-.68,.25);
+     planter(u+maxTierW*.31,baseV+availableDepth-.68,.25);
+    }
+    // Roof tile rhythm and ridge cap, on both slopes.
+    for(const zz of[v-mainD*.28,v,v+mainD*.28])
+     for(const xx of [u-maxTierW*.25,u+maxTierW*.25])
+      block('#667083',xx,upper+.59,zz,.08,.065,.08,'stone');
+   }else if(family==='office'){
+    // OFFICE: curtain-wall returns on both sides; rear loading/staff entrance,
+    // fire escape and rooftop mechanical deck scale with workforce tier.
+    const towerWidth=maxTierW*(level===1?.88:level===2?.78:.72);
+    const towerDepth=mainD*(level===1?.91:.83);
+    const sideR=u+towerWidth/2,sideL=u-towerWidth/2;
+    const floorN=level+2;
+    for(const side of[-1,1])for(let floor=0;floor<floorN;floor++){
+     const yy=.57+(upper-.52)*(floor+.48)/floorN;
+     const x=u+side*(towerWidth/2+.045);
+     for(let j=0;j<(level===1?2:4);j++){
+      const zz=v-.10-towerDepth*.41+(j+.5)*towerDepth*.82/(level===1?2:4);
+      xWall(side,x,zz,yy,towerDepth*.64/(level===1?2:4),(upper-.46)/floorN*.65,'#467c91','#c9dcdb');
+     }
+     block('#d7e1dd',x+side*.09,yy+(upper-.46)/floorN*.40,v-.10,.06,.060,towerDepth*.90,'stone');
+    }
+    for(let f=0;f<floorN;f++){
+     const yy=.57+(upper-.52)*(f+.48)/floorN;
+     for(let j=0;j<(level+2);j++){
+      const xx=u-towerWidth*.41+(j+.5)*towerWidth*.82/(level+2);
+      rearPane(xx,yy,Math.max(.17,towerWidth*.65/(level+2)),
+       Math.max(.19,(upper-.49)/floorN*.60),'#437283');
+     }
+    }
+    const doorU=u+towerWidth*.20;
+    rearDoor(doorU,Math.min(.70,towerWidth*.36),1.10,'#4a6670');
+    block('#e6d2ad',doorU,.20,back-.39,.88,.08,.35,'stone');
+    for(let floor=0;floor<Math.min(level+1,4);floor++){
+     const yy=.52+floor*.60,zz=v-.60+(floor%2?.20:0);
+     block('#c4cac5',sideL-.17,yy,zz,.32,.085,.55,'metal');
+     block('#aabbbb',sideL-.29,yy+.21,zz,.032,.46,.56,'metal');
+     for(let k=0;k<4;k++)block('#607881',sideL-.31,yy+.04,zz-.19+k*.13,.030,.17,.026,'metal');
+    }
+    for(let i=0;i<level+1;i++){
+     const x=u-towerWidth*.32+i*towerWidth*.64/Math.max(1,level);
+     block('#8eaaa8',x,top+.40,v-.10,.39,.34,.40,'metal');
+     for(let j=0;j<3;j++)block('#455f65',x-.12+j*.12,top+.44,v+.14,.061,.23,.026,'metal');
+    }
+    if(level===3){
+     // The large office has two recognizable stepped setbacks.
+     block('#789ea2',u,top+.72,v-.18,towerWidth*.45,.23,towerDepth*.55,'glass');
+     parapet(u,v-.18,towerWidth*.49,towerDepth*.60,top+.91,'#d5e5e6');
+     pole('#d7e4e3',u,top+1.29,v-.18,.035,.69,'metal');
+    }
+   }else if(family==='factory'){
+    // FACTORY: the PUBLIC front already has roller shutters, while the rear
+    // has large actual loading docks, freight pallets and roof extraction ducts.
+    const docks=level===1?1:level===2?2:3;
+    const ww=Math.min(maxTierW*.80/docks,.98);
+    const rearZ=back-.083;
+    for(let i=0;i<docks;i++){
+     const x=u-maxTierW*.38+(i+.5)*maxTierW*.76/docks;
+     block('#405967',x,.83,rearZ,ww,1.09,.099,'metal');
+     block('#a3adb2',x,.26,back-.22,ww+.12,.23,.29,'stone');
+     for(let j=0;j<5;j++)
+      block(j%2?'#6b818b':'#b7c3c2',x,.44+j*.18,back-.15,ww*.91,.055,.025,'metal');
+     for(const dx of[-ww*.41,ww*.41])
+      block('#f6c964',x+dx,.25,back-.26,.065,.09,.035,'glass',true);
+     const px=x+ww*.22;
+     for(let p=0;p<3;p++)block(p%2?'#927653':'#ab8866',px,.22+p*.14,back-.44,.41,.14,.26,'wood');
+    }
+    // East wall: machine exhaust, silos, service catwalk and grilles.
+    for(const side of[-1,1]){
+     const x=u+side*(maxTierW/2+.052);
+     for(let i=0;i<Math.max(2,level*2);i++){
+      const zz=v-mainD*.39+(i+.5)*mainD*.78/Math.max(2,level*2);
+      block('#c2cccb',x,1.38,zz,.10,.44,.30,'metal');
+      for(let j=0;j<4;j++)
+       block('#49646b',x+side*.056,1.24+j*.087,zz,.025,.024,.23,'metal');
+     }
+     downPipe(x+side*.10,v+.43,1.12,1.47);
+     block('#b8b8ac',x+side*.18,.29,v,.32,.10,mainD*.69,'stone');
+     for(const zz of[v-mainD*.26,v+mainD*.26])
+      block('#e7c982',x+side*.19,.40,zz,.052,.07,.10,'glass',true);
+    }
+    // Upper sawtooth lights read from the rear AND both sides.
+    for(let i=0;i<docks;i++){
+     const x=u-maxTierW*.39+(i+.5)*maxTierW*.78/docks;
+     block('#b7d8df',x,top+.13,v-.38,ww*.75,.09,.28,'glass');
+     block('#506870',x,top+.22,v-.38,ww*.77,.026,.30,'metal');
+    }
+    if(level>=2)for(let i=0;i<level;i++){
+     const x=u-maxTierW*.31+i*maxTierW*.62/(level-1);
+     pole('#65777d',x,top+.82,v+.15,.21,1.08,'metal');
+     pole('#adb5b2',x,top+1.44,v+.15,.25,.15,'metal');
+     for(let k=0;k<3;k++)block('#e5e6d5',x,top+.76+k*.27,v+.15,.31,.041,.31,'stone');
+    }
+   }else if(family==='shop'){
+    // SHOP: varied shopfront rhythm, but the REAR is a real goods receiving
+    // area, the right side is a glazed showcase, left side is a service alley.
+    const roomN=level===1?1:level===2?2:4;
+    const bay=maxTierW/roomN;
+    for(let i=0;i<roomN;i++){
+     const x=u-maxTierW*.5+(i+.5)*bay;
+     rearDoor(x,Math.min(.50,bay*.66),.97,'#5d7a7b');
+     if(level>=2)rearPane(x,2.09,Math.min(.47,bay*.58),.43,'#5a9194');
+     for(let k=0;k<3;k++){
+      const yy=.22+k*.17,z=back-.40;
+      block(k%2?'#c6ae88':'#b19772',x-bay*.22,yy,z,.26,.16,.24,'wood');
+     }
+    }
+    for(const side of[-1,1]){
+     const x=u+side*(maxTierW*.50+.055);
+     xWall(side,x,v-.40,1.08,.49,.69,'#57918e');
+     for(let i=0;i<level;i++){
+      const zz=v+.04+i*.29;
+      xWall(side,x,zz,1.97+(level===3?.32:0),.19,.31,'#6a9fa3');
+     }
+     // Side storefront sign, planter boxes and vertical neon wayfinding.
+     const neon=side===1?'#efac7c':'#d0dfd4';
+     block('#384f55',x+side*.12,1.61,v+.37,.13,.72,.34,'metal');
+     for(let i=0;i<4;i++)
+      block(neon,x+side*.19,1.35+i*.17,v+.38,.026,.09,.22,'glass',true);
+     block('#bea58b',x+side*.17,.29,v-.22,.29,.32,.54,'wood');
+     block('#6a9465',x+side*.18,.52,v-.22,.31,.14,.45,'stone');
+    }
+    // Small kiosk has a characteristic canopy; larger sizes carry multiple
+    // independent shop signs and a recognizable upper-office parapet.
+    for(let i=0;i<roomN;i++){
+     const xx=u-maxTierW*.5+(i+.5)*bay;
+     sign(level===1?'SHOP':i%2?'CAFE':'SHOP',xx,top-.36,face+.16,
+      Math.min(bay*.82,1.50),'#46696a',i%2?'#f6d4a4':'#f4efbf');
+    }
+    if(level===3){
+     parapet(u,v,maxTierW*.90,mainD*.85,top+.29,'#e4dbcd');
+     for(let i=0;i<4;i++){
+      const xx=u-maxTierW*.36+i*maxTierW*.24;
+      block('#99a8a8',xx,top+.40,v-.24,.28,.20,.35,'metal');
+     }
+    }
+   }
    // Detail budget scales with building footprint; decorative features are
    // batched and use existing night emissive materials, not point lights.
    return;
