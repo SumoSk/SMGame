@@ -29,8 +29,8 @@ for(let rotation=0;rotation<4;rotation++){
  for(const r of fill){
   for(const [u,v] of [[r.u-r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v+r.h/2]]){
    const p=g.lotPoint(b,u,v);
-   assert(p.x>=b.x-.05&&p.x<=b.x+bounds.w+.05&&p.y>=b.y-.05&&p.y<=b.y+bounds.h+.05,
-    'no driveway part crosses the plot in rotation '+rotation);
+   assert(p.x>=b.x+.45&&p.x<=b.x+bounds.w+.55&&p.y>=b.y+.45&&p.y<=b.y+bounds.h+.55,
+    'road surface must stay inside the lotPoint local plot frame in rotation '+rotation);
   }
  }
 }
