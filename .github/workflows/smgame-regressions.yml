@@ -58,6 +58,7 @@ jobs:
       - run: node work/test-detailed-facades.cjs
       - run: node work/test-blue-restaurants.cjs
       - run: node work/test-yellow-shops.cjs
+      - run: node work/test-pink-malls.cjs
   lane-change-safety:
     runs-on: ubuntu-latest
     steps:
