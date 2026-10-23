@@ -15,7 +15,7 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
  renderer.parking={lotPoint:g.lotPoint,parkingVisuals:()=>[]};
  const specs=[
   {key:'home_large',label:'small garden cottage',plot:[8,8],people:20,levels:1},
-  {key:'home_dual',label:'medium two-storey courtyard',plot:[8,13],people:40,levels:2}
+  {key:'home_dual',label:'medium poolside condo',plot:[8,13],people:40,levels:2}
  ];
  const reports=[];
  for(const spec of specs){
@@ -63,14 +63,22 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
     assert(count('#af835d')>=4,'visible timber outdoor patio missing');
     assert(count('#e2b4a6')>=2,'furnished bedroom missing');
    }else{
-    assert(top>4.4&&top<5.2,'medium HOME must have exactly two occupied storeys');
-    assert(count('#e3dad0')>=2,'separate second-floor wings missing');
-    assert(count('#efe5d7')>=1,'open second-floor skybridge missing');
-    assert(count('#8eb9b7')>=15,'two external stairways missing');
-    assert(count('#f5e7d4')>=10,'furnished homes on two levels missing');
-    assert(count('#68adb9')>=1,'shared courtyard pool missing');
-    assert(local.some(p=>p.color==='#e2b4a6'&&p.y>2.4),
-     'actual upstairs bedroom furniture missing');
+    assert(top>4.1&&top<5.0,'pool condo should have exactly two occupied storeys');
+    assert(count('#e5e9e2')>=2,'second condo floors missing');
+    assert(count('#f1f0e9')>=4,'white modern rear/side condo volumes missing');
+    assert(count('#72b9cb')>=9,'real glazed residential rooms missing');
+    assert(count('#398eae')>=1&&count('#47a6bf')>=1&&count('#5bb8c9')>=1,
+     'dominant multilayer turquoise pool is missing');
+    const water=local.find(p=>p.color==='#47a6bf'&&p.y>.34&&p.y<.42);
+    assert(water&&water.sx>=3.0&&water.sz>=1.85,'pool needs sizeable visible water surface');
+    assert(count('#4a956b')>=20,'six palm crowns and landscaping missing');
+    assert(count('#d8b99a')>=6,'timber poolside decking absent');
+    assert(count('#ba9974')>=6,'sunloungers and deck furniture absent');
+    assert(count('#8cc5cf')>=2,'elevated glass balconies absent');
+    assert(local.some(p=>p.color==='#f8f7f1'&&p.y>2.5),
+     'second-level condo furnishings missing');
+    assert(count('#91e0dd')===0||count('#b9f1e8')>=1,
+     'pool water reflection detail missing');
    }
    const digest={geometry:items.length,colors:colors.size,
     top:+top.toFixed(3),lights:local.filter(p=>p.glow).length};
