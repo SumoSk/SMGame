@@ -1,114 +1,65 @@
-// Four orientation 3D asset tests for the pink mall collection.
+// Structural and traffic-clearance checks for the grounded mall redesign.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('node:url');
 (async()=>{
- const src=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
- const {game:g}=new Function('require',src+';return boot();')(require);
+ const setup=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
+ const {game:g}=new Function('require',setup+';return boot();')(require);
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
- const rendererJS=fs.readFileSync('dist/renderer3d.js','utf8')
-  .replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
- const {TrafficRenderer,Batch}=new Function('THREE',rendererJS+';return {TrafficRenderer,Batch};')(THREE);
- const renderer=Object.create(TrafficRenderer.prototype);
- renderer.parking={lotPoint:g.lotPoint,parkingVisuals:()=>[]};
- const specs=[
-  {key:'mall_small',plot:[7,8],capacity:15,workers:3,guests:12,floors:1},
-  {key:'mall_medium',plot:[11,8],capacity:30,workers:6,guests:24,floors:2},
-  {key:'mall_large',plot:[11,13],capacity:60,workers:12,guests:48,floors:3}
- ];
+ const source=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
+ const {TrafficRenderer,Batch}=new Function('THREE',source+';return {TrafficRenderer,Batch};')(THREE);
+ const r=Object.create(TrafficRenderer.prototype);
+ r.parking={lotPoint:g.lotPoint,parkingVisuals:()=>[]};
  const results=[];
- for(const test of specs){
-  const t=g.CATALOG[test.key];
-  assert(t&&t.plannedParking,'missing parking-first mall');
-  assert.deepEqual([t.plotWidth,t.plotHeight],test.plot,test.key+' parcel');
-  assert.equal(t.parkingCapacity,test.capacity);
-  assert.equal(t.jobs,test.workers);
-  assert.equal(t.service,test.guests);
-  assert.equal(g.lotSlots({key:test.key}).length,test.capacity);
+ for(const [key,W,H,capacity,jobs,service,tier] of [
+  ['mall_small',7,8,15,3,12,1],['mall_medium',11,8,30,6,24,2],['mall_large',11,13,60,12,48,3]]){
+  const t=g.CATALOG[key];
+  assert.deepEqual([t.plotWidth,t.plotHeight,t.parkingCapacity,t.jobs,t.service],[W,H,capacity,jobs,service]);
+  assert.equal(g.lotSlots({key}).length,capacity);
   assert.equal(t.parkingZoneDepth,t.buildingZoneDepth);
-  let exemplar;
+  let signature;
   for(let rotation=0;rotation<4;rotation++){
-   const b={key:test.key,x:40,y:50,id:91,rotation,parked:new Set(),parkingSlots:Array(test.capacity).fill(null)};
-   const batch=new Batch();renderer.building(batch,b,g.CATALOG,{});
+   const b={key,x:40,y:50,id:91,rotation,parked:new Set(),parkingSlots:Array(capacity).fill(null)};
+   const batch=new Batch();r.building(batch,b,g.CATALOG,{});
    const items=[...batch.data.values()].flatMap(group=>group.items.map(p=>({...p,color:group.color,glow:group.glow})));
    const local=items.map(p=>{
     const dx=p.x-b.x,dz=p.z-b.y;
-    const xy=rotation===0?{u:dx,v:dz}:rotation===1?{u:dz,v:t.plotHeight-dx}:
-     rotation===2?{u:t.plotWidth-dx,v:t.plotHeight-dz}:{u:t.plotWidth-dz,v:dx};
-    return {...p,...xy};
+    const uv=rotation===0?{u:dx,v:dz}:rotation===1?{u:dz,v:H-dx}:rotation===2?{u:W-dx,v:H-dz}:{u:W-dz,v:dx};
+    return {...p,...uv};
    });
-   assert(local.length>=140&&local.length<=1800,test.key+' graphic budget');
-   assert(local.every(p=>[p.x,p.y,p.z,p.sx,p.sy,p.sz,p.u,p.v].every(Number.isFinite)&&p.sx>0&&p.sy>0&&p.sz>0),
-    test.key+' nonfinite geometry');
-   // Whole geometry extents, not just centers. Margins preserve both side
-   // drives, rear parking half and street-entry frontage connector.
-   const bad=local.filter(p=>p.u-p.sx*.50<.68||p.u+p.sx*.50>t.plotWidth-.68||
-    p.v-p.sz*.50<t.parkingZoneDepth-.08||p.v+p.sz*.50>t.plotHeight-.37);
-   assert.equal(bad.length,0,test.key+' rotation '+rotation+
-    ' hard 3D fixture touches parking or driveway '+JSON.stringify(bad.slice(0,4)));
-   const count=c=>local.filter(p=>p.color===c).length;
-   const height=Math.max(...local.map(p=>p.y+p.sy/2));
-   const materialCount=new Set(local.map(p=>p.color)).size;
-   assert(materialCount>=22,test.key+' needs nuanced pink and decorative colors');
-   // A finished mall must have BUILDING mass on every tier, with real
-   // exterior walls, a visibly roofed perimeter, a proper entrance, and
-   // sale merchandise displayed behind open shopfront windows.
-   assert(count('#efdedb')+count('#f5eee8')>=5,
-    test.key+' missing architecturally finished external walls');
-   assert(count('#ecb1c5')>=2,test.key+' roof/awning over tenant wings missing');
-   assert(count('#b3d8d6')===2,test.key+' glazed front double doorway missing');
-   assert(count('#a98986')>=2,test.key+' retail window merchandise absent');
-   assert(count('#e9a6c0')>=2,test.key+' landmark entrance piers missing');
-   assert(count('#84bfc8')>=4,test.key+' windowed facade not visible');
-
-   assert(local.filter(p=>p.glow).length>12,'visible nighttime lighting required');
-   assert(['#e58dab','#facbd8','#d872a0','#ed9fbe'].some(c=>count(c)>2),
-     test.key+' not visibly pink');
-   // A big opaque monolith is NOT allowed; expose the open atrium.
-   assert.equal(local.filter(p=>p.sy>1.50&&p.sx*p.sz>4.2).length,0,
-    test.key+' looks like one solid block');
-   const actualFloors=[.25,2.42,4.59].filter(y=>local.some(p=>p.color==='#e6dfd5'&&Math.abs(p.y-y)<.07));
-   if(test.floors===1){
-    assert(height<3.1,'community plaza cannot be 2 floors');
-    assert(count('#e2c3d1')>0&&count('#6daec6')>0,'public plaza fountain missing');
-    assert(count('#b8997e')>=2,'community benches missing');
-    assert(count('#fce4bb')>=2,'open single-floor shops missing');
-    assert(actualFloors.length===1,'small mall should have one ground storey only');
-   }else if(test.floors===2){
-    assert(height>4.0&&height<5.2,'lifestyle gallery MUST be exactly two floors');
-    assert(count('#f3e8e2')>=2,'actual second floor balconies missing');
-    assert(count('#cbb9b2')===2,'grounded footing must exist beneath both wings');
-    assert(count('#e5ccd3')>=2,'second floor must be tied to exterior walls');
-    assert(count('#ead8d8')>=4,'medium outside walls must rest on real foundations');
-    assert(count('#e9d4d4')===2,'rear lobby bridge structural supports missing');
-    assert(count('#d9c9bb')===1,'ground floor street threshold missing');
-    assert.equal(count('#9ad4d9'),28,'medium mall must have exactly ONE visible escalator');
-    assert(count('#f4e9df')>0,'suspended skybridge missing');
-    assert(count('#e9d0d6')>0,'ground plaza missing');
-    assert(count('#6daec6')===0,'must not reuse small-plaza fountain design');
-   }else{
-    assert(height>7.0&&height<8.4,'Grand Mall must have exactly three occupied floors');
-    assert(actualFloors.length===3,'grand mall must render ALL three occupied storeys');
-    assert(count('#cbb9b2')===2,'grand mall podium must be grounded');
-    assert(count('#e5ccd3')>=4,'second/third floors need facade-connected slab edges');
-    assert(count('#ead8d8')>=6,'3-level exterior loadbearing side walls missing');
-    assert(count('#e9d4d4')===2,'grand mall rear lobby spine missing');
-    assert(count('#ddd6d2')===1,'enclosed lift should connect all 3 storeys');
-    assert.equal(count('#9ad4d9'),28,'grand mall must have exactly ONE visible escalator');
-    assert(count('#db72aa')>0&&count('#554d69')>0,'event LED stage missing');
-    assert(count('#f4e9df')>=2,'two upper-floor sky bridges missing');
-    assert(count('#d99cbb')>0,'decorative glass skylight missing');
-    assert(count('#f5acbc')>0,'pink tree planter details missing');
+   assert(local.length>=140&&local.length<=1000,key+' mobile geometry budget');
+   assert(local.every(p=>[p.x,p.y,p.z,p.sx,p.sy,p.sz,p.u,p.v].every(Number.isFinite)&&p.sx>0&&p.sy>0&&p.sz>0));
+   assert(local.every(p=>p.u-p.sx/2>=.69&&p.u+p.sx/2<=W-.69&&p.v-p.sz/2>=H/2-.08&&p.v+p.sz/2<=H-.37),key+' road/parking intrusion');
+   const foundation=local.filter(p=>p.color==='#bdaba4');
+   assert.equal(foundation.length,1);
+   assert(foundation[0].y-foundation[0].sy/2<=.03,key+' foundation floats');
+   const floors=local.filter(p=>p.color==='#e6dfd5');
+   assert.equal(floors.length,tier,key+' occupied floor count');
+   for(let level=0;level<tier;level++){
+    const y=.24+level*2.04,floor=floors.find(p=>Math.abs(p.y-(y+.09))<1e-6);
+    assert(floor,key+' missing floor slab');
+    // Both side walls span from the slab top to the next floor/roof.
+    const walls=local.filter(p=>p.color==='#f1e5df'&&Math.abs(p.sx-.18)<1e-6&&Math.abs(p.y-(y+.18+1.86/2))<1e-6);
+    assert.equal(walls.length,2,key+' continuous side walls');
+    for(const wall of walls){
+     assert(Math.abs(wall.y-wall.sy/2-(floor.y+floor.sy/2))<1e-6,key+' gap below wall');
+     assert(Math.abs(wall.y+wall.sy/2-(y+2.04))<1e-6,key+' gap below upper slab');
+     assert(wall.sz>=floor.sz-.001,key+' unsupported wall depth');
+    }
+    if(level){
+     const below=floors.find(p=>p.y<floor.y&&Math.abs(p.y-(floor.y-2.04))<1e-6);
+     assert(floor.sx<=below.sx&&floor.sz<=below.sz,key+' unsupported upper overhang');
+    }
    }
-   const digest={instances:items.length,colors:materialCount,top:+height.toFixed(2),
-    lights:local.filter(p=>p.glow).length};
-   if(exemplar)assert.deepEqual(digest,exemplar,test.key+' cardinal rotation changed architecture');
-   else exemplar=digest;
+   const roof=local.find(p=>p.color==='#ecb1c5');
+   assert(roof&&Math.abs(roof.y-roof.sy/2-(.24+tier*2.04))<1e-6,key+' roof detached from walls');
+   assert(local.filter(p=>p.glow).length>=12,key+' night lighting');
+   assert(local.filter(p=>p.color==='#b3d8d6').length===tier*2,key+' glazed lobby');
+   const top=Math.max(...local.map(p=>p.y+p.sy/2));
+   assert(top>[2.5,4.5,6.8][tier-1]&&top<[2.9,4.9,7.4][tier-1],key+' height');
+   const digest={instances:local.length,top:+top.toFixed(3),lights:local.filter(p=>p.glow).length};
+   if(signature)assert.deepEqual(digest,signature,key+' rotation changed model');else signature=digest;
   }
-  results.push({...test,...exemplar});
+  results.push({key,...signature});
  }
- const grand=g.CATALOG.home_grand;
- assert.deepEqual([grand.plotWidth,grand.plotHeight,grand.parkingCapacity],[11,13,60]);
- const b={key:'home_grand',x:30,y:30,id:77,rotation:0,parked:new Set(),parkingSlots:Array(60).fill(null)};
- const batch=new Batch();renderer.building(batch,b,g.CATALOG,{});
- assert([...batch.data.values()].reduce((n,group)=>n+group.items.length,0)>50);
- console.log(JSON.stringify({passed:true,variants:3,rotations:12,grandHomeUnchanged:true,results}));
+ assert.deepEqual([g.CATALOG.home_grand.plotWidth,g.CATALOG.home_grand.plotHeight,g.CATALOG.home_grand.parkingCapacity],[11,13,60]);
+ console.log(JSON.stringify({passed:true,variants:3,rotations:12,grounded:true,parkingPreserved:true,results}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
