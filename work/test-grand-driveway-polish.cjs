@@ -15,7 +15,7 @@ const redundant=rects.filter(r=>r.color==='#bbc9b9'&&(Math.abs(r.u-.45)<.01||Mat
 assert.equal(redundant.length,0,'remove the obsolete full-length white center stripe on side roads');
 const gates=fill.filter(r=>r.v+r.h/2>t.plotHeight-.1);
 assert.equal(gates.length,2,'only the two actual centered city-road gates may reach the plot front');
-assert.deepEqual(gates.map(r=>r.u).sort((a,b)=>a-b),[t.frontageEntranceU,t.frontageExitU]);
+assert.deepEqual([...gates].map(r=>r.u).sort((a,b)=>a-b),[t.frontageEntranceU,t.frontageExitU]);
 const asphaltAt=(u,v)=>fill.some(r=>u>=r.u-r.w/2-.02&&u<=r.u+r.w/2+.02&&v>=r.v-r.h/2-.02&&v<=r.v+r.h/2+.02);
 for(const [u,v] of [
  [t.frontageEntranceU,12.85],[t.frontageEntranceU,t.frontageV],[1.5,t.frontageV],
