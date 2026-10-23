@@ -46,7 +46,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const three=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
  const src=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
  const {TrafficRenderer,Batch}=new Function('THREE',src+';return {TrafficRenderer,Batch};')(three);
- const model=Object.create(TrafficRenderer.prototype);model.parking=null;
+ const model=Object.create(TrafficRenderer.prototype);model.parking={lotPoint:g.lotPoint,parkingVisuals:()=>[]};
  let parts=0;
  for(let rot=0;rot<4;rot++){
   const fixture={...b,x:20,y:20,rotation:rot},batch=new Batch();
@@ -55,7 +55,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
   parts=Math.max(parts,list.length);
   for(const part of list){
    const p=local({x:part.x+.5,y:part.z+.5},rot,fixture);
-   const xmargin=(rot%2?part.sz:part.sx)/2,zmargin=(rot%2?part.sx:part.sz)/2;
+   const xmargin=(part.sx||0)/2,zmargin=(part.sz||0)/2;
    assert(p.v-zmargin>=6.65,'front villa crosses painted bays at rotation '+rot+' v'+p.v);
    assert(p.v+zmargin<=t.frontageV-.35,'front villa crosses the frontage lane at rotation '+rot+' v'+p.v);
    assert(p.u-xmargin>1,'front villa touches entry driveway '+rot);
