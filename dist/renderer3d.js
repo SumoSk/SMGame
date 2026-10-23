@@ -509,13 +509,14 @@ export class TrafficRenderer{
    // Redesigned street-front villa: every architectural element lives in
    // v >= 7.15, where the last parking bay ends at v = 6.31. The slim
    // 0.84-unit setback protects the two banks and both driveway spines.
-   const u=W*.5,v=t.plotHeight-3.04;
+   const u=W*.5,v=9.42,scale=.87;
    const disc=(color,yy,r,hh,finish='stone',glow=false)=>{
     const p=point(u,v);
-    batch.add(CYL_SMOOTH,color,p.x-.5,yy,p.y-.5,r,hh,r,0,0,0,id,glow,finish);
+    batch.add(CYL_SMOOTH,color,p.x-.5,yy,p.y-.5,r*scale,hh,r*scale,0,0,0,id,glow,finish);
    };
-   // Round foundation stays behind the parking band rather than stretching
-   // a default rectangular building slab over the asphalt.
+   // Street-front villa is proportionally fitted between the parking rows
+   // and the new frontage drive. All architectural meshes stop BEFORE
+   // the front asphalt at v = 12.075 (asphalt and roof never intersect).
    disc('#c9c4b8',.12,2.79,.17,'stone');
    disc('#ede5d7',.35,2.65,.30,'stone');
    disc('#eee7de',1.75,2.51,2.67,'stone');
@@ -529,7 +530,7 @@ export class TrafficRenderer{
     disc('#af9d86',y+.07,2.625,.032,'metal');
    }
    for(let i=0;i<24;i++){
-    const a=2*Math.PI*i/24,x=u+2.54*Math.sin(a),z=v+2.54*Math.cos(a);
+    const a=2*Math.PI*i/24,x=u+2.54*scale*Math.sin(a),z=v+2.54*scale*Math.cos(a);
     const p=point(x,z);
     batch.add(CYL,'#e2dfd5',p.x-.5,1.82,p.y-.5,.044,2.57,.044,0,0,0,id,false,'stone');
    }
@@ -540,16 +541,16 @@ export class TrafficRenderer{
    disc('#95c0c9',3.79,1.05,.32,'glass');
    disc('#eae6dc',4.00,1.13,.09,'stone');
    // Public arrival entrance faces the road (positive local v).
-   block('#537e8e',u,.80,v+2.53,1.26,1.18,.055,'glass');
-   block('#f3e9d9',u,1.52,v+2.60,1.65,.11,.29,'stone');
-   block('#bea386',u,1.60,v+2.60,1.62,.048,.30,'metal');
-   block('#e7dfd3',u,.11,v+2.76,1.33,.055,.19,'stone');
+   block('#537e8e',u,.80,v+2.53*scale,1.26,1.18,.055,'glass');
+   block('#f3e9d9',u,1.52,v+2.60*scale,1.65,.11,.29,'stone');
+   block('#bea386',u,1.60,v+2.60*scale,1.62,.048,.30,'metal');
+   block('#e7dfd3',u,.11,v+2.76*scale,1.33,.055,.19,'stone');
    // Lamp posts, planters and path stay strictly inside the front facade
    // apron; NOT within u < 1 or u > 10 (the two driving channels).
    for(const x of [u-1.46,u+1.46]){
-    lantern(x,v+2.42,'#ffe2b4',.92);
-    block('#dacdb9',x,.19,v+2.68,.38,.15,.27,'stone');
-    block('#6f9a75',x,.30,v+2.68,.31,.10,.20);
+    lantern(x,v+2.42*scale,'#ffe2b4',.92);
+    block('#dacdb9',x,.19,v+2.68*scale,.38,.15,.27,'stone');
+    block('#6f9a75',x,.30,v+2.68*scale,.31,.10,.20);
    }
    return;
   }
@@ -1257,21 +1258,32 @@ export class TrafficRenderer{
    this.building(batch,building,CATALOG,KINDS);
    if(building.key!=='home_grand')continue;
    const t=CATALOG[building.key],exitU=t.plotWidth-.45,front=t.parkingAisle;
-   // Two actual traffic-light poles at the STOP lines of the internal T-junction.
-   // These are separate live materials, not static road-junction decorations.
-   for(const [approach,u,v] of [['front',exitU-.40,front+.58],['rear',exitU+.21,front-.98]]){
+   // True miniature intersection signals, mounted off the moving lanes.
+   // Two distinct stop bars meet at the right T-junction (u=10.55,v=4.90);
+   // the two poles sit in opposite curb pockets, NOT on the asphalt.
+   for(const [approach,u,v] of [
+    ['front',t.plotWidth-.93,front-.47],
+    ['rear',t.plotWidth-.95,front-1.22]
+   ]){
     const p=this.parking.lotPoint(building,u,v),light=new THREE.Group();
-    const stem=new THREE.Mesh(CYL,new THREE.MeshStandardMaterial({color:'#647373',metalness:.4}));
-    stem.scale.set(.037,.53,.037);stem.position.y=.47;light.add(stem);
-    const head=new THREE.Mesh(BOX,new THREE.MeshStandardMaterial({color:'#293b42',roughness:.5}));
-    head.scale.set(.18,.34,.14);head.position.y=1.06;light.add(head);
-    const red=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({color:'#e65f57'}));
-    red.scale.set(.05,.05,.03);red.position.set(0,1.15,.085);
-    const green=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({color:'#365448'}));
-    green.scale.set(.05,.05,.03);green.position.set(0,.98,.085);
-    light.add(red,green);light.position.set(p.x-.5,0,p.y-.5);
+    const stem=new THREE.Mesh(CYL,new THREE.MeshStandardMaterial({color:'#536368',metalness:.38,roughness:.6}));
+    stem.scale.set(.041,.82,.041);stem.position.y=.42;light.add(stem);
+    const neck=new THREE.Mesh(BOX,new THREE.MeshStandardMaterial({color:'#e4e3d9',roughness:.7}));
+    neck.scale.set(.29,.52,.22);neck.position.y=1.04;light.add(neck);
+    const housing=new THREE.Mesh(BOX,new THREE.MeshStandardMaterial({color:'#25363d',roughness:.5}));
+    housing.scale.set(.25,.47,.23);housing.position.y=1.05;light.add(housing);
+    for(const side of [-1,1]){
+     for(const [kind,y,bright,dim] of [['red',1.16,'#ff655a','#573631'],['green',.955,'#8eee86','#315443']]){
+      const lens=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({color:dim}));
+      lens.scale.set(.088,.088,.038);lens.position.set(0,y,side*.135);
+      light.add(lens);
+      this.grandSignalLights.push({building,approach,kind,lens,bright,dim});
+     }
+    }
+    const hood=new THREE.Mesh(BOX,new THREE.MeshStandardMaterial({color:'#384b50',metalness:.15}));
+    hood.scale.set(.30,.044,.29);hood.position.y=1.31;light.add(hood);
+    light.position.set(p.x-.5,0,p.y-.5);
     this.buildingGroup.add(light);
-    this.grandSignalLights.push({building,approach,red,green});
    }
   }
   this.buildingGroup.add(batch.build());
@@ -1279,9 +1291,9 @@ export class TrafficRenderer{
  }
  updateGrandSignals(){
   for(const item of this.grandSignalLights||[]){
-   const green=(item.building.grandSignal?.green||'front')===item.approach;
-   item.red.material.color.set(green?'#443735':'#ff6156');
-   item.green.material.color.set(green?'#86d987':'#294f38');
+   const active=(item.building.grandSignal?.green||'front')===item.approach;
+   const show=(active&&item.kind==='green')||(!active&&item.kind==='red');
+   item.lens.material.color.set(show?item.bright:item.dim);
   }
  }
 
