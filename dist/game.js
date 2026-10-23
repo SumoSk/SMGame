@@ -613,6 +613,7 @@ function parkingVisuals(b){
    const rowStart=bank*2;
    for(let row=0;row<2;row++)for(let col=0;col<t.parkingColumns;col++){
     const slot=lotSlots(b)[(rowStart+row)*t.parkingColumns+col];
+    if(!slot)continue; // the last row can be partly filled
     rect(slot.u-t.parkingPitch/2,slot.v,.025,1.24,'#e9e6cc');
     rect(slot.u+t.parkingPitch/2,slot.v,.025,1.24,'#e9e6cc');
     rect(slot.u,slot.v+(row?.62:-.62),t.parkingPitch-.04,.025,'#e9e6cc');
