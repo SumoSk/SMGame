@@ -2107,7 +2107,7 @@ export class TrafficRenderer{
   // No changes to 40 parking bays, 40 residents, routing, roads or home_grand.
   if(b.key==='home_dual'){
    const W=t.plotWidth,H=t.plotHeight,parking=t.parkingZoneDepth;
-   const ivory='#f1f0e9',bone='#dfdfd7',white='#f8f7f1';
+   const ivory='#f1f0e9',bone='#dfdfd7',white='#f8f7f1',cream='#e6e1d4';
    const silver='#a7b4b4',dark='#53656e',blue='#72b9cb';
    const teal='#5bb8c9',poolBlue='#47a6bf',waterGlow='#91e0dd';
    const aqua='#b9f1e8',timber='#ba9974',teak='#98765b';
