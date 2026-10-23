@@ -1247,11 +1247,35 @@ function dockItems(currentCategory){
  let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(currentCategory==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'},{key:'trafficHeat',name:'ความหนาแน่นจราจร',icon:'🌡️',sub:'เปิดหรือปิดแผนที่แสดงความหนาแน่น',price:'แตะเพื่อสลับการแสดงผล'}];}else if(currentCategory==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(currentCategory==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ถนนหลักรื้อไม่ได้',price:'ค่ารื้อ 20%'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'ค่ารื้อ 10%'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_large','home_dual'].includes(t.key))).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
+// New two-level dock: five main sections stay visible. Only Buildings has
+// subcategories; City Data exposes its three actions directly.
+function dockSectionFor(currentCategory){
+ return dockGroups.find(group=>group.categories.includes(currentCategory))||dockGroups[0];
+}
+function dockVisibleItems(group,currentCategory){
+ const visible=group.key==='insights'?group.categories.flatMap(key=>dockItems(key).map(item=>({...item,category:key}))):
+  dockItems(currentCategory).map(item=>({...item,category:currentCategory}));
+ return visible;
+}
 function renderTools(){
- const tray=$('tools'),scroll=tray.scrollLeft;
- $('categories').innerHTML='';$('subcategories').innerHTML='';$('subcategories').hidden=true;
- const items=categories.flatMap(([key])=>dockItems(key).map(t=>({...t,category:key})));
- tray.innerHTML=items.map(t=>`<button class="tool ${(t.key==='trafficHeat'?heat:tool===t.key)?'active':''}" data-tool="${t.key}" data-category="${t.category}" aria-pressed="${t.key==='trafficHeat'?heat:tool===t.key}" title="${t.key==='trafficHeat'?(heat?'ปิดความหนาแน่นจราจร':'เปิดความหนาแน่นจราจร'):(tool===t.key?'กำลังเลือก · กดซ้ำเพื่อยกเลิก':t.name)}"><span class="tool-icon">${t.icon}</span><span><strong class="tool-name">${t.name}${t.capacity?` <span class="tool-capacity">${t.capacity}</span>`:''}</strong>${!t.capacity&&t.sub?`<small>${t.sub}</small>`:''}<small class="tool-price">${t.price}</small></span></button>`).join('');
+ const group=dockSectionFor(category),tray=$('tools'),sub=$('subcategories');
+ dockGroup=group.key;
+ $('categories').innerHTML=dockGroups.map(section=>
+  `<button type="button" data-dock-group="${section.key}" class="${section.key===group.key?'active':''}" aria-pressed="${section.key===group.key}" aria-label="${section.name}" title="${section.name}"><span class="dock-group-icon" aria-hidden="true">${section.icon}</span><span class="dock-group-name">${section.name}</span></button>`).join('');
+ // Build retains road, housing, jobs, services, leisure and hotel subcategories.
+ // City Data intentionally has no subcategory strip, just three direct tools.
+ const hasSubcategories=group.key==='build';
+ sub.hidden=!hasSubcategories;
+ sub.innerHTML=hasSubcategories?categories.filter(([key])=>group.categories.includes(key)).map(([key,name])=>
+  `<button type="button" data-category="${key}" class="${category===key?'active':''}" aria-pressed="${category===key}">${name}</button>`).join(''):'';
+ const previousGroup=tray.dataset.currentDockGroup||'',previousCategory=tray.dataset.currentDockCategory||'';
+ const changed=previousGroup!==group.key||previousCategory!==category;
+ const scroll=changed?0:tray.scrollLeft;
+ const items=dockVisibleItems(group,category);
+ tray.innerHTML=items.map(t=>
+  `<button class="tool ${(t.key==='trafficHeat'?heat:tool===t.key)?'active':''}" data-tool="${t.key}" data-category="${t.category}" aria-pressed="${t.key==='trafficHeat'?heat:tool===t.key}" title="${t.name}"><span class="tool-icon">${t.icon}</span><span><strong class="tool-name">${t.name}${t.capacity?` <span class="tool-capacity">${t.capacity}</span>`:''}</strong><small class="tool-price">${t.price}</small></span></button>`).join('');
+ tray.dataset.currentDockGroup=group.key;
+ tray.dataset.currentDockCategory=category;
  tray.scrollLeft=scroll;
 }
 // The building/control dock is presentation-only; selected tools and the
@@ -2570,27 +2594,22 @@ initCameraJoystick();
 function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)tick(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
 window.addEventListener('resize',resize);
 $('categories').onclick=e=>{
- const b=e.target.closest('[data-dock-group]');if(!b)return;
- const next=dockGroups.find(g=>g.key===b.dataset.dockGroup);if(!next)return;
- // Every primary category switches the in-box tool tray; never hides it.
- // Re-clicking the active icon keeps the tools visible in the same rectangle.
- if(!next.categories.includes(category))category=next.categories[0];
- dockGroup=next.key;
- // Main section changes are presentation-only, with no placement action.
+ const button=e.target.closest('[data-dock-group]');if(!button)return;
+ const group=dockGroups.find(g=>g.key===button.dataset.dockGroup);if(!group)return;
+ if(!group.categories.includes(category))category=group.categories[0];
+ // Switching a category never activates a destructive or placement tool.
+ // The City Data section shows its three actions directly, without another level.
  selectTool('hand');
  setDockCollapsed(false);
 };
 $('subcategories').onclick=e=>{
- const b=e.target.closest('[data-category]');if(!b)return;
- const next=b.dataset.category;
- const group=dockGroups.find(g=>g.categories.includes(next));
- if(!group||group.key!==dockGroup)return;
+ const button=e.target.closest('[data-category]');if(!button)return;
+ // Building subcategories only. All other main sections are one click deep.
+ if(dockSectionFor(category).key!=='build')return;
+ const next=button.dataset.category;
+ if(!dockGroups[0].categories.includes(next))return;
  category=next;
- if(next==='signals')selectTool('signalManage');
- else if(next==='citizens')selectTool('citizenDashboard');
- else if(next==='tourists')selectTool('touristDashboard');
- else if(next==='tracking')selectTool('tracking');
- else selectTool('hand');
+ selectTool('hand');
 };
 $('tools').onclick=e=>{
  const b=e.target.closest('[data-tool]');if(!b)return;
