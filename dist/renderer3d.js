@@ -1247,7 +1247,7 @@ export class TrafficRenderer{
    const t=CATALOG[building.key],exitU=t.plotWidth-.45,front=t.parkingAisle;
    // Two actual traffic-light poles at the STOP lines of the internal T-junction.
    // These are separate live materials, not static road-junction decorations.
-   for(const [approach,u,v] of [['front',exitU-1.12,front+.53],['rear',exitU+.02,front-.98]]){
+   for(const [approach,u,v] of [['front',exitU-.40,front+.58],['rear',exitU+.21,front-.98]]){
     const p=this.parking.lotPoint(building,u,v),light=new THREE.Group();
     const stem=new THREE.Mesh(CYL,new THREE.MeshStandardMaterial({color:'#647373',metalness:.4}));
     stem.scale.set(.037,.53,.037);stem.position.y=.47;light.add(stem);
