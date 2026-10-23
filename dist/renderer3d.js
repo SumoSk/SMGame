@@ -456,6 +456,174 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
+  // SMALL PUB — bespoke "LOCAL PUB" brick tavern, not the shared cuboid.
+  // Footprint: 6x8, with 10-car parking in the rear 0..4 and the pub/patio
+  // entirely inside the forward 4..7 area. Vehicle spines at u=.45/5.55
+  // and the city-road gates stay free; this is visual-only geometry.
+  if(b.key==='pub_small'){
+   const wall='#b99379',brick='#956b58',pale='#dfc2a3',dark='#2f303c';
+   const cx=2.43,cz=5.39,bw=2.67,bd=2.18,front=cz+bd/2;
+   const y0=.22,roofY=3.04;
+   // Compact elevated paved footprint with a right-hand beer garden.
+   block('#cabfae',2.95,.115,5.42,4.02,.16,2.76,'stone');
+   block('#e0d3ba',cx,.20,5.40,bw+.15,.07,bd+.13,'stone');
+   block('#8b6557',cx,1.69,cz,bw,2.96,bd,'stone');
+   block(wall,cx,1.67,front+.017,bw-.09,2.81,.035,'stone');
+   // Brick quoins, sandstone pilasters and coursed old-town masonry.
+   for(const edge of [cx-bw/2+.12,cx+bw/2-.12]){
+    block(pale,edge,1.63,front+.05,.17,2.93,.11,'stone');
+    for(let y=.38;y<2.90;y+=.31)
+     block('#be9a79',edge,y,front+.118,.195,.045,.045,'stone');
+   }
+   for(let y=.40;y<2.93;y+=.23){
+    block(y%2>.12?'#b18b74':'#c3a083',cx,y,front+.056,bw-.24,.026,.028,'stone');
+    for(let i=0;i<5;i++){
+     const x=cx-bw*.44+(i+.5)*bw*.88/5+(Math.floor(y*10)%2?.07:0);
+     block('#bd9984',x,y+.103,front+.075,.023,.17,.021,'stone');
+    }
+   }
+   // Rich pitched charcoal slate roof with a projecting front gable.
+   gable('#2e3643',cx,cz,bw+.25,bd+.34,roofY,.69);
+   for(let i=0;i<12;i++){
+    const x=cx-bw*.50+(i+.5)*bw/12;
+    block(i%2?'#526072':'#3d4757',x,roofY+.12,front+.20,.045,.08,.24,'stone');
+    block('#aa8b72',x,roofY-.08,front+.16,.029,.10,.037,'stone');
+   }
+   block('#ddc4a7',cx,roofY-.015,front+.17,bw+.38,.11,.16,'stone');
+   // Chimney and rooftop air conditioning provide a believable silhouette.
+   block('#aa8875',cx+bw*.33,3.58,cz-.53,.34,.93,.36,'stone');
+   block('#393b43',cx+bw*.33,4.10,cz-.53,.45,.11,.47,'stone');
+   block('#53616a',cx-bw*.27,3.48,cz-.44,.49,.39,.45,'metal');
+   block('#a5adb0',cx-bw*.27,3.71,cz-.44,.45,.06,.41,'metal');
+   for(const x of[cx-.39,cx+.40])
+    block('#e9bb87',x,3.06,front+.205,.36,.07,.09,'glass',true);
+   // Separate arched-looking upper windows with warm interiors.
+   for(const x of [cx-.99,cx+.99]){
+    for(const y of [1.07,2.21]){
+     block('#d8c3a9',x,y,front+.095,.55,.75,.085,'stone');
+     block('#395563',x,y,front+.148,.43,.61,.059,'glass');
+     block('#f9ce8b',x,y-.08,front+.181,.32,.39,.018,'glass',true);
+     block('#ecd2b0',x,y+.37,front+.15,.60,.10,.13,'stone');
+     block('#a47b56',x,y-.41,front+.18,.65,.09,.20,'wood');
+     block('#668857',x,y-.35,front+.27,.52,.11,.12,'stone');
+     for(const off of [-.18,.18])
+      block('#d6aa83',x+off,y-.31,front+.33,.065,.06,.09,'stone');
+     block('#e3dbbf',x,y,front+.20,.023,.58,.026,'metal');
+    }
+   }
+   // Small high-set stained-glass windows on the visible side elevation.
+   for(const z of [cz-.53,cz+.31])for(const x of [cx-bw/2-.045,cx+bw/2+.045]){
+    block('#d6c1a1',x,1.73,z,.09,.67,.40,'stone');
+    block('#476476',x+(x>cx?.057:-.057),1.73,z,.025,.54,.29,'glass');
+    block('#eec994',x+(x>cx?.078:-.078),1.61,z,.014,.23,.19,'glass',true);
+   }
+   // Front door, framed double-leaf timber entrance and purple awning.
+   block('#e1cbb0',cx,.93,front+.12,.92,1.43,.14,'stone');
+   block('#302e34',cx,.89,front+.206,.75,1.26,.06,'wood');
+   for(const x of [cx-.17,cx+.17]){
+    block('#6d4b3f',x,.87,front+.253,.30,1.13,.037,'wood');
+    block('#6b8f95',x,1.05,front+.280,.21,.50,.016,'glass');
+    block('#ffe5a9',x,1.04,front+.290,.12,.30,.010,'glass',true);
+   }
+   for(const x of [cx-.075,cx+.075])block('#d5af67',x,.69,front+.293,.023,.18,.026,'metal');
+   block('#522c66',cx,1.69,front+.39,1.07,.15,.68,'wood');
+   block('#7b428f',cx,1.62,front+.70,1.09,.10,.16,'stone');
+   for(let i=0;i<9;i++)
+    block(i%2?'#a46b9e':'#713d80',cx-.48+i*.12,1.62,front+.72,.105,.028,.08,'wood');
+   block('#a07859',cx,.26,front+.45,1.23,.12,.62,'stone');
+   block('#e7d0a8',cx,.18,front+.79,1.13,.075,.20,'stone');
+   for(const x of [cx-.56,cx+.56]){
+    block('#463b3c',x,1.53,front+.18,.11,.45,.11,'metal');
+    block('#ffd09a',x,1.53,front+.26,.085,.23,.12,'glass',true);
+    block('#c19b78',x,1.78,front+.22,.14,.08,.12,'metal');
+   }
+   // True legible local 3D sign, built from in-world batched pixel glyphs.
+   const glyph={
+    L:['100','100','100','100','111'],
+    O:['111','101','101','101','111'],
+    C:['111','100','100','100','111'],
+    A:['010','101','111','101','101'],
+    P:['110','101','110','100','100'],
+    U:['101','101','101','101','111'],
+    B:['110','101','110','101','110']
+   };
+   const signText=(word,cy,cell)=>{
+    const span=word.length*4-1,start=cx-span*cell/2;
+    for(let k=0;k<word.length;k++)for(let row=0;row<5;row++)
+     for(let col=0;col<3;col++)if(glyph[word[k]][row][col]==='1'){
+      const x=start+(k*4+col)*cell,yy=cy+(2-row)*cell;
+      block('#d9ae75',x,yy,front+.237,cell*.83,cell*.83,.019,'metal');
+      block('#ffe0a0',x,yy,front+.251,cell*.60,cell*.60,.013,'glass',true);
+     }
+   };
+   block('#29323c',cx,2.51,front+.177,1.89,.86,.13,'metal');
+   block('#b48d5b',cx,2.51,front+.243,1.94,.027,.024,'metal');
+   for(const y of[2.096,2.932])
+    block('#c4a06a',cx,y,front+.242,1.90,.034,.027,'metal');
+   for(const x of[cx-.96,cx+.96])
+    block('#c4a06a',x,2.51,front+.242,.034,.86,.027,'metal');
+   signText('LOCAL',2.71,.082);
+   signText('PUB',2.28,.108);
+   // A gold crown/crest centred above the sign.
+   for(let i=-2;i<=2;i++)
+    block('#f0c787',cx+i*.070,3.0+(.07*(i%2===0?1:0)),front+.256,.052,.093,.023,'metal');
+   // Round projected beer-mug sign with a hanger above the side terrace.
+   const signX=3.93,signZ=6.31;
+   block('#a57e59',3.80,2.20,signZ,.27,.055,.13,'metal');
+   block('#5b4851',signX,2.01,signZ,.085,.39,.08,'metal');
+   const pp=point(signX,signZ);
+   batch.add(CYL_SMOOTH,'#322e3b',pp.x-.5,1.80,pp.y-.5,.275,.095,.275,Math.PI/2,turn,0,id,false,'metal');
+   block('#f3d8a2',signX,1.79,signZ+.070,.19,.22,.026,'metal');
+   block('#e9be81',signX+.114,1.80,signZ+.079,.055,.12,.032,'glass',true);
+   for(const x of[signX-.05,signX,signX+.05])
+    block('#fff3cd',x,1.67,signZ+.083,.025,.035,.022,'glass',true);
+   // Paved side beer garden: timber pergola, cafe tables and warm lamps.
+   const pu=4.44,pv=5.43,pw=.90,pd=2.18;
+   block('#bb9470',pu,.23,pv,pw,.09,pd,'wood');
+   for(let i=0;i<10;i++)
+    block(i%2?'#caa77e':'#ae835f',pu,.286,pv-pd/2+(i+.5)*pd/10,pw-.05,.014,pd/10-.025,'wood');
+   const corners=[[pu-.39,pv-.95],[pu+.39,pv-.95],[pu-.39,pv+.95],[pu+.39,pv+.95]];
+   for(const [x,z] of corners){
+    pole('#705449',x,.88,z,.034,1.26,'wood');
+    block('#edc691',x,1.51,z,.13,.065,.12,'glass',true);
+   }
+   for(const z of[pv-.98,pv+.98])
+    block('#745746',pu,1.55,z,pw+.05,.09,.07,'wood');
+   for(const x of[pu-.40,pu+.40])
+    block('#745746',x,1.55,pv,.07,.09,pd+.04,'wood');
+   for(let i=0;i<7;i++){
+    const z=pv-.83+i*.27;
+    block('#ffe4b1',pu,1.44,z,.071,.055,.071,'glass',true);
+   }
+   for(const z of[pv-.47,pv+.42]){
+    pole('#735343',pu,.39,z,.038,.38,'wood');
+    pole('#d7b688',pu,.60,z,.23,.045,'wood');
+    for(const side of[-1,1]){
+     const x=pu+side*.29;
+     block('#76523d',x,.41,z,.26,.055,.19,'wood');
+     for(const dx of[-.09,.09])block('#584c43',x+dx,.25,z,.026,.30,.025,'metal');
+    }
+    pole('#fff0bc',pu,.66,z,.041,.08,'glass',true);
+   }
+   // Flower tubs and hedge borders, low enough not to obstruct the side drive.
+   for(const x of[1.02,4.96]){
+    block('#a18d76',x,.25,6.53,.24,.25,.26,'stone');
+    block('#548255',x,.49,6.53,.28,.28,.28,'stone');
+    block('#e0aabb',x,.65,6.53,.12,.07,.11,'stone');
+   }
+   for(const z of[4.25,4.73,5.21,5.69,6.17]){
+    block('#8aa46f',4.96,.23,z,.14,.29,.34,'stone');
+    block('#537751',4.96,.44,z,.15,.15,.30,'stone');
+   }
+   // Edged lantern-lit path to the door, kept clear of the one-way connector.
+   block('#d0bfa9',cx,.15,6.88,.79,.042,.42,'stone');
+   for(const x of[cx-.49,cx+.49]){
+    block('#9c8a7c',x,.24,6.81,.19,.26,.18,'stone');
+    block('#f6d9a4',x,.41,6.81,.13,.085,.13,'glass',true);
+   }
+   return;
+  }
+
   // Dedicated architecture pod; parking logic and markings are independent.
   // All walls remain ahead of the parking courts and between the side drives.
   if(t.plannedParking){
