@@ -1380,6 +1380,347 @@ export class TrafficRenderer{
    return;
   }
 
+  // PURPLE NIGHTLIFE COLLECTION — this branch REPLACES the old generic
+  // cuboid pubs, but deliberately does not touch handcrafted pub_small.
+  // One-storey LIVE HOUSE: stage, instruments, L-shaped bar, seating.
+  // Two-storey NIGHTCLUB: DJ/LED, glowing dancefloor, upper VIP horseshoe
+  // gallery and an open-air terrace ON the second floor, not a third floor.
+  // Respect original 8x8/8x13 plots, 20/40 parking, and 50:50 court split.
+  if(t.kind==='pub'&&b.key!=='pub_small'){
+   const large=b.key==='pub_large',W=t.plotWidth,back=t.parkingZoneDepth+.39;
+   const front=t.plotHeight-.92,depth=front-back,center=W/2;
+   const violet='#8848d8',royal='#682eb5',plum='#392154',ink='#282538';
+   const amethyst='#b277f0',lilac='#d7a4f6',laser='#b748ff';
+   const ember='#ffdaa2',ivory='#e9e2d7',iron='#5f6570',glass='#998bd1';
+   const slab=(x,y,z,w,d,c='#55515f')=>block(c,x,y,z,w,.10,d,'stone');
+   const post=(x,z,h,y=0,c=ink)=>block(c,x,y+.2+h/2,z,.065,h,.067,'metal');
+   const railU=(x,z,y,w)=>{
+    block(glass,x,y+.22,z,w,.42,.047,'glass');
+    block('#d2b5e7',x,y+.45,z,w+.04,.045,.055,'metal');
+    for(const xx of[x-w*.44,x,x+w*.44])
+     block('#b49fae',xx,y+.23,z,.029,.45,.057,'metal');
+   };
+   const railV=(x,z,y,d)=>{
+    block(glass,x,y+.22,z,.047,.42,d,'glass');
+    block('#d2b5e7',x,y+.45,z,.055,.045,d+.04,'metal');
+    for(const zz of[z-d*.43,z,z+d*.43])
+     block('#b49fae',x,y+.23,zz,.057,.45,.029,'metal');
+   };
+   const light=(x,z,h=1.55,y=0,tint=laser)=>{
+    pole('#565064',x,y+.20+h/2,z,.019,h,'metal');
+    block('#a896af',x,y+h+.19,z,.13,.050,.13,'metal');
+    block(tint,x,y+h+.13,z,.115,.11,.12,'glass',true);
+   };
+   const flower=(x,z,size=.17,y=0)=>{
+    block('#797080',x,y+.32,z,size*1.19,.23,size*1.06,'stone');
+    block('#486b5d',x,y+.54,z,size*.93,.22,size*.90,'stone');
+    block('#965db1',x,y+.68,z,size*.53,.13,size*.52,'stone');
+   };
+   const letters={
+    A:['010','101','111','101','101'],B:['110','101','110','101','110'],
+    C:['111','100','100','100','111'],D:['110','101','101','101','110'],
+    E:['111','100','110','100','111'],G:['111','100','101','101','111'],
+    H:['101','101','111','101','101'],I:['111','010','010','010','111'],
+    L:['100','100','100','100','111'],M:['101','111','111','101','101'],
+    N:['101','111','111','111','101'],O:['111','101','101','101','111'],
+    P:['110','101','110','100','100'],R:['110','101','110','101','101'],
+    S:['111','100','111','001','111'],T:['111','010','010','010','010'],
+    U:['101','101','101','101','111'],V:['101','101','101','101','010'],
+    Y:['101','101','010','010','010']};
+   const neonSign=(words,x,y,z,width)=>{
+    const txt=words.replace(/[^A-Z]/g,''),cell=Math.min(.080,width/(txt.length*4+2));
+    block(plum,x,y,z,width,.47,.10,'metal');
+    block(amethyst,x,y+.255,z+.053,width+.08,.035,.065,'metal');
+    for(let i=0;i<txt.length;i++)for(let row=0;row<5;row++)
+     for(let col=0;col<3;col++)if(letters[txt[i]]?.[row]?.[col]==='1'){
+      const xx=x-(txt.length*4-1)*cell/2+(i*4+col)*cell;
+      block(lilac,xx,y+(2-row)*cell,z+.064,cell*.75,cell*.80,.019,'glass',true);
+     }
+   };
+   const circle=(c,x,y,z,r,h=.065)=>{
+    const p=point(x,z);batch.add(CYL,c,p.x-.5,y,p.y-.5,r,h,r,0,0,0,id,false,'metal');
+   };
+   const speaker=(x,z,y=0,side=1)=>{
+    block('#232332',x,y+.84,z,.46,1.20,.40,'metal');
+    block('#4b365f',x,y+.86,z+side*.211,.36,1.10,.024,'metal');
+    for(const yy of[y+.55,y+1.08]){
+     // Cylinder circles face front, avoiding a single featureless cabinet.
+     const p=point(x,z+side*.238);
+     batch.add(CYL_SMOOTH,ink,p.x-.5,yy,p.y-.5,.145,.045,.145,Math.PI/2,turn,0,id,false,'metal');
+     block(violet,x,yy,z+side*.273,.14,.050,.020,'glass',true);
+    }
+    block(laser,x,y+1.51,z,.34,.07,.37,'glass',true);
+   };
+   const lightBar=(x,z,w,y=2.28,n=8)=>{
+    block('#454051',x,y+.045,z,w,.085,.16,'metal');
+    for(let i=0;i<n;i++){
+     const xx=x-w*.45+i*w*.90/(n-1);
+     block(i%2?laser:lilac,xx,y-.046,z+.105,.090,.12,.075,'glass',true);
+     block('#302d38',xx,y+.14,z,.035,.18,.06,'metal');
+    }
+   };
+   const stool=(x,z,y=0)=>{
+    circle('#bd9e8b',x,y+.49,z,.13,.065);
+    pole('#66636a',x,y+.27,z,.031,.43,'metal');
+    for(const dx of[-.092,.092]){
+     block('#5e5662',x+dx,y+.17,z,.026,.26,.029,'metal');
+    }
+   };
+   const clubTable=(x,z,y=0,sofa=false,scale=1)=>{
+    const p=point(x,z);
+    batch.add(CYL,sofa?'#c2a0ca':'#9c8494',p.x-.5,y+.65*scale,p.y-.5,.25*scale,.064*scale,.25*scale,0,0,0,id,false,'wood');
+    pole('#615b65',x,y+.44*scale,z,.035*scale,.50*scale,'metal');
+    for(const sg of[-1,1]){
+     const xx=x+sg*.39*scale;
+     block(sofa?'#8354a0':'#54465f',xx,y+.32*scale,z,.34*scale,.18*scale,.32*scale,'wood');
+     block(sofa?'#a879b0':'#775878',xx+sg*.125*scale,y+.52*scale,z,.12*scale,.30*scale,.33*scale,'wood');
+     block('#aea7b5',xx,y+.16*scale,z,.040*scale,.19*scale,.036*scale,'metal');
+    }
+    pole(ember,x,y+.76*scale,z,.028*scale,.09*scale,'glass',true);
+    for(const dx of[-.095,.095])
+     pole('#b9aac8',x+dx*scale,y+.79*scale,z-.12*scale,.026*scale,.17*scale,'glass');
+   };
+   const bottles=(x,z,y=1.10,count=5)=>{
+    for(let i=0;i<count;i++){
+     const xx=x-(count-1)*.11/2+i*.11;
+     pole(i%3===0?'#b790bc':i%3===1?'#a3b9bc':'#d5b082',
+      xx,y+.12,z,.034,.22,'glass');
+     block('#cabfc9',xx,y+.25,z,.048,.045,.04,'metal');
+    }
+   };
+   const dance=(x,z,w,d,y=0)=>{
+    slab(x,y+.22,z,w,d,ink);
+    const cols=7,rows=large?7:5;
+    for(let i=0;i<cols;i++)for(let j=0;j<rows;j++){
+     const xx=x-w*.44+(i+.5)*w*.88/cols,zz=z-d*.43+(j+.5)*d*.86/rows;
+     block((i+j)%4===0?laser:(i+j)%4===1?royal:
+      (i+j)%4===2?'#a879df':'#584878',
+      xx,y+.286,zz,w*.80/cols,.020,d*.76/rows,'glass',(i+j)%3===0);
+    }
+    for(const zz of[z-d*.49,z+d*.49])
+     block('#c879e9',x,y+.31,zz,w+.05,.035,.045,'glass',true);
+   };
+   // Accessible plot has non-car pavement. Unlike the earlier pub code,
+   // nothing below is a giant closed building block.
+   slab(center,.15,(back+front)/2,W-1.79,depth+.23,'#4c4557');
+   slab(center,.20,front-.19,W-2.10,.27,'#7c6b79');
+   const street=(x,z,w,d)=>slab(x,.23,z,w,d,'#62576b');
+   for(const side of[-1,1]){
+    const x=center+side*(W*.5-.91);
+    block('#735e86',x,.24,(back+front)/2,.12,.19,depth*.87,'stone');
+    for(let i=0;i<3;i++)
+     flower(x,back+.28+i*depth*.34,.16);
+   }
+   // Real backstage is visible on the parking-facing elevation, with a
+   // pair of storage shelves; not a mysterious blank closed rear wall.
+   const rearWall=back+.07;
+   block('#665575',center,.58,rearWall,large?4.01:4.04,.70,.095,'stone');
+   block(plum,center,1.03,rearWall,large?4.09:4.13,.13,.14,'metal');
+   for(const x of[center-1.39,center+1.39]){
+    block('#342d43',x,.61,rearWall+.09,.53,.75,.060,'metal');
+    block('#a784ba',x,.61,rearWall+.13,.37,.40,.018,'glass');
+    block('#d7b5eb',x,.89,rearWall+.14,.33,.070,.023,'glass',true);
+   }
+   for(let k=0;k<3;k++){
+    block('#6c6170',center-1.72+k*.28,.29,rearWall+.31,.25,.14,.21,'wood');
+    block('#6e4c87',center-1.72+k*.28,.42,rearWall+.31,.22,.12,.18,'stone');
+   }
+   if(!large){
+    // MEDIUM: real stage with four musician positions, drum kit, PA,
+    // stage wash lights and a side L-shaped drinks counter.
+    const stageZ=back+.75,stageX=center-.43,stageW=3.37;
+    slab(stageX,.44,stageZ,stageW,1.05,'#3d334c');
+    block('#a065c0',stageX,.55,stageZ+.51,stageW,.075,.085,'glass',true);
+    for(let i=0;i<8;i++)block(i%2?plum:violet,stageX-stageW*.44+i*stageW*.88/7,.50,
+     stageZ+.09,.085,.024,.73,'wood');
+    // Stage truss frames the performance rather than covering it with a roof.
+    const top=2.31;
+    for(const x of[stageX-stageW*.47,stageX+stageW*.47]){
+     post(x,stageZ-.48,top-.20,.20,'#333344');
+     light(x,stageZ-.29,top-.52,0,lilac);
+    }
+    lightBar(stageX,stageZ-.35,stageW+.20,top,9);
+    block('#3e274e',stageX,1.20,stageZ-.52,stageW*.92,1.15,.073,'metal');
+    for(let k=0;k<9;k++){
+     const xx=stageX-stageW*.41+k*stageW*.82/8;
+     block(k%2?'#8a43cb':'#ba75ef',xx,1.21,stageZ-.47,.22,.78,.023,'glass',k%3===0);
+    }
+    // Drum kit: kick, snare, two toms, cymbals, stool and chrome stands.
+    const drumX=stageX-.42,drumZ=stageZ+.04;
+    circle('#693981',drumX,.83,drumZ,.25,.25);
+    circle('#d2a3e6',drumX,1.00,drumZ,.16,.035);
+    for(const dx of[-.35,.33]){
+     circle('#4f4460',drumX+dx,.90,drumZ+.09,.125,.19);
+     circle('#e8d2f0',drumX+dx,1.01,drumZ+.09,.125,.025);
+    }
+    for(const dx of[-.48,.46]){
+     pole('#b4afb3',drumX+dx,1.00,drumZ-.20,.021,.68,'metal');
+     circle('#dfc27e',drumX+dx,1.38,drumZ-.20,.22,.034);
+    }
+    stool(drumX,drumZ-.29,.58);
+    // Guitar and mic stand silhouettes create distinguishable band members.
+    for(const xx of[stageX+.42,stageX+1.03]){
+     pole('#b2a5b4',xx,1.21,stageZ+.17,.018,1.12,'metal');
+     block('#e7d6eb',xx,1.79,stageZ+.14,.090,.050,.12,'metal');
+     block('#ad7b5b',xx-.20,1.20,stageZ-.03,.23,.35,.10,'wood');
+     block('#d2b488',xx-.20,1.51,stageZ-.03,.060,.28,.056,'wood');
+    }
+    speaker(stageX-stageW*.42,stageZ+.42,.26);
+    speaker(stageX+stageW*.42,stageZ+.42,.26);
+    // Bar forms a real L, with worktop, rear bottle shelves, and bar stools.
+    const bx=6.20,bz=back+1.18;
+    slab(bx,.27,bz,.90,1.39,'#5e3d79');
+    block('#5a376c',bx,.57,bz,.70,.55,1.34,'wood');
+    block(amethyst,bx,.92,bz,.89,.085,1.46,'stone');
+    block('#e7b1ff',bx-.46,.58,bz,.047,.43,1.24,'glass',true);
+    block(plum,bx-.31,.55,bz+.64,.82,.57,.48,'wood');
+    block(lilac,bx-.31,.92,bz+.64,1.08,.08,.52,'stone');
+    block('#cc7fed',bx-.31,.85,bz+.92,.91,.035,.039,'glass',true);
+    for(const z of[bz-.44,bz+.02,bz+.47])stool(bx-.69,z);
+    bottles(bx,bz-.37,1.21,5);
+    bottles(bx,bz+.31,1.21,5);
+    for(const z of[bz-.44,bz+.31])light(bx,z,1.63,0,ember);
+    // Three comfortable viewing tables leave the center live performance
+    // zone free. Small footprint means we DO NOT overfill the crowd.
+    for(const [x,z] of[[1.64,front-.68],[3.36,front-.47],[5.16,front-.60]])
+     clubTable(x,z,0,false,.78);
+    // Slender pergola over BAR only, plus side-wall art and neon front sign.
+    for(const x of[5.56,6.75])post(x,bz-.49,2.20,.18,plum);
+    block('#3e3155',6.16,2.36,bz-.49,1.32,.10,.26,'metal');
+    for(let i=0;i<7;i++){
+     const zz=bz-.43+i*.14;
+     block(i%2?amethyst:laser,6.15,2.42,zz,.90,.025,.060,'glass',i%2===0);
+    }
+    neonSign('LIVE',center,2.50,front-.20,2.50);
+    for(const side of[-1,1]){
+     const x=center+side*1.41;
+     post(x,front-.36,2.43,.16,'#64427f');
+     block('#d69afe',x,2.37,front-.31,.14,.085,.11,'glass',true);
+    }
+    for(const [x,z] of[[1.18,back+.62],[6.80,front-.44],[1.14,front-.48]])
+     flower(x,z,.18);
+   }else{
+    // LARGE: night club occupying a large HALF-PLOT; upper VIP is an open U
+    // around a true void and a terrace ON the second level (not a 3rd floor).
+    const boothZ=back+.86,danceZ=back+3.03,upperY=2.37;
+    const stageZ=boothZ,stageW=3.16;
+    slab(center,.43,stageZ,stageW,1.15,'#3f294f');
+    block('#cd69ff',center,.54,stageZ+.58,stageW,.06,.09,'glass',true);
+    // Elevated DJ desk, turntables, controller and lighting strips.
+    block('#33303e',center,.97,stageZ+.08,1.75,.74,.57,'wood');
+    block('#a64eee',center,1.32,stageZ+.39,1.77,.10,.61,'glass',true);
+    for(const xx of[center-.48,center+.48]){
+     circle('#222b36',xx,1.40,stageZ+.06,.20,.054);
+     circle('#9374d2',xx,1.435,stageZ+.06,.115,.016);
+     pole('#f1ceea',xx,1.66,stageZ-.10,.029,.19,'glass',true);
+    }
+    for(let i=0;i<9;i++){
+     const xx=center-.35+i*.087;
+     block(i%2?'#c785db':'#8d7ab2',xx,1.38,stageZ+.17,.046,.050,.090,'metal');
+    }
+    for(const sx of[1.42,6.58])speaker(sx,stageZ,.19);
+    block(plum,center,1.37,stageZ-.63,3.52,1.42,.12,'metal');
+    block('#8439d2',center,1.37,stageZ-.557,3.25,1.21,.038,'glass',true);
+    for(let j=0;j<11;j++){
+     const xx=center-1.49+j*.30;
+     block((j%3===0?laser:j%3===1?amethyst:royal),
+      xx,.99+(j%3)*.27,stageZ-.526,.19,.17,.019,'glass',true);
+    }
+    // Overhead rig with separately illuminated moving-head silhouettes.
+    for(const x of[2.23,5.77]){
+     post(x,stageZ-.42,3.77,.16,'#302839');
+     for(const zz of[stageZ-.27,stageZ+.46])
+      light(x,zz,2.82,0,lilac);
+    }
+    lightBar(center,stageZ+.30,4.53,3.58,14);
+    // A patterned dance floor glows in front of DJ, totally open to camera.
+    dance(center,danceZ,2.52,1.36,0);
+    for(const side of[-1,1]){
+     const sx=center+side*1.50;
+     for(const z of[danceZ-.56,danceZ+.52]){
+      light(sx,z,1.73,0,side<0?laser:amethyst);
+     }
+    }
+    // Ground bars are asymmetrical to keep all 4 faces visually distinct:
+    // left straight drinks counter, right sofa alcoves + back storage.
+    const leftBarX=1.47,leftBarZ=back+2.76;
+    block('#60317c',leftBarX,.67,leftBarZ,.54,.73,2.13,'wood');
+    block(lilac,leftBarX,.99,leftBarZ,.72,.09,2.24,'stone');
+    block(laser,leftBarX+.38,.78,leftBarZ,.052,.30,1.91,'glass',true);
+    for(const z of[leftBarZ-.74,leftBarZ-.25,leftBarZ+.24,leftBarZ+.73])
+     stool(2.05,z);
+    for(const z of[leftBarZ-.66,leftBarZ+.11,leftBarZ+.66])
+     bottles(leftBarX,z,1.09,4);
+    for(const z of[back+2.04,back+3.59,front-.56])
+     clubTable(6.26,z,0,true,.78);
+    // Upstairs gallery comprises TWO side wings and a REAR bridge;
+    // central 2.5-unit opening remains genuinely hollow.
+    const galleryLeft=1.86,galleryRight=6.14,sideW=1.52;
+    const galleryD=Math.min(depth-.72,4.18);
+    const galleryZ=back+galleryD/2+.10;
+    for(const xx of[galleryLeft,galleryRight]){
+     slab(xx,upperY,galleryZ,sideW,galleryD,'#7c5b8f');
+     block('#ab7cc0',xx,upperY+.085,galleryZ,sideW-.09,.035,galleryD-.11,'stone');
+     const inward=xx<center?xx+sideW*.50:xx-sideW*.50;
+     railV(inward,galleryZ,upperY+.19,galleryD-.12);
+     for(const zz of[galleryZ-galleryD*.43,galleryZ+galleryD*.43])
+      post(xx+((xx<center)?-.56:.56),zz,upperY-.24,.15,'#4c3c59');
+     for(const zz of[galleryZ-.72,galleryZ+.77])
+      clubTable(xx,zz,upperY+.13,true,.70);
+     // Upholstered booths at the terrace edge, glass and night lamps.
+     for(const zz of[galleryZ-1.18,galleryZ+1.08]){
+      block('#755285',xx,upperY+.58,zz,.87,.39,.37,'wood');
+      block('#be82d2',xx,upperY+.80,zz,.86,.12,.34,'stone');
+      light(xx,zz,1.34,upperY,lilac);
+     }
+    }
+    const bridgeZ=back+.47,bridgeWidth=2.80;
+    slab(center,upperY,bridgeZ,bridgeWidth,.76,'#ae8ac1');
+    railU(center,bridgeZ+.40,upperY+.19,bridgeWidth-.14);
+    railU(center,bridgeZ-.40,upperY+.19,bridgeWidth-.14);
+    // Two side stairs, actual tiered meshes from 1st to 2nd floor.
+    for(const side of[-1,1]){
+     const x=center+side*2.12;
+     for(let i=0;i<12;i++){
+      const p=(i+.5)/12,zz=front-.64-p*1.92,yy=.27+p*(upperY-.28);
+      block(i%2?'#8e789f':'#c2afc9',x,yy,zz,.54,.10,.20,'stone');
+      for(const offset of[-.32,.32]){
+       block('#7b6d86',x+offset,yy+.18,zz,.035,.38,.18,'metal');
+       block('#ddbef0',x+offset,yy+.35,zz,.025,.09,.19,'glass');
+      }
+     }
+    }
+    // The VIP terrace occupies the FRONT section of the SECOND level;
+    // it is open-air and not a rooftop "third storey".
+    for(const x of[galleryLeft,galleryRight]){
+     const terraceZ=galleryZ+galleryD*.32;
+     railU(x,terraceZ+.60,upperY+.19,sideW-.11);
+     for(const dx of[-.45,.45])
+      flower(x+dx,terraceZ-.14,.17,upperY);
+     block('#4a365a',x,upperY+1.22,terraceZ-.26,sideW-.18,.10,.33,'metal');
+     for(const dx of[-.49,0,.49])
+      block('#a563d4',x+dx,upperY+1.28,terraceZ-.26,.06,.055,.32,'glass',true);
+    }
+    // Lit front facade is merely an OPEN doorway, not a blank nightclub box.
+    neonSign('PURPLE CLUB',center,3.97,front-.25,3.28);
+    for(const sign of[-1,1]){
+     const x=center+sign*1.55;
+     post(x,front-.38,3.72,.24,plum);
+     block('#b56cdb',x,3.79,front-.28,.16,.12,.16,'glass',true);
+    }
+    block('#7a4e9a',center,3.82,front-.36,3.40,.14,.20,'metal');
+    for(let i=0;i<13;i++){
+     const xx=center-1.43+i*.24;
+     block(i%2?lilac:laser,xx,3.90,front-.25,.087,.060,.12,'glass',true);
+    }
+    for(const x of[1.02,6.96]){
+     flower(x,front-.49,.18);flower(x,back+.41,.17);
+    }
+   }
+   // No solid building box, visible 3D details from all directions.
+   return;
+  }
+
   // ART-DIRECTED CITY COLLECTION — distinct sculpted assets for every playable
   // home (except preserved home_grand), office, factory, shop, restaurant, mall,
   // park, pub and hotel tier. All parts live in a parking-first plot; no traffic
