@@ -585,11 +585,12 @@ function parkingVisuals(b){
    const bottom=aisle-t.parkingRowOffset-.64,top=aisle+t.parkingRowOffset+.64;
    rect(t.plotWidth/2,(bottom+top)/2,t.plotWidth-.12,top-bottom,'#515f62');
   }
-  // Side access spines feed a single purpose-built arrival promenade in front
-  // of the villa. The street access gates are centered around its entry.
-  for(const u of [.45,t.plotWidth-.45]){
-   rect(u,(rear+t.plotHeight)/2,.72,t.plotHeight-rear+.08,'#58666a');
-   rect(u,(rear+t.plotHeight)/2,.023,t.plotHeight-rear,'#bbc9b9');
+  // Both original side spines STOP at the new frontage road. They used
+  // to extend all the way to the street, leaving orphan strips of the OLD
+  // entrance/exit beside the new centered city-road gates.
+  const forecourt=t.frontageV,sideL=.45,sideR=t.plotWidth-.45;
+  for(const u of [sideL,sideR]){
+   rect(u,(rear+forecourt)/2,.72,forecourt-rear+.08,'#58666a');
   }
   for(const aisle of [rear,front]){
    const rowStart=aisle===rear?0:2;
@@ -605,26 +606,43 @@ function parkingVisuals(b){
     rect(u+.21,aisle+.11,.20,.03,'#c5d2c2');
    }
   }
-  // Street-facing, one-way paved access apron: east-facing facade stays
-  // behind the lane, with compact rounded-looking corner caps and curb lines.
-  const entranceU=t.frontageEntranceU,gateOut=t.frontageExitU,forecourt=t.frontageV;
-  const sideL=.45,sideR=t.plotWidth-.45;
-  rect(t.plotWidth/2,forecourt,t.plotWidth-.75,.71,'#58666a');
-  for(const u of [entranceU,gateOut]){
-   rect(u,(t.plotHeight+forecourt)/2,.69,t.plotHeight-forecourt+.08,'#58666a');
+  // Dedicated frontage connector: this SINGLE asphalt course joins the
+  // side roads, while two short gate necks alone reach the main street.
+  // Its ends align with the outer edges of the side lanes (no ragged tabs).
+  const entranceU=t.frontageEntranceU,gateOut=t.frontageExitU;
+  rect(t.plotWidth/2,forecourt,t.plotWidth-.18,.71,'#58666a');
+  const gateEnd=t.plotHeight-.045; // keep the rendered road inside the plot
+  for(const u of [entranceU,gateOut])
+   rect(u,(gateEnd+forecourt)/2,.69,gateEnd-forecourt+.04,'#58666a');
+  // Curbs on the long approach to the facade, broken where parking rows and
+  // the turn into the frontage actually meet. Do NOT stripe the lane center.
+  const curbStart=front+t.parkingRowOffset+.74,curbEnd=forecourt-.48;
+  if(curbEnd>curbStart){
+   for(const u of [sideL+.39,sideR-.39])
+    rect(u,(curbStart+curbEnd)/2,.026,curbEnd-curbStart,'#bbc9b9');
   }
-  // Curbed forecourt edges; break the curb at the two gates and side turns.
-  rect((sideL+entranceU)/2,forecourt-.39,entranceU-sideL-.63,.035,'#bbc9b9');
-  rect((gateOut+sideR)/2,forecourt-.39,sideR-gateOut-.63,.035,'#bbc9b9');
-  rect(t.plotWidth/2,forecourt+.40,gateOut-entranceU-1.0,.033,'#bbc9b9');
-  rect(entranceU,forecourt-.04,.18,.18,'#94d9aa');
-  rect(gateOut,forecourt-.04,.18,.18,'#f3ca88');
-  // Thin directional strokes keep the frontage legible without filling it.
-  for(const u of [1.70,9.40]){
-   rect(u,forecourt,.34,.028,'#c5d2c2');
-   rect(u-.12,forecourt-.095,.12,.023,'#c5d2c2');
-   rect(u-.12,forecourt+.095,.12,.023,'#c5d2c2');
+  // Inside corner radii are paved with the same material as the driveway,
+  // giving a readable soft turn instead of a hard 90-degree road junction.
+  for(const [u,dir] of [[sideL,1],[sideR,-1]]){
+   for(let n=0;n<4;n++){
+    const z=(n+.5)/4,spread=.17*Math.sqrt(1-z*z);
+    rect(u+dir*(.36+spread/2),forecourt-.34+z*.34,spread+.014,.105,'#58666a');
+   }
   }
+  // Neat continuous curb above the forecourt, with clear openings at both
+  // turning radii; a matching road-edge line only between the two gate necks.
+  rect((sideL+entranceU)/2,forecourt-.39,entranceU-sideL-.72,.035,'#bbc9b9');
+  rect((gateOut+sideR)/2,forecourt-.39,sideR-gateOut-.72,.035,'#bbc9b9');
+  rect(t.plotWidth/2,forecourt+.39,gateOut-entranceU-.95,.032,'#bbc9b9');
+  // Pavement striping follows actual travel direction (right-to-left along
+  // this forecourt) and the real centered entrance and exit.
+  for(const u of [2.00,9.00]){
+   rect(u,forecourt,.34,.027,'#c5d2c2');
+   rect(u-.12,forecourt-.085,.13,.025,'#c5d2c2');
+   rect(u-.12,forecourt+.085,.13,.025,'#c5d2c2');
+  }
+  rect(entranceU,forecourt-.06,.17,.13,'#94d9aa');
+  rect(gateOut,forecourt-.06,.17,.13,'#f3ca88');
   const exitU=t.plotWidth-.45;
   // Stop lines are BEHIND the actual crossing; traffic lights control the
   // intersection at (exitU,front), not imaginary mid-aisle merge points.
@@ -632,8 +650,8 @@ function parkingVisuals(b){
   rect(exitU,front-1.12,.62,.033,'#e9e6cc');
   // Gate arrows belong to the new street-facing entrance/exit, not the
   // original far-corner access points.
-  rect(entranceU,t.plotHeight-.15,.47,.045,'#94d9aa');
-  rect(gateOut,t.plotHeight-.15,.47,.045,'#f3ca88');
+  rect(entranceU,t.plotHeight-.18,.43,.035,'#94d9aa');
+  rect(gateOut,t.plotHeight-.18,.43,.035,'#f3ca88');
   return rects;
  }
  if(t.dualParking){
