@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=grand-frontage-signals-20261023-v3';
+import { TrafficRenderer } from './renderer3d.js?v=f83f39b0e6f0';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
-await import('./game.js?v=grand-driveway-cleanup-20261023-v1');
-await import('./member.js?v=a706c52c4bfa');
+await import('./game.js?v=f1302f6f706c');
+await import('./member.js?v=75c18fc08142');
