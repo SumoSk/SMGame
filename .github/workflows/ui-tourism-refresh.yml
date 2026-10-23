@@ -1,0 +1,36 @@
+name: UI and tourism dashboard verification
+on:
+  push:
+    branches:
+      - feat/softer-ui-tourism-dashboard-20261023
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  ui-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node work/test-ui-tourism-refresh.cjs
+      - run: node work/test-citizens-dashboard.cjs
+      - run: node work/test-tracking-ui.cjs
+      - run: node work/test-tourism.cjs
+      - run: npm run build
+      - name: Commit refreshed built HTML and assets
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feat/softer-ui-tourism-dashboard-20261023'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html dist/index.html dist/qa.html dist/qa-tourism.html dist/style.css dist/bootstrap.js dist/member.js outputs/Traffic-Fixer-Thailand-3D.html
+          if ! git diff --cached --quiet; then
+            git commit -m "build: refresh softened SMGame and tourism dashboard assets"
+            git push origin HEAD:feat/softer-ui-tourism-dashboard-20261023
+          fi
