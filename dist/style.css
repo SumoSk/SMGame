@@ -2854,3 +2854,142 @@ body>.bottom .builder-zone .build-dock.is-collapsed .dock-context{
   flex-basis:72px!important;min-width:72px!important;max-width:72px!important;
  }
 }
+
+/* SMGame: calendar, time, playback, label visibility and tool collapse
+   live on ONE line at desktop, iPad and narrow-phone widths. */
+body>.bottom .builder-zone .build-dock .dock-head{
+ display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+ align-items:center!important;justify-content:space-between!important;
+ width:100%!important;height:39px!important;min-height:39px!important;
+ max-height:39px!important;flex:0 0 39px!important;
+ gap:4px!important;padding:3px 5px!important;overflow:hidden!important;
+}
+body>.bottom .builder-zone .build-dock .dock-timebar{
+ order:0!important;display:flex!important;flex-direction:row!important;
+ flex:1 1 auto!important;align-items:center!important;
+ justify-content:flex-start!important;flex-wrap:nowrap!important;
+ min-width:0!important;max-width:none!important;width:auto!important;
+ margin:0!important;padding:0!important;gap:5px!important;
+}
+body>.bottom .builder-zone .build-dock .dock-clock{
+ display:flex!important;flex-direction:row!important;
+ flex:0 1 auto!important;align-items:center!important;
+ justify-content:flex-start!important;white-space:nowrap!important;
+ min-width:0!important;max-width:none!important;width:auto!important;
+ gap:5px!important;overflow:hidden!important;
+}
+body>.bottom .builder-zone .build-dock #day{
+ display:block!important;flex:0 1 auto!important;min-width:0!important;
+ overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+ font-size:10px!important;line-height:1.35!important;
+}
+body>.bottom .builder-zone .build-dock #clock{
+ display:block!important;flex:0 0 auto!important;
+ font-size:17px!important;line-height:1.2!important;
+ font-variant-numeric:tabular-nums!important;white-space:nowrap!important;
+}
+body>.bottom .builder-zone .build-dock .dock-speed{
+ order:1!important;display:flex!important;flex:0 0 auto!important;
+ min-width:0!important;width:auto!important;max-width:none!important;
+ padding:0!important;margin:0!important;overflow:visible!important;
+}
+body>.bottom .builder-zone .build-dock .dock-speed .playback{
+ flex-wrap:nowrap!important;white-space:nowrap!important;
+ gap:1px!important;padding:1px 2px!important;
+ border-radius:7px!important;min-width:0!important;max-width:none!important;
+}
+body>.bottom .builder-zone .build-dock .dock-speed .playback button{
+ flex:0 0 auto!important;min-width:0!important;
+ padding:3px 4px!important;min-height:23px!important;
+ font-size:9px!important;line-height:1.2!important;white-space:nowrap!important;
+}
+body>.bottom .builder-zone .build-dock .dock-head>button{
+ order:2!important;display:inline-flex!important;flex:0 0 auto!important;
+ align-items:center!important;justify-content:center!important;
+ min-width:0!important;min-height:25px!important;height:25px!important;
+ margin:0!important;padding:2px 6px!important;
+ font-size:9px!important;line-height:1.2!important;white-space:nowrap!important;
+}
+body>.bottom .builder-zone .build-dock .dock-head>.toggle-building-labels{
+ min-height:25px!important;height:25px!important;max-width:none!important;
+ gap:3px!important;padding:2px 6px!important;
+}
+/* iPads, where the side-by-side overview reduces the builder's width. */
+@media(min-width:721px) and (max-width:1100px){
+ body>.bottom .builder-zone .build-dock .dock-head{
+  flex-wrap:nowrap!important;height:35px!important;min-height:35px!important;
+  max-height:35px!important;flex-basis:35px!important;
+  gap:3px!important;padding:2px 3px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-timebar{
+  order:0!important;flex:1 1 auto!important;min-width:0!important;
+  width:auto!important;gap:3px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-clock{gap:3px!important}
+ body>.bottom .builder-zone .build-dock #day{font-size:8px!important}
+ body>.bottom .builder-zone .build-dock #clock{font-size:13px!important}
+ body>.bottom .builder-zone .build-dock .dock-speed .playback button{
+  min-height:21px!important;padding:2px 3px!important;font-size:8px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-head>button,
+ body>.bottom .builder-zone .build-dock .dock-head>.toggle-building-labels{
+  order:2!important;height:23px!important;min-height:23px!important;
+  padding:2px 4px!important;font-size:8px!important;
+ }
+}
+/* Narrow screens: keep the full set of speed controls and accessible
+   label buttons; only redundant button captions become icon-only. */
+@media(max-width:720px){
+ body>.bottom .builder-zone .build-dock .dock-head{
+  flex-wrap:nowrap!important;height:34px!important;min-height:34px!important;
+  max-height:34px!important;flex-basis:34px!important;
+  gap:2px!important;padding:2px 3px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-timebar{
+  order:0!important;flex:1 1 auto!important;
+  flex-basis:auto!important;min-width:0!important;
+  width:auto!important;gap:2px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-clock{
+  min-width:0!important;gap:3px!important;
+ }
+ body>.bottom .builder-zone .build-dock #day{
+  font-size:8px!important;letter-spacing:-.1px!important;
+ }
+ body>.bottom .builder-zone .build-dock #clock{font-size:13px!important}
+ body>.bottom .builder-zone .build-dock .dock-speed .playback{
+  gap:0!important;padding:1px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-speed .playback button{
+  min-height:22px!important;padding:2px 3px!important;
+  font-size:8px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-speed #pause{
+  font-size:11px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-speed #skip{
+  margin-left:1px!important;padding-left:3px!important;
+ }
+ body>.bottom .builder-zone .build-dock #skip .skip-day-label{display:none!important}
+ body>.bottom .builder-zone .build-dock .dock-head>button,
+ body>.bottom .builder-zone .build-dock .dock-head>.toggle-building-labels{
+  order:2!important;width:24px!important;min-width:24px!important;
+  max-width:24px!important;height:24px!important;min-height:24px!important;
+  padding:1px!important;gap:0!important;font-size:12px!important;
+ }
+ body>.bottom .builder-zone .build-dock #toggleBuildingLabelsText,
+ body>.bottom .builder-zone .build-dock #toggleDockText{
+  display:none!important;
+ }
+}
+@media(max-width:375px){
+ body>.bottom .builder-zone .build-dock #day{font-size:7.5px!important}
+ body>.bottom .builder-zone .build-dock #clock{font-size:12px!important}
+ body>.bottom .builder-zone .build-dock .dock-speed .playback button{
+  padding:2px 2px!important;font-size:7.5px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-head>button,
+ body>.bottom .builder-zone .build-dock .dock-head>.toggle-building-labels{
+  width:22px!important;min-width:22px!important;max-width:22px!important;
+ }
+}
