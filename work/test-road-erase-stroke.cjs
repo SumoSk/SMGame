@@ -1,6 +1,6 @@
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const prefix=fs.readFileSync('work/test-motion.cjs','utf8').split('let combinations=0;')[0];
-const {game,get}=new Function('require',prefix+'return {game,g:get};')(require);
+const {game,g:get}=new Function('require',prefix+'return {game,g:get};')(require);
 const dom=get;
 const state=game.state;
 state.roads.clear();state.vehicles.clear();state.occ.clear();state.footprint.fill(-1);
