@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
 
-const BOX=new THREE.BoxGeometry(1,1,1),CYL=new THREE.CylinderGeometry(1,1,1,10),CONE=new THREE.ConeGeometry(1,1,6),LEAF=new THREE.IcosahedronGeometry(1,1),BALL=new THREE.SphereGeometry(1,12,8);
+const BOX=new THREE.BoxGeometry(1,1,1),CYL=new THREE.CylinderGeometry(1,1,1,10),CYL_SMOOTH=new THREE.CylinderGeometry(1,1,1,32),CONE=new THREE.ConeGeometry(1,1,6),LEAF=new THREE.IcosahedronGeometry(1,1),BALL=new THREE.SphereGeometry(1,12,8);
 // A closed roof prism avoids intersecting roof planes at rotated plots.
 const PITCHED_ROOF=(()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([-.5,0,-.5,-.5,0,.5,-.5,1,0,.5,0,-.5,.5,0,.5,.5,1,0],3));g.setIndex([0,1,2,3,5,4,0,2,5,0,5,3,2,1,4,2,4,5,0,3,4,0,4,1]);const flat=g.toNonIndexed();flat.computeVertexNormals();g.dispose();return flat;})();
 const UP=new THREE.Vector3(0,1,0),TAU=Math.PI*2;
@@ -497,6 +497,49 @@ export class TrafficRenderer{
     block('#86a67f',x,1.17,s*.45,1.12,.095,.94);
     if(tier>1)lantern(x,s*.65,'#ffe2ba',.94);
    }
+   return;
+  }
+
+  if(b.key==='home_grand'){
+   // Signature grand residence: a low-rise circular luxury building, based on
+   // the small home's cream stone and blue glass, enlarged to fill the compact
+   // rear plot. Parking is two tightly stacked banks directly in front.
+   const u=W*.5,v=3.05;
+   const disc=(color,yy,r,hh,finish='stone',glow=false)=>{
+    const p=point(u,v);
+    batch.add(CYL_SMOOTH,color,p.x-.5,yy,p.y-.5,r,hh,r,0,0,0,id,glow,finish);
+   };
+   // Only a slim stone entry apron remains between the circular facade and
+   // the rear-most bay marking; no unused landscaping void or extra road.
+   disc('#d6d1c7',.13,2.84,.17,'stone');
+   disc('#eee7db',.34,2.62,.32,'stone');
+   disc('#eee7de',1.73,2.53,2.66,'stone');
+   for(const [y,h] of [[.95,.72],[1.89,.74],[2.80,.58]]){
+    disc('#6e9eaa',y,2.56,h,'glass');
+    disc('#b9d7db',y+h*.31,2.565,.065,'glass');
+   }
+   for(const y of [.56,1.45,2.38,3.22]){
+    disc('#e8e2d7',y,2.68,.10,'stone');
+    disc('#b69e82',y+.08,2.62,.034,'metal');
+   }
+   // Repeating slim pillars and glass mullions accentuate the round facade.
+   for(let i=0;i<20;i++){
+    const a=2*Math.PI*i/20,x=u+2.53*Math.sin(a),z=v+2.53*Math.cos(a);
+    const p=point(x,z);
+    batch.add(CYL,'#dfddd5',p.x-.5,1.84,p.y-.5,.055,2.55,.055,0,0,0,id,false,'stone');
+   }
+   // Crown and rooftop skylight remain in the building's existing strip.
+   disc('#e9e3d8',3.36,2.83,.20,'stone');
+   disc('#6f8288',3.48,2.53,.08,'metal');
+   disc('#f0e8dd',3.59,2.31,.18,'stone');
+   disc('#8dbac5',3.79,1.06,.33,'glass');
+   disc('#f1ece3',4.00,1.13,.09,'stone');
+   // Front-facing glazed lobby, understated canopy and steps.
+   block('#547781',u,.79,v+2.53,1.30,1.20,.055,'glass');
+   block('#dfddcf',u,1.51,v+2.57,1.65,.11,.44,'stone');
+   block('#c3ad91',u,1.59,v+2.59,1.62,.052,.38,'metal');
+   block('#e7dfd3',u,.095,5.90,1.32,.05,.26,'stone');
+   for(const x of [u-1.65,u+1.65])lantern(x,5.64,'#ffdcaa',1.04);
    return;
   }
 
