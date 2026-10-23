@@ -75,14 +75,24 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    }else if(test.floors===2){
     assert(height>4.0&&height<5.2,'lifestyle gallery MUST be exactly two floors');
     assert(count('#f3e8e2')>=2,'actual second floor balconies missing');
-    assert(count('#9ad4d9')>=28,'two visible escalators missing');
+    assert(count('#cbb9b2')===2,'grounded footing must exist beneath both wings');
+    assert(count('#e5ccd3')>=2,'second floor must be tied to exterior walls');
+    assert(count('#ead8d8')>=4,'medium outside walls must rest on real foundations');
+    assert(count('#e9d4d4')===2,'rear lobby bridge structural supports missing');
+    assert(count('#d9c9bb')===1,'ground floor street threshold missing');
+    assert.equal(count('#9ad4d9'),28,'medium mall must have exactly ONE visible escalator');
     assert(count('#f4e9df')>0,'suspended skybridge missing');
     assert(count('#e9d0d6')>0,'ground plaza missing');
     assert(count('#6daec6')===0,'must not reuse small-plaza fountain design');
    }else{
     assert(height>7.0&&height<8.4,'Grand Mall must have exactly three occupied floors');
     assert(actualFloors.length===3,'grand mall must render ALL three occupied storeys');
-    assert(count('#9ad4d9')>=50,'multiple grand atrium escalators missing');
+    assert(count('#cbb9b2')===2,'grand mall podium must be grounded');
+    assert(count('#e5ccd3')>=4,'second/third floors need facade-connected slab edges');
+    assert(count('#ead8d8')>=6,'3-level exterior loadbearing side walls missing');
+    assert(count('#e9d4d4')===2,'grand mall rear lobby spine missing');
+    assert(count('#ddd6d2')===1,'enclosed lift should connect all 3 storeys');
+    assert.equal(count('#9ad4d9'),28,'grand mall must have exactly ONE visible escalator');
     assert(count('#db72aa')>0&&count('#554d69')>0,'event LED stage missing');
     assert(count('#f4e9df')>=2,'two upper-floor sky bridges missing');
     assert(count('#d99cbb')>0,'decorative glass skylight missing');
