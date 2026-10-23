@@ -2099,6 +2099,253 @@ export class TrafficRenderer{
    return;
   }
 
+  // WARM RESIDENTIAL COLLECTION — replaces the old generic housing boxes
+  // ONLY for the visible 'บ้านเล็ก' home_large and 'บ้านกลาง' home_dual.
+  // Preserve untouched: legacy home_small/medium, home_grand, parking,
+  // resident counts, driveway routings, road/traffic and save semantics.
+  // home_large = intimate 1-storey Thai-modern garden cottage.
+  // home_dual = TWO-storey U-shaped residential compound / atrium.
+  if(b.key==='home_large'||b.key==='home_dual'){
+   const compact=b.key==='home_large',W=t.plotWidth,back=t.parkingZoneDepth+.35;
+   const front=t.plotHeight-.73,center=W*.5,mid=(back+front)/2,depth=front-back;
+   const ivory='#f2e7d7',cream='#e4d8c6',limestone='#d0c8b8';
+   const cedar='#af835d',teak='#876c51',tileRed='#aa6c52';
+   const graphite='#505f61',mist='#86b4b8',sage='#719c79',leaf='#52866e';
+   const sand='#dcc1a0',dusk='#4c7080',warm='#ffe3ac',earth='#aa8d73';
+   const paved=(x,y,z,w,d,c=limestone)=>block(c,x,y,z,w,.080,d,'stone');
+   const baluster=(x,z,y=0,h=1.20,c='#c9bba6')=>
+    block(c,x,y+.20+h/2,z,.062,h,.070,'wood');
+   const lamp=(x,z,y=1.46,c=warm)=>{
+    pole('#727e7c',x,y-.33,z,.022,.38,'metal');
+    block('#e2d1bb',x,y-.10,z,.16,.048,.16,'metal');
+    block(c,x,y-.20,z,.12,.11,.11,'glass',true);
+   };
+   const shrub=(x,z,k=.25,y=0)=>{
+    block('#c1b5a2',x,y+.30,z,k*1.24,.23,k*1.10,'stone');
+    block('#517e60',x,y+.50,z,k*.96,.22,k*.95,'stone');
+    block('#83ab76',x,y+.63,z,k*.68,.17,k*.70,'stone');
+    for(const sign of[-1,1])block('#dfb39d',x+sign*k*.19,y+.71,z,k*.14,.08,k*.17,'stone');
+   };
+   const bench=(x,z,y=0)=>{
+    block(cedar,x,y+.46,z,.62,.085,.27,'wood');
+    block(teak,x,y+.64,z-.10,.64,.30,.065,'wood');
+    for(const dx of[-.23,.23])
+     block('#596763',x+dx,y+.25,z,.04,.40,.033,'metal');
+   };
+   const coffeeTable=(x,z,y=0)=>{
+    const p=point(x,z);
+    batch.add(CYL,'#c6a281',p.x-.5,y+.61,p.y-.5,.26,.075,.26,0,0,0,id,false,'wood');
+    pole(graphite,x,y+.39,z,.037,.45,'metal');
+    block('#fff1d7',x,y+.72,z,.14,.07,.12,'stone');
+    block('#739b82',x+.09,y+.76,z-.08,.07,.08,.07,'stone');
+   };
+   const lounge=(x,z,y=0,side=1)=>{
+    block('#a19c8a',x,y+.32,z,.62,.31,.39,'wood');
+    block('#d9c6ae',x,y+.50,z-side*.18,.62,.28,.075,'wood');
+    for(const dx of[-.28,.28])
+     block(teak,x+dx,y+.39,z,.075,.35,.39,'wood');
+    block('#ead6c1',x,y+.50,z+side*.02,.53,.08,.32,'stone');
+   };
+   const bed=(x,z,y=0)=>{
+    paved(x,y+.33,z,.65,.92,cedar);
+    paved(x,y+.45,z,.56,.80,'#f5e7d4');
+    paved(x,y+.50,z-.29,.52,.20,'#fcf9ed');
+    for(const dx of[-.18,.18])
+     block('#e2b4a6',x+dx,y+.56,z-.29,.22,.085,.18,'stone');
+    block(teak,x,y+.64,z-.47,.69,.39,.070,'wood');
+   };
+   const window=(x,z,y=1.05,w=.60,frontward=true)=>{
+    const sign=frontward?1:-1;
+    block('#e8ebdf',x,y,z,w+.14,.75,.082,'stone');
+    block(dusk,x,y,z+sign*.052,w,.63,.040,'glass');
+    block('#d2e7e4',x,y+.17,z+sign*.08,w*.85,.11,.020,'glass');
+    block(warm,x,y-.15,z+sign*.085,w*.72,.19,.022,'glass',true);
+    block('#e6dad0',x,y,z+sign*.10,.028,.67,.04,'metal');
+    block('#f7eee1',x,y-.39,z+sign*.10,w+.17,.065,.14,'stone');
+   };
+   const wall=(x,z,w,h,y=0,c=cream)=>block(c,x,y+.23+h*.50,z,w,h,.10,'stone');
+   const separator=(x,z,w,h,y=0)=>block('#e5d7c4',x,y+.23+h*.50,z,.080,h,w,'stone');
+   const rail=(x,z,y,w,direction='u')=>{
+    if(direction==='u'){
+     block(mist,x,y+.26,z,w,.44,.047,'glass');
+     block('#efe5d6',x,y+.50,z,w+.055,.045,.064,'metal');
+     for(const x0 of[x-w*.42,x,x+w*.42])
+      block('#c8b8a5',x0,y+.26,z,.028,.46,.054,'metal');
+    }else{
+     block(mist,x,y+.26,z,.047,.44,w,'glass');
+     block('#efe5d6',x,y+.50,z,.061,.045,w+.04,'metal');
+     for(const z0 of[z-w*.42,z,z+w*.42])
+      block('#c8b8a5',x,y+.26,z0,.054,.46,.027,'metal');
+    }
+   };
+   const roof=(x,z,w,d,y=2.15,roofColor=tileRed)=>{
+    // 3D narrow pitched roof, limited to occupied rooms, NOT full
+    // plot roofing over courtyards, so top-down players see amenities.
+    gable(roofColor,x,z,w,d,y,.43);
+    for(const dx of[-w*.39,0,w*.39])
+     block('#e4bea2',x+dx,y+.38,z,.025,.04,d*.83,'wood');
+   };
+   const steps=(x,z,y=0)=>{
+    for(let k=0;k<3;k++)
+     paved(x,y+.18+k*.055,z-k*.14,.75-k*.06,.20,k%2?'#e4d4bb':'#d4c3ac');
+   };
+   // Car-lane-safe foundations and residential paths occupy front half ONLY.
+   paved(center,.12,mid,W-1.78,depth+.23,'#c7c9b5');
+   paved(center,.18,front-.18,W-2.14,.28,'#e7dcc9');
+   for(const sign of[-1,1]){
+    const x=center+sign*(W*.5-.90);
+    block('#698f6c',x,.23,mid,.12,.21,depth-.27,'stone');
+    for(let i=0;i<3;i++)shrub(x,back+.35+i*(depth-.65)/2,.19);
+   }
+   if(compact){
+    // ONE-STOREY HOME: two offset habitable rooms around a visible patio.
+    // Warm sloping roofs are separate volumes, never a blank warehouse slab.
+    const mainX=2.59,mainZ=back+.77,mainW=2.86,mainD=1.48;
+    const sideX=5.61,sideZ=back+.71,sideW=1.71,sideD=1.27;
+    paved(mainX,.23,mainZ,mainW+.19,mainD+.20,'#eee7d9');
+    paved(sideX,.23,sideZ,sideW+.16,sideD+.17,'#f0e6d5');
+    // Rear and side back walls: the entire front of each room is glazed.
+    wall(mainX,mainZ-mainD*.47,mainW,1.31,0,ivory);
+    separator(mainX-mainW*.48,mainZ,mainD,1.26);
+    separator(mainX+mainW*.47,mainZ-.23,.99,1.28);
+    roof(mainX,mainZ-.10,mainW+.17,mainD*.73,1.85,tileRed);
+    for(const xx of[mainX-.78,mainX+.08,mainX+.79])
+     window(xx,mainZ+mainD*.40,.99,.60,true);
+    // Glazed bedroom with a bed visible through the unroofed front third.
+    wall(sideX,sideZ-sideD*.44,sideW,1.34,0,cream);
+    separator(sideX+sideW*.47,sideZ,sideD,1.24);
+    window(sideX-.27,sideZ+sideD*.42,1.06,.72);
+    roof(sideX,sideZ-.11,sideW+.14,sideD*.70,1.85,'#836960');
+    bed(sideX,sideZ+.13);
+    // Tiled terrace, patio furniture, roof pergola and little fish pond.
+    const patioZ=front-.71;
+    paved(3.07,.23,patioZ,3.34,1.23,'#e8d8bf');
+    paved(5.69,.23,patioZ,1.75,1.18,'#eadcc6');
+    for(const xx of[1.47,4.46])for(const zz of[patioZ-.51,patioZ+.44])
+     baluster(xx,zz,.14,1.71,'#9b7b61');
+    block(cedar,2.97,2.09,patioZ-.45,3.04,.10,.15,'wood');
+    block(teak,2.97,2.10,patioZ+.43,3.04,.090,.11,'wood');
+    for(let i=0;i<9;i++){
+     const xx=1.57+i*.345;
+     block(i%2?'#e6cba9':'#af875f',xx,2.17,patioZ,.057,.055,.99,'wood');
+    }
+    lounge(2.16,patioZ-.16);
+    lounge(3.71,patioZ-.17,0,-1);
+    coffeeTable(2.92,patioZ+.09);
+    bench(5.91,patioZ-.24);
+    // Pond is a physically inset water slab and lily pads.
+    paved(5.68,.245,front-.29,1.41,.41,'#e9e2d2');
+    paved(5.68,.283,front-.29,1.20,.28,'#73b5bc');
+    for(const xx of[5.34,5.83,6.11])
+     block('#70a780',xx,.31,front-.27,.14,.035,.13,'stone');
+    // Front stepping stones and hand-lit postbox / nameplate.
+    steps(4.00,front-.28);
+    for(const xx of[2.01,5.95]){
+     shrub(xx,front-.24,.18);
+     lamp(xx,front-.43,1.03);
+    }
+    block('#9c7b57',3.99,.75,front-.30,1.15,.39,.090,'wood');
+    block('#f9e3bd',3.99,.77,front-.23,.78,.20,.026,'glass',true);
+    // Large glass entrance shows room layout rather than a solid wall.
+    block(mist,4.29,1.03,mainZ+.72,.53,1.15,.065,'glass');
+    block('#e2d2bb',4.29,1.03,mainZ+.77,.035,1.16,.042,'wood');
+    block(cedar,4.53,1.02,mainZ+.80,.035,.10,.035,'metal');
+   }else{
+    // TWO-STOREY MULTIFAMILY RESIDENCE: two occupied wings surround a
+    // true open landscaped communal court, joined by an upper skybridge.
+    // 40 residents / 40 parking slots unchanged. This is not home_grand.
+    const xs=[2.21,5.78],wingW=2.13,rear=back+.12,frontWing=front-.79;
+    const zMid=(rear+frontWing)/2,zLen=frontWing-rear,upperY=2.20;
+    for(let wing=0;wing<2;wing++){
+     const xx=xs[wing],inward=wing===0?xx+wingW*.47:xx-wingW*.47;
+     // Divided ground-floor apartment bays, back walls and glass fronts.
+     paved(xx,.25,zMid,wingW,zLen,'#ede3d7');
+     for(const z of[rear+.73,rear+2.07,rear+3.24]){
+      wall(xx,z-.43,wingW*.89,1.32,0,'#ebdfd0');
+      block('#8eb6b6',inward,1.02,z,.067,1.34,.87,'glass');
+      block('#e7dfd0',inward,1.68,z,.12,.08,.91,'stone');
+      for(const shift of[-.25,.25])
+       block('#f9e0af',inward+(wing===0?.065:-.065),1.07,z+shift,.020,.42,.19,'glass',true);
+      bed(xx,z-.09);
+      shrub(xx+(wing===0?-.76:.76),z+.30,.13);
+     }
+     // Actual second floor, with visible occupied terrace living bays.
+     paved(xx,upperY+.06,zMid,wingW,zLen,'#e3dad0');
+     for(const z of[rear+.69,rear+2.09,rear+3.28]){
+      wall(xx,z-.37,wingW*.91,1.18,upperY,'#eee5d8');
+      block(mist,inward,upperY+1.10,z,.054,1.05,.80,'glass');
+      block('#e9d8c2',inward,upperY+1.55,z,.085,.10,.85,'stone');
+      bed(xx,z-.07,upperY);
+      lounge(xx,z+.44,upperY,.70);
+     }
+     // Inner balconies truly stand on the second occupied level.
+     rail(inward,zMid,upperY+.15,zLen-.21,'v');
+     // Upper roof is a series of separated narrow gables at the OUTSIDE
+     // of each apartment wing, leaving courtyard-side furniture visible.
+     for(const z of[rear+.57,rear+2.12,rear+3.60])
+      roof(xx+(wing===0?-.40:.40),z,wingW*.55,.84,4.05,'#86776a');
+     for(const z of[rear+.35,frontWing-.23]){
+      baluster(xx+(wing===0?-.87:.87),z,.15,4.06,'#cbbeb2');
+      lamp(xx+(wing===0?-.87:.87),z,4.35);
+     }
+     // 2nd-floor side garden and guarded front verandah.
+     rail(xx,frontWing-.10,upperY+.12,wingW*.96);
+     for(const z of[frontWing-.49,frontWing-.98])
+      shrub(xx,z,.16,upperY);
+     for(const z of[back+.63,frontWing-.46])
+      lamp(inward+(wing===0?.23:-.23),z,1.69);
+    }
+    // Rear upper bridge is open, not a giant opaque roof.
+    const bridgeZ=rear+.38,bridgeW=1.75;
+    paved(center,upperY+.075,bridgeZ,bridgeW,.72,'#efe5d7');
+    rail(center,bridgeZ-.40,upperY+.20,bridgeW-.11);
+    rail(center,bridgeZ+.40,upperY+.20,bridgeW-.11);
+    for(let k=0;k<7;k++)
+     block(k%2?'#ad8768':'#e5ceb6',center-.75+k*.25,
+      upperY+.16,bridgeZ,.09,.045,.60,'wood');
+    // TWO actual stairways from the central courtyard to second floor.
+    for(const sign of[-1,1]){
+     const x=center+sign*.80;
+     for(let k=0;k<13;k++){
+      const p=(k+.5)/13;
+      const y=.27+p*(upperY-.21),z=frontWing+.17-p*1.92;
+      paved(x,y,z,.50,.17,k%2?'#e5d4c0':'#c6b8a6');
+      for(const dx of[-.29,.29]){
+       block('#b3bec0',x+dx,y+.18,z,.029,.36,.13,'metal');
+       block('#8eb9b7',x+dx,y+.36,z,.025,.12,.13,'glass');
+      }
+     }
+    }
+    // Landscaped shared social atrium, miniature pool and sitting decks.
+    paved(center,.245,frontWing-.65,1.56,1.70,'#e7d4c3');
+    paved(center,.28,frontWing-.80,1.05,.64,'#e5e7d8');
+    paved(center,.32,frontWing-.80,.86,.49,'#68adb9');
+    for(const x of[center-.56,center+.56]){
+     bench(x,frontWing-.09);
+     shrub(x,frontWing-1.40,.15);
+    }
+    coffeeTable(center,frontWing-.03);
+    const fountain=point(center,frontWing-.82);
+    batch.add(CYL,'#e9d6c4',fountain.x-.5,.40,fountain.y-.5,.18,.09,.18,0,0,0,id,false,'stone');
+    pole('#ffe7b4',center,.65,frontWing-.82,.037,.32,'glass',true);
+    // Front community gate with illuminated sign and low landscaped wall.
+    for(const sign of[-1,1]){
+     const gx=center+sign*1.43;
+     baluster(gx,front-.30,.17,2.19,'#b99b7c');
+     lamp(gx,front-.31,2.46);
+     shrub(gx+sign*.42,front-.41,.18);
+    }
+    block('#b39076',center,2.56,front-.28,3.13,.12,.18,'wood');
+    block('#eee1cf',center,2.51,front-.20,2.74,.055,.10,'stone');
+    block('#475f64',center,2.88,front-.24,1.54,.45,.10,'metal');
+    block('#ffe2ae',center,2.88,front-.17,1.22,.20,.035,'glass',true);
+    for(const dx of[-.34,.34]){
+     lamp(center+dx,front-.35,1.60);
+    }
+   }
+   return;
+  }
+
   // ART-DIRECTED CITY COLLECTION — distinct sculpted assets for every playable
   // home (except preserved home_grand), office, factory, shop, restaurant, mall,
   // park, pub and hotel tier. All parts live in a parking-first plot; no traffic
