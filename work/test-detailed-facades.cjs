@@ -26,7 +26,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     const dx=p.x-b.x,dz=p.z-b.y;
     const uv=rot===0?{u:dx,v:dz}:rot===1?{u:dz,v:t.plotHeight-dx}:
       rot===2?{u:t.plotWidth-dx,v:t.plotHeight-dz}:{u:t.plotWidth-dz,v:dx};
-    return {...uv,y:p.y,color:p.color,glow:p.glow,sx:p.sx,sz:p.sz};
+    return {u:+uv.u.toFixed(6),v:+uv.v.toFixed(6),y:p.y,color:p.color,glow:p.glow,sx:p.sx,sz:p.sz};
    });
    if(t.plannedParking){
     // Verify full geometry footprint, including its half-size in both local
