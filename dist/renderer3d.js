@@ -463,15 +463,20 @@ export class TrafficRenderer{
    kind==='mall'?1.15+tier*.54:kind==='pub'?1.13+tier*.56:
    kind==='factory'?1.23+tier*.33:1.10+tier*.39;
   const mainW=kind==='home'?span*.86:kind==='office'?span*.74:span*.85;
-  block('#bdc8bb',cx,.042,s*.50,Math.min(W-.1,span+.36),.09,s-.16,'stone');
-  block('#e6dccb',cx,.105,s*.91,Math.max(1.03,mainW*.66),.028,.27,'stone');
-  block('#8ca580',cx,.14,s*.11,Math.min(W-.45,mainW+.5),.13,.27);
-  const gardens=Math.max(2,Math.min(9,Math.floor(W/7)));
-  for(let i=0;i<gardens;i++){
-   const u=cx-span*.48+span*.96*(i+.5)/gardens;
-   if(Math.abs(u-cx)<.9)continue;
-   block('#73965f',u,.18,s*.88,.47,.17,.23);
-   if(i%2===0)planted(u,s*.81,.28+tier*.10);
+  // Shared foundations/gardens belong only to classic building models.
+  // The grand villa has a dedicated plot plan; drawing these underneath it
+  // used to put lawn, masonry and trees THROUGH the four parking rows.
+  if(b.key!=='home_grand'){
+   block('#bdc8bb',cx,.042,s*.50,Math.min(W-.1,span+.36),.09,s-.16,'stone');
+   block('#e6dccb',cx,.105,s*.91,Math.max(1.03,mainW*.66),.028,.27,'stone');
+   block('#8ca580',cx,.14,s*.11,Math.min(W-.45,mainW+.5),.13,.27);
+   const gardens=Math.max(2,Math.min(9,Math.floor(W/7)));
+   for(let i=0;i<gardens;i++){
+    const u=cx-span*.48+span*.96*(i+.5)/gardens;
+    if(Math.abs(u-cx)<.9)continue;
+    block('#73965f',u,.18,s*.88,.47,.17,.23);
+    if(i%2===0)planted(u,s*.81,.28+tier*.10);
+   }
   }
   if(kind==='park'){
    // Landscape architecture: three hardscape axes, fountain and pavilions.
@@ -501,44 +506,51 @@ export class TrafficRenderer{
   }
 
   if(b.key==='home_grand'){
-   // Street-facing circular luxury residence, with two complete parking
-   // courts hidden behind it. Its original round architecture is preserved.
+   // Redesigned street-front villa: every architectural element lives in
+   // v >= 7.15, where the last parking bay ends at v = 6.31. The slim
+   // 0.84-unit setback protects the two banks and both driveway spines.
    const u=W*.5,v=t.plotHeight-3.04;
    const disc=(color,yy,r,hh,finish='stone',glow=false)=>{
     const p=point(u,v);
     batch.add(CYL_SMOOTH,color,p.x-.5,yy,p.y-.5,r,hh,r,0,0,0,id,glow,finish);
    };
-   // Only a slim stone entry apron remains between the circular facade and
-   // the rear-most bay marking; no unused landscaping void or extra road.
-   disc('#d6d1c7',.13,2.84,.17,'stone');
-   disc('#eee7db',.34,2.62,.32,'stone');
-   disc('#eee7de',1.73,2.53,2.66,'stone');
-   for(const [y,h] of [[.95,.72],[1.89,.74],[2.80,.58]]){
-    disc('#6e9eaa',y,2.56,h,'glass');
-    disc('#b9d7db',y+h*.31,2.565,.065,'glass');
+   // Round foundation stays behind the parking band rather than stretching
+   // a default rectangular building slab over the asphalt.
+   disc('#c9c4b8',.12,2.79,.17,'stone');
+   disc('#ede5d7',.35,2.65,.30,'stone');
+   disc('#eee7de',1.75,2.51,2.67,'stone');
+   for(const [y,h] of [[.96,.72],[1.90,.75],[2.82,.57]]){
+    disc('#6e9eaa',y,2.555,h,'glass');
+    disc('#bfd7db',y+h*.30,2.563,.068,'glass');
    }
-   for(const y of [.56,1.45,2.38,3.22]){
-    disc('#e8e2d7',y,2.68,.10,'stone');
-    disc('#b69e82',y+.08,2.62,.034,'metal');
+   // Continuous curved balconies and cream horizontal floor rings.
+   for(const y of [.57,1.46,2.39,3.23]){
+    disc('#e8e2d7',y,2.69,.09,'stone');
+    disc('#af9d86',y+.07,2.625,.032,'metal');
    }
-   // Repeating slim pillars and glass mullions accentuate the round facade.
-   for(let i=0;i<20;i++){
-    const a=2*Math.PI*i/20,x=u+2.53*Math.sin(a),z=v+2.53*Math.cos(a);
+   for(let i=0;i<24;i++){
+    const a=2*Math.PI*i/24,x=u+2.54*Math.sin(a),z=v+2.54*Math.cos(a);
     const p=point(x,z);
-    batch.add(CYL,'#dfddd5',p.x-.5,1.84,p.y-.5,.055,2.55,.055,0,0,0,id,false,'stone');
+    batch.add(CYL,'#e2dfd5',p.x-.5,1.82,p.y-.5,.044,2.57,.044,0,0,0,id,false,'stone');
    }
-   // Crown and rooftop skylight remain in the building's existing strip.
-   disc('#e9e3d8',3.36,2.83,.20,'stone');
-   disc('#6f8288',3.48,2.53,.08,'metal');
-   disc('#f0e8dd',3.59,2.31,.18,'stone');
-   disc('#8dbac5',3.79,1.06,.33,'glass');
-   disc('#f1ece3',4.00,1.13,.09,'stone');
-   // Front-facing glazed lobby, understated canopy and steps.
-   block('#547781',u,.79,v+2.53,1.30,1.20,.055,'glass');
-   block('#dfddcf',u,1.51,v+2.57,1.65,.11,.44,'stone');
-   block('#c3ad91',u,1.59,v+2.59,1.62,.052,.38,'metal');
-   block('#e7dfd3',u,.095,v+2.74,1.32,.05,.26,'stone');
-   for(const x of [u-1.65,u+1.65])lantern(x,v+2.52,'#ffdcaa',1.04);
+   // Tiered domed skylight with warm daytime stone and discreet trim.
+   disc('#e9e4dc',3.38,2.82,.20,'stone');
+   disc('#6f8288',3.49,2.52,.075,'metal');
+   disc('#f2eae0',3.60,2.31,.18,'stone');
+   disc('#95c0c9',3.79,1.05,.32,'glass');
+   disc('#eae6dc',4.00,1.13,.09,'stone');
+   // Public arrival entrance faces the road (positive local v).
+   block('#537e8e',u,.80,v+2.53,1.26,1.18,.055,'glass');
+   block('#f3e9d9',u,1.52,v+2.60,1.65,.11,.29,'stone');
+   block('#bea386',u,1.60,v+2.60,1.62,.048,.30,'metal');
+   block('#e7dfd3',u,.11,v+2.76,1.33,.055,.19,'stone');
+   // Lamp posts, planters and path stay strictly inside the front facade
+   // apron; NOT within u < 1 or u > 10 (the two driving channels).
+   for(const x of [u-1.46,u+1.46]){
+    lantern(x,v+2.42,'#ffe2b4',.92);
+    block('#dacdb9',x,.19,v+2.68,.38,.15,.27,'stone');
+    block('#6f9a75',x,.30,v+2.68,.31,.10,.20);
+   }
    return;
   }
 
