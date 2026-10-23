@@ -456,6 +456,98 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
+  // Dedicated architecture pod; parking logic and markings are independent.
+  // All walls remain ahead of the parking courts and between the side drives.
+  if(t.plannedParking){
+   const level=t.modelTier||1,u=t.plotWidth*.5,v=t.plotHeight-3.52;
+   const w=Math.min(t.plotWidth-2.95,level===1?4.45:level===2?6.15:7.45),d=2.94;
+   const colors={
+    home:['#e6d9c8','#e9e5dc','#ede9e2'],office:['#c8dbe0','#c4d8e0','#d5e5e6'],
+    factory:['#d2d6cf','#c8d0c8','#bec9c9'],shop:['#e8cdaa','#d9ddd0','#d6e3de'],
+    restaurant:['#f0d4b6','#e0c6ae','#e9cfbc'],mall:['#d9e7db','#d1e2df','#d9e8e8'],
+    park:['#8fb88a','#8abb89','#81ab81'],pub:['#5c536c','#4c536b','#3f4158']
+   };
+   const trim={home:'#987b65',office:'#56899b',factory:'#718e8d',shop:'#c29a67',
+    restaurant:'#b78d68',mall:'#4e979a',park:'#dfd6b5',pub:'#b987d4'}[kind];
+   const h=kind==='office'?2.5+level*.85:kind==='factory'?1.5+level*.42:
+    kind==='home'?1.5+level*.57:kind==='mall'?2.1+level*.53:1.6+level*.47;
+   const front=v+d/2;
+   // Back of the pad is beyond the final painted parking-row boundary.
+   block('#c6cebf',u,.10,v,t.plotWidth-2.3,.14,3.64,'stone');
+   block('#e7e4d9',u,.21,v+.08,w+.48,.07,d+.20,'stone');
+   if(kind==='park'){
+    block('#7fb18b',u,.24,v,t.plotWidth-2.55,.08,3.2);
+    block('#e4d6bd',u,.30,v,t.plotWidth-2.70,.04,.29,'stone');
+    block('#e4d6bd',u,.30,v,.3,.04,3.12,'stone');
+    pole('#dedcce',u,.47,v,.54,.37,'stone');
+    pole('#75acc2',u,.70,v,.42,.06,'water');
+    for(const side of[-1,1]){
+     const x=u+side*w*.34;
+     block('#bda47f',x,.75,v,1.12,.15,.97,'wood');
+     block('#e2e8d4',x,1.22,v,1.28,.12,1.12,'stone');
+     planted(x,v-1,.34+level*.05);planted(x,v+1,.30+level*.05);
+     lantern(x,v+.66);
+    }
+    return;
+   }
+   block(colors[kind][level-1],u,.24+h/2,v,w,h,d,'stone');
+   if(kind==='home'){
+    block('#f1e8db',u-w*.30,.26+h*.46,v-.15,w*.31,h*.85,d*.82,'stone');
+    block('#75a6b5',u+w*.18,.65+h*.35,front+.07,w*.39,h*.45,.06,'glass');
+    block('#ffe5b2',u+w*.18,.69+h*.34,front+.11,w*.26,h*.23,.018,'glass',true);
+    block(trim,u,h+.37,v,w+.25,.16,d+.26,'wood');
+    if(level>1)block('#d6dace',u,h*.73,front+.27,w*.75,.11,.45,'stone');
+   }else if(kind==='factory'){
+    block('#70858a',u,h+.30,v,w+.27,.15,d+.19,'metal');
+    for(let i=0;i<3;i++){
+     const x=u+(i-1)*w*.3;
+     block('#b4d7d9',x,h+.42,v,.35,.07,d*.78,'glass');
+     block('#879a9e',x,.79,front+.09,w*.22,1.06,.09,'metal');
+    }
+    block('#a2b5b5',u+w*.32,h+.56,v-.42,.4,.5,.4,'metal');
+   }else{
+    const count=kind==='mall'?level*4+3:kind==='shop'?level*3+2:level*2+4;
+    const floors=kind==='office'?level+2:kind==='mall'?level+1:level>1?2:1;
+    for(let row=0;row<floors;row++)for(let i=0;i<count;i++){
+     const x=u-w*.47+(i+.5)*w*.94/count;
+     const y=.62+(h-.35)*(row+.5)/floors;
+     block(kind==='pub'?'#7661a5':'#7baaba',x,y,front+.062,w*.76/count,
+      Math.min(.52,(h-.34)/floors*.68),.058,'glass');
+     if(i%3===0)block(kind==='pub'?'#e2a4fb':'#ffe2b8',x,y-.05,front+.096,w*.56/count,.15,.016,'glass',true);
+    }
+    block(kind==='pub'?'#313249':'#e8e7db',u,h+.34,v,w+.27,.18,d+.2,'stone');
+    if(kind==='mall'){
+     block('#6fa7ad',u,h+.49,v,w*.63,.22,d*.42,'glass');
+     block('#e7e9e4',u,h+.64,v,w*.69,.06,d*.47,'stone');
+    }
+    if(kind==='shop'||kind==='restaurant'){
+     const bays=level===3?5:level===2?3:2;
+     for(let i=0;i<bays;i++){
+      const x=u-w*.43+(i+.5)*w*.86/bays;
+      block(kind==='restaurant'?'#b98762':'#d3aa6c',x,1.35,front+.24,w*.80/bays,.13,.54,'wood');
+      block('#d0ecdf',x,.79,front+.084,w*.67/bays,.84,.08,'glass');
+     }
+    }
+    if(kind==='pub'){
+     for(const x of [u-w*.46,u+w*.46])block('#bf83d4',x,h*.57,front+.16,.075,h*.74,.09,'glass',true);
+     block('#d59eee',u,h+.43,front+.24,w*.54,.09,.16,'glass',true);
+    }
+    if(kind==='office')for(const x of [u-w*.35,u+w*.35])
+     block('#e8f0eb',x,h*.52,front+.077,.05,h*.73,.07,'metal');
+   }
+   // Visible main entrance, covered drop-off and landscape lighting.
+   block('#c5dfdf',u,.86,front+.17,1.19,1.19,.10,'glass');
+   block('#ffe0b3',u,.89,front+.23,.82,.67,.024,'glass',true);
+   block(trim,u,1.58,front+.29,2.10,.15,.64,'stone');
+   block('#d6cbbc',u,.19,front+.57,2.0,.09,.56,'stone');
+   for(const side of [-1,1]){
+    const x=u+side*(w*.5+.22);
+    planted(x,v+.70,.29+level*.06);
+    lantern(x,v+1.12,kind==='pub'?'#ecc4fa':'#ffe2b7',.79);
+   }
+   return;
+  }
+
   const wall=isHotel?['#d1e8eb','#cee2e8','#d6e9ec'][tier-1]:{
    home:['#e9dbc9','#e7dfd3','#eae6df'],shop:['#e0bd90','#d7c9b4','#d9e2db'],
    restaurant:['#ddb194','#dcc0a5','#e8ceb7'],mall:['#e6e3d8','#dae4de','#d9e3e5'],
