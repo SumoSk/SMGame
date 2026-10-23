@@ -434,10 +434,14 @@ function assignArrivalParking(v,replan=false,includeOld=false){
   if(replan&&slots[i].u<(current?.u??0)+.8)continue;
   options.push(i);
  }
- const dual=CATALOG[b.key].dualParking,zoneLoad=[0,0];
- if(dual)for(let i=0;i<slots.length;i++)if(b.parkingSlots[i]!=null)zoneLoad[slots[i].row]++;
+ const dual=CATALOG[b.key].dualParking,stacked=CATALOG[b.key].stackedParking,zoneLoad=[0,0];
+ const bankIndex=slot=>stacked?Math.floor(slot.row/2):slot.row;
+ if(dual||stacked)for(let i=0;i<slots.length;i++)if(b.parkingSlots[i]!=null)zoneLoad[bankIndex(slots[i])]++;
  options.sort((a,b)=>{
   if(!replan){if(a===old)return -1;if(b===old)return 1;}
+  if(stacked&&replan&&(current?.u??0)<=.85)
+   return zoneLoad[bankIndex(slots[a])]-zoneLoad[bankIndex(slots[b])]||
+    Math.abs(slots[a].aisle-current.v)-Math.abs(slots[b].aisle-current.v)||slots[a].u-slots[b].u||a-b;
   if(dual&&!replan)return zoneLoad[slots[a].row]-zoneLoad[slots[b].row]||slots[a].u-slots[b].u||a-b;
   if(dual&&replan&&current?.u>.85)return Math.abs(slots[a].aisle-current.v)-Math.abs(slots[b].aisle-current.v)||slots[a].u-slots[b].u||a-b;
   return (slots[a].u-(current?.u??.45))-(slots[b].u-(current?.u??.45))||a-b;
