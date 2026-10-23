@@ -54,6 +54,7 @@ jobs:
       - run: node --check dist/renderer3d.js
       - run: node work/test-new-building-program.cjs
       - run: node work/test-pub-small-model.cjs
+      - run: node work/test-architecture-collection.cjs
   lane-change-safety:
     runs-on: ubuntu-latest
     steps:
