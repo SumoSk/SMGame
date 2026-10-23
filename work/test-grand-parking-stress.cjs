@@ -23,7 +23,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  const items=[...batch.data.values()].flatMap(b=>b.items);
  assert(items.length>50,'luxury facade should retain its distinctive detailed appearance');
  const failures=items.filter(i=>{
-   const extX=Math.max(i.sx||0,i.sz||0)*.5,extZ=Math.max(i.sx||0,i.sz||0)*.5;
+   const extX=(i.sx||0)*.5,extZ=(i.sz||0)*.5;
    return i.z-extZ<building.y+6.80||
     i.z+extZ>building.y+t.plotHeight+.01||
     i.x-extX<building.x+1.05||i.x+extX>building.x+t.plotWidth-1.05;
