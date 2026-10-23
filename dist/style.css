@@ -2743,3 +2743,114 @@ body>.bottom .city-control-mini .mini-control-heading{
  }
  #touristsDashboard .citizen-pair{grid-template-columns:1fr!important}
 }
+
+/* SMCITY category navigation rebuilt 2026-10-23.
+   Five primary sections; only Buildings has secondary tabs.
+   Keep the softened, low-glare palette from the current design. */
+body>.bottom .builder-zone .build-dock .dock-body{
+ display:flex!important;flex-direction:column!important;
+ justify-content:flex-start!important;overflow:hidden!important;
+}
+body>.bottom .builder-zone .build-dock #categories{
+ display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
+ order:0!important;flex:0 0 43px!important;
+ height:43px!important;min-height:43px!important;max-height:43px!important;
+ width:100%!important;max-width:100%!important;
+ padding:2px 5px!important;margin:0!important;
+ border-top:0!important;border-bottom:1px solid #c4d5c7!important;
+ background:#dae7dc!important;overflow:hidden!important;
+}
+body>.bottom .builder-zone .build-dock #categories button{
+ display:flex!important;flex-direction:column!important;gap:0!important;
+ justify-content:center!important;align-items:center!important;
+ min-height:38px!important;max-height:38px!important;height:38px!important;
+ margin:0 2px!important;padding:1px 2px!important;
+ border:1px solid transparent!important;border-radius:7px!important;
+ background:transparent!important;color:#597267!important;
+ font-weight:600!important;
+}
+body>.bottom .builder-zone .build-dock #categories button.active{
+ background:#c8ddcf!important;border:1px solid #99bba6!important;
+ color:#205c43!important;box-shadow:none!important;
+}
+body>.bottom .builder-zone .build-dock #categories button:hover{
+ background:#c5ddcb!important;
+}
+body>.bottom .builder-zone .build-dock .dock-group-icon{
+ font-size:17px!important;line-height:19px!important;
+}
+body>.bottom .builder-zone .build-dock .dock-group-name{
+ font-size:9px!important;line-height:13px!important;white-space:nowrap!important;
+}
+body>.bottom .builder-zone .build-dock .dock-context{
+ display:flex!important;flex-direction:column!important;
+ order:1!important;flex:1 1 auto!important;
+ min-height:52px!important;margin:3px 0 1px!important;
+ background:#e1eae2!important;border-color:#c7d5c9!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories{
+ display:flex!important;align-items:center!important;
+ flex:0 0 25px!important;
+ min-height:25px!important;max-height:25px!important;height:25px!important;
+ margin:0!important;padding:2px 5px!important;gap:4px!important;
+ background:#dce8de!important;
+ border-bottom:1px solid #c5d9c9!important;
+ overflow-x:auto!important;overflow-y:hidden!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories[hidden]{
+ display:none!important;height:0!important;min-height:0!important;
+ max-height:0!important;flex-basis:0!important;padding:0!important;border:0!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories button{
+ display:inline-flex!important;align-items:center!important;
+ flex:0 0 auto!important;border-radius:5px!important;
+ min-height:19px!important;max-height:21px!important;
+ padding:2px 8px!important;margin:0!important;
+ color:#4f6a59!important;background:#e7eee6!important;
+ border:1px solid #c8d8c9!important;
+ font:600 9px/1.2 "Noto Sans Thai",Tahoma,sans-serif!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories button.active{
+ background:#bcd8c5!important;color:#255f43!important;
+ border-color:#83b296!important;
+}
+body>.bottom .builder-zone .dock-context .tools{
+ flex:1 1 auto!important;min-height:51px!important;
+ overflow-x:auto!important;overflow-y:hidden!important;
+ padding:4px 6px!important;gap:5px!important;
+}
+body>.bottom .builder-zone .dock-context .tool{
+ flex:0 0 94px!important;min-width:94px!important;max-width:94px!important;
+}
+body>.bottom .builder-zone .build-dock.is-collapsed .dock-context{
+ display:none!important;
+}
+@media(max-width:720px){
+ body>.bottom .builder-zone .build-dock #categories{
+  flex-basis:34px!important;height:34px!important;min-height:34px!important;
+  max-height:34px!important;padding:1px 2px!important;
+ }
+ body>.bottom .builder-zone .build-dock #categories button{
+  height:30px!important;min-height:30px!important;max-height:30px!important;
+  padding:0 1px!important;margin:0 1px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-group-icon{
+  font-size:13px!important;line-height:15px!important;
+ }
+ body>.bottom .builder-zone .build-dock .dock-group-name{
+  font-size:7.2px!important;line-height:11px!important;
+ }
+ body>.bottom .builder-zone .dock-context #subcategories{
+  flex-basis:22px!important;min-height:22px!important;max-height:22px!important;
+  height:22px!important;padding:1px 3px!important;gap:3px!important;
+ }
+ body>.bottom .builder-zone .dock-context #subcategories button{
+  font-size:8px!important;min-height:18px!important;padding:1px 5px!important;
+ }
+ body>.bottom .builder-zone .dock-context .tools{
+  min-height:49px!important;padding:3px 4px!important;gap:4px!important;
+ }
+ body>.bottom .builder-zone .dock-context .tool{
+  flex-basis:72px!important;min-width:72px!important;max-width:72px!important;
+ }
+}
