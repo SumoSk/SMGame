@@ -38,6 +38,14 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(built,'grand house must have road connection');
  assert.equal(built.access.length,2,'reuse two road access points from small-home design');
  assert.equal(built.parkingSlots.length,60);
+ // A real arriving resident should traverse a court aisle and occupy a bay.
+ const newcomer=g.newCitizen(built);
+ assert(g.createTrip(newcomer,'moveIn',null,built.id,g.id(155,150),null,null),'resident must route into grand home');
+ for(let i=0;i<6000&&!built.parked.has(newcomer.id);i++){
+  g.state.time+=.04;g.advanceVehicles(.05,.04);
+ }
+ assert(built.parked.has(newcomer.id),'resident should finish parking at grand home');
+ assert.equal(built.parkingSlots.filter(v=>v!==null).length,1,'arriving car must claim one bay');
  const snapshot=g.snapshot();assert(g.loadGame(true,null,snapshot),'new house saves and loads');
  assert(g.state.buildings.get(built.id)?.key==='home_grand');
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
