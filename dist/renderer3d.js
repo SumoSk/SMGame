@@ -585,8 +585,8 @@ export class TrafficRenderer{
    };
    const pixel={
     A:['010','101','111','101','101'],B:['110','101','110','101','110'],
-    C:['111','100','100','100','111'],E:['111','100','110','100','111'],
-    F:['111','100','110','100','100'],I:['111','010','010','010','111'],
+    C:['111','100','100','100','111'],D:['110','101','101','101','110'],E:['111','100','110','100','111'],
+    F:['111','100','110','100','100'],G:['111','100','101','101','111'],I:['111','010','010','010','111'],
     L:['100','100','100','100','111'],N:['101','111','111','111','101'],
     O:['111','101','101','101','111'],P:['110','101','110','100','100'],
     R:['110','101','110','101','101'],S:['111','100','111','001','111'],
@@ -669,8 +669,11 @@ export class TrafficRenderer{
      const x=roofX-.60+i*.24;
      pole(i%2?'#9ecdbd':'#d9b48a',x,roofY+1.14,roofZ-roofD*.33,.055,.27,'glass');
     }
-    for(const x of[roofX-roofW*.40,roofX+roofW*.40])
-     plant(x,roofZ+roofD*.28,.17);
+    for(const x of[roofX-roofW*.40,roofX+roofW*.40]){
+     block('#c7c6b6',x,roofY+.27,roofZ+roofD*.28,.25,.25,.28,'stone');
+     block('#547a58',x,roofY+.46,roofZ+roofD*.28,.24,.17,.24,'stone');
+     block('#9bbd88',x,roofY+.57,roofZ+roofD*.28,.16,.09,.18,'stone');
+    }
     // Open lightweight rooftop canopy is confined to the BAR, not all tables.
     const canopyZ=roofZ-roofD*.28;
     for(const x of[roofX-.69,roofX+.69])pole(blue,x,roofY+1.65,canopyZ,.033,2.19,'metal');
