@@ -2993,3 +2993,406 @@ body>.bottom .builder-zone .build-dock .dock-head>.toggle-building-labels{
   width:22px!important;min-width:22px!important;max-width:22px!important;
  }
 }
+
+
+/* SMCITY Luxury Pastel UI / 2026-10-23
+   One coherent icon language and restrained lavender-rose panels.
+   Simulation world graphics are intentionally unaffected. */
+:root{
+ --sm-pearl:#f4f0f6; --sm-panel:#ece5f0; --sm-panel-deep:#e9e1ef;
+ --sm-rose:#f1e0ea; --sm-lavender:#e6dbf2;
+ --sm-plum:#51435e; --sm-muted:#756782;
+ --sm-line:#d7c9de; --sm-active:#cdb4e3;
+ --sm-purple:#8465ab; --sm-pink:#c185aa;
+ --ink:#51435e; --muted:#756782; --paper:#f4f0f6; --line:#d7c9de;
+ --green:#8465ab; --shadow:0 8px 25px rgba(78,54,93,.15);
+}
+body button:focus-visible,
+body input:focus-visible,
+body select:focus-visible{
+ outline:2px solid #896bb2!important;outline-offset:2px!important;
+}
+body button:hover{background:#e9ddf1}
+body>.bottom>.control-deck{
+ background:#efe9f3!important;border:1px solid #d6c7e0!important;
+ box-shadow:0 12px 33px rgba(85,58,105,.18)!important;
+ color:var(--sm-plum)!important;
+}
+body>.bottom .city-dashboard,
+body>.bottom .city-control-mini,
+body>.bottom .builder-zone{
+ background:#ece5f0!important;
+ border-color:#d7cadd!important;color:var(--sm-plum)!important;
+}
+body>.bottom .city-dashboard .dashboard-heading,
+body>.bottom .city-control-mini .mini-control-heading{
+ background:transparent!important;border-color:#d7cadd!important;
+}
+body>.bottom .city-dashboard .dashboard-title strong{
+ color:#674b89!important;letter-spacing:.4px!important;
+}
+body>.bottom .city-dashboard .dashboard-title small,
+body>.bottom .city-control-mini .mini-control-heading,
+body>.bottom .city-control-mini .mini-control-heading strong{
+ color:#806a93!important;
+}
+body>.bottom .city-dashboard .dashboard-actions>button,
+body>.bottom .dashboard-member-buttons>button,
+body>.bottom .city-dashboard .city-metric{
+ color:#554665!important;border:1px solid #d8c9df!important;
+ background:#f3edf5!important;box-shadow:none!important;
+}
+body>.bottom .city-dashboard .city-metric.metric-money{
+ background:#e7dcf0!important;border-color:#cdbadc!important;
+}
+body>.bottom .city-dashboard .city-metric:hover,
+body>.bottom .city-dashboard .dashboard-actions>button:hover,
+body>.bottom .dashboard-member-buttons>button:hover{
+ background:#e3d7ee!important;border-color:#baa1d2!important;
+}
+body>.bottom .city-dashboard .city-metric small{
+ color:#80718c!important;
+}
+body>.bottom .city-dashboard .city-metric strong,
+body>.bottom .city-dashboard .metric-money strong{
+ color:#59416e!important;
+}
+body>.bottom .city-dashboard .city-metric em,
+body>.bottom .city-dashboard .metric-arrow{
+ color:#927fa0!important;
+}
+body>.bottom .city-dashboard .metric-icon{
+ background:#e4d9ef!important;color:#896cae!important;
+ border:1px solid #d6c7e7!important;
+}
+body>.bottom .city-dashboard .metric-money .metric-icon{
+ background:#eed8e5!important;color:#b3799f!important;
+ border-color:#e4c8da!important;
+}
+body>.bottom .city-dashboard .metric-population .metric-icon,
+body>.bottom .city-dashboard .metric-tourists .metric-icon,
+body>.bottom .city-dashboard .metric-happiness .metric-icon,
+body>.bottom .city-dashboard .metric-traffic .metric-icon{
+ background:#e6ddf0!important;color:#856ba5!important;
+ border-color:#d7c9e3!important;
+}
+body>.bottom .city-dashboard .metric-icon svg,
+body>.bottom .dashboard-member-buttons svg{
+ stroke-width:1.8!important;
+}
+body>.bottom .dashboard-member-buttons>button{
+ border-radius:9px!important;
+ color:#785b92!important;
+}
+body>.bottom .dashboard-member-buttons .map-save-art path[fill]{
+ fill:#efe2f2!important;
+}
+body>.bottom .city-control-mini .city-demand-panel,
+body>.bottom .city-control-mini .mini-need,
+body>.bottom .city-control-mini .city-panel{
+ background:#f0eaf3!important;border-color:#d8cadd!important;
+ color:#5a4a6b!important;box-shadow:none!important;
+}
+body>.bottom .city-control-mini .mini-need:nth-child(even){
+ background:#eae2ef!important;
+}
+body>.bottom .city-control-mini .mini-need>span,
+body>.bottom .city-control-mini .mini-need-values b,
+body>.bottom .city-control-mini .mini-need-values strong,
+body>.bottom .city-control-mini .mini-need-values .mini-need-busy,
+body>.bottom .city-control-mini .mini-need-values .mini-need-missing{
+ color:#655371!important;
+}
+body>.bottom .city-control-mini .mini-need.shortage .mini-need-missing{
+ color:#b45781!important;
+}
+body>.bottom .city-control-mini .mini-control-heading .mini-demand-legend{
+ color:#8c7a96!important;
+}
+body>.bottom .builder-zone .build-dock .dock-head{
+ background:#eee6f2!important;border-color:#d7c8df!important;
+}
+body>.bottom .builder-zone .dock-clock,
+body>.bottom .builder-zone .dock-clock strong,
+body>.bottom .builder-zone .build-dock #clock{
+ color:#674c83!important;
+}
+body>.bottom .builder-zone .build-dock #day{
+ color:#8a7697!important;
+}
+body>.bottom .builder-zone .dock-speed .playback{
+ background:#ebe1f0!important;border-color:#d6c6e0!important;
+}
+body>.bottom .builder-zone .dock-speed .playback button{
+ background:transparent!important;color:#79618f!important;
+}
+body>.bottom .builder-zone .dock-speed .playback button:hover{
+ background:#e2d5ed!important;color:#644881!important;
+}
+body>.bottom .builder-zone .dock-speed .playback button.active{
+ background:#9878bd!important;border-color:#9878bd!important;
+ color:#faf5ff!important;
+}
+body>.bottom .builder-zone .build-dock .dock-head>button,
+body>.bottom .builder-zone .build-dock .dock-head>.toggle-building-labels,
+body>.bottom .builder-zone .build-dock .dock-head>.toggle-dock{
+ background:#f0e8f3!important;color:#725889!important;
+ border:1px solid #d6c5df!important;box-shadow:none!important;
+}
+body>.bottom .builder-zone .build-dock .dock-head>button:hover{
+ background:#e3d5ec!important;color:#5e4675!important;
+}
+body>.bottom .builder-zone .build-dock .dock-head>.toggle-building-labels.is-hidden{
+ background:#e4d6ed!important;color:#6c4b87!important;
+ border-color:#b89bcf!important;
+}
+body>.bottom .builder-zone .build-dock .dock-body,
+body>.bottom .builder-zone .build-dock,
+body>.bottom .builder-zone .dock-context,
+body>.bottom .builder-zone .dock-context .tools{
+ background:#ece5f0!important;border-color:#d6c8df!important;
+ box-shadow:none!important;
+}
+body>.bottom .builder-zone .build-dock #categories{
+ background:#e5dceb!important;border-color:#d2c2dd!important;
+}
+body>.bottom .builder-zone .build-dock #categories button{
+ background:transparent!important;color:#80698e!important;
+ border-color:transparent!important;
+}
+body>.bottom .builder-zone .build-dock #categories button:hover{
+ background:#ddd1e9!important;color:#614c78!important;
+}
+body>.bottom .builder-zone .build-dock #categories button.active{
+ background:#d3c0e7!important;border:1px solid #b497cf!important;
+ color:#61417e!important;box-shadow:0 1px 3px rgba(83,57,105,.09)!important;
+}
+body>.bottom .builder-zone .build-dock .dock-group-icon{
+ width:23px!important;height:23px!important;
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ margin:0 auto!important;background:transparent!important;
+ font-size:0!important;line-height:1!important;
+}
+body>.bottom .builder-zone .build-dock .dock-group-name{
+ color:inherit!important;font-weight:700!important;
+ letter-spacing:0!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories{
+ background:#ede4f2!important;border-color:#d8c9df!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories button{
+ background:#f1eaf5!important;color:#776184!important;
+ border:1px solid #daccdf!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories button.active{
+ background:#d8c6e8!important;color:#634b7d!important;
+ border-color:#bba2d1!important;
+}
+body>.bottom .builder-zone .dock-context .tool{
+ background:#f4eef6!important;border:1px solid #d9cbe2!important;
+ color:#615173!important;box-shadow:none!important;
+}
+body>.bottom .builder-zone .dock-context .tool:hover{
+ background:#e8dcee!important;border-color:#c4add9!important;
+}
+body>.bottom .builder-zone .dock-context .tool.active{
+ background:#ddcbed!important;border-color:#ae8ccd!important;
+ box-shadow:inset 0 0 0 1px #ae8ccd!important;
+}
+body>.bottom .builder-zone .dock-context .tool-icon{
+ background:#e8dcef!important;color:#876ba4!important;
+ border:1px solid #d6c5e3!important;
+ width:29px!important;height:29px!important;
+ display:grid!important;place-items:center!important;
+ border-radius:9px!important;font-size:0!important;
+}
+body>.bottom .builder-zone .dock-context .tool.active .tool-icon{
+ background:#cdb7e2!important;color:#60457d!important;
+ border-color:#b494cd!important;
+}
+body>.bottom .builder-zone .dock-context .tool strong,
+body>.bottom .builder-zone .dock-context .tool .tool-price{
+ color:#635374!important;
+}
+body>.bottom .builder-zone .dock-context .tool .tool-price{
+ color:#887594!important;
+}
+body>.bottom .builder-zone .sm-ui-icon{
+ width:19px!important;height:19px!important;
+ display:block!important;flex:0 0 auto!important;
+ fill:none;stroke:currentColor;
+}
+body>.bottom .builder-zone .dock-group-icon .sm-ui-icon{
+ width:20px!important;height:20px!important;
+}
+body>.bottom .builder-zone .dock-context .tool-icon .sm-ui-icon{
+ width:20px!important;height:20px!important;
+}
+#inspector{
+ background:rgba(240,232,245,.98)!important;
+ border:1px solid #d6c5df!important;color:#574765!important;
+ box-shadow:0 9px 28px rgba(80,56,103,.19)!important;
+}
+#inspector h2,#inspector h3{
+ color:#624a7b!important;
+}
+#inspector .detail-row{
+ border-bottom:1px solid rgba(193,174,207,.3)!important;
+ padding-bottom:4px!important;
+}
+#inspector .detail-row strong{
+ color:#684e80!important;
+}
+#inspector button.action{
+ background:#e7d9ee!important;border-color:#cdb9dc!important;
+ color:#664e80!important;
+}
+#inspector button.action:hover{
+ background:#d9c6e8!important;
+}
+.citizens-dashboard{
+ background:rgba(241,234,246,.98)!important;color:#574765!important;
+ border:1px solid #d6c5df!important;
+ box-shadow:0 10px 32px rgba(83,59,105,.2)!important;
+}
+.citizens-top{
+ background:#e7daee!important;border-color:#d1c0dc!important;
+}
+.citizens-top h2,
+.citizen-section h3{
+ color:#674f83!important;
+}
+.citizens-close{color:#755d90!important}
+.citizens-toolbar{
+ background:#f0e7f3!important;border-color:#d7c9e1!important;
+}
+.citizens-toolbar label,
+.citizen-section-head small,
+.citizen-kpi span,
+.citizen-person small{
+ color:#867392!important;
+}
+.citizens-toolbar input{
+ background:#f5eef7!important;border-color:#d5c3e1!important;
+ color:#544465!important;
+}
+.citizens-filters button{
+ background:#eee3f3!important;border-color:#d8c5e2!important;
+ color:#72598a!important;
+}
+.citizens-filters button.active{
+ background:#9577b5!important;border-color:#9577b5!important;
+ color:#fff8ff!important;
+}
+.citizen-kpi,
+.citizen-signal-grid div,
+.citizen-issue,
+.citizen-person,
+.citizen-empty,
+.citizen-note,
+.citizen-more{
+ background:#f3eaf5!important;border-color:#dacbe3!important;
+ color:#625171!important;
+}
+.citizen-kpi b,.citizen-signal-grid b,
+.citizen-person-score strong,.citizen-bar-row strong{
+ color:#70528c!important;
+}
+.citizen-kpi.urgent{
+ background:#f4e1e9!important;border-color:#e7c4d5!important;
+}
+.citizen-kpi.urgent b,
+.citizen-person-score strong.critical{
+ color:#b6638e!important;
+}
+.citizen-bar-track{
+ background:#e0d3e7!important;
+}
+.citizen-bar-fill{
+ background:#ad8ec8!important;
+}
+.citizen-bar-fill.warning{
+ background:#d4a1b6!important;
+}
+.citizen-bar-fill.danger{
+ background:#bd7f9f!important;
+}
+.citizen-bar-fill.cool{
+ background:#b6a4d5!important;
+}
+.citizen-person:hover,.citizen-person:focus-visible{
+ background:#e9dcef!important;border-color:#b79cce!important;
+}
+#cameraJoystick{
+ background:rgba(234,222,242,.9)!important;
+ border:1px solid rgba(141,111,166,.42)!important;
+ box-shadow:0 4px 12px rgba(71,50,88,.18)!important;
+}
+#cameraJoystick button{
+ color:#73578d!important;
+}
+#cameraJoystick button:hover,
+#cameraJoystick button:active,
+#cameraJoystick .cam-reset{
+ background:#dac7e9!important;color:#60437e!important;
+ border-color:#bea5d5!important;
+}
+dialog{
+ background:#f2eaf6!important;color:#574765!important;
+ border-color:#d5c3df!important;
+}
+dialog p,dialog li{color:#7b6a87!important}
+dialog button{
+ border-color:#d5c1df!important;color:#684d80!important;
+}
+dialog button.primary{
+ background:#8e70b1!important;color:#fff9ff!important;
+}
+dialog select{
+ background:#f6eff8!important;border-color:#d7c5e1!important;
+}
+#toast{
+ background:rgba(96,74,116,.94)!important;color:#fff8ff!important;
+}
+/* Preserve a single responsive action line from the previous release.
+   Adjust only surfaces, strokes and colors, not toolbar order or dimensions. */
+@media(max-width:720px){
+ body>.bottom .builder-zone .build-dock .dock-group-icon{
+  width:17px!important;height:17px!important;
+ }
+ body>.bottom .builder-zone .dock-group-icon .sm-ui-icon{
+  width:15px!important;height:15px!important;
+ }
+ body>.bottom .builder-zone .dock-context .tool-icon{
+  width:24px!important;height:24px!important;
+ }
+ body>.bottom .builder-zone .dock-context .tool-icon .sm-ui-icon{
+  width:17px!important;height:17px!important;
+ }
+}
+
+/* Static game header controls use the same vector stroke family as the dock. */
+body>.bottom .sm-static-icon{
+ width:17px!important;height:17px!important;
+ display:block!important;fill:none!important;
+ stroke:currentColor!important;
+}
+body>.bottom .city-dashboard .dashboard-actions>button{
+ display:grid!important;place-items:center!important;
+ color:#80619f!important;
+}
+body>.bottom .builder-zone .toggle-building-labels-icon{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ font-size:0!important;
+}
+body>.bottom .builder-zone .toggle-building-labels-icon .sm-static-icon{
+ width:14px!important;height:14px!important;
+}
+@media(max-width:720px){
+ body>.bottom .city-dashboard .dashboard-actions .sm-static-icon{
+  width:15px!important;height:15px!important;
+ }
+ body>.bottom .builder-zone .toggle-building-labels-icon .sm-static-icon{
+  width:13px!important;height:13px!important;
+ }
+}
