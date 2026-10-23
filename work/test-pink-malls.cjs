@@ -48,6 +48,17 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    const height=Math.max(...local.map(p=>p.y+p.sy/2));
    const materialCount=new Set(local.map(p=>p.color)).size;
    assert(materialCount>=22,test.key+' needs nuanced pink and decorative colors');
+   // A finished mall must have BUILDING mass on every tier, with real
+   // exterior walls, a visibly roofed perimeter, a proper entrance, and
+   // sale merchandise displayed behind open shopfront windows.
+   assert(count('#efdedb')+count('#f5eee8')>=5,
+    test.key+' missing architecturally finished external walls');
+   assert(count('#ecb1c5')>=2,test.key+' roof/awning over tenant wings missing');
+   assert(count('#b3d8d6')===2,test.key+' glazed front double doorway missing');
+   assert(count('#a98986')>=2,test.key+' retail window merchandise absent');
+   assert(count('#e9a6c0')>=2,test.key+' landmark entrance piers missing');
+   assert(count('#84bfc8')>=4,test.key+' windowed facade not visible');
+
    assert(local.filter(p=>p.glow).length>12,'visible nighttime lighting required');
    assert(['#e58dab','#facbd8','#d872a0','#ed9fbe'].some(c=>count(c)>2),
      test.key+' not visibly pink');
