@@ -9,7 +9,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const b=g.buildBuilding('home_grand',160,148-t.plotHeight,true);
  assert(b);
  assert.equal(b.access.length,2,'independent entrance and exit city-road gates');
- const local=(p,rot)=>{const x=p.x-b.x-.5,y=p.y-b.y-.5;switch(rot){case 1:return {u:y,v:t.plotHeight-x};case 2:return {u:t.plotWidth-x,v:t.plotHeight-y};case 3:return {u:t.plotWidth-y,v:x};default:return {u:x,v:y};}};
+ const local=(p,rot,base=b)=>{const x=p.x-base.x-.5,y=p.y-base.y-.5;switch(rot){case 1:return {u:y,v:t.plotHeight-x};case 2:return {u:t.plotWidth-x,v:t.plotHeight-y};case 3:return {u:t.plotWidth-y,v:x};default:return {u:x,v:y};}};
  assert(Math.abs(local({x:b.access[0].x,y:b.access[0].y},b.rotation).u-t.frontageEntranceU)<1.5,'entrance lies in central frontage');
  assert(Math.abs(local({x:b.access[1].x,y:b.access[1].y},b.rotation).u-t.frontageExitU)<1.5,'exit lies in central frontage');
  const road=g.parkingVisuals(b),forecourt=road.filter(r=>r.color==='#58666a'&&Math.abs(r.v-t.frontageV)<.05);
@@ -54,7 +54,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
   const list=[...batch.data.values()].flatMap(x=>x.items);
   parts=Math.max(parts,list.length);
   for(const part of list){
-   const p=local.call(null,{x:part.x+.5,y:part.z+.5},rot);
+   const p=local({x:part.x+.5,y:part.z+.5},rot,fixture);
    const xmargin=(rot%2?part.sz:part.sx)/2,zmargin=(rot%2?part.sx:part.sz)/2;
    assert(p.v-zmargin>=6.65,'front villa crosses painted bays at rotation '+rot+' v'+p.v);
    assert(p.v+zmargin<=t.frontageV-.35,'front villa crosses the frontage lane at rotation '+rot+' v'+p.v);
