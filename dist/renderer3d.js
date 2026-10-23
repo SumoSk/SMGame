@@ -728,7 +728,7 @@ export class TrafficRenderer{
      for(const side of[-1,1])pole('#e2f2ec',u+side*towerW*.30,top+.34,v,.048,.22,'glass',true);
     }
     entry(u,face+.10,.96);
-    sign('WORK',u,1.97,face+.18,Math.min(2.20,maxTierW*.76),'#30464f','#e5f8ee');
+    sign(level===1?'STUDIO':level===2?'OFFICE':'TOWER',u,1.97,face+.18,Math.min(2.20,maxTierW*.76),'#30464f','#e5f8ee');
     for(const side of[-1,1])planter(u+side*maxTierW*.47,face+.29,.21);
    }else if(family==='factory'){
     // Sawtooth industrial sheds and working loading doors, with rooftop tanks.
@@ -752,7 +752,7 @@ export class TrafficRenderer{
      pole('#7a8084',x,top+.31,v-.31,.15,.69,'metal');
      pole('#c6d0c9',x,top+.74,v-.31,.18,.09,'metal');
     }
-    sign('WORK',u,1.93,face+.16,Math.min(2.35,maxTierW*.86),'#485c62','#f4ddb8');
+    sign(level===1?'WORKS':level===2?'PLANT':'INDUSTRY',u,1.93,face+.16,Math.min(2.35,maxTierW*.86),'#485c62','#f4ddb8');
     if(level>=2)for(const side of[-1,1])
      block('#b4b9ad',u+side*maxTierW*.39,.36,face+.32,.55,.43,.40,'stone');
    }else if(family==='shop'){
@@ -769,7 +769,7 @@ export class TrafficRenderer{
      block('#dbc6a6',x,.24,face+.48,bayW*.81,.06,.21,'stone');
      if(level>=2)windowFront(x,2.20,face+.07,Math.min(.65,bayW*.67),.50,'#729da7');
     }
-    sign('SHOP',u,level===1?2.09:top-.29,face+.15,Math.min(2.8,maxTierW*.84),'#4d736e','#fff1bd');
+    sign(level===1?'SHOP':level===2?'MARKET':'GALLERIA',u,level===1?2.09:top-.29,face+.15,Math.min(2.8,maxTierW*.84),'#4d736e','#fff1bd');
     if(level===3){
      block('#75aeaf',u,top+.30,v,maxTierW*.36,.28,mainD*.48,'glass');
      for(const side of[-1,1])planter(u+side*maxTierW*.45,face+.30,.27);
@@ -786,7 +786,7 @@ export class TrafficRenderer{
     for(const x of[left-ww*.26,left+ww*.26])
      windowFront(x,1.08,face+.06,Math.min(.48,ww*.25),.60,'#5e8794');
     entry(left,face+.13,.85);
-    sign('BISTRO',left,level===1?2.26:top-.36,face+.17,Math.min(ww*.89,2.85),'#524037','#ffe4b8');
+    sign(level===1?'CAFE':level===2?'BISTRO':'GRILL',left,level===1?2.26:top-.36,face+.17,Math.min(ww*.89,2.85),'#524037','#ffe4b8');
     const terraceX=level>=2?u+maxTierW*.25:u+maxTierW*.36;
     const terraceZ=baseV+availableDepth-(hotel?.68:.96);
     for(const dz of[-.34,.27]){
@@ -809,7 +809,7 @@ export class TrafficRenderer{
     roofFlat(u,v,centerW+.17,mainD,top+.16,'#9abdc4');
     block('#a8d6da',u,top+.38,v,centerW*.81,.36,mainD*.36,'glass');
     entry(u,face+.24,.96);
-    sign('MALL',u,top-.48,face+.21,Math.min(centerW+.47,2.35),'#376c75','#f7eed1');
+    sign(level===1?'ARCADE':level===2?'MALL':'GALLERIA',u,top-.48,face+.21,Math.min(centerW+.47,2.35),'#376c75','#f7eed1');
     for(const side of[-1,1])planter(u+side*maxTierW*.46,face+.32,.24);
    }else if(family==='pub'){
     // The small pub is independently handcrafted above. Medium and large
@@ -856,7 +856,7 @@ export class TrafficRenderer{
      }
     }
     entry(u,face+.16,level===3?1.12:.79);
-    sign('HOTEL',u,top-(level===1?.21:.34),face+.18,Math.min(2.65,hotelW*.87),'#655543','#ffe8b7');
+    sign(level===1?'INN':level===2?'HOTEL':'RESORT',u,top-(level===1?.21:.34),face+.18,Math.min(2.65,hotelW*.87),'#655543','#ffe8b7');
     for(const side of[-1,1])planter(u+side*hotelW*.47,Math.min(t.plotHeight-.40,face+.24),.24);
     if(level>=2){
      block('#699eaa',u,top+.33,v,hotelW*.42,.21,hotelD*.38,'glass');
@@ -1067,7 +1067,7 @@ export class TrafficRenderer{
     // independent shop signs and a recognizable upper-office parapet.
     for(let i=0;i<roomN;i++){
      const xx=u-maxTierW*.5+(i+.5)*bay;
-     sign(level===1?'SHOP':i%2?'CAFE':'SHOP',xx,top-.36,face+.16,
+     sign(level===1?'SHOP':level===2?(i%2?'CAFE':'SHOP'):(i%2?'MARKET':'STUDIO'),xx,top-.36,face+.16,
       Math.min(bay*.82,1.50),'#46696a',i%2?'#f6d4a4':'#f4efbf');
     }
     if(level===3){
