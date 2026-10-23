@@ -26,7 +26,7 @@ game.state.money=1e8;game.state.time=720;
 const hotel=game.buildBuilding('hotel_small',245,148-game.CATALOG.hotel_small.plotHeight,true);
 const restaurant=game.buildBuilding('restaurant_small',190,148-game.CATALOG.restaurant_small.plotHeight,true);
 assert(hotel&&restaurant);
-const base={tourist:true,resident:false,removed:false,feePeriods:[{paid:1500}],itinerary:[],tourIndex:0,trafficFailures:0,problem:'',happy:90,enteredAt:700,tourDuration:360,tourEnd:1060,locationId:null,vehicleId:null,hotelId:null,sleepUntil:null,activityUntil:null,state:'รอกิจกรรม'};
+const base={tourist:true,resident:false,removed:false,history:[],feePeriods:[{paid:1500}],itinerary:[],tourIndex:0,trafficFailures:0,problem:'',happy:90,enteredAt:700,tourDuration:360,tourEnd:1060,locationId:null,vehicleId:null,hotelId:null,sleepUntil:null,activityUntil:null,state:'รอกิจกรรม'};
 const service={...base,id:90001,locationId:restaurant.id,itinerary:[{kind:'restaurant',buildingId:restaurant.id,status:'visiting'}],activityUntil:780,state:'เที่ยวร้านอาหาร'};
 const sleeper={...base,id:90002,locationId:hotel.id,hotelId:hotel.id,sleepUntil:800,state:'พักโรงแรม'};
 const waiting={...base,id:90003,enteredAt:null,state:'รอเข้าเมือง'};
