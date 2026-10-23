@@ -1132,9 +1132,9 @@ export class TrafficRenderer{
     }
    };
    const escalator=(x,fromY,zStart,zEnd,toY)=>{
-    // Fourteen actual separated treads rising between two occupied levels,
-    // two inclined segmented pink rails, floor landing and illuminated trim.
-    const n=14,sgn=Math.sign(zEnd-zStart);
+    // One clearly legible escalator flight with 14 treads, safely
+    // grounded at each endpoint and fitted with glass side rails.
+    const n=14;
     for(let k=0;k<n;k++){
      const p=(k+.5)/n,y=fromY+(toY-fromY)*p;
      const z=zStart+(zEnd-zStart)*p;
@@ -1146,7 +1146,8 @@ export class TrafficRenderer{
       block('#ffe8bc',x+dx*1.09,y+.41,z,.023,.043,.20,'glass',true);
      }
     }
-    for(const z of[zStart,zEnd])mat(x,fromY+.09,z,.90,.28,'#d4c8bc');
+    mat(x,fromY+.11,zStart,.90,.34,'#d4c8bc');
+    mat(x,toY+.11,zEnd,.90,.34,'#d4c8bc');
    };
    const letters={
     A:['010','101','111','101','101'],B:['110','101','110','101','110'],
@@ -1249,9 +1250,9 @@ export class TrafficRenderer{
     }
     // Partial suspended bridge across the BACK, not across the whole atrium.
     bridge(B+.30,2.24,Math.max(2.10,W-2*wingWidth-1.10));
-    // One UP and one DOWN escalator, tier-specific glass and pink trims.
-    escalator(cx-.53,.30,F-.46,B+.40,2.22);
-    escalator(cx+.53,2.22,B+.40,F-.46,.30);
+    // ONE escalator, not an ascending/descending pair. The supported
+    // upper retail floor connects back to the building's real rear gallery.
+    escalator(cx,.30,F-.46,B+.40,2.22);
     // Ground plaza is a usable entertainment court (not additional floor).
     const plazaZ=B+1.56;
     mat(cx,.265,plazaZ,3.10,.91,'#e9d0d6');
@@ -1323,11 +1324,22 @@ export class TrafficRenderer{
     // through the center from any rotated camera viewpoint.
     bridge(B+.34,f2,Math.max(2.20,W-2*sideW-.66));
     bridge(B+.66,f3,Math.max(2.20,W-2*sideW-.66));
-    // Four exposed escalator flights, with individual rising treads.
-    escalator(cx-1.08,.38,F-.70,B+.94,f2);
-    escalator(cx+1.02,f2,B+.94,F-.70,.38);
-    escalator(cx-.68,f2,F-1.02,B+1.06,f3);
-    escalator(cx+.70,f3,B+1.06,F-1.02,f2);
+    // ONE exposed escalator for the whole mall, ground -> level 2.
+    // Level 3 is reached by a discreet enclosed lift inside the east
+    // retail wing, NOT by a second visible escalator bank.
+    escalator(cx-.60,.38,F-.70,B+.94,f2);
+    // A proper two-storey lift shaft, visible doors at each gallery,
+    // makes all three storeys legible without cluttering the atrium.
+    const liftX=right-.14,liftZ=B+2.13;
+    block('#ddd6d2',liftX,3.28,liftZ,.89,6.07,.80,'stone');
+    block('#86bfc9',liftX-.025,3.35,liftZ+.414,.70,5.90,.040,'glass');
+    for(let k=0;k<3;k++){
+     const ly=.31+k*story;
+     block('#f8eee7',liftX,ly+1.01,liftZ+.45,.75,1.23,.070,'stone');
+     block('#9ac5c9',liftX,ly+1.03,liftZ+.49,.55,1.05,.029,'glass');
+     block('#ede1d6',liftX,ly+1.03,liftZ+.508,.032,1.12,.050,'metal');
+     block('#ffdfb6',liftX,ly+1.65,liftZ+.516,.43,.065,.030,'glass',true);
+    }
     // Ground level entertainment/event stage with layered LED displays.
     const eventZ=B+2.51;
     mat(cx,.29,eventZ,2.15,.91,'#d2b4c2');
@@ -1438,6 +1450,87 @@ export class TrafficRenderer{
       block('#ecdacb',xx,base+.91,z,.10,.04,.12,'wood');
      }
     };
+    // GROUNDED MULTISTOREY SHELL — actual building load paths from the
+    // foundation to every slab, NOT decorative disconnected upper decks.
+    // Plinths sit in front of the 50:50 parking line; thick uninterrupted
+    // stone shear-wall pieces and columns on each side make the mall read
+    // as a solid constructed building at normal zoom.
+    if(tier>=2){
+     const fullDepth=wallFront-wallBack;
+     const floorStep=tier===2?2.20:2.17;
+     const sideW=tier===2?2.42:2.61;
+     const mallWingL=tier===2?2.23:2.25;
+     const wallZ=(wallFront+wallBack)/2;
+     // Multi-layer ground footing, flush with the existing plot pavement.
+     for(const side of[-1,1]){
+      const wingX=side<0?mallWingL:W-mallWingL;
+      const outerX=side<0?1.03:W-1.03;
+      const innerX=wingX+(side<0?sideW*.48:-sideW*.48);
+      block('#cbb9b2',wingX,.225,wallZ,sideW+.12,.26,fullDepth-.08,'stone');
+      block('#f1e6df',wingX,.385,wallZ,sideW+.06,.12,fullDepth-.09,'stone');
+      // Grounded upper-floor edge panels; no daylight gap under slabs.
+      for(let floor=1;floor<tier;floor++){
+       const y=floor*floorStep;
+       block('#e5ccd3',wingX,y-.03,wallZ,sideW+.12,.23,fullDepth-.06,'stone');
+       block('#d092ab',wingX,y+.12,wallFront-.08,sideW+.13,.095,.15,'stone');
+       block('#f1e4dd',wingX,y-.12,wallFront-.10,sideW+.04,.06,.19,'stone');
+      }
+      // Real masonry side walls at EVERY retail level, anchored to the
+      // ground plinth and into the roof coping. Narrow window recesses and
+      // continuous horizontal lintels make an unmistakable side elevation.
+      for(let lev=0;lev<tier;lev++){
+       const y=lev*floorStep;
+       block('#ead8d8',outerX,y+1.09,wallZ,.20,1.68,fullDepth-.27,'stone');
+       block('#f5e7df',outerX,y+.34,wallZ,.24,.20,fullDepth-.30,'stone');
+       block('#d1a6b5',outerX,y+1.92,wallZ,.25,.11,fullDepth-.25,'stone');
+       for(let n=0;n<(tier===2?2:3);n++){
+        const zz=wallBack+.55+n*(fullDepth-1.12)/(tier===2?1:2);
+        block('#8dbec7',outerX+(side<0?-.121:.121),y+1.04,zz,
+         .035,.74,.42,'glass');
+        block('#f9e6d4',outerX+(side<0?-.143:.143),y+1.43,zz,
+         .029,.041,.39,'glass',true);
+       }
+      }
+      // Solid corner pillars carry EVERY storey, not separate "flying"
+      // piers placed at high elevations. Keep storefronts visible between.
+      const postHeight=roofY-.30;
+      for(const z of[wallBack+.19,wallFront-.23]){
+       block('#f2e5df',outerX,.31+postHeight/2,z,.255,postHeight,.26,'stone');
+       block('#d899b2',outerX,.24+postHeight/2,z,.047,postHeight,.295,'stone');
+      }
+      // Inner gallery posts emerge from the same foundation and support
+      // the upper wings and two bridge landing edges.
+      for(const z of[wallBack+.35,wallFront-.39]){
+       block('#eddbd7',innerX,.31+postHeight/2,z,.22,postHeight,.22,'stone');
+       block('#bf879d',innerX,.29+postHeight/2,z,.052,postHeight,.14,'metal');
+      }
+     }
+     // A structural REAR LOBBY SPINE with a central glass entrance/void,
+     // continuous from pavement to top-floor atrium so bridges do not
+     // resemble thin platforms suspended in midair.
+     for(const side of[-1,1]){
+      const x=cx+side*1.84;
+      block('#e9d4d4',x,.29+(roofY-.31)/2,wallBack+.23,.24,roofY-.31,.27,'stone');
+      block('#fff1e3',x,roofY-.03,wallBack+.24,.30,.16,.30,'stone');
+      for(let lev=0;lev<tier;lev++){
+       block('#e9e6e0',x,lev*floorStep+.46,wallBack+.28,.53,.30,.19,'stone');
+       block('#a6c9cc',x,lev*floorStep+1.15,wallBack+.31,.48,.54,.035,'glass');
+      }
+     }
+     // Finished ground-floor street wall, left/right storefront bays
+     // are visually connected to the slab by a continuous masonry skirting.
+     const streetSpan=(W-2.05)/2-1.14;
+     for(const side of[-1,1]){
+      const x=cx+side*(1.14+streetSpan*.50);
+      block('#d2bdb7',x,.28,wallFront-.01,streetSpan,.27,.25,'stone');
+      block('#f4e7e0',x,.44,wallFront-.02,streetSpan,.08,.27,'stone');
+     }
+     // Satin stone stepped lobby threshold: joins internal mall floor
+     // physically to entrance and clearly reads as a ground-floor door.
+     block('#d9c9bb',cx,.245,wallFront-.40,1.79,.15,.75,'stone');
+     block('#f5ede0',cx,.335,wallFront-.34,1.65,.055,.68,'stone');
+    }
+
     // BACK OF BUILDING: shallow white/pink plaster bays, window mullions,
     // cornice, exterior service markings. No longer a naked row of shelves.
     for(let lev=0;lev<floors;lev++){
