@@ -2229,6 +2229,17 @@ export class TrafficRenderer{
      const xx=1.57+i*.345;
      block(i%2?'#e6cba9':'#af875f',xx,2.17,patioZ,.057,.055,.99,'wood');
     }
+    // Warm string lights tucked under the wooden pergola rafters
+    // illuminate the patio without creating a roof over the courtyard.
+    for(let i=0;i<11;i++){
+     const x=1.67+i*.260;
+     block('#9b8570',x,1.96,patioZ+.28,.018,.23,.022,'metal');
+     block('#ffe8b9',x,1.83,patioZ+.28,.082,.085,.077,'glass',true);
+    }
+    for(const x of[1.34,4.52,5.62,6.61]){
+     block('#d6c6b4',x,.37,front-.42,.17,.13,.17,'stone');
+     block('#ffddaa',x,.50,front-.42,.12,.10,.12,'glass',true);
+    }
     lounge(2.16,patioZ-.16);
     lounge(3.71,patioZ-.17,0,-1);
     coffeeTable(2.92,patioZ+.09);
