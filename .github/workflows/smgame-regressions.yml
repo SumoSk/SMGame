@@ -22,6 +22,7 @@ jobs:
       - run: node work/test-landscaping.cjs
       - run: node work/test-grand-home.cjs
       - run: node work/test-grand-front-signals.cjs
+      - run: node work/test-grand-parking-stress.cjs
       - run: npm run test:tourism
       - run: npm run build
       - name: Regenerate downloadable game and cache hashes on the feature branch
