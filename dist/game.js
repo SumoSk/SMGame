@@ -22,7 +22,11 @@ CATALOG.home_dual={key:'home_dual',kind:'home',name:'บ้านกลาง',s
 // New large home is an additional type: two complete small-home parking banks
 // stacked front-to-back, not stretched sideways. Existing homes remain intact.
 CATALOG.home_grand={key:'home_grand',kind:'home',name:'บ้านใหญ่',size:6,cost:285000,maint:980,residents:60,jobs:0,service:0,beds:0,stackedParking:true};
-const PARKING_VERSION=7,LOT_SPEED=1.35;
+// New building occupancy schedule; hotel and costs are unchanged.
+const CAPACITY_PLAN={"home_large":[20,0,0],"home_dual":[40,0,0],"home_grand":[60,0,0],"office_small":[0,15,0],"office_medium":[0,30,0],"office_large":[0,60,0],"factory_small":[0,20,0],"factory_medium":[0,40,0],"factory_large":[0,60,0],"shop_small":[0,2,8],"shop_medium":[0,4,16],"shop_large":[0,8,32],"restaurant_small":[0,3,10],"restaurant_medium":[0,6,20],"restaurant_large":[0,10,40],"mall_small":[0,3,12],"mall_medium":[0,6,24],"mall_large":[0,12,48],"park_small":[0,1,14],"park_medium":[0,2,28],"park_large":[0,4,56],"pub_small":[0,2,8],"pub_medium":[0,4,16],"pub_large":[0,8,32]};
+for(const [key,[residents,jobs,service]] of Object.entries(CAPACITY_PLAN))Object.assign(CATALOG[key],{residents,jobs,service});
+for(const t of Object.values(CATALOG))if((t.kind==='home'&&['home_large','home_dual'].includes(t.key))||(!['hotel','home'].includes(t.kind))){t.plannedParking=true;t.modelTier=t.key==='home_large'?1:t.key==='home_dual'?2:t.key.endsWith('_small')?1:t.key.endsWith('_medium')?2:3;}
+const PARKING_VERSION=8,LOT_SPEED=1.35;
 for(const t of Object.values(CATALOG)){
  t.parkingCapacity=t.beds||t.residents||t.jobs+t.service;
  t.parkingColumns=Math.ceil(t.parkingCapacity/2);
@@ -37,6 +41,19 @@ for(const t of Object.values(CATALOG)){
  t.parkingLayout=null;
  if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.88;t.plotWidth=20;t.plotHeight=11;t.parkingAisle=9.15;t.parkingUpperAisle=6.55;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
  if(t.stackedParking){t.parkingColumns=15;t.parkingRows=2;t.parkingPhysicalRows=4;t.parkingPitch=.55;t.parkingRowOffset=.79;t.parkingAisle=4.90;t.parkingRearAisle=2.05;t.plotWidth=11;t.plotHeight=13;t.compactParking=true;t.frontageEntranceU=3.0;t.frontageExitU=8.0;t.frontageV=12.43;}
+ if(t.plannedParking){
+  const banks=t.parkingCapacity>30?2:1;
+  t.dualParking=false;t.stackedParking=true;t.compactParking=true;
+  t.parkingRows=banks;t.parkingPhysicalRows=banks*2;
+  t.parkingColumns=Math.ceil(t.parkingCapacity/(banks*2));
+  t.parkingPitch=.55;t.parkingRowOffset=.79;
+  t.parkingAisle=4.90;t.parkingRearAisle=banks===2?2.05:4.90;
+  t.plotWidth=Math.max(t.modelTier===3?11:t.modelTier===2?10:9,Math.ceil(2.42+(t.parkingColumns-.5)*t.parkingPitch));
+  t.plotHeight=t.modelTier===3?13:12;
+  t.frontageEntranceU=+(t.plotWidth*.275).toFixed(2);
+  t.frontageExitU=+(t.plotWidth-t.frontageEntranceU).toFixed(2);
+  t.frontageV=t.plotHeight-.57;t.parkingLayout=null;
+ }
 }
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
 function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
@@ -54,7 +71,7 @@ function lotSlots(b){
  }
  return t.parkingLayout=slots;
 }
-function lotModel(b){const t=CATALOG[b.key],p=lotPoint(b,t.plotWidth/2,t.size/2+.1);return{...b,x:p.x-.5-t.size/2,y:p.y-.5-t.size/2};}
+function lotModel(b){const t=CATALOG[b.key],p=lotPoint(b,t.plotWidth/2,t.plannedParking?t.plotHeight-3.35:t.size/2+.1);return{...b,x:p.x-.5-t.size/2,y:p.y-.5-t.size/2};}
 function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=(CATALOG[b.key].dualParking?Math.PI/2:(slot.row%2?Math.PI/2:-Math.PI/2))+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
 function citizenCarColor(id){if(state?.citizens.get(id)?.tourist)return '#65c8f2';return ['#f0e8c7','#e5a861','#719ca5','#afc5a2','#bc8fa5','#c8c8c0'][Math.abs(id)%6];}
 function parkingSpace(b,cid,allocate=false){
@@ -449,10 +466,10 @@ function prepareLotDeparture(v,dt){
   v.lotPath=[parkingSlotPose(b,index),lotPoint(b,slot.u,slot.aisle),lotPoint(b,exitU,slot.aisle)];
   // Rear court must physically cross the front court's aisle at a real T
   // junction. Include the crossing as an explicit motion waypoint.
-  if(t.stackedParking&&slot.zone==='rear')v.lotPath.push(lotPoint(b,exitU,t.parkingAisle));
+  if(t.stackedParking&&t.parkingRows>1&&slot.zone==='rear')v.lotPath.push(lotPoint(b,exitU,t.parkingAisle));
   v.lotPath.push(lotPoint(b,exitU,t.plotHeight-.9));
   v.lotDistance=0;v.lotBuilding=b.id;
-  if(t.stackedParking){
+  if(t.stackedParking&&t.parkingRows>1){
    const junctionSegment=slot.zone==='rear'?4:3;
    const crossingAt=lotPathLength(v.lotPath.slice(0,junctionSegment));
    v.grandCrossing={approach:slot.zone,crossingAt,stopAt:Math.max(0,crossingAt-1.12),clearAt:crossingAt+1.02,granted:false,cleared:false};
@@ -578,10 +595,10 @@ function parkingVisuals(b){
  const rect=(u,v,w,h,color)=>rects.push({u,v,w,h,color});
  rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.05,t.plotHeight-.05,'#bdc6ae');
  if(t.stackedParking){
-  // TWO faithful copies of the home_small court, face-to-face in depth.
-  // Each court has its OWN central one-way lane. No extra lane or scenery.
+  // Shared grand-house banks, one for compact or two for large lots.
   const rear=t.parkingRearAisle,front=t.parkingAisle;
-  for(const aisle of [rear,front]){
+  const aisles=t.parkingRows>1?[rear,front]:[rear];
+  for(const aisle of aisles){
    const bottom=aisle-t.parkingRowOffset-.64,top=aisle+t.parkingRowOffset+.64;
    rect(t.plotWidth/2,(bottom+top)/2,t.plotWidth-.12,top-bottom,'#515f62');
   }
@@ -592,10 +609,11 @@ function parkingVisuals(b){
   for(const u of [sideL,sideR]){
    rect(u,(rear+forecourt)/2,.72,forecourt-rear+.08,'#58666a');
   }
-  for(const aisle of [rear,front]){
-   const rowStart=aisle===rear?0:2;
+  for(const [bank,aisle] of aisles.entries()){
+   const rowStart=bank*2;
    for(let row=0;row<2;row++)for(let col=0;col<t.parkingColumns;col++){
     const slot=lotSlots(b)[(rowStart+row)*t.parkingColumns+col];
+    if(!slot)continue; // the last row can be partly filled
     rect(slot.u-t.parkingPitch/2,slot.v,.025,1.24,'#e9e6cc');
     rect(slot.u+t.parkingPitch/2,slot.v,.025,1.24,'#e9e6cc');
     rect(slot.u,slot.v+(row?.62:-.62),t.parkingPitch-.04,.025,'#e9e6cc');
