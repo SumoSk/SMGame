@@ -3536,8 +3536,9 @@ function openAccountDialog(){
 }
 window.SMGameAuthReset=()=>{}; // Authentication must never erase the active guest city.
 function cityBugReport(){
- // Read-only report: refresh the incident detector, not the simulation/save.
- scanIncidents(true);
+ // Use the root-cause incident map refreshed by tick() every three game minutes.
+ // Do not rescan from the report: motion planning can initialize vehicle fields.
+
  const reasons={},categories={},vehicles=[],issues=[],suspected=[],normalQueues=[];
  for(const v of state.vehicles.values()){
   const reason=v.phase==='stuck'?(v.stopReason||'ไม่มีเส้นทาง'):v.phase==='gate_waiting'||v.phase==='departing'?'รอออกจากอาคาร/ประตู':v.stopReason||'กำลังเดินทาง';
