@@ -3001,3 +3001,170 @@ dialog .smcity-menu-list{display:grid;grid-template-columns:minmax(0,1fr);gap:8p
 dialog .smcity-menu-list>button{display:block;width:100%;min-height:45px;text-align:left;padding:10px 12px;border:1px solid #d1e1d6;border-radius:9px;background:#fff;font-size:13px;font-weight:600;line-height:1.5;white-space:normal}
 dialog .smcity-menu-list>button:hover,dialog .smcity-menu-list>button:focus-visible{background:#eaf4ec;border-color:#78ad91}
 dialog .smcity-menu-list>button>small{display:block;font-size:10px;color:#637f70;font-weight:400;margin-top:2px}
+
+
+/* SMCITY 2026-10-24 — switchable soft-gray eye-comfort UI.
+   Only application chrome is recolored: the WebGL world, roads, vehicles,
+   traffic lights and the map graphics are deliberately left untouched. */
+:root.smcity-gray-ui {
+ --ink:#303943;
+ --muted:#586570;
+ --paper:#dce0e4;
+ --line:#aeb8c1;
+ --green:#53665e;
+ --shadow:0 6px 22px rgba(39,47,57,.19);
+}
+:root.smcity-gray-ui body{color:#303943}
+:root.smcity-gray-ui body>.bottom>.control-deck{
+ background:#d2d8dd!important;border-color:#aeb8c0!important;
+ box-shadow:0 5px 22px rgba(33,42,52,.22)!important;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard,
+:root.smcity-gray-ui body>.bottom .city-control-mini,
+:root.smcity-gray-ui body>.bottom .builder-zone,
+:root.smcity-gray-ui body>.bottom .city-control-mini .city-panel{
+ background:#d5dade!important;border-color:#b3bdc5!important;color:#303943!important;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard .city-metric,
+:root.smcity-gray-ui body>.bottom .city-dashboard .dashboard-member-buttons>button,
+:root.smcity-gray-ui body>.bottom .city-control-mini .city-demand-panel,
+:root.smcity-gray-ui body>.bottom .city-control-mini .mini-need,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-head,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-timebar,
+:root.smcity-gray-ui body>.bottom .city-control-mini .panel-content{
+ background:#dce1e5!important;border-color:#b7c0c9!important;
+ box-shadow:none!important;color:#303943!important;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard .city-metric:hover,
+:root.smcity-gray-ui body>.bottom .city-dashboard .dashboard-member-buttons>button:hover,
+:root.smcity-gray-ui body>.bottom .builder-zone button:hover{
+ background:#cbd3d9!important;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard .city-metric strong,
+:root.smcity-gray-ui body>.bottom .city-dashboard .dashboard-title strong,
+:root.smcity-gray-ui body>.bottom .city-dashboard .dashboard-title small,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-clock,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-clock strong,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-label{
+ color:#323e49!important;
+}
+:root.smcity-gray-ui body>.bottom .city-dashboard .city-metric small,
+:root.smcity-gray-ui body>.bottom .city-dashboard .city-metric em,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool .tool-price{
+ color:#61707b!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tools,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock #categories,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-speed .playback{
+ background:#d6dce1!important;border-color:#b5bfc8!important;
+ scrollbar-color:#8d9aa5 transparent!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories button,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock #categories button,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-speed .playback button:not(.active),
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head>button{
+ background:#e4e7ea!important;border-color:#b8c2cb!important;color:#37424c!important;
+ box-shadow:none!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool-icon{
+ background:#d0d8df!important;color:#43515d!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool:hover,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories button:hover,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock #categories button:hover{
+ background:#d0d7dc!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool.active,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories button.active,
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock #categories button.active,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-speed .playback button.active{
+ background:#9ba8b2!important;border-color:#758492!important;
+ color:#1e2b35!important;box-shadow:inset 0 0 0 1px #81909a!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tool.active .tool-icon{
+ background:#bcc7ce!important;color:#263640!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head>button:hover,
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-speed .playback button:not(.active):hover{
+ background:#c9d2d9!important;border-color:#9daab6!important;
+}
+:root.smcity-gray-ui :is(.hud,.city-panel,.map-tools,.city-advisor,#inspector,.citizens-dashboard,dialog,.member-card){
+ background:#dce1e5!important;border-color:#aeb9c2!important;
+ color:#303b45!important;box-shadow:0 8px 25px rgba(35,44,54,.18)!important;
+}
+:root.smcity-gray-ui #inspector .detail-row strong,
+:root.smcity-gray-ui #inspector :is(h2,h3),
+:root.smcity-gray-ui .citizens-dashboard :is(h2,h3){
+ color:#303b45!important;
+}
+:root.smcity-gray-ui #inspector :is(button.action,.detail-row,.signal-control),
+:root.smcity-gray-ui :is(.citizens-top,.citizens-toolbar,.citizen-kpi,.citizen-signal-grid div,.citizen-issue,.citizen-person,.citizen-empty,.citizen-note,.citizen-more){
+ background:#d1d8de!important;border-color:#b1bdc6!important;color:#303b45!important;
+}
+:root.smcity-gray-ui :is(.citizens-toolbar input,.citizens-filters button,dialog input,dialog select,dialog textarea,.member-card input){
+ background:#e4e8ea!important;border-color:#aab6c1!important;color:#303b45!important;
+}
+:root.smcity-gray-ui .citizens-filters button.active{
+ background:#8b9aa6!important;border-color:#788895!important;color:#202a33!important;
+}
+:root.smcity-gray-ui :is(.citizen-person:hover,.citizen-person:focus-visible){
+ background:#c4cdd4!important;border-color:#8c9da9!important;
+}
+:root.smcity-gray-ui .citizen-bar-track{background:#b7c0c8!important}
+:root.smcity-gray-ui dialog :is(p,li){color:#485663!important}
+:root.smcity-gray-ui dialog .smcity-menu-list>button{
+ background:#e1e5e8!important;border-color:#abb6bf!important;color:#303b45!important;
+}
+:root.smcity-gray-ui dialog .smcity-menu-list>button:hover{
+ background:#cad3d9!important;border-color:#8797a3!important;
+}
+:root.smcity-gray-ui dialog .smcity-menu-list>button>small{color:#53616d!important}
+:root.smcity-gray-ui #cameraJoystick{
+ background:rgba(205,214,221,.91)!important;border-color:rgba(91,106,121,.55)!important;
+}
+:root.smcity-gray-ui .time-card,
+:root.smcity-gray-ui .need-card,
+:root.smcity-gray-ui .tool-hint{
+ background:#ccd4db!important;border-color:#afbbc5!important;color:#303943!important;
+}
+/* The new control occupies a single icon slot beside the label toggle,
+   including narrow iPhones where existing labels collapse to icons. */
+body>.bottom .builder-zone .build-dock .dock-head>#toggleEyeComfort{
+ order:2!important;flex:0 0 25px!important;width:25px!important;
+ min-width:25px!important;max-width:25px!important;height:25px!important;
+ min-height:25px!important;padding:1px!important;gap:0!important;
+ font-size:15px!important;line-height:1!important;white-space:nowrap!important;
+ border:1px solid #b8c7b9!important;border-radius:6px!important;
+ background:#deebdf!important;color:#305d4d!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head>#toggleEyeComfort[aria-pressed="true"]{
+ background:#808d98!important;color:#fff!important;
+ border-color:#687784!important;box-shadow:inset 0 0 0 1px #707f8b!important;
+}
+body>.bottom .builder-zone .build-dock .dock-head>#toggleEyeComfort:focus-visible{
+ outline:2px solid #bd8b25!important;outline-offset:1px!important;
+}
+@media (max-width:1100px){
+ body>.bottom .builder-zone .build-dock .dock-head>#toggleEyeComfort{
+  flex-basis:23px!important;width:23px!important;min-width:23px!important;
+  max-width:23px!important;height:23px!important;min-height:23px!important;
+  font-size:14px!important;
+ }
+}
+@media (max-width:720px){
+ body>.bottom .builder-zone .build-dock .dock-head>#toggleEyeComfort{
+  flex-basis:23px!important;width:23px!important;min-width:23px!important;
+  max-width:23px!important;height:23px!important;min-height:23px!important;
+  font-size:13px!important;
+ }
+}
+@media (max-width:375px){
+ body>.bottom .builder-zone .build-dock .dock-head>#toggleEyeComfort{
+  flex-basis:21px!important;width:21px!important;min-width:21px!important;
+  max-width:21px!important;height:23px!important;min-height:23px!important;
+ }
+}
