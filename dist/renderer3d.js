@@ -1102,7 +1102,7 @@ export class TrafficRenderer{
     for(let j=0;j<3;j++){
      const zz=z-.27+j*.27;
      block('#d7c5af',x,y+.54,zz,.77,.06,.18,'wood');
-     for(let k=0;k<3;k++){
+     for(let k=0;k<(tier===3?1:3);k++){
       const xx=x-.24+k*.24;
       block((j+k)%3===0?'#9bb9ad':(j+k)%3===1?'#d6a66b':'#bd9ab6',
        xx,y+.65,zz,.12,.17,.12,'stone');
@@ -1390,7 +1390,7 @@ export class TrafficRenderer{
     const shell='#efdedb',bone='#f5eee8',frame='#ce97ac';
     const inset='#ddafc2',marble='#ddd2c9',bluePane='#84bfc8';
     const silverRail='#b1a4a6';
-    const nSide=tier===3?4:2;
+    const nSide=2;
     const sideSeg=(F+.11-(B-.10))/nSide;
     const frontDisplays=tier===1?[1.54,W-1.54]:
      [1.58,3.28,W-3.28,W-1.58];
@@ -1442,7 +1442,7 @@ export class TrafficRenderer{
     // cornice, exterior service markings. No longer a naked row of shelves.
     for(let lev=0;lev<floors;lev++){
      const y=lev*storey;
-     const bayCount=tier===1?3:tier===2?4:5;
+     const bayCount=tier===1?3:tier===2?4:3;
      const width=(W-2.2)/bayCount;
      for(let j=0;j<bayCount;j++){
       const xx=1.10+width*(j+.5);
@@ -1480,6 +1480,14 @@ export class TrafficRenderer{
      // Street-facing high facade panels leave a genuine central entrance.
      for(let k=0;k<frontDisplays.length;k++){
       const x=frontDisplays[k],facadeW=tier===1?.95:1.12;
+      // Upper grand-mall bays alternate dressed retail openings with
+      // masonry/glass facades to avoid an expensive hollow grid.
+      if(tier===3&&lev>0&&k%2===1){
+       block(shell,x,y+1.02,wallFront,facadeW,1.42,.14,'stone');
+       block(bluePane,x,y+1.05,wallFront+.087,facadeW*.65,.65,.042,'glass');
+       block('#f8d1dd',x,y+1.74,wallFront+.075,facadeW+.04,.11,.15,'stone');
+       continue;
+      }
       // Architectural shopfront: masonry sill/soffit + glazed strips
       // separated by a cutaway middle so garments remain legible.
       block(marble,x,y+.36,wallFront,facadeW,.20,.17,'stone');
@@ -1492,7 +1500,7 @@ export class TrafficRenderer{
       const badgeX=x+(k%2?-.29:.29);
       block('#ac658b',badgeX,y+1.47,wallFront+.13,.22,.20,.039,'metal');
       block('#ffe8cc',badgeX,y+1.47,wallFront+.160,.13,.12,.014,'glass',true);
-      productShowcase(x,wallFront-.38,y,k+lev*3);
+      if(lev===0||tier!==3)productShowcase(x,wallFront-.38,y,k+lev*3);
      }
      // Accent horizontal ribbons join the storefront bays to make ONE mall.
      const eaveY=y+1.92;
