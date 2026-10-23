@@ -3370,3 +3370,29 @@ dialog select{
   width:17px!important;height:17px!important;
  }
 }
+
+/* Static game header controls use the same vector stroke family as the dock. */
+body>.bottom .sm-static-icon{
+ width:17px!important;height:17px!important;
+ display:block!important;fill:none!important;
+ stroke:currentColor!important;
+}
+body>.bottom .city-dashboard .dashboard-actions>button{
+ display:grid!important;place-items:center!important;
+ color:#80619f!important;
+}
+body>.bottom .builder-zone .toggle-building-labels-icon{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ font-size:0!important;
+}
+body>.bottom .builder-zone .toggle-building-labels-icon .sm-static-icon{
+ width:14px!important;height:14px!important;
+}
+@media(max-width:720px){
+ body>.bottom .city-dashboard .dashboard-actions .sm-static-icon{
+  width:15px!important;height:15px!important;
+ }
+ body>.bottom .builder-zone .toggle-building-labels-icon .sm-static-icon{
+  width:13px!important;height:13px!important;
+ }
+}
