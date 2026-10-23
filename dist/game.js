@@ -360,7 +360,7 @@ function parkingBankBusy(b,index,arriving){
   const otherIndex=b.parkingSlots?.indexOf(other.citizenId)??-1;
   if(otherIndex<0)continue;
   const occupied=lotSlots(b)[otherIndex];
-  if(occupied&&(!CATALOG[b.key].dualParking||occupied.zone===target.zone)&&Math.abs(occupied.u-target.u)<.45&&occupied.index!==index)return true;
+  if(occupied&&(!(CATALOG[b.key].dualParking||CATALOG[b.key].stackedParking)||occupied.zone===target.zone)&&Math.abs(occupied.u-target.u)<.45&&occupied.index!==index)return true;
  }
  return false;
 }
