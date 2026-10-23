@@ -1247,6 +1247,59 @@ function dockItems(currentCategory){
  let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(currentCategory==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'},{key:'trafficHeat',name:'ความหนาแน่นจราจร',icon:'🌡️',sub:'เปิดหรือปิดแผนที่แสดงความหนาแน่น',price:'แตะเพื่อสลับการแสดงผล'}];}else if(currentCategory==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(currentCategory==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ถนนหลักรื้อไม่ได้',price:'ค่ารื้อ 20%'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'ค่ารื้อ 10%'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_large','home_dual'].includes(t.key))).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
+
+/* Consistent understated outline icons shared by primary navigation and tools.
+   Inline SVG avoids platform-specific emoji styles on iPad, Safari and Edge. */
+const SM_UI_ICON_PATHS=Object.freeze({
+ build:'<path d="M3 21V9l9-5 9 5v12"/><path d="M9 21v-7h6v7"/><path d="M3 11h18"/>',
+ green:'<path d="M12 22v-8"/><path d="M12 3c-4 3-7 6-7 10a7 7 0 0 0 14 0c0-4-3-7-7-10Z"/><path d="M8 15c2 1 3 1 4 3l5-6"/>',
+ insights:'<rect x="3" y="11" width="4" height="9" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/>',
+ traffic:'<rect x="8" y="2" width="8" height="20" rx="3"/><circle cx="12" cy="6.5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="17.5" r="1"/>',
+ manage:'<path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="2" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="10" cy="17" r="2" fill="currentColor" stroke="none"/>',
+ roads:'<path d="M8 3 5 21m11-18 3 18M12 3v4m0 4v3m0 4v3"/>',
+ home:'<path d="m3 11 9-8 9 8"/><path d="M5 10v11h14V10M10 21v-7h4v7"/>',
+ work:'<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V4h8v3M3 13h18M10 13v2h4v-2"/>',
+ food:'<path d="M4 10h16l-1.4 11H5.4L4 10ZM3 10l3-6h12l3 6M9 10v11M15 10v11"/><path d="M9 15h6"/>',
+ leisure:'<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/><path d="M12 3v2M12 19v2"/>',
+ hotel:'<rect x="4" y="4" width="16" height="17" rx="2"/><path d="M4 16h16M8 8h2v3H8zM14 8h2v3h-2zM10 21v-5h4v5"/>',
+ landscape:'<path d="M12 22v-8M7 18h10M12 3 5 12h4l-3 4h12l-3-4h4z"/>',
+ signals:'<rect x="8" y="2" width="8" height="20" rx="3"/><circle cx="12" cy="7" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="17" r="1"/><path d="M12 22v1"/>',
+ citizens:'<circle cx="9" cy="8" r="3"/><path d="M2.5 21v-2.5a6.5 6.5 0 0 1 13 0V21M17 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 2.5 4.5V21"/>',
+ tourists:'<rect x="4" y="7" width="16" height="14" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2M4 12h16M9 11v3m6-3v3"/>',
+ tracking:'<path d="M3 18c2-6 5-2 9-9s6-4 9-7"/><path d="m15 2 6 0v6"/><circle cx="4" cy="19" r="2"/>',
+ signalManage:'<rect x="8" y="2" width="8" height="20" rx="3"/><circle cx="12" cy="7" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="17" r="1"/>',
+ trafficHeat:'<path d="M6 19a9 9 0 0 1 12 0M9 15a5 5 0 0 1 6 0"/><path d="M5 9a7 7 0 0 1 14 0"/><circle cx="12" cy="21" r="1"/>',
+ eraseRoad:'<path d="M5 5h14M8 5l1 15h6l1-15M10 5V3h4v2M10 9v8M14 9v8"/>',
+ eraseBuilding:'<path d="M4 7h16M7 7l1 14h8l1-14M9 7V4h6v3M10 11v6m4-6v6"/>',
+ treeRow:'<path d="M4 20v-5M12 20v-7m8 7v-5M4 6 1 13h6L4 6ZM12 3 8 12h8L12 3ZM20 6l-3 7h6l-3-7Z"/>',
+ treeBrush:'<path d="M5 21v-7M12 21v-9M19 21v-7"/><circle cx="5" cy="9" r="5"/><circle cx="12" cy="7" r="5"/><circle cx="19" cy="9" r="5"/>',
+ eraseTree:'<path d="M12 4 6 13h4l-3 4h10l-3-4h4L12 4Z"/><path d="M12 17v5M4 4l16 16"/>',
+ tree:'<path d="M12 22v-7M12 3c-4 2-7 5-7 9a7 7 0 0 0 14 0c0-4-3-7-7-9Z"/>',
+ roadSmall:'<path d="M8 3 6 21m10-18 2 18M12 4v5m0 6v5"/>',
+ roadMedium:'<path d="M6 3 3 21m15-18 3 18M10 4v5m0 6v5M14 4v5m0 6v5"/>',
+ roadLarge:'<path d="M5 3 2 21m17-18 3 18M9 4v5m0 6v5M15 4v5m0 6v5"/>',
+ office:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h2m3 0h2M9 11h2m3 0h2M9 15h2m3 0h2M10 21v-4h4v4"/>',
+ factory:'<path d="M3 21V10l6 4v-4l6 4V7h6v14H3ZM17 3h3v4"/><path d="M7 18h2m4 0h2m4 0h1"/>',
+ restaurant:'<path d="M4 3v8M7 3v8M10 3v8M7 11v10M16 21V3c-4 3-4 9 0 11h3"/>',
+ shop:'<path d="M4 10h16v11H4zM3 10l3-6h12l3 6M9 21v-7h6v7"/>',
+ mall:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 5V3m8 2V3M8 15h8"/>',
+ park:'<path d="M12 3c-4 2-7 5-7 9a7 7 0 0 0 14 0c0-4-3-7-7-9Z"/><path d="M12 16v6M6 22h12"/>',
+ pub:'<path d="M5 4h14l-2 11H7L5 4ZM12 15v6m-5 0h10M6 8h12"/>'
+});
+function smUiIcon(key){
+ return '<svg class="sm-ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true">'+
+ (SM_UI_ICON_PATHS[key]||SM_UI_ICON_PATHS.build)+'</svg>';
+}
+function smToolIconKey(item){
+ if(item.key==='small')return'roadSmall';
+ if(item.key==='medium')return'roadMedium';
+ if(item.key==='large')return'roadLarge';
+ if(item.key.startsWith('tree:'))return'tree';
+ if(SM_UI_ICON_PATHS[item.key])return item.key;
+ const kind=CATALOG[item.key]?.kind;
+ return SM_UI_ICON_PATHS[kind]?kind:(SM_UI_ICON_PATHS[item.category]?item.category:'build');
+}
+
 // New two-level dock: five main sections stay visible. Only Buildings has
 // subcategories; City Data exposes its three actions directly.
 function dockSectionFor(currentCategory){
@@ -1261,7 +1314,7 @@ function renderTools(){
  const group=dockSectionFor(category),tray=$('tools'),sub=$('subcategories');
  dockGroup=group.key;
  $('categories').innerHTML=dockGroups.map(section=>
-  `<button type="button" data-dock-group="${section.key}" class="${section.key===group.key?'active':''}" aria-pressed="${section.key===group.key}" aria-label="${section.name}" title="${section.name}"><span class="dock-group-icon" aria-hidden="true">${section.icon}</span><span class="dock-group-name">${section.name}</span></button>`).join('');
+  `<button type="button" data-dock-group="${section.key}" class="${section.key===group.key?'active':''}" aria-pressed="${section.key===group.key}" aria-label="${section.name}" title="${section.name}"><span class="dock-group-icon" aria-hidden="true">${smUiIcon(section.key)}</span><span class="dock-group-name">${section.name}</span></button>`).join('');
  // Build retains road, housing, jobs, services, leisure and hotel subcategories.
  // City Data intentionally has no subcategory strip, just three direct tools.
  const hasSubcategories=group.key==='build';
@@ -1273,7 +1326,7 @@ function renderTools(){
  const scroll=changed?0:tray.scrollLeft;
  const items=dockVisibleItems(group,category);
  tray.innerHTML=items.map(t=>
-  `<button class="tool ${(t.key==='trafficHeat'?heat:tool===t.key)?'active':''}" data-tool="${t.key}" data-category="${t.category}" aria-pressed="${t.key==='trafficHeat'?heat:tool===t.key}" title="${t.name}"><span class="tool-icon">${t.icon}</span><span><strong class="tool-name">${t.name}${t.capacity?` <span class="tool-capacity">${t.capacity}</span>`:''}</strong><small class="tool-price">${t.price}</small></span></button>`).join('');
+  `<button class="tool ${(t.key==='trafficHeat'?heat:tool===t.key)?'active':''}" data-tool="${t.key}" data-category="${t.category}" aria-pressed="${t.key==='trafficHeat'?heat:tool===t.key}" title="${t.name}"><span class="tool-icon" aria-hidden="true">${smUiIcon(smToolIconKey(t))}</span><span><strong class="tool-name">${t.name}${t.capacity?` <span class="tool-capacity">${t.capacity}</span>`:''}</strong><small class="tool-price">${t.price}</small></span></button>`).join('');
  if(tray.dataset){tray.dataset.currentDockGroup=group.key;tray.dataset.currentDockCategory=category;}
  tray.scrollLeft=scroll;
 }

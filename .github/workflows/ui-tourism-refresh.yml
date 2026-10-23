@@ -21,6 +21,7 @@ jobs:
       - run: node --check dist/game.js
       - run: node work/test-ui-tourism-refresh.cjs
       - run: node work/test-toolbar-one-row.cjs
+      - run: node work/test-luxury-pastel-ui.cjs
       - run: node work/test-citizens-dashboard.cjs
       - run: node work/test-tracking-ui.cjs
       - run: node work/test-tourism.cjs
