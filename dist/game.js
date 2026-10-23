@@ -1268,14 +1268,13 @@ function renderTools(){
  sub.hidden=!hasSubcategories;
  sub.innerHTML=hasSubcategories?categories.filter(([key])=>group.categories.includes(key)).map(([key,name])=>
   `<button type="button" data-category="${key}" class="${category===key?'active':''}" aria-pressed="${category===key}">${name}</button>`).join(''):'';
- const previousGroup=tray.dataset.currentDockGroup||'',previousCategory=tray.dataset.currentDockCategory||'';
+ const previousGroup=tray.dataset?.currentDockGroup||'',previousCategory=tray.dataset?.currentDockCategory||'';
  const changed=previousGroup!==group.key||previousCategory!==category;
  const scroll=changed?0:tray.scrollLeft;
  const items=dockVisibleItems(group,category);
  tray.innerHTML=items.map(t=>
   `<button class="tool ${(t.key==='trafficHeat'?heat:tool===t.key)?'active':''}" data-tool="${t.key}" data-category="${t.category}" aria-pressed="${t.key==='trafficHeat'?heat:tool===t.key}" title="${t.name}"><span class="tool-icon">${t.icon}</span><span><strong class="tool-name">${t.name}${t.capacity?` <span class="tool-capacity">${t.capacity}</span>`:''}</strong><small class="tool-price">${t.price}</small></span></button>`).join('');
- tray.dataset.currentDockGroup=group.key;
- tray.dataset.currentDockCategory=category;
+ if(tray.dataset){tray.dataset.currentDockGroup=group.key;tray.dataset.currentDockCategory=category;}
  tray.scrollLeft=scroll;
 }
 // The building/control dock is presentation-only; selected tools and the
