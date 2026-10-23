@@ -716,6 +716,328 @@ export class TrafficRenderer{
    return;
   }
 
+  // YELLOW SHOP COLLECTION: three DIFFERENT civic commerce programs.
+  // Thai street market (1 floor) / supermarket (2) / open luxury retail
+  // galleria (2 + usable rooftop). Geometry always follows the actual
+  // parking-first parcels 6x8 / 8x8 / 8x13, leaving the rear 50% untouched.
+  // Architectural openings and shelving are genuinely modeled in world 3D.
+  if(t.kind==='shop'){
+   const level=t.modelTier||1,W=t.plotWidth,P=t.parkingZoneDepth;
+   const u=W*.5,z0=P+.34,z1=t.plotHeight-.78,deep=z1-z0;
+   const yellow='#f5be36',sun='#f8d467',ochre='#c99220',navy='#374b59';
+   const bone='#f1ecdb',chalk='#f8f3e9',glass='#7fbcca',gold='#e2bf6c';
+   const slab=(x,y,z,w,d,c=bone)=>block(c,x,y,z,w,.075,d,'stone');
+   const basket=(x,y,z,c,fruit='#8ea85a')=>{
+    block('#b48b53',x,y,z,.26,.21,.25,'wood');
+    block('#dab37b',x,y+.115,z,.29,.04,.28,'wood');
+    for(const dx of[-.078,.078])for(const dz of[-.067,.067]){
+     const p=point(x+dx,z+dz);
+     batch.add(CYL,fruit,p.x-.5,y+.17,p.y-.5,.051,.075,.051,0,0,0,id,false,'stone');
+    }
+    block(c,x,y+.09,z+.132,.20,.08,.015,'wood');
+   };
+   const fixture=(x,z,wide=1,height=.95)=>{
+    block('#e3dbce',x,.29+height*.43,z,wide,height*.82,.33,'stone');
+    block('#53707a',x,.24+height*.90,z,wide+.13,.08,.40,'metal');
+    for(let i=0;i<3;i++)for(let j=0;j<4;j++){
+     const xx=x-wide*.37+i*wide*.37,yy=.35+j*height*.185;
+     block((i+j)%3===0?'#daaa49':(i+j)%3===1?'#658d86':'#8ea2b0',
+      xx,yy,z+.199,wide*.17,.14,.055,'stone');
+    }
+   };
+   const shelves=(x,z,long=.95,floors=3)=>{
+    block('#83979a',x,.80,z,.055,1.22,long,'metal');
+    block('#83979a',x+.50,.80,z,.055,1.22,long,'metal');
+    for(let shelf=0;shelf<floors;shelf++){
+     const yy=.42+shelf*.32;
+     block('#e9e9dc',x+.25,yy,z,.57,.055,long+.05,'metal');
+     for(let j=0;j<5;j++){
+      const zz=z-long*.43+j*long*.215;
+      for(let k=0;k<2;k++){
+       const xx=x+.10+k*.27;
+       block((j+k+shelf)%3===0?'#d49a5a':(j+k+shelf)%3===1?'#5b9a84':'#d7d1a1',
+        xx,yy+.11,zz,.13,.16,.12,'stone');
+      }
+     }
+    }
+    block(yellow,x+.25,1.50,z,.57,.15,long+.08,'metal');
+   };
+   const cashier=(x,z,upstairs=false)=>{
+    const y=upstairs?2.51:0;
+    block('#516c78',x,y+.57,z,.77,.65,.39,'wood');
+    block('#f4c741',x,y+.93,z,.84,.09,.43,'stone');
+    block('#2b454e',x+.19,y+1.13,z-.08,.24,.27,.11,'metal');
+    block('#82bec7',x+.19,y+1.15,z-.015,.19,.17,.014,'glass',true);
+    block('#edebe0',x-.22,y+1.04,z+.02,.26,.20,.12,'stone');
+    for(let j=0;j<3;j++)block('#cfd2c7',x-.25+j*.14,y+.97,z+.24,.11,.025,.075,'stone');
+   };
+   const bench=(x,z,y=0,c='#bd9759')=>{
+    block(c,x,y+.46,z,.62,.09,.28,'wood');
+    for(const dx of[-.24,.24]){
+     block('#566368',x+dx,y+.25,z,.038,.39,.033,'metal');
+     block('#758c8f',x+dx,y+.22,z+.17,.035,.36,.030,'metal');
+    }
+   };
+   const pillar=(x,z,h=2.20)=>block('#d9d9d0',x,.21+h/2,z,.080,h,.086,'metal');
+   const railing=(x,y,z,w,direction='u')=>{
+    if(direction==='u'){
+     block('#a3d4d8',x,y,z,w,.39,.052,'glass');
+     block('#e7e1d3',x,y+.22,z,w+.08,.042,.068,'metal');
+     for(const dx of[-w*.45,0,w*.45])block('#d8d4c4',x+dx,y,z,.028,.42,.075,'metal');
+    }else{
+     block('#a3d4d8',x,y,z,.054,.39,w,'glass');
+     block('#e7e1d3',x,y+.22,z,.069,.042,w+.08,'metal');
+     for(const dz of[-w*.45,0,w*.45])block('#d8d4c4',x,y,z+dz,.075,.42,.028,'metal');
+    }
+   };
+   const signGlyph={
+    A:['010','101','111','101','101'],B:['110','101','110','101','110'],
+    C:['111','100','100','100','111'],E:['111','100','110','100','111'],
+    G:['111','100','101','101','111'],H:['101','101','111','101','101'],
+    I:['111','010','010','010','111'],K:['101','101','110','101','101'],
+    L:['100','100','100','100','111'],M:['101','111','111','101','101'],
+    O:['111','101','101','101','111'],P:['110','101','110','100','100'],
+    R:['110','101','110','101','101'],S:['111','100','111','001','111'],
+    T:['111','010','010','010','010'],U:['101','101','101','101','111'],
+    X:['101','101','010','101','101']};
+   const sign=(word,x,y,z,width)=>{
+    const chars=word.replace(/[^A-Z]/g,''),unit=Math.min(.085,width/(chars.length*4+2));
+    block('#394c55',x,y,z,width,.46,.085,'metal');
+    block(gold,x,y+.24,z+.05,width+.07,.035,.058,'metal');
+    for(let i=0;i<chars.length;i++)for(let row=0;row<5;row++)
+     for(let c=0;c<3;c++)if(signGlyph[chars[i]]?.[row][c]==='1'){
+      const xx=x-(chars.length*4-1)*unit/2+(i*4+c)*unit;
+      block('#ffe5a1',xx,y+(2-row)*unit,z+.055,unit*.73,unit*.78,.019,'glass',true);
+     }
+   };
+   const item=([x,z])=>{basket(x,.42,z,'#c9ad81',(Math.round(x*20+z*13)%2)?'#bc8359':'#91ab59');};
+   // Thin irregular pedestrian paving instead of a closed ground-floor wall.
+   slab(u,.15,(z0+z1)/2,W-1.68,deep+.19,'#c9bfad');
+   slab(u,.20,z1-.16,W-1.91,.34,'#e5ddcc');
+   for(const side of[-1,1]){
+    const x=u+side*(W/2-.90);
+    block('#a2ac9a',x,.23,z0+deep*.55,.16,.26,deep*.76,'stone');
+    for(let j=0;j<3;j++){
+     const zz=z0+.34+j*deep*.31;
+     block('#d7bc88',x,.36,zz,.24,.19,.26,'stone');
+     block('#629064',x,.55,zz,.20,.19,.20,'stone');
+    }
+   }
+   if(level===1){
+    // OPEN THAI MARKET: one level, 3 separately framed colourful vendor stalls
+    // with yellow awning tiles, produce crates, hanging scales and Thai lamps.
+    const columns=[1.57,3.00,4.43],stallZ=z0+.81;
+    for(let k=0;k<3;k++){
+     const x=columns[k],sw=1.13;
+     slab(x,.28,stallZ,sw,1.46,k===1?'#dfd1b6':'#d8c5a5');
+     for(const dx of[-.50,.50])for(const dz of[-.58,.58])
+      pole('#9b8364',x+dx,1.02,stallZ+dz,.027,1.44,'wood');
+     // Gabled shape is suggested by staggered yellow awning stripes,
+     // individual slats and rolled edges, not a three-metre concrete roof.
+     block(k===1?'#eed455':'#f4c53d',x,1.78,stallZ,sw+.13,.075,1.50,'wood');
+     for(let j=0;j<7;j++){
+      const xx=x-.50+j*.167;
+      block(j%2?'#fff0ba':'#e4ad27',xx,1.84,stallZ+.40,.145,.036,.67,'wood');
+      block(j%2?'#e9ae26':'#ffe39b',xx,1.65,stallZ+1.01,.146,.27,.055,'wood');
+     }
+     block('#fff1bf',x,1.80,stallZ-.68,sw+.12,.06,.09,'wood');
+     // Fish/vegetable/ready-made goods visibly DIFFER by stall.
+     block('#8d795f',x,.54,stallZ+.35,.98,.50,.47,'wood');
+     block('#d4baa0',x,.82,stallZ+.35,1.03,.075,.52,'wood');
+     for(let j=0;j<3;j++){
+      const xx=x-.30+j*.30;
+      if(k===0)basket(xx,.92,stallZ+.24,'#b88353',['#73a55c','#af7342','#d9af51'][j]);
+      else if(k===1){
+       block('#c9d6d2',xx,.94,stallZ+.26,.24,.095,.19,'metal');
+       block(j===1?'#9faeb8':'#88b7b8',xx,1.00,stallZ+.27,.18,.10,.15,'water');
+       block('#8bb3bd',xx,1.08,stallZ+.25,.17,.04,.11,'glass');
+      }else{
+       block('#a87556',xx,.97,stallZ+.26,.23,.24,.19,'wood');
+       block(j%2?'#db9a6b':'#e0c47c',xx,1.12,stallZ+.26,.18,.09,.16,'stone');
+      }
+     }
+     for(const xx of[x-.40,x+.40]){
+      block('#b2966c',xx,.34,stallZ-.38,.28,.25,.29,'wood');
+      block('#7da165',xx,.54,stallZ-.38,.23,.19,.22,'stone');
+     }
+     // Hanging scales and small warm lanterns.
+     pole('#6d7170',x,1.45,stallZ+.14,.018,.38,'metal');
+     block('#fce4a9',x,1.24,stallZ+.14,.14,.11,.16,'glass',true);
+     block('#7c7864',x+.28,1.37,stallZ+.53,.025,.43,.036,'metal');
+     block('#c7bf9f',x+.28,1.18,stallZ+.53,.26,.050,.19,'metal');
+    }
+    // Front walkway: market baskets, mobile handcart and a low yellow banner.
+    const aisle=z1-.57;
+    for(const [x,z] of[[1.44,aisle],[2.40,aisle+.02],[4.73,aisle],[5.13,z0+.37]])item([x,z]);
+    block('#7b8a87',3.31,.49,aisle,.62,.39,.35,'metal');
+    block('#d6b65d',3.31,.74,aisle,.75,.09,.42,'wood');
+    for(const xx of[3.06,3.56]){
+     const p=point(xx,aisle+.20);
+     batch.add(CYL,'#4e5b5c',p.x-.5,.25,p.y-.5,.105,.050,.105,Math.PI/2,0,0,id,false,'metal');
+    }
+    for(const xx of[1.05,4.95])pole('#8b805e',xx,1.08,z1-.24,.029,1.64,'wood');
+    block('#efbe2e',u,1.93,z1-.29,W-2.09,.24,.16,'wood');
+    sign('MARKET',u,2.17,z1-.18,Math.min(2.34,W-2.10));
+    for(const xx of[1.17,4.87])
+     block('#ffe4a0',xx,1.64,z1-.26,.14,.13,.15,'glass',true);
+    // Open low rear stalls are clearly visible when rotated 180 degrees.
+    for(const xx of[1.45,3,4.55])
+     block('#b8a78f',xx,.45,z0-.13,1.14,.45,.095,'wood');
+   }else if(level===2){
+    // TWO-LEVEL SUPERMARKET: ground shelves and checkout in full view,
+    // partial U-shaped mezzanine with upstairs aisles and a real stairwell.
+    const left=1.29,right=W-1.29,back=z0+.15;
+    block('#e4e7df',u,.81,back,right-left,1.20,.095,'stone');
+    block(yellow,u,1.48,back+.07,right-left,.12,.16,'metal');
+    for(const xx of[left,right]){
+     pillar(xx,back+.15,2.80);
+     pillar(xx,z1-.47,2.80);
+     for(const zz of[back+.72,back+1.65])
+      block('#a7c9cc',xx,.95,zz,.055,1.33,.53,'glass');
+    }
+    // Three primary aisles with visible sale products.
+    for(const xx of[1.88,3.39,4.90])
+     shelves(xx,z0+1.43,.99,3);
+    for(const xx of[1.93,3.22,4.51,5.80])
+     block('#eec842',xx,.25,z0+2.16,.75,.06,.19,'stone');
+    // Functional front checkout with conveyor belt and point-of-sale.
+    for(const xx of[2.20,4.05,5.85])cashier(xx,z1-.54);
+    for(const xx of[1.33,6.70])block('#679b9c',xx,.78,z1-.55,.07,.94,.78,'glass');
+    for(const xx of[1.33,6.70])
+     block('#ffe6ad',xx,1.70,z1-.56,.12,.22,.15,'glass',true);
+    // Real second floor as a narrow rear-and-left mezzanine, leaving
+    // the high-volume ground shopping aisles OPEN from the camera.
+    const deckY=2.24,deckZ=z0+.36;
+    slab(u,deckY,deckZ,right-left,.77,'#d7dfdd');
+    slab(left+.36,deckY,deckZ+1.05,.74,1.63,'#d7dfdd');
+    railing(u,deckY+.27,deckZ+.41,right-left-.16);
+    railing(left+.79,deckY+.27,deckZ+1.08,1.56,'v');
+    for(const xx of[1.90,3.25,4.67,5.92]){
+     block('#d6ddd6',xx,deckY+.37,deckZ-.12,.78,.66,.34,'stone');
+     block('#d0ac56',xx,deckY+.72,deckZ-.12,.82,.07,.38,'wood');
+     for(let j=0;j<4;j++)block(j%2?'#61918e':'#bd876a',xx-.27+j*.18,deckY+.79,deckZ-.12,.12,.10,.11,'stone');
+    }
+    // Fifteen small, separate steps are readable from four camera directions.
+    for(let i=0;i<12;i++){
+     const zz=z1-.60-i*.145,yy=.22+i*.173;
+     block(i%2?'#d1d8d4':'#f2e9d8',6.19,yy,zz,.54,.12,.16,'stone');
+     for(const side of[-1,1])block('#7c989b',6.19+side*.32,yy+.15,zz,.033,.27,.12,'metal');
+    }
+    // Roof is a THIN perimeter frame, not an opaque second-storey box.
+    for(const xx of[left,right])block('#e7e6de',xx,3.48,z0+1.39,.14,.12,deep-.29,'metal');
+    block('#edc24c',u,3.50,back+.05,right-left+.05,.12,.20,'metal');
+    sign('SUPER',u,3.21,z1-.43,Math.min(2.54,W-2.5));
+    for(let i=0;i<6;i++)
+     block(i%2?'#f7d66c':'#e4bd3a',u-2.15+i*.84,3.57,z0+1.00,.06,.05,1.88,'metal');
+   }else{
+    // TWO STOREYS + ACTUAL ROOFTOP, TERMINAL-INSPIRED LUXURY GALLERIA.
+    // A tall OPEN ATRIUM occupies the center; side shops frame it without
+    // opaque exterior walls so escalators and retail floors remain visible.
+    const back=z0+.15,edgeLeft=1.08,edgeRight=6.92,frontZ=z1-.18;
+    for(const x of[edgeLeft,edgeRight]){
+     pillar(x,back+.12,4.22);pillar(x,frontZ-.32,4.22);
+    }
+    // Yellow marble-like tiled concourse with inset wayfinding stripes.
+    slab(u,.23,(back+frontZ)/2,5.78,frontZ-back,'#e8e1d2');
+    for(const side of[-1,1])
+     block('#ddb64c',u+side*1.00,.278,(back+frontZ)/2,.075,.026,frontZ-back-.12,'stone');
+    // Retail pods on TWO DIFFERENT floors, with uncluttered central void.
+    const shopXs=[1.79,6.20],zoneZ=[back+.91,back+2.38,back+3.89];
+    for(const floor of[0,1]){
+     const yy=floor?2.52:0;
+     if(floor){
+      slab(1.81,yy+.02,(back+frontZ)/2,1.54,frontZ-back-.14,'#e2e2da');
+      slab(6.18,yy+.02,(back+frontZ)/2,1.54,frontZ-back-.14,'#e2e2da');
+      for(const xx of[2.68,5.31])railing(xx,yy+.23,(back+frontZ)/2,frontZ-back-.43,'v');
+     }
+     for(let side=0;side<2;side++)for(let i=0;i<3;i++){
+      const x=shopXs[side],zz=zoneZ[i],tone=(i+side+floor)%3;
+      block(tone===0?'#e8d5a6':tone===1?'#d7e0dc':'#ddd0bf',
+       x,yy+.64,zz,1.30,.89,1.08,'stone');
+      // Exposed opening faces the atrium, glass only a low display skirt.
+      const shopFace=x+(side===0?.68:-.68);
+      block('#e9d1a1',shopFace,yy+.42,zz,.060,.33,.88,'stone');
+      block('#7faeb8',shopFace+(side===0?.035:-.035),yy+.74,zz,.025,.22,.84,'glass');
+      block('#fff0cd',x,yy+1.16,zz,1.48,.14,1.13,'stone');
+      block(tone===0?yellow:tone===1?'#cda35b':'#edd186',x,yy+1.26,zz,1.52,.08,1.16,'stone');
+      for(let j=0;j<3;j++){
+       const pz=zz-.37+j*.37;
+       fixture(x,pz,.50,yy+.61);
+       block(i%2?'#f8d380':'#8ea6a4',shopFace+(side===0?.09:-.09),yy+.89,pz,.13,.16,.23,'stone');
+      }
+      block('#ffe3a8',shopFace,yy+1.43,zz,.10,.11,.40,'glass',true);
+      for(const dx of[-.25,.25])block('#cfbda0',x+dx,yy+.23,zz+.40,.18,.13,.20,'wood');
+     }
+    }
+    // Glass elevator on one side and escalator pair crossing atrium.
+    // Steps climb from first-floor lobby to the REAL second-floor slab.
+    const liftX=6.91,liftZ=back+2.60;
+    for(const dz of[-.54,.54])pillar(liftX,liftZ+dz,4.16);
+    for(const yy of[.46,1.59,2.82])
+     block('#7eb9c6',liftX,yy,liftZ,.065,1.03,1.03,'glass');
+    for(let stair=0;stair<2;stair++){
+     const xx=stair===0?3.36:4.59;
+     const goingForward=stair===0;
+     const bottomZ=goingForward?frontZ-1.05:back+.87;
+     for(let j=0;j<14;j++){
+      const a=j/13;
+      const zz=bottomZ+(goingForward?-1:1)*a*2.10;
+      const yy=.35+a*2.18;
+      block(j%2?'#b8c2c7':'#dfdfdb',xx,yy,zz,.74,.085,.182,'metal');
+      block('#516876',xx,yy-.13,zz,.74,.14,.08,'metal');
+      for(const sign of[-1,1]){
+       block('#d9d6d0',xx+sign*.395,yy+.19,zz,.040,.39,.17,'metal');
+       block('#7fc4cd',xx+sign*.424,yy+.34,zz,.024,.14,.145,'glass');
+       block('#fff3c5',xx+sign*.425,yy+.43,zz,.020,.042,.15,'glass',true);
+      }
+     }
+     for(const zz of[bottomZ,bottomZ+(goingForward?-2.10:2.10)])
+      block('#b89456',xx,.31,zz,1.00,.055,.26,'stone');
+    }
+    // Geometric atrium pendant chandelier in the empty double-height core.
+    const lightX=u,lightZ=back+3.10;
+    for(let i=0;i<8;i++){
+     const a=i*Math.PI/4,xx=lightX+Math.cos(a)*.62,zz=lightZ+Math.sin(a)*.61;
+     pole('#b6a77f',xx,3.34,zz,.025,.68,'metal');
+     pole('#ffe3aa',xx,2.94,zz,.095,.12,'glass',true);
+    }
+    block('#d7bc77',lightX,3.83,lightZ,.17,.14,.18,'metal');
+    // Front glass lobby is open from above, and the real roof is limited
+    // to a LOUNGE at the left-hand wing, leaving escalators exposed.
+    block('#ebc85b',u,4.34,frontZ-.02,5.34,.13,.25,'metal');
+    sign('GALLERIA',u,3.86,frontZ+.12,Math.min(3.45,W-2.04));
+    for(const x of[edgeLeft,edgeRight]){
+     block('#e7e0d0',x,1.09,frontZ-.12,.12,1.74,.08,'metal');
+     block('#99c8ca',x+(x>u?-.38:.38),1.09,frontZ-.09,.64,1.62,.040,'glass');
+    }
+    // Rooftop garden terrace on one WING, distinct third usable level.
+    const rx=1.82,rz=back+2.30,ry=4.45,rw=1.73,rd=3.62;
+    slab(rx,ry,rz,rw,rd,'#f0e7d1');
+    block('#d7ae46',rx,ry+.09,rz,rw-.08,.045,rd-.10,'stone');
+    railing(rx+rw*.49,ry+.28,rz,rd-.11,'v');
+    railing(rx-rw*.49,ry+.28,rz,rd-.11,'v');
+    railing(rx,ry+.28,rz+rd*.48,rw-.10);
+    for(const zz of[rz-.90,rz+.53]){
+     bench(rx,zz,ry);
+     pole('#ffe9b4',rx,ry+.87,zz,.041,.09,'glass',true);
+     basket(rx+.50,ry+.44,zz-.17,'#bd9767','#7bad79');
+    }
+    // Partial rooftop yellow-louver sunshade above the bar only.
+    const sunZ=rz-rd*.32;
+    for(const x of[rx-.60,rx+.60])pillar(x,sunZ,6.05);
+    block('#f2c146',rx,6.12,sunZ,1.51,.10,.68,'metal');
+    for(let i=0;i<8;i++)block('#fff0bf',rx-.61+i*.175,6.19,sunZ,.042,.033,.68,'metal');
+    // Stair landing, flower beds and illuminated rooftop sign.
+    for(const xx of[1.19,2.45]){
+     block('#c1ae8f',xx,ry+.24,rz+rd*.28,.26,.28,.30,'stone');
+     block('#5f9069',xx,ry+.47,rz+rd*.28,.23,.22,.27,'stone');
+    }
+    block('#f5d16a',rx,5.08,rz+rd*.18,1.34,.10,.16,'glass',true);
+    // Keep the atrium recognisably OPEN and visible from all 4 directions.
+   }
+   return;
+  }
+
   // ART-DIRECTED CITY COLLECTION — distinct sculpted assets for every playable
   // home (except preserved home_grand), office, factory, shop, restaurant, mall,
   // park, pub and hotel tier. All parts live in a parking-first plot; no traffic
