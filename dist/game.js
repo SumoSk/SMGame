@@ -3536,17 +3536,35 @@ function openAccountDialog(){
 }
 window.SMGameAuthReset=()=>{}; // Authentication must never erase the active guest city.
 function cityBugReport(){
- const reasons={},vehicles=[],issues=[];
- for(const v of state.vehicles.values()){const reason=v.phase==='stuck'?(v.stopReason||'ไม่มีเส้นทาง'):v.phase==='gate_waiting'||v.phase==='departing'?'รอออกจากอาคาร/ประตู':v.stopReason||'กำลังเดินทาง';reasons[reason]=(reasons[reason]||0)+1;
- const pose=vehiclePosition({...v,turnLanes:{...v.turnLanes}});vehicles.push({id:v.id,phase:v.phase,reason,wait:v.wait||0,speed:v.speed||0,node:v.path[v.pos],pos:v.pos,lane:v.lane,pose,nextRouteRetry:v.nextRouteRetry??null,departureNoRoute:!!v.departureNoRoute,junctionPasses:v.junctionPasses||[]});
- if(canTowVehicle(v))issues.push({id:v.id,reason,wait:v.wait||0,node:v.path[v.pos],pose});}
- issues.sort((a,b)=>Number(state.vehicles.get(b.id)?.phase==='stuck')-Number(state.vehicles.get(a.id)?.phase==='stuck')||b.wait-a.wait);
+ // Read-only report: refresh the incident detector, not the simulation/save.
+ scanIncidents(true);
+ const reasons={},categories={},vehicles=[],issues=[],suspected=[],normalQueues=[];
+ for(const v of state.vehicles.values()){
+  const reason=v.phase==='stuck'?(v.stopReason||'ไม่มีเส้นทาง'):v.phase==='gate_waiting'||v.phase==='departing'?'รอออกจากอาคาร/ประตู':v.stopReason||'กำลังเดินทาง';
+  reasons[reason]=(reasons[reason]||0)+1;
+  const incident=incidentForVehicle.get(v.id),noRoute=missingRoute(v),stalled=incidentStoppedFor(v);
+  const parking=['parking_in','parking_out'].includes(v.phase)||v.phase==='departing'&&!!v.fromId;
+  const category=noRoute?'ไม่มีเส้นทาง':incident?.reason==='รถทับซ้อนหรือแย่งช่องทาง'?'รถซ้อนทับ/เปลี่ยนเลนขัดแย้ง':incident&&parking?'รถค้างผิดปกติในลานจอด':incident?'รถหยุดผิดปกติ':reason==='ไฟแดง'?'รอไฟแดงตามปกติ':reason==='คิวแยก'?'รอคิวทางแยก':/เว้นระยะ|คันหน้าขวาง|รอรถข้างหน้า/.test(reason)?'รถติดตามปกติ':parking?'กำลังเข้าออกลานจอด':v.phase==='gate_waiting'?'รอเข้าเมือง':v.phase==='departing'?'รอออกอาคาร':'กำลังเดินทาง';
+  const suspicious=!!incident||noRoute;
+  categories[category]=(categories[category]||0)+1;
+  const pose=vehiclePosition({...v,turnLanes:{...v.turnLanes}});
+  const data={id:v.id,phase:v.phase,reason,category,suspicious,stalledMinutes:stalled,incidentId:incident?.id??null,adaptiveLaneUntil:v.adaptiveLaneUntil??null,
+   wait:v.wait||0,speed:v.speed||0,node:v.path[v.pos],pos:v.pos,lane:v.lane,pose,nextRouteRetry:v.nextRouteRetry??null,departureNoRoute:!!v.departureNoRoute,junctionPasses:v.junctionPasses||[]};
+  vehicles.push(data);
+  if(suspicious)suspected.push({id:v.id,category,reason,stalledMinutes:stalled});
+  else if((v.wait||0)>=12||stalled>=12)normalQueues.push({id:v.id,category,reason,stalledMinutes:stalled});
+  // Preserve manual towing for long queues, but do not call them bugs.
+  if(canTowVehicle(v))issues.push({id:v.id,reason,category,suspicious,wait:v.wait||0,node:v.path[v.pos],pose});
+ }
+ issues.sort((a,b)=>Number(b.suspicious)-Number(a.suspicious)||Number(state.vehicles.get(b.id)?.phase==='stuck')-Number(state.vehicles.get(a.id)?.phase==='stuck')||b.wait-a.wait);
  const orphanReservations=[];for(const [key,r]of state.reservations)if((r.passes||[r]).some(p=>!state.vehicles.has(p.id)))orphanReservations.push(key);
  const brokenLinks=[];for(const [node,r]of state.roads)for(const n of r.links)if(!state.roads.get(n)?.links.has(node))brokenLinks.push([node,n]);
- return{format:'SMGame-city-bug-report',version:1,createdAt:new Date().toISOString(),build:'stranded-recovery-v3',city:state.city,time:state.time,paused:state.speed===0,speed:state.speed,summary:{roads:state.roads.size,buildings:state.buildings.size,vehicles:state.vehicles.size,reasons},issues,orphanReservations,brokenLinks,vehicles,reservations:[...state.reservations],runtimeErrors:[...runtimeErrors],save:JSON.parse(snapshot())};
+ return{format:'SMGame-city-bug-report',version:2,createdAt:new Date().toISOString(),build:'traffic-rules-v2',city:state.city,time:state.time,paused:state.speed===0,speed:state.speed,
+  summary:{roads:state.roads.size,buildings:state.buildings.size,vehicles:state.vehicles.size,reasons,categories,incidents:incidentCases.size,suspectedVehicles:suspected.length,normalQueueVehicles:normalQueues.length},
+  issues,suspected,normalQueues,orphanReservations,brokenLinks,vehicles,reservations:[...state.reservations],runtimeErrors:[...runtimeErrors],save:JSON.parse(snapshot())};
 }
 function openCityReport(){const report=cityBugReport(),rows=Object.entries(report.summary.reasons).map(([reason,count])=>'<li>'+escapeSaveText(reason)+' · '+count+' คัน</li>').join('');
- modal('<span class="eyebrow">CITY DIAGNOSTICS</span><h2>ตรวจเมือง / รายงานบัค</h2><p>'+ (report.paused?'เมืองหยุดเวลาอยู่ กดเล่นต่อเพื่อให้รถขยับ':'เมืองกำลังเดินเวลา')+'</p><p>รถ '+report.summary.vehicles+' คัน · รอนาน/ไม่มีเส้นทาง '+report.issues.length+' คัน</p><ul>'+rows+'</ul><p>ลิงก์ถนนผิดปกติ '+report.brokenLinks.length+' · การจองรถที่หายไป '+report.orphanReservations.length+' · ข้อผิดพลาดโปรแกรม '+report.runtimeErrors.length+'</p><p>ไฟล์รายงานรวมเมือง เส้นทางรถ และเหตุผลที่หยุด แนบไฟล์นี้ให้อริสเพื่อตรวจเมืองที่มีปัญหาได้</p><div class="actions"><button id="exportCityBug" class="primary">ดาวน์โหลดรายงานเมือง</button><button id="reportClose">กลับไปเล่น</button></div>'+report.issues.slice(0,12).map((v,i)=>'<p><button id="bugCar'+i+'">ดูรถ #'+v.id+'</button> <button id="bugTow'+i+'">ลากรถออก</button> '+escapeSaveText(v.reason)+' · รอ '+Math.round(v.wait)+' นาทีในเกม</p>').join(''));
+ modal('<span class="eyebrow">CITY DIAGNOSTICS</span><h2>ตรวจเมือง / รายงานบัค</h2><p>'+ (report.paused?'เมืองหยุดเวลาอยู่ กดเล่นต่อเพื่อให้รถขยับ':'เมืองกำลังเดินเวลา')+'</p><p>รถ '+report.summary.vehicles+' คัน · สงสัยผิดปกติ '+report.summary.suspectedVehicles+' คัน · เหตุต้นเหตุ '+report.summary.incidents+' เหตุ · รอคิวปกตินาน '+report.summary.normalQueueVehicles+' คัน</p><ul>'+rows+'</ul><p><b>ประเภทการจราจร</b></p><ul>'+Object.entries(report.summary.categories).sort((a,b)=>b[1]-a[1]).map(([name,count])=>'<li>'+escapeSaveText(name)+' · '+count+' คัน</li>').join('')+'</ul><p>รถที่สามารถลากออกได้ '+report.issues.length+' คัน (รวมรถรอคิวนาน)</p><p>ลิงก์ถนนผิดปกติ '+report.brokenLinks.length+' · การจองรถที่หายไป '+report.orphanReservations.length+' · ข้อผิดพลาดโปรแกรม '+report.runtimeErrors.length+'</p><p>ไฟล์รายงานรวมเมือง เส้นทางรถ และเหตุผลที่หยุด แนบไฟล์นี้ให้อริสเพื่อตรวจเมืองที่มีปัญหาได้</p><div class="actions"><button id="exportCityBug" class="primary">ดาวน์โหลดรายงานเมือง</button><button id="reportClose">กลับไปเล่น</button></div>'+report.issues.slice(0,12).map((v,i)=>'<p><button id="bugCar'+i+'">ดูรถ #'+v.id+'</button> <button id="bugTow'+i+'">ลากรถออก</button> '+escapeSaveText(v.reason)+' · รอ '+Math.round(v.wait)+' นาทีในเกม</p>').join(''));
  $('reportClose').onclick=closeModal;
  $('exportCityBug').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='SMGame-bug-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);};
  report.issues.slice(0,12).forEach((v,i)=>{$('bugCar'+i).onclick=()=>{if(v.pose){cam.x=v.pose.x;cam.y=v.pose.y;follow=v.id;}selected={kind:'vehicle',id:v.id};closeModal();renderInspector();};$('bugTow'+i).onclick=()=>{if(towVehicle(v.id))toast('ลากรถออกแล้ว · ยกเลิกเที่ยวเดินทาง');openCityReport();};});
