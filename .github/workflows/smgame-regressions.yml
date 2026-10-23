@@ -41,6 +41,18 @@ jobs:
       - name: Legacy suite (baseline 1.4 already has 4 unrelated failures)
         continue-on-error: true
         run: npm test
+  new-building-models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node --check dist/renderer3d.js
+      - run: node work/test-new-building-program.cjs
   lane-change-safety:
     runs-on: ubuntu-latest
     steps:
