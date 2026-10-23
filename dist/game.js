@@ -1724,7 +1724,7 @@ const dockGroups=[
 let dockGroup='build';
 function toggleTrafficHeat(){heat=!heat;renderTools();}
 function dockItems(currentCategory){
- let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(currentCategory==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'},{key:'trafficHeat',name:'ความหนาแน่นจราจร',icon:'🌡️',sub:'เปิดหรือปิดแผนที่แสดงความหนาแน่น',price:'แตะเพื่อสลับการแสดงผล'}];}else if(currentCategory==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(currentCategory==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ถนนหลักรื้อไม่ได้',price:'ค่ารื้อ 20%'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'ค่ารื้อ 10%'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_large','home_dual','home_grand'].includes(t.key))).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
+ let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(currentCategory==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'},{key:'trafficHeat',name:'ความหนาแน่นจราจร',icon:'🌡️',sub:'เปิดหรือปิดแผนที่แสดงความหนาแน่น',price:'แตะเพื่อสลับการแสดงผล'}];}else if(currentCategory==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(currentCategory==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ลากลบถนนต่อเนื่อง · ถนนหลักรื้อไม่ได้',price:'ค่ารื้อ 20%'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'ค่ารื้อ 10%'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_large','home_dual','home_grand'].includes(t.key))).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
 // New two-level dock: five main sections stay visible. Only Buildings has
@@ -1763,12 +1763,13 @@ function setDockCollapsed(collapsed){
  const dock=$('buildDock'),button=$('toggleDock'),icon=$('toggleDockIcon'),label=$('toggleDockText');
  if(!dock||!button)return;
  dock.classList.toggle('is-collapsed',!!collapsed);
+ dock.closest('.control-deck')?.classList.toggle('tools-collapsed',!!collapsed);
  button.setAttribute('aria-expanded',String(!collapsed));
  button.setAttribute('aria-label',collapsed?'กางแถบเครื่องมือ':'หุบแถบเครื่องมือ');
  if(icon)icon.textContent=collapsed?'⌃':'⌄';
  if(label)label.textContent=collapsed?'กางเครื่องมือ':'หุบเครื่องมือ';
 }
-function selectTool(t){if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · วางชิดขอบถนน`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'เลือกพื้นที่โล่งเพื่อปลูกต้นไม้ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูความสุข ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
+function selectTool(t){if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · วางชิดขอบถนน`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'เลือกพื้นที่โล่งเพื่อปลูกต้นไม้ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลักและถนนที่มีรถ':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูความสุข ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
 function modal(html){$('dialogContent').innerHTML=html;$('dialog').showModal();}
 function closeModal(){$('dialog').close();}
 const row=(a,b)=>`<div class="detail-row"><span>${a}</span><strong>${b}</strong></div>`;
@@ -3109,6 +3110,64 @@ function checkBuilding(key,x,y){return checkParkingBuilding(key,x,y);}
 function buildBuilding(key,x,y,confirmed=false){const check=checkBuilding(key,x,y),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true));return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,queue:[],arrivals:0};state.buildings.set(b.id,b);markBuildingPlot(b,b.id);state.money-=t.cost;for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
 function demolishBuilding(b,confirmed=false){if(!b)return;const t=CATALOG[b.key],fee=t.cost*.1;if(!confirmed){confirmAction('รื้อ'+t.name,`ค่ารื้อ ${money(fee)}<br>${t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ ผู้ที่กำลังเดินทางมาอาคารนี้จะกลับบ้าน'}`,()=>demolishBuilding(b,true));return;}if(state.money-fee< -10000){toast('งบประมาณไม่พอสำหรับค่ารื้อค่ะ');return;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
 markBuildingPlot(b,-1);state.buildings.delete(b.id);state.money-=fee;for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
+// Freehand demolition follows every crossed cell, even between sparse pointer samples.
+function roadEraseSegmentCells(x0,y0,x1,y1){
+ if(![x0,y0,x1,y1].every(Number.isFinite))return[];
+ let x=Math.floor(x0),y=Math.floor(y0),tx=Math.floor(x1),ty=Math.floor(y1);
+ if(!valid(x,y)||!valid(tx,ty))return[];
+ const dx=Math.abs(tx-x),dy=Math.abs(ty-y),sx=x<tx?1:-1,sy=y<ty?1:-1;
+ let err=dx-dy;const found=[],seen=new Set();
+ for(let n=0;n<=W+H;n++){
+  const node=owner(id(x,y));
+  if(state.roads.has(node)&&!seen.has(node)){found.push(node);seen.add(node);}
+  if(x===tx&&y===ty)break;
+  const e=2*err;if(e>-dy){err-=dy;x+=sx;}if(e<dx){err+=dx;y+=sy;}
+ }
+ return found;
+}
+function appendRoadEraseStroke(d,x,y){
+ if(!d||d.pan||!Number.isFinite(x)||!Number.isFinite(y))return;
+ const fromX=d.eraseLastX,fromY=d.eraseLastY;d.eraseLastX=x;d.eraseLastY=y;
+ if(!d.eraseSeen)d.eraseSeen=new Set(d.cells||[]);
+ for(const node of roadEraseSegmentCells(fromX,fromY,x,y)){
+  if(!d.eraseSeen.has(node)){d.eraseSeen.add(node);d.cells.push(node);}
+ }
+}
+function roadErasePlan(cells){
+ const p={roads:[],fee:0,main:0,busy:0,missing:0},seen=new Set(),occupiedCars=new Set();
+ for(const v of state.vehicles.values()){
+  if(['driving','stuck','parking_in','parking_out'].includes(v.phase)&&Number.isInteger(v.path?.[v.pos]))occupiedCars.add(v.path[v.pos]);
+ }
+ for(const node of cells||[]){
+  if(!Number.isInteger(node)||seen.has(node))continue;seen.add(node);
+  const road=state.roads.get(node);
+  if(!road){p.missing++;continue;}
+  if(road.main){p.main++;continue;}
+  if(occupancy(node)>0||occupiedCars.has(node)){p.busy++;continue;}
+  p.roads.push(node);p.fee+=ROADS[road.type].cost*.2;
+ }
+ return p;
+}
+function demolishRoadStroke(cells,confirmed=false){
+ const p=roadErasePlan(cells),skipped=p.main+p.busy;
+ if(!p.roads.length){
+  toast(p.main?'ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ':p.busy?'มีรถอยู่บนแนวถนน รอให้รถผ่านก่อนค่ะ':'ลากผ่านถนนที่ต้องการรื้อค่ะ');
+  return false;
+ }
+ if(!confirmed){
+  confirmAction('รื้อถนนตามแนวลาก','รื้อ '+p.roads.length+' ช่อง · ค่ารื้อ '+money(p.fee)+(skipped?'<br>ข้ามช่องที่รื้อไม่ได้ '+skipped+' ช่อง':'')+'<br>การรื้ออาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoadStroke(cells,true));
+  return true;
+ }
+ if(state.money-p.fee< -10000){toast('งบประมาณไม่พอสำหรับค่ารื้อค่ะ');return false;}
+ for(const node of p.roads){
+  const road=state.roads.get(node);if(!road)continue;
+  for(const next of road.links)state.roads.get(next)?.links.delete(node);
+  state.roads.delete(node);
+ }
+ state.money-=p.fee;roadChanged(p.roads);updateUI();
+ toast('รื้อถนนแล้ว '+p.roads.length+' ช่อง'+(skipped?' · ข้าม '+skipped+' ช่อง':''));
+ return true;
+}
 function demolishRoad(i,confirmed=false){const r=state.roads.get(i);if(!r){toast('เลือกช่องที่มีถนนค่ะ');return;}if(r.main){toast('ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ');return;}if(occupancy(i)>0||[...state.vehicles.values()].some(v=>v.path?.[v.pos]===i&&['driving','stuck','parking_in','parking_out'].includes(v.phase))){toast('มีรถอยู่บนถนน รอให้รถผ่านก่อนค่ะ');return;}const fee=ROADS[r.type].cost*.2;if(!confirmed){confirmAction('รื้อถนน',`ค่ารื้อ ${money(fee)} · ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้`,()=>demolishRoad(i,true));return;}if(state.money-fee< -10000){toast('งบประมาณไม่พอสำหรับค่ารื้อค่ะ');return;}for(const n of r.links)state.roads.get(n)?.links.delete(i);state.roads.delete(i);state.money-=fee;roadChanged([i]);updateUI();}
 function confirmAction(title,body,callback){modal(`<span class="eyebrow">CITY PLANNING</span><h2>${title}</h2><p>${body}</p><div class="actions"><button id="cancelDialog">ยกเลิก</button><button id="confirmDialog" class="primary">ยืนยัน</button></div>`);$('cancelDialog').onclick=closeModal;$('confirmDialog').onclick=()=>{closeModal();callback();};}
 function signalHitAt(x,y){const p=world(x,y),centerX=Math.round(p[0]-(renderer3d?0:.5)),centerY=Math.round(p[1]-(renderer3d?0:.5));let best=22,result=null;for(let yy=centerY-3;yy<=centerY+3;yy++)for(let xx=centerX-3;xx<=centerX+3;xx++){if(!valid(xx,yy))continue;const node=id(xx,yy);if(junction(node)<3)continue;const v=screen(xx+(renderer3d?0:.5),yy+(renderer3d?0:.5),renderer3d?.2:0),dist=Math.hypot(v[0]-x,v[1]-y);if(dist<best){best=dist;result=node;}}return result;}
@@ -3251,13 +3310,23 @@ canvas.addEventListener('pointerdown',e=>{
  canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
  if(pointers.size===2){const a=[...pointers.values()];pinch={distance:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),z:cam.z};drag=null;return;}
  const p=world(e.clientX,e.clientY),x=Math.floor(p[0]),y=Math.floor(p[1]);
- drag={sx:e.clientX,sy:e.clientY,lastX:e.clientX,lastY:e.clientY,x,y,pan:tool==='hand'||tool==='tracking'||tool==='signalManage'||tool==='citizenDashboard'||e.button===1||e.shiftKey,moved:false,cells:valid(x,y)?[owner(id(x,y))]:[]};
+ const pan=tool==='hand'||tool==='tracking'||tool==='signalManage'||tool==='citizenDashboard'||e.button===1||e.shiftKey;
+ const initialRoads=tool==='eraseRoad'&&!pan?roadEraseSegmentCells(x,y,x,y):null;
+ drag={sx:e.clientX,sy:e.clientY,lastX:e.clientX,lastY:e.clientY,x,y,pan,moved:false,
+  cells:initialRoads!==null?initialRoads:(valid(x,y)?[owner(id(x,y))]:[]),
+  eraseLastX:x,eraseLastY:y,eraseSeen:new Set(initialRoads||[])};
 });
-canvas.addEventListener('pointermove',e=>{const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1])};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch&&pointers.size===2){const a=[...pointers.values()];cam.z=Math.max(.22,Math.min(5.2,pinch.z*Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)/pinch.distance));return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(owner(id(drag.x,drag.y)),owner(id(hover.x,hover.y)));drag.lastX=e.clientX;drag.lastY=e.clientY;});
+canvas.addEventListener('pointermove',e=>{const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1])};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch&&pointers.size===2){const a=[...pointers.values()];cam.z=Math.max(.22,Math.min(5.2,pinch.z*Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)/pinch.distance));return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(owner(id(drag.x,drag.y)),owner(id(hover.x,hover.y)));
+ else if(tool==='eraseRoad')appendRoadEraseStroke(drag,hover.x,hover.y);
+ drag.lastX=e.clientX;drag.lastY=e.clientY;});
 function finishCanvasInteraction(d,x,y,activeTool){
  if(tool!==activeTool)return;
  if(d.pan){if(!d.moved)inspectAt(x,y);return;}
  if(ROADS[tool])buildRoad(d.cells,tool);
+ else if(tool==='eraseRoad'){
+  const p=world(x,y);appendRoadEraseStroke(d,Math.floor(p[0]),Math.floor(p[1]));
+  demolishRoadStroke(d.cells);
+ }
  else if(tool.startsWith('tree:')||tool==='treeRow'||tool==='treeBrush'||tool==='eraseTree'){
   const p=world(x,y);let count=0;
   if(tool==='eraseTree'){toast(eraseLandscape(p[0],p[1])?'ลบต้นไม้แล้วค่ะ':'ไม่พบต้นไม้ที่ต้องลบค่ะ');return;}
@@ -3267,7 +3336,7 @@ function finishCanvasInteraction(d,x,y,activeTool){
   toast(count?'ปลูกต้นไม้ '+count+' ต้นแล้วค่ะ':'พื้นที่นี้ปลูกต้นไม้ไม่ได้ค่ะ');return;
  }
  else if(CATALOG[tool]){const p=world(x,y);buildBuilding(tool,Math.floor(p[0]),Math.floor(p[1]));}
- else{const p=world(x,y),ix=Math.floor(p[0]),iy=Math.floor(p[1]);if(!valid(ix,iy))return;if(tool==='eraseRoad')demolishRoad(owner(id(ix,iy)));if(tool==='eraseBuilding')demolishBuilding(state.buildings.get(state.buildGrid[id(ix,iy)]));}
+ else{const p=world(x,y),ix=Math.floor(p[0]),iy=Math.floor(p[1]);if(!valid(ix,iy))return;if(tool==='eraseBuilding')demolishBuilding(state.buildings.get(state.buildGrid[id(ix,iy)]));}
 }
 canvas.addEventListener('pointerup',e=>{
  pointers.delete(e.pointerId);if(ignoredTouchPointers.delete(e.pointerId))return;
