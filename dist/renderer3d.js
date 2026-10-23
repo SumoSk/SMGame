@@ -1102,7 +1102,7 @@ export class TrafficRenderer{
     for(let j=0;j<3;j++){
      const zz=z-.27+j*.27;
      block('#d7c5af',x,y+.54,zz,.77,.06,.18,'wood');
-     for(let k=0;k<3;k++){
+     for(let k=0;k<(tier===3?1:3);k++){
       const xx=x-.24+k*.24;
       block((j+k)%3===0?'#9bb9ad':(j+k)%3===1?'#d6a66b':'#bd9ab6',
        xx,y+.65,zz,.12,.17,.12,'stone');
@@ -1375,6 +1375,199 @@ export class TrafficRenderer{
      lamp(.96,z,1.42);
      lamp(W-.96,z,1.42);
     }
+   }
+   // FINISHED PINK MALL ARCHITECTURE: the existing shops are inside a
+   // genuinely recognisable building now. Exterior is a deliberate mix of
+   // masonry, cutaway storefronts and illuminated glazed display bays.
+   // Three sealed-looking street elevations + partial roof/cornice frame the
+   // interior, but the CENTRE ATRIUM stays roofless so normal game camera
+   // still sees escalators, upper galleries, merchandise, events and food.
+   // Strictly non-interacting: visual meshes inside the original plot only.
+   {
+    const floors=tier,storey=tier===1?2.00:tier===2?2.16:2.17;
+    const wallFront=F+.19,wallBack=B-.16;
+    const east=W-.95,west=.95,roofY=tier===1?2.37:tier===2?4.45:6.95;
+    const shell='#efdedb',bone='#f5eee8',frame='#ce97ac';
+    const inset='#ddafc2',marble='#ddd2c9',bluePane='#84bfc8';
+    const silverRail='#b1a4a6';
+    const nSide=2;
+    const sideSeg=(F+.11-(B-.10))/nSide;
+    const frontDisplays=tier===1?[1.54,W-1.54]:
+     [1.58,3.28,W-3.28,W-1.58];
+    const shellPier=(x,z,y,h=1.58)=>{
+     block(bone,x,y+h*.50,z,.11,h,.12,'stone');
+     block(pink,x,y+h+.01,z,.16,.09,.17,'stone');
+    };
+    const sash=(x,y,z,w,h)=>{
+     // Window divisions are OPEN across the middle instead of an opaque
+     // tinted box, and solid masonry frames give the pane visual thickness.
+     block(marble,x,y-h*.50,z,w+.09,.090,.12,'stone');
+     block(marble,x,y+h*.50,z,w+.09,.10,.13,'stone');
+     block(silverRail,x,y,z,.041,h-.06,.075,'metal');
+     for(const sign of[-1,1]){
+      const xx=x+sign*w*.49;
+      block(bluePane,xx,y,z,.085,h*.81,.048,'glass');
+      block('#dce6e0',xx,y+h*.22,z+.032,.095,.06,.025,'glass');
+     }
+     block('#fff1d3',x,y+h*.45,z+.015,w*.77,.042,.14,'glass',true);
+    };
+    const mallMannequin=(x,y,z,k=0)=>{
+     // Large readable clothing silhouettes and accessory stands in the
+     // street-facing display windows; they show there is STOCK for sale.
+     pole('#c7b8aa',x,y+.58,z,.036,.68,'metal');
+     pole('#e8cfb6',x,y+1.05,z,.10,.16,'stone');
+     block(['#a575a0','#92aeba','#dfbd98','#cba2a6'][k%4],
+      x,y+.74,z,.23,.34,.18,'wood');
+     for(const sign of[-1,1])
+      block('#b3a9a7',x+sign*.07,y+.43,z,.058,.25,.080,'wood');
+     block('#b2aba4',x,y+.20,z,.30,.056,.24,'stone');
+    };
+    const productShowcase=(x,z,base,k)=>{
+     // Each window has its own merch: wearable silhouettes, shelves,
+     // colourful product cubes, handbags or pastry-box displays.
+     block('#a98986',x,base+.37,z,.78,.055,.29,'wood');
+     for(let j=0;j<3;j++){
+      const xx=x-.26+j*.26;
+      block(j%3===0?'#99b8ac':j%3===1?'#d99aab':'#d7bd87',
+       xx,base+.51,z,.15,.18,.20,'stone');
+     }
+     mallMannequin(x-.22,base+.08,z-.08,k);
+     for(let i=0;i<2;i++){
+      const xx=x+.18+i*.20;
+      block(i?'#9dc3c1':'#d6a5bb',xx,base+.77,z,.13,.21,.14,'stone');
+      block('#ecdacb',xx,base+.91,z,.10,.04,.12,'wood');
+     }
+    };
+    // BACK OF BUILDING: shallow white/pink plaster bays, window mullions,
+    // cornice, exterior service markings. No longer a naked row of shelves.
+    for(let lev=0;lev<floors;lev++){
+     const y=lev*storey;
+     const bayCount=tier===1?3:tier===2?4:3;
+     const width=(W-2.2)/bayCount;
+     for(let j=0;j<bayCount;j++){
+      const xx=1.10+width*(j+.5);
+      const w=width-.095;
+      block(j%3===0?light:shell,xx,y+1.06,wallBack,w,1.42,.13,'stone');
+      block(rose,xx,y+1.75,wallBack+.035,w+.05,.12,.15,'stone');
+      if(j%2===0){
+       block(bluePane,xx,y+1.01,wallBack-.082,w*.57,.60,.032,'glass');
+       block('#f6eee5',xx,y+1.01,wallBack-.10,.036,.68,.040,'metal');
+       block('#ffe7bd',xx,y+1.36,wallBack-.081,w*.42,.035,.06,'glass',true);
+      }else{
+       block('#d5b4bc',xx,y+.72,wallBack-.08,w*.48,.31,.024,'stone');
+       block('#9d8990',xx,y+.93,wallBack-.09,w*.52,.058,.030,'metal');
+      }
+     }
+     // Side elevations with windowed pink masonry bays / visible side walls.
+     for(const x of[west,east]){
+      for(let j=0;j<nSide;j++){
+       const zz=wallBack+.24+(j+.5)*sideSeg;
+       const partD=sideSeg-.14;
+       block((j+lev)%2===0?shell:light,x,y+1.05,zz,.12,1.48,partD,'stone');
+       block(pink,x,y+1.75,zz,.14,.11,partD+.04,'stone');
+       block(bluePane,x+(x<cx?-.080:.080),y+1.01,zz,
+        .037,.68,partD*.51,'glass');
+       // Horizontal slats make side walls architectural, not flat rectangles.
+       block('#fff2dc',x+(x<cx?-.107:.107),y+1.35,zz,
+        .027,.042,partD*.38,'glass',true);
+       block('#d8c3c4',x,y+.39,zz,.16,.15,partD+.06,'stone');
+      }
+     }
+     // CORNER PILASTERS + first-floor datum and layered upper cornices.
+     for(const x of[west,east]){
+      for(const z of[wallBack,wallFront-.03])shellPier(x,z,y+.25,1.48);
+     }
+     // Street-facing high facade panels leave a genuine central entrance.
+     for(let k=0;k<frontDisplays.length;k++){
+      const x=frontDisplays[k],facadeW=tier===1?.95:1.12;
+      // Upper grand-mall bays alternate dressed retail openings with
+      // masonry/glass facades to avoid an expensive hollow grid.
+      if(tier===3&&lev>0&&k%2===1){
+       block(shell,x,y+1.02,wallFront,facadeW,1.42,.14,'stone');
+       block(bluePane,x,y+1.05,wallFront+.087,facadeW*.65,.65,.042,'glass');
+       block('#f8d1dd',x,y+1.74,wallFront+.075,facadeW+.04,.11,.15,'stone');
+       continue;
+      }
+      // Architectural shopfront: masonry sill/soffit + glazed strips
+      // separated by a cutaway middle so garments remain legible.
+      block(marble,x,y+.36,wallFront,facadeW,.20,.17,'stone');
+      block(k%2?rose:pink,x,y+1.65,wallFront,facadeW,.29,.17,'stone');
+      sash(x,y+1.02,wallFront+.025,facadeW*.88,.95);
+      // Characterful boutique awning and a hanging store logo.
+      block(k%2?'#f5bccb':'#dfa3b9',x,y+1.87,wallFront-.06,
+       facadeW+.13,.070,.31,'metal');
+      block('#fff1d5',x,y+1.91,wallFront+.11,facadeW*.77,.048,.075,'glass',true);
+      const badgeX=x+(k%2?-.29:.29);
+      block('#ac658b',badgeX,y+1.47,wallFront+.13,.22,.20,.039,'metal');
+      block('#ffe8cc',badgeX,y+1.47,wallFront+.160,.13,.12,.014,'glass',true);
+      if(lev===0||tier!==3)productShowcase(x,wallFront-.38,y,k+lev*3);
+     }
+     // Accent horizontal ribbons join the storefront bays to make ONE mall.
+     const eaveY=y+1.92;
+     for(const sign of[-1,1]){
+      const span=(W-2.15)/2-(tier===1?.64:.82);
+      const sectionX=cx+sign*((W-2.15)/4+(tier===1?.32:.41));
+      block(hot,sectionX,eaveY,wallFront-.10,span+.10,.105,.31,'stone');
+      block('#f7d8d9',sectionX,eaveY+.085,wallFront-.10,span+.07,.055,.20,'metal');
+     }
+     // Vertical lighting along the MAIN street doorway on each storey.
+     for(const side of[-1,1]){
+      const x=cx+side*(tier===1?.77:1.00);
+      block(pale,x,y+1.14,wallFront,.15,1.30,.18,'stone');
+      block('#e9a6c0',x,y+1.14,wallFront+.105,.071,1.22,.045,'glass');
+      block('#ffe3b0',x,y+1.56,wallFront+.131,.050,.22,.032,'glass',true);
+     }
+    }
+    // Roof, marquee and skyline: substantial roof MASS over tenanted
+    // wings, but a CUTAWAY central atrium stays visible through the 3D
+    // camera. No fourth floor or roof covering the escalators.
+    for(const sign of[-1,1]){
+     const x=cx+sign*(tier===1?1.82:W*.31);
+     const w=tier===1?1.41:tier===2?2.55:2.45;
+     const d=tier===1?1.37:tier===2?1.95:3.91;
+     const z=tier===1?B+.55:tier===2?B+1.07:B+2.19;
+     // Pergola-style solid fascia + sparse skylight ribs, not an
+     // opaque giant roof slab over all the shops.
+     block('#ecb1c5',x,roofY,z,w,.12,d,'metal');
+     block('#fff0e4',x,roofY+.09,z,w-.12,.065,d-.09,'stone');
+     for(let i=0;i<5;i++){
+      const xx=x-w*.40+i*w*.20;
+      block(i%2?pink:light,xx,roofY+.17,z,.045,.08,d-.16,'metal');
+     }
+     block('#f1c1ce',x,roofY+.23,z-d*.46,w+.05,.19,.13,'stone');
+     block('#d3b0a9',x,roofY+.27,z+d*.46,w+.06,.10,.12,'metal');
+    }
+    // Full perimeter roof cap / parapet, broken at the front where the
+    // current tall PINK MALL marquee and GOLD GRAND MALL entrance sit.
+    for(const x of[west,east]){
+     block('#e2a9bd',x,roofY+.14,(wallBack+wallFront)/2,.18,.30,
+      wallFront-wallBack-.11,'stone');
+     block('#fbdfdf',x,roofY+.32,(wallBack+wallFront)/2,.21,.045,
+      wallFront-wallBack-.11,'metal');
+    }
+    for(const sign of[-1,1]){
+     const w=(W-2.04)/2-(tier===1?.50:.85);
+     const x=cx+sign*(W*.5-1.02-w*.50);
+     block('#efc0cd',x,roofY+.15,wallFront-.12,w,.27,.16,'stone');
+     block('#ffe2b2',x,roofY+.32,wallFront-.08,w*.91,.042,.11,'glass',true);
+    }
+    // Recognisable revolving/glazed double entrance: no solid block across
+    // the street-door opening. The glass doors are thin with visible handles.
+    for(const side of[-1,1]){
+     const xx=cx+side*.32;
+     block('#b3d8d6',xx,.83,wallFront,.55,1.04,.049,'glass');
+     block('#f6e6df',xx,.83,wallFront+.033,.026,1.10,.040,'metal');
+     block('#cfbdad',xx-side*.14,.84,wallFront+.053,.028,.33,.029,'metal');
+     block('#ffe1aa',xx,1.32,wallFront+.051,.43,.044,.035,'glass',true);
+    }
+    // Triple-layered entrance awning and architectural highlight.
+    block(pink,cx,2.03,wallFront-.17,tier===1?1.74:2.05,.14,.35,'stone');
+    block(white,cx,2.13,wallFront-.17,tier===1?1.65:1.96,.055,.28,'stone');
+    for(let i=0;i<5;i++){
+     const x=cx-.70+i*.35;
+     block('#ffebbc',x,2.04,wallFront+.018,.12,.047,.042,'glass',true);
+    }
+    // No model portion below invades the protected street or side-car area.
    }
    // At every scale the plot must read as a social mall, NOT a solid office.
    return;
