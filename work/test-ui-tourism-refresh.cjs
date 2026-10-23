@@ -15,11 +15,34 @@ let game;
 const ctx={document:{getElementById:get,querySelector:node,querySelectorAll:()=>[],activeElement:null},window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:value=>game=value},innerWidth:1360,innerHeight:900,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage:{getItem:()=>null,setItem:noop},console};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),ctx);
 game.reset();
-const rail=get('tools').innerHTML;
-for(const key of ['small','home_large','office_small','restaurant_small','hotel_small','tree:shade','signalManage','citizenDashboard','touristDashboard','tracking','eraseRoad'])assert(rail.includes('data-tool="'+key+'"'),'flattened rail lost '+key);
-assert(!rail.includes('data-tool="hand"'),'remove explore/map tool');
-assert(!get('categories').innerHTML,'nested category toolbar no longer rendered');
-assert(!get('subcategories').innerHTML,'nested subcategory toolbar no longer rendered');
+// The five primary categories are rebuilt rather than flattened.
+const primary=get('categories').innerHTML;
+for(const key of ['build','green','insights','traffic','manage'])
+ assert(primary.includes('data-dock-group="'+key+'"'),'missing main category '+key);
+assert(get('subcategories').hidden===false,'building subcategories must be available');
+assert(get('subcategories').innerHTML.includes('data-category="roads"'),'roads submenu absent');
+assert(get('subcategories').innerHTML.includes('data-category="hotel"'),'hotel submenu absent');
+let rail=get('tools').innerHTML;
+assert(rail.includes('data-tool="small"'),'road tools should show for starting building tab');
+assert(!rail.includes('data-tool="citizenDashboard"'),'tools from other categories must not be flattened into the build rail');
+const pressGroup=key=>get('categories').onclick({target:{closest:sel=>sel==='[data-dock-group]'?{dataset:{dockGroup:key}}:null}});
+const pressSub=key=>get('subcategories').onclick({target:{closest:sel=>sel==='[data-category]'?{dataset:{category:key}}:null}});
+pressSub('food');
+assert(get('tools').innerHTML.includes('data-tool="restaurant_small"'),'restaurant must show under buildings > food');
+assert(!get('tools').innerHTML.includes('data-tool="small"'),'road tools should not pollute food submenu');
+pressGroup('green');
+assert(get('subcategories').hidden&&get('subcategories').innerHTML==='','decoration must open directly');
+assert(get('tools').innerHTML.includes('data-tool="tree:shade"'),'decorations missing tree tools');
+pressGroup('traffic');
+assert(get('subcategories').hidden,'traffic must open directly');
+assert(get('tools').innerHTML.includes('data-tool="signalManage"'),'traffic controls missing');
+pressGroup('insights');
+assert(get('subcategories').hidden&&get('subcategories').innerHTML==='','city data must have NO submenu');
+rail=get('tools').innerHTML;
+for(const key of ['citizenDashboard','touristDashboard','tracking'])
+ assert(rail.includes('data-tool="'+key+'"'),'city data missing direct action '+key);
+assert(!rail.includes('data-tool="small"'),'city data must not include construction');
+assert(!rail.includes('data-tool="hand"'),'removed map exploration tool should stay removed');
 get('tools').onclick({target:{closest:sel=>sel==='[data-tool]'?{dataset:{tool:'touristDashboard',category:'tourists'}}:null}});
 assert(!get('touristsDashboard').classList.contains('hidden'),'tourist dashboard opens from flat tool rail');
 game.state.money=1e8;game.state.time=720;
@@ -52,4 +75,4 @@ assert(game.touristInspector(service).includes('กำลังทำอะไ�
 service.activityUntil=710;service.itinerary[0].status='done';
 data=game.touristDashboardData();assert.equal(data.stats.service,0,'finished activity must not remain active');
 assert.equal(data.stats.hotel,1,'hotel guest remains present');
-console.log(JSON.stringify({passed:true,flatTools:true,lowGlare:true,serviceLive:true,hotelLive:true,filters:true,rightInspector:true}));
+console.log(JSON.stringify({passed:true,categoryDock:true,cityDataDirect:true,lowGlare:true,serviceLive:true,hotelLive:true,filters:true,rightInspector:true}));

@@ -3,7 +3,7 @@ const noop=()=>{};
 function makeNode(){const classes=new Set(['hidden']);return {
  textContent:'',innerHTML:'',value:'',scrollTop:0,style:{},children:[],
  dataset:{},classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),toggle:(x,v)=>{if(v===false)classes.delete(x);else if(v===true)classes.add(x);else if(classes.has(x))classes.delete(x);else classes.add(x)},contains:x=>classes.has(x)},
- addEventListener:noop,querySelectorAll:()=>[],showModal(){this.open=true},close(){this.open=false},getContext:()=>new Proxy({},{get:()=>noop}),setPointerCapture:noop};}
+ setAttribute:noop,addEventListener:noop,querySelectorAll:()=>[],showModal(){this.open=true},close(){this.open=false},getContext:()=>new Proxy({},{get:()=>noop}),setPointerCapture:noop};}
 let game;const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,makeNode());return elements.get(id)};
 const page=fs.readFileSync('dist/index.html','utf8'),css=fs.readFileSync('dist/style.css','utf8');
 assert(page.includes('id="citizensDashboard"'));
@@ -47,9 +47,11 @@ assert.equal(d.moods.reduce((a,b)=>a+b,0),80);
 assert.equal(d.rush.length,12);assert.equal(d.lifestyles.reduce((a,b)=>a+b,0),80);
 assert(d.rush.some(n=>n>0),'rush plan chart should contain real planned trips');
 assert(d.problems.some(([k])=>k==='เดินทางไปทำงานไม่ได้'));
+assert(get('categories').innerHTML.includes('data-dock-group="insights"'),'city data must be reachable as a main group');
+get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'insights'}})}});
 const tools=get('tools').innerHTML;
-assert(!get('categories').innerHTML,'nested categories are intentionally removed');
-assert(tools.includes('data-tool="citizenDashboard"')&&tools.includes('data-tool="touristDashboard"'));
+assert(get('subcategories').hidden&&get('subcategories').innerHTML==='','city data must not require submenu navigation');
+assert(tools.includes('data-tool="citizenDashboard"')&&tools.includes('data-tool="touristDashboard"')&&tools.includes('data-tool="tracking"'));
 assert(tools.indexOf('data-category="citizens"')<tools.indexOf('data-category="tourists"'));
 game.selectTool('citizenDashboard');
 assert(!get('citizensDashboard').classList.contains('hidden'));
@@ -80,7 +82,7 @@ game.selectTool('citizenDashboard');
 assert(!get('citizensDashboard').classList.contains('hidden'));
 get('closeCitizensDashboard').onclick();
 assert(get('citizensDashboard').classList.contains('hidden'));
-assert(get('tools').innerHTML.includes('data-category="citizens"'));
+assert(get('categories').innerHTML.includes('data-dock-group="insights"'),'city information remains accessible through main navigation');
 // Large populations only render the first 40 cards.
 game.reset();
 for(let i=0;i<5000;i++){const c=game.newCitizen(home);c.resident=true;}
