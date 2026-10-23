@@ -60,7 +60,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     assert(has('#9faeb8'),'fish tray vendor missing');
     assert(count('#fce4a9')>=3,'hanging market lights missing');
     const stallCenters=[1.57,3,4.43];
-    assert(stallCenters.every(x=>local.some(p=>p.color==='#f4c53d'&&Math.abs(p.u-x)<.7)),
+    assert(stallCenters.every(x=>local.some(p=>['#f4c53d','#eed455'].includes(p.color)&&Math.abs(p.u-x)<.07)),
       'three separate market stall structures missing');
    }else if(key==='shop_medium'){
     assert(high>3.35&&high<4,'supermarket must show SECOND storey but not highrise');
