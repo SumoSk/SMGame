@@ -22,10 +22,20 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
   assert.equal(slots.length,t.parkingCapacity,key+' slots');
   assert.equal(new Set(slots.map(x=>x.index)).size,slots.length,'unique parking spaces '+key);
   if(t.plannedParking){
-   assert.equal(t.parkingRows,t.parkingCapacity>30?2:1,key+' number of banks');
+   assert.equal(t.parkingZoneDepth,t.buildingZoneDepth,key+' true 50/50 land split');
+   assert.equal(t.parkingZoneDepth,t.plotHeight/2,key+' half plot depth');
+   const area=banks=>Math.max(6,Math.ceil(2.33+Math.ceil(t.parkingCapacity/(2*banks))*.55))*(banks===1?8:13);
+   assert.equal(t.plotWidth*t.plotHeight,Math.min(area(1),area(2)),key+' minimum safe parking-first plot');
+   assert.equal(t.parkingRows,t.plotHeight===8?1:2,key+' matching number of courts');
    const graphic=g.parkingVisuals(sample);
    assert(graphic.length>=t.parkingCapacity*3,key+' stripes for every stall');
    assert.equal(graphic.filter(x=>x.color==='#515f62').length,t.parkingRows,key+' visible parking aisles');
+   assert.equal(graphic.filter(x=>['#9baaa0','#96af8f'].includes(x.color)).length,2,key+' real split ground');
+   const points=g.lotSlots(sample);
+   assert(Math.max(...points.map(x=>x.v+.62))<=t.parkingZoneDepth,key+' parking stays in rear half');
+   assert(Math.min(...points.map(x=>x.v-.62))>=0,key+' no blank rear row');
+   assert(Math.max(...points.map(x=>x.u+.275))<t.plotWidth-.90,key+' clear exit driveway');
+   assert(graphic.every(rect=>Number.isFinite(rect.w)&&rect.w>0&&Number.isFinite(rect.h)&&rect.h>0),key+' no negative-sized asphalt, island or markings');
   }
   for(let rot=0;rot<4;rot++){
    const b={...sample,rotation:rot},bounds=g.buildingBounds(b);
@@ -60,5 +70,5 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
   for(let tick=0;tick<8000&&!b.parked.has(c.id);tick++){g.state.time+=.04;g.advanceVehicles(.05,.04);}
   assert(b.parked.has(c.id),key+' car successfully enters and parks');
  }
- console.log(JSON.stringify({passed:true,updatedBuildingTypes:Object.keys(spec).length,rotations:4,grandUnchanged:true,hotelUnchanged:true,rendered:drawn,realArrivals:homes.length}));
+ console.log(JSON.stringify({passed:true,updatedBuildingTypes:Object.keys(spec).length,rotations:4,parkingFirst:true,landSplit:'50/50',grandUnchanged:true,hotelUnchanged:true,rendered:drawn,realArrivals:homes.length}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
