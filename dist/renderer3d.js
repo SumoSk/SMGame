@@ -621,20 +621,19 @@ export class TrafficRenderer{
   const t=CATALOG[b.key],id=b.id,s=t.size,W=t.plotWidth||s+2,isHotel=t.kind==='hotel',kind=isHotel?'home':t.kind;
   const tier=b.key==='home_dual'?2:b.key.endsWith('_large')?3:b.key.endsWith('_medium')?2:1;
   const turn=-(b.rotation||0)*Math.PI/2;
-  const cottage=b.key==='home_starter',modelScale=cottage?.8:1,heightScale=cottage?.85:1;
-  const point=(u,v)=>{if(cottage){u=(u-.58)*modelScale;v*=modelScale;}return this.parking?.lotPoint(b,u,v)||{x:b.x+u+.5,y:b.y+v+.5};};
+  const point=(u,v)=>this.parking?.lotPoint(b,u,v)||{x:b.x+u+.5,y:b.y+v+.5};
   const block=(color,u,y,v,w,h,d,finish='matte',glow=false)=>{
-   const p=point(u,v);batch.box(color,p.x-.5,y*heightScale,p.y-.5,w*modelScale,h*heightScale,d*modelScale,turn,id,glow,finish);
+   const p=point(u,v);batch.box(color,p.x-.5,y,p.y-.5,w,h,d,turn,id,glow,finish);
   };
   const pole=(color,u,y,v,r,h,finish='matte',glow=false)=>{
-   const p=point(u,v);batch.add(CYL,color,p.x-.5,y*heightScale,p.y-.5,r*modelScale,h*heightScale,r*modelScale,0,0,0,id,glow,finish);
+   const p=point(u,v);batch.add(CYL,color,p.x-.5,y,p.y-.5,r,h,r,0,0,0,id,glow,finish);
   };
   const planted=(u,v,scale=.44)=>{
    const p=point(u,v);this.tree(batch,p.x-.5,p.y-.5,scale);
   };
   const gable=(color,u,v,w,d,base,rise)=>{
    const p=point(u,v);
-   batch.add(PITCHED_ROOF,color,p.x-.5,base*heightScale,p.y-.5,w*modelScale,rise*heightScale,d*modelScale,0,turn,0,id,false,'stone');
+   batch.add(PITCHED_ROOF,color,p.x-.5,base,p.y-.5,w,rise,d,0,turn,0,id,false,'stone');
    block('#d1bba0',u,base-.025,v,w+.10,.075,d+.10,'wood');
   };
   const lantern=(u,v,lit='#ffe0ad',height=1.18)=>{
@@ -660,64 +659,53 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
-  // STARTER COTTAGE: one modest storey, garden porch and ONE row of six FRONT bays.
-  // Uses the compact front aisle (v=4.55), never the rear parking banks.
+  // A newly built 3x3 raised cottage: ONE residential storey, standard
+  // full-sized cars below, a narrow side stair and three front parking bays.
   if(b.key==='home_starter'){
-   const cream='#eee4d2',sage='#91a798',wood='#977052',roof='#6d7775';
-   block('#c8bba5',3.08,.16,1.88,3.48,.24,2.52,'stone');
-   block(cream,3.08,.91,1.88,3.30,1.28,2.32,'stone');
-   block('#c1b49d',3.08,.34,1.88,3.36,.13,2.38,'stone');
-   // A pitched main roof with deep eaves, capped ridge and slim tile seams.
-   gable(roof,3.08,1.88,3.72,2.72,1.61,.66);
-   block('#84928b',3.08,2.30,1.88,3.76,.065,.11,'stone');
-   const angle=Math.atan2(.66,1.36),slope=Math.hypot(.66,1.36);
-   for(let n=0;n<17;n++)for(const sign of[-1,1]){
-    const p=point(1.31+n*.22,1.88+sign*.68);
-    batch.add(BOX,'#89958e',p.x-.5,1.96*heightScale,p.y-.5,.018*modelScale,.022*heightScale,slope*modelScale,sign*angle,turn,0,id,false,'stone');
+   const cream='#eee4d2',wood='#977052',sage='#8ea593',roof='#697a77';
+   for(const x of [.64,2.75])for(const z of [.20,1.18]){
+    block('#b8ac98',x,.56,z,.085,1.10,.085,'stone');
+    block('#d4c7b0',x,.10,z,.15,.15,.15,'stone');
    }
-   // Recessed timber entry, glazed windows, frames and individual shutters.
-   pane(2.02,1.02,3.057,.68,.69,true,'#688e94');
-   pane(4.17,1.02,3.057,.70,.69,true,'#688e94');
-   for(const x of [1.58,2.46,3.72,4.62]){
-    block(sage,x,1.03,3.11,.14,.79,.055,'wood');
-    for(let y=.72;y<1.4;y+=.11)block('#718d7e',x,y,3.15,.12,.025,.018,'wood');
+   block('#c9bda8',1.69,1.12,.74,2.28,.13,1.15,'stone');
+   block(cream,1.69,1.66,.69,2.16,.99,1.03,'stone');
+   block('#d2c3aa',1.69,1.23,.69,2.20,.09,1.08,'stone');
+   // Timber porch looks onto the front forecourt, clear above the cars.
+   block(wood,1.63,1.13,1.36,2.19,.09,.29,'wood');
+   for(const x of [.59,2.67])block(wood,x,1.68,1.43,.045,1.01,.045,'wood');
+   block(wood,1.63,1.51,1.49,2.13,.045,.045,'wood');
+   for(let x=.64;x<2.65;x+=.18)block('#c8b799',x,1.35,1.49,.022,.27,.028,'wood');
+   // Roof, exposed eaves and a modest matching porch awning.
+   gable(roof,1.69,.72,2.43,1.30,2.15,.43);
+   block('#86968e',1.69,2.60,.72,2.45,.055,.075,'stone');
+   block(roof,1.63,2.17,1.36,2.25,.065,.44,'metal');
+   pane(1.01,1.72,1.224,.42,.47,true,'#6e969c');
+   pane(2.35,1.72,1.224,.43,.47,true,'#6e969c');
+   block(wood,1.68,1.58,1.232,.45,.81,.055,'wood');
+   block('#739b9c',1.68,1.77,1.27,.28,.25,.023,'glass');
+   block('#d8bc8b',1.83,1.53,1.28,.035,.055,.024,'metal');
+   for(const x of [.72,1.30,2.06,2.64]){
+    block(sage,x,1.72,1.26,.095,.54,.04,'wood');
+    for(let y=1.5;y<1.99;y+=.09)block('#6a8778',x,y,1.29,.078,.018,.018,'wood');
    }
-   block(wood,3.08,.84,3.075,.63,1.03,.09,'wood');
-   block('#739397',3.08,1.08,3.132,.36,.35,.025,'glass');
-   pole('#dfc394',3.29,.79,3.16,.033,.07,'metal');
-   for(const x of [1.405,4.755]){
-    block('#adc6c3',x,.99,1.73,.035,.66,.76,'glass');
-    for(const z of [1.32,1.73,2.14])block('#f4ecdd',x,.99,z,.065,.72,.034,'wood');
-    block(cream,x,.61,1.73,.09,.06,.88,'stone');
+   pane(1.01,1.72,.16,.43,.42,false,'#6e969c');
+   pane(2.34,1.72,.16,.43,.42,false,'#6e969c');
+   block('#83a9ab',2.783,1.72,.67,.025,.47,.57,'glass');
+   block('#e7dbca',2.80,1.45,.67,.04,.045,.68,'stone');
+   for(const z of [.37,.67,.97])block('#e7dbca',2.81,1.72,z,.04,.51,.022,'wood');
+   // Side stair stays outside both driveway sweeps and every parking bay.
+   for(let n=0;n<8;n++){
+    block('#beac91',.135,.075+n*.14,.29+n*.14,.21,.14,.16,'stone');
    }
-   pane(2.14,1.0,.69,.65,.58,false,'#688e94');
-   pane(4.03,1.0,.69,.65,.58,false,'#688e94');
-   // Low covered porch and steps remain clear of the rear edge of front bays.
-   block('#d9cbb7',3.08,.21,3.22,1.31,.21,.45,'stone');
-   block('#bfa98a',3.08,.11,3.48,.88,.09,.14,'stone');
-   block(roof,3.08,1.56,3.20,1.49,.085,.59,'metal');
-   for(const x of [2.44,3.72])block(wood,x,.90,3.38,.065,1.22,.065,'wood');
-   for(const x of [2.61,3.54]){
-    block('#beaa8a',x,.34,3.33,.18,.19,.17,'stone');
-    block('#668b65',x,.50,3.33,.21,.20,.20,'stone');
-    block('#d9a68c',x,.62,3.33,.09,.06,.10,'stone');
+   block(wood,.35,1.13,1.36,.47,.09,.25,'wood');
+   for(const n of [0,3,7])block(wood,.03,.32+n*.14,.29+n*.14,.025,.35,.025,'wood');
+   // Small porch planters and warm entry light replace the broad old garden.
+   for(const x of [.77,2.46]){
+    block('#bca98a',x,1.25,1.40,.16,.17,.14,'stone');
+    block('#618566',x,1.40,1.40,.17,.17,.15,'stone');
+    block('#dda995',x,1.49,1.40,.07,.055,.08,'stone');
    }
-   block('#ead7a7',3.08,1.40,3.15,.13,.12,.10,'glass',true);
-   // Small lawn, flower beds, stepping stones and a domestic garden bench.
-   for(const z of [1.0,1.55,2.1,2.65,3.18]){
-    block('#d6c9b3',5.01,.055,z,.26,.035,.32,'stone');
-   }
-   for(const z of [1.04,1.64,2.24,2.84]){
-    block('#b6a78c',1.06,.15,z,.23,.16,.38,'stone');
-    block('#6b956a',1.06,.30,z,.24,.21,.33,'stone');
-    for(const dx of [-.065,.065])block('#dfb4a4',1.06+dx,.43,z,.075,.08,.09,'stone');
-   }
-   block(wood,4.54,.37,.39,.69,.065,.25,'wood');
-   block(wood,4.54,.54,.30,.69,.30,.055,'wood');
-   for(const x of [4.29,4.79])block('#5f6b64',x,.22,.39,.055,.28,.22,'metal');
-   // Rear boundary only; the street-facing parking and both drives stay open.
-   block('#c9baa0',3.08,.30,.14,3.62,.43,.075,'stone');
-   for(const x of [1.35,4.81])block('#ddd3c0',x,.39,.14,.15,.63,.16,'stone');
+   block('#f2d9a4',1.69,2.03,1.28,.10,.10,.075,'glass',true);
    return;
   }
   // ORBIT CASINO: faceted midnight-blue pavilions, cyan light rails, cards,

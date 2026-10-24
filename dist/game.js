@@ -46,9 +46,9 @@ for(const t of Object.values(CATALOG)){
  if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.88;t.plotWidth=20;t.plotHeight=11;t.parkingAisle=9.15;t.parkingUpperAisle=6.55;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
  if(t.stackedParking){t.parkingColumns=15;t.parkingRows=2;t.parkingPhysicalRows=4;t.parkingPitch=.55;t.parkingRowOffset=.79;t.parkingAisle=4.90;t.parkingRearAisle=2.05;t.plotWidth=11;t.plotHeight=13;t.compactParking=true;t.frontageEntranceU=3.0;t.frontageExitU=8.0;t.frontageV=12.43;}
  if(t.key==='home_starter'){
-  t.singleParkingRow=true;t.parkingColumns=6;t.parkingPhysicalRows=1;
-  t.plotWidth=4;t.plotHeight=5;t.parkingStartU=.20;t.parkingPitch=.60;
-  t.parkingAisle=4.55;t.parkingRowOffset=1.05;
+  t.compactCottage=true;t.parkingColumns=3;t.parkingPhysicalRows=2;
+  t.plotWidth=3;t.plotHeight=3;t.parkingStartU=.675;t.parkingPitch=.55;
+  t.parkingAisle=1.50;t.parkingRowOffset=.79;
  }
  if(t.plannedParking){
   // Parking is sized FIRST. Compare the one-bank and two-bank plot areas,
@@ -483,7 +483,7 @@ function prepareLotDeparture(v,dt){
   // Rear court must physically cross the front court's aisle at a real T
   // junction. Include the crossing as an explicit motion waypoint.
   if(t.stackedParking&&t.parkingRows>1&&slot.zone==='rear')v.lotPath.push(lotPoint(b,exitU,t.parkingAisle));
-  v.lotPath.push(lotPoint(b,exitU,t.singleParkingRow?t.plotHeight-.3:t.plotHeight-.9));
+  v.lotPath.push(lotPoint(b,exitU,t.compactCottage?t.plotHeight-.3:t.plotHeight-.9));
   v.lotDistance=0;v.lotBuilding=b.id;
   if(t.stackedParking&&t.parkingRows>1){
    const junctionSegment=slot.zone==='rear'?4:3;
@@ -590,7 +590,7 @@ function beginParkingArrival(v){
  // entrance is not a parking queue, and lack of a bay must not block the road.
  const t=CATALOG[b.key],entry=positionOnMotion(motionPlan(v),motionPlan(v).total);
  if(parkingEntranceOccupied(v,b,entry)){v.speed=0;v.stopReason='รอรถคันหน้าพ้นปากทางเข้า';return true;}
- if(t.singleParkingRow){
+ if(t.compactCottage){
   // Select the bay BEFORE advancing beyond the first two compact spaces.
   // The generic staging/replanning rule needs .8 of forward clearance and
   // cannot reach these bays after the car has already entered the aisle.
@@ -620,15 +620,15 @@ function parkingVisuals(b){
  // Stop the underlay at the true outer edge of the rear parking bank.
  // The previous full-plot backing exposed a pale ~0.6-cell strip behind
  // every current model. This crops only that backing, never stalls or lanes.
- if(t.singleParkingRow){
-  // Compact cottage: six perpendicular bays, one street-edge apron.
-  rect(2,1.42,3.95,2.79,'#96af8f');
-  rect(2,3.50,3.60,1.30,'#515f62');
-  rect(2,4.55,3.80,.72,'#58666a');
-  for(let col=0;col<=6;col++)rect(.20+col*.60,3.50,.022,1.30,'#e9e6cc');
-  rect(2,2.86,3.60,.025,'#e9e6cc');
-  for(const slot of lotSlots(b))rect(slot.u,2.96,.38,.060,'#bbc9b9');
-  for(const u of [.45,t.plotWidth-.45])rect(u,4.93,.70,.14,'#58666a');
+ if(t.compactCottage){
+  // Standard .55 x 1.24 bays: three under the raised cottage, three in front.
+  rect(1.5,1.5,2.95,2.95,'#515f62');
+  rect(1.5,t.parkingAisle,2.90,.72,'#58666a');
+  for(const slot of lotSlots(b)){
+   for(const side of [-1,1])rect(slot.u+side*.275,slot.v,.025,1.24,'#e9e6cc');
+   rect(slot.u,slot.v+(slot.row?.62:-.62),.51,.025,'#e9e6cc');
+  }
+  for(const u of [.45,t.plotWidth-.45])rect(u,2.93,.70,.14,'#58666a');
   return rects;
  }
  const rearEdge=t.stackedParking?Math.max(.025,t.parkingRearAisle-t.parkingRowOffset-.64):.025;
@@ -3443,7 +3443,7 @@ function moveBuilding(buildingId,x,y,confirmed=false){
  syncParkingSlots();movingBuildingId=null;hover=null;selectTool('hand');selected={kind:'building',id:b.id};renderInspector();updateUI();toast('ย้ายอาคารแล้ว · ฟรี');return true;
 }
 
-function buildBuilding(key,x,y,confirmed=false){const check=checkBuilding(key,x,y),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true));positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,starterCompact:key==='home_starter',starterFrontRowV2:key==='home_starter',starterParkingV3:key==='home_starter',starterCottageV4:key==='home_starter',grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,queue:[],arrivals:0};state.buildings.set(b.id,b);markBuildingPlot(b,b.id);state.money-=t.cost;for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
+function buildBuilding(key,x,y,confirmed=false){const check=checkBuilding(key,x,y),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true));positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,starterCompact:key==='home_starter',starterFrontRowV2:key==='home_starter',starterParkingV3:key==='home_starter',starterCottageV4:key==='home_starter',starterCottage3x3:key==='home_starter',grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,queue:[],arrivals:0};state.buildings.set(b.id,b);markBuildingPlot(b,b.id);state.money-=t.cost;for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
 function demolishBuilding(b,confirmed=false){if(!b)return;const t=CATALOG[b.key],fee=0;if(!confirmed){confirmAction('รื้อ'+t.name,`ค่ารื้อ ${money(fee)}<br>${t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ ผู้ที่กำลังเดินทางมาอาคารนี้จะกลับบ้าน'}`,()=>demolishBuilding(b,true));return;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);resumeCancelledLife(c,v,'อาคารต้นทางหรือปลายทางถูกรื้อ');}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
 markBuildingPlot(b,-1);state.buildings.delete(b.id);state.money-=fee;for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
 // Freehand demolition follows every crossed cell, even between sparse pointer samples.
@@ -3770,6 +3770,14 @@ function migrateCompactHomes(){
   if(rotation===2||rotation===3)b.x+=1;
   if(rotation===0||rotation===3)b.y+=1;
   b.starterCottageV4=true;moved.add(b.id);
+ }
+ for(const b of state.buildings.values())if(b.key==='home_starter'&&!b.starterCottage3x3){
+  // 4x5 -> 3x3; retain street edge and remain inside the existing plot.
+  const rotation=b.rotation||0;
+  if(rotation===0)b.y+=2;
+  if(rotation===2)b.x+=1;
+  if(rotation===3){b.x+=2;b.y+=1;}
+  b.starterCottage3x3=true;moved.add(b.id);
  }
  for(const b of state.buildings.values()){
   if(b.key!=='home_dual'||b.compactLotV3)continue;
