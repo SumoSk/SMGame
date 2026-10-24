@@ -18,9 +18,9 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
   let signature=null;
   for(let rotation=0;rotation<4;rotation++){
    const b={key,id:91,x:20,y:20,rotation},batch=new Batch();renderer.building(batch,b,g.CATALOG,g.KINDS);
-   let count=0,top=0;
+   let count=0,top=0,rearDetails=0,sideDetails=0;
    for(const group of batch.data.values())for(const item of group.items){
-    count++;assert([item.x,item.y,item.z,item.sx,item.sy,item.sz].every(Number.isFinite));assert(item.sx>0&&item.sy>0&&item.sz>0);
+    count++;if(rotation===0){if(item.z-20<.20&&item.sz<.21&&item.y>.20)rearDetails++;if((item.x-20<.40||item.x-20>2.62)&&item.sx<.22&&item.y>.20)sideDetails++;}assert([item.x,item.y,item.z,item.sx,item.sy,item.sz].every(Number.isFinite));assert(item.sx>0&&item.sy>0&&item.sz>0);
     const matrix=new THREE.Matrix4().compose(new THREE.Vector3(item.x,item.y,item.z),new THREE.Quaternion().setFromEuler(new THREE.Euler(item.rx,item.ry,item.rz)),new THREE.Vector3(item.sx,item.sy,item.sz));
     for(let n=0;n<group.geo.attributes.position.count;n++){
      const p=new THREE.Vector3().fromBufferAttribute(group.geo.attributes.position,n).applyMatrix4(matrix),x=p.x-20,z=p.z-20;
@@ -29,6 +29,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
     }
    }
    assert(count>45&&count<500,key+' detailed but bounded');
+   if(rotation===0){assert(rearDetails>=10,key+' detailed rear elevation');assert(sideDetails>=6,key+' detailed side elevations');}
    const next=JSON.stringify({count,top:+top.toFixed(4)});if(signature)assert.equal(next,signature);else signature=next;
   }
   assert(!signatures.has(signature),key+' must have its own architecture');signatures.add(signature);results.push({key,...JSON.parse(signature)});
@@ -41,5 +42,5 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const hotel=[...g.state.buildings.values()].find(b=>b.key==='hotel_starter');
  const home=[...g.state.buildings.values()].find(b=>b.key==='home_starter'),worker=g.newCitizen(home);
  hotel.workers.add(worker.id);worker.workId=hotel.id;assert(Number.isFinite(g.workRoutine(worker).end),'hotel staff have a valid work schedule');
- console.log(JSON.stringify({passed:true,starterTypes:results.length,rotations:40,architectureClearOfParking:true,hotelStaff:true,results}));
+ console.log(JSON.stringify({passed:true,starterTypes:results.length,rotations:40,architectureClearOfParking:true,rearAndSidesDetailed:true,hotelStaff:true,results}));
 })().catch(e=>{console.error(e);process.exitCode=1});

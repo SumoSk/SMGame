@@ -676,6 +676,195 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
+  // STARTER REAR/SIDE ELEVATIONS. Place the visible glass, handles and trims
+  // along each wall's OUTWARD normal; front-facing panes disappear in rear walls.
+  if(t.starterTier){
+   const wall=(face,c,x,y,z,w,h,d,offset=0,finish='stone',glow=false)=>{
+    if(face==='rear')block(c,x,y,z-offset,w,h,d,finish,glow);
+    else block(c,x+(face==='left'?-offset:offset),y,z,d,h,w,finish,glow);
+   };
+   const window=(face,x,y,z,w,h,tint='#6d969e',frame='#dfd9ca',lit=true)=>{
+    wall(face,frame,x,y,z,w+.09,h+.08,.030,.025);
+    wall(face,tint,x,y,z,w,h,.018,.055,'glass');
+    wall(face,'#a7c3c2',x,y+h*.23,z,w*.85,.022,.010,.067,'glass');
+    wall(face,frame,x,y,z,.022,h,.012,.070,'metal');
+    wall(face,frame,x,y-h/2-.035,z,w+.11,.055,.055,.045);
+    if(lit)wall(face,'#f6deb2',x,y-h*.17,z,w*.70,h*.35,.008,.067,'glass',true);
+   };
+   const door=(face,x,z,w=.35,h=.75,c='#7e806f',base=.17)=>{
+    wall(face,'#d0c5b1',x,base+h/2,z,w+.08,h+.06,.035,.020);
+    wall(face,c,x,base+h/2,z,w,h,.025,.045,'metal');
+    wall(face,'#b6c6bb',x,base+h*.76,z,w*.65,h*.18,.014,.061,'glass');
+    wall(face,'#d9c7a0',x+w*.28,base+h*.47,z,.028,.045,.015,.073,'metal');
+    wall(face,'#c4b59a',x,base-.035,z,w+.12,.065,.055,.042);
+   };
+   const vent=(face,x,y,z,w=.30,h=.20,c='#8c9b91')=>{
+    wall(face,'#566e6e',x,y,z,w+.045,h+.045,.028,.028,'metal');
+    for(let k=0;k<5;k++)wall(face,c,x,y-h*.40+k*h*.20,z,w,.018,.020,.054,'metal');
+   };
+   const light=(face,x,y,z)=>{
+    wall(face,'#667368',x,y,z,.11,.16,.035,.027,'metal');
+    wall(face,'#f6db9f',x,y,z,.067,.08,.022,.060,'glass',true);
+   };
+   const drain=(x,z,h=1.10,c='#8d9b90',base=.16)=>{
+    pole(c,x,base+h/2,z,.014,h,'metal');
+    for(const y of [base+.14,base+h-.12])block('#b9b8a4',x,y,z,.048,.025,.025,'metal');
+   };
+   const rearRail=(x,z,w,y,c)=>{
+    block(c,x,y+.13,z,w,.026,.022,'metal');
+    for(let n=0;n<6;n++)block(c,x-w*.45+n*w*.18,y+.06,z,.018,.15,.018,'metal');
+   };
+   if(t.kind==='home'){
+    // Domestic rear entrance, shutters, side glazing and gutters.
+    for(const x of [.79,2.20]){
+     window('rear',x,.73,.11,.49,.40,'#6e969c');
+     for(const dx of [-.32,.32]){
+      wall('rear','#8ea593',x+dx,.73,.11,.09,.48,.025,.040,'wood');
+      for(let y=.54;y<.95;y+=.085)wall('rear','#6b8879',x+dx,y,.11,.072,.017,.012,.060,'wood');
+     }
+    }
+    door('rear',1.50,.11,.36,.79,'#977052',.15);
+    light('rear',1.50,1.05,.11);
+    for(const [face,x] of [['left',.28],['right',2.72]]){
+     window(face,x,.73,.58,.48,.42,'#80a5a8');
+     wall(face,'#c6baa4',x,.25,.58,.89,.065,.025,.035);
+    }
+    drain(.30,.063,1.00);drain(2.70,.063,1.00);
+   }else if(t.kind==='shop'){
+    // Delivery door and stock-room windows, yellow side fascia and roller vent.
+    window('rear',.77,.79,.095,.58,.30,'#859c8b');
+    window('rear',2.22,.79,.095,.58,.30,'#859c8b');
+    door('rear',1.50,.095,.40,.75,'#758575');
+    vent('rear',2.23,.39,.095,.40,.17,'#b6b69c');
+    light('rear',1.50,1.05,.095);
+    for(const [face,x] of [['left',.26],['right',2.74]]){
+     window(face,x,.70,.57,.43,.43,'#789782');
+     wall(face,'#d7ae4c',x,1.05,.57,.83,.11,.035,.025,'metal');
+     wall(face,'#b9a16b',x,.28,.57,.86,.07,.025,.025,'wood');
+    }
+    drain(.29,.058,1.00);drain(2.71,.058,1.00);
+   }else if(t.kind==='restaurant'){
+    // High kitchen windows, rear serving hatch, extractor and herb boxes.
+    window('rear',.65,.79,.12,.43,.29,'#9cb4b4');
+    door('rear',1.39,.12,.33,.73,'#44768d');
+    vent('rear',.66,.42,.12,.45,.19,'#c2d1c9');
+    light('rear',1.02,1.05,.12);
+    window('left',.28,.75,.57,.44,.40,'#8aaeb8');
+    wall('left','#b4c1b7',.28,1.03,.57,.51,.10,.09,.055,'metal');
+    window('right',1.80,.77,.57,.43,.35,'#8aaeb8');
+    drain(.32,.067,.95,'#6d8a92');
+    for(const x of [2.06,2.35,2.64]){
+     block('#b6a58b',x,.19,.14,.21,.18,.16,'stone');
+     block('#5d8c63',x,.35,.14,.18,.19,.13,'stone');
+    }
+    for(const x of [1.91,2.73])block('#84a38e',x,.87,.21,.055,.43,.055,'wood');
+   }else if(t.kind==='mall'){
+    // Luxury elevation continues around the boutique wing and glass rotunda.
+    for(const x of [.64,1.40]){
+     window('rear',x,.76,.105,.47,.83,'#658c95','#e9dfcb');
+     window('rear',x,1.42,.105,.44,.25,'#789ca0','#d7bf90',false);
+    }
+    for(const x of [.30,1.02,1.77])wall('rear','#bd9a5e',x,.98,.105,.025,1.43,.018,.058,'metal');
+    for(const y of [.35,1.13,1.63])wall('rear','#d3bea0',1.04,y,.105,1.53,.047,.035,.025);
+    window('left',.265,.86,.61,.56,1.03,'#648f98','#e5d8be');
+    wall('left','#bd9a5e',.265,1.48,.61,.75,.038,.025,.050,'metal');
+    window('right',2.80,1.02,.65,.58,1.22,'#729aa1','#d9c293');
+    for(const a of [1.12,1.30,1.50,1.70,1.88].map(n=>n*Math.PI)){
+     const x=2.21+Math.cos(a)*.468,z=.64+Math.sin(a)*.468;
+     block('#bd9a5e',x,.94,z,.025,1.41,.025,'metal');
+    }
+    light('rear',1.04,1.57,.105);
+   }else if(t.kind==='office'){
+    // Continuous curtain-wall floors on the rear and left; service wing right.
+    for(const y of [.51,1.10,1.70]){
+     for(const x of [.57,1.05,1.50])window('rear',x,y,.115,.31,.36,'#83a7ad','#b9cfcc',y<1.5);
+     window('left',.30,y,.61,.59,.36,'#83a7ad','#b9cfcc',y<1.5);
+    }
+    for(const y of [.24,.84,1.44,2.04]){
+     wall('rear','#c7d5ce',1.01,y,.115,1.44,.047,.035,.028,'metal');
+     wall('left','#c7d5ce',.30,y,.61,.98,.047,.035,.030,'metal');
+    }
+    door('rear',2.22,.15,.35,.78,'#547c85');
+    window('right',2.725,.74,.63,.60,.62,'#6c9aa6','#c7d5ce');
+    vent('rear',2.61,.88,.15,.20,.18,'#a9c0bd');
+    light('rear',2.22,1.07,.15);
+   }else if(t.kind==='factory'){
+    // Rear loading shutter, transom glazing, corrugation and external pipework.
+    for(let x=.34;x<2.72;x+=.13)wall('rear','#81918d',x,.68,.12,.023,.93,.024,.020,'metal');
+    for(const [face,x] of [['left',.285],['right',2.715]]){
+     for(const z of [.26,.40,.54,.68,.82,.96])wall(face,'#81918d',x,.67,z,.024,.92,.024,.020,'metal');
+     wall(face,'#d89544',x,.27,.60,.90,.12,.040,.032,'metal');
+     window(face,x,.91,.60,.61,.22,'#a5bfc0','#afbeb1',false);
+     vent(face,x,.55,.60,.42,.20,'#b5c2b8');
+    }
+    wall('rear','#343e40',1.50,.63,.12,.82,.78,.035,.034,'metal');
+    for(let y=.33;y<1.0;y+=.085)wall('rear','#7d8b86',1.50,y,.12,.76,.026,.018,.058,'metal');
+    window('rear',.69,.93,.12,.43,.23,'#a9c2c1','#b9c4b7',false);
+    window('rear',2.30,.93,.12,.43,.23,'#a9c2c1','#b9c4b7',false);
+    for(const x of [.35,2.65])drain(x,.057,1.04,'#bd874a');
+    light('rear',1.50,1.07,.12);
+   }else if(t.kind==='park'){
+    // Garden paths return behind the fountain; planted boundary and kiosk glazing.
+    block('#d4c4a7',1.36,.15,.145,2.30,.045,.15,'stone');
+    for(const x of [.28,.68,2.02,2.38]){
+     block('#a49473',x,.17,.065,.27,.15,.09,'stone');
+     block('#77966d',x,.30,.065,.24,.18,.10,'stone');
+    }
+    for(const x of [.15,2.88])for(const z of [.24,.49,.74,1.0]){
+     block('#95815f',x,.28,z,.035,.40,.035,'wood');
+     block('#c4b496',x,.40,z,.033,.045,.20,'wood');
+    }
+    window('rear',2.63,.50,.17,.23,.24,'#aec3b2','#d1cfb5',false);
+    window('right',2.83,.50,.39,.25,.25,'#aec3b2','#d1cfb5',false);
+    window('left',2.43,.50,.39,.24,.25,'#aec3b2','#d1cfb5',false);
+    // Small timber supports and foliage are visible from both sides of the sign.
+    for(const x of [1.10,1.30,1.50,1.70,1.90])block('#91aa78',x,.84,.102,.11,.10,.022,'wood');
+   }else if(t.kind==='pub'){
+    // Rear fire exit, acoustic louvres and neon returning around both roof edges.
+    door('rear',1.50,.135,.45,.79,'#615871');
+    for(const x of [.65,2.35]){
+     vent('rear',x,.72,.135,.43,.36,'#9b86ad');
+     wall('rear','#c49bd8',x,1.08,.135,.48,.025,.018,.062,'glass',true);
+    }
+    for(const [face,x] of [['left',.285],['right',2.715]]){
+     window(face,x,.73,.62,.52,.44,'#716487','#b59bc6');
+     wall(face,'#c48cdb',x,1.12,.62,.92,.027,.020,.041,'glass',true);
+     for(const z of [.25,.99])wall(face,'#8a719a',x,.65,z,.040,.78,.028,.022,'metal');
+    }
+    light('rear',1.50,1.07,.135);
+   }else if(t.kind==='casino'){
+    // A second neon facade, side glass fins and ornamental card backs.
+    for(const x of [.67,2.33])window('rear',x,.71,.135,.48,.65,'#547b94','#a4afbe');
+    door('rear',1.50,.135,.44,.84,'#4b496b');
+    wall('rear','#65d6df',1.50,1.25,.135,2.49,.030,.020,.050,'glass',true);
+    for(const [face,x] of [['left',.285],['right',2.715]]){
+     window(face,x,.74,.61,.58,.73,'#537c94','#abb6c4');
+     for(const z of [.23,.98])wall(face,'#68cbd7',x,.78,z,.022,1.02,.018,.052,'glass',true);
+    }
+    for(const x of [1.02,1.50,1.98]){
+     block('#eee5da',x,1.72,.544,.24,.36,.012,'stone');
+     const p=point(x,.532);
+     // Diamond orientation is composed with the building rotation.
+     const q=new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0,Math.PI/4));q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),turn));const e=new THREE.Euler().setFromQuaternion(q);
+     batch.add(BOX,'#966d9d',p.x-.5,1.72,p.y-.5,.12,.12,.012,e.x,e.y,e.z,id,false,'metal');
+    }
+    light('rear',1.50,1.11,.135);
+   }else if(t.kind==='hotel'){
+    // Guest rooms have real rear balconies as well as the front balconies.
+    for(const x of [.88,2.12]){
+     window('rear',x,1.29,.12,.60,.43,'#7a9ca1','#e0ccb0');
+     block('#cdb89a',x,1.00,.07,.73,.05,.10,'stone');
+     rearRail(x,.022,.71,1.06,'#9b7b5c');
+     window('rear',x,.59,.12,.58,.42,'#7a9ca1','#e0ccb0');
+    }
+    for(const [face,x] of [['left',.285],['right',2.715]])for(const y of [.60,1.30]){
+     window(face,x,y,.59,.56,.41,'#7a9ca1','#e0ccb0');
+     wall(face,'#b9a181',x,y-.25,.59,.76,.045,.030,.033,'wood');
+    }
+    for(const x of [.34,2.66])drain(x,.060,1.43,'#ad9476');
+    light('rear',1.50,.94,.12);
+   }
+  }
   // STARTER COLLECTION: nine purpose-built 3x3 designs. All architecture
   // stops before v=1.27; the shared six-bay forecourt begins at v=1.28.
   if(t.starterTier&&b.key!=='home_starter'){
