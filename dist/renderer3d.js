@@ -568,6 +568,23 @@ export class TrafficRenderer{
 
  }
  this.roadGroup.add(batch.build(false),line.build(false));
+ // A few merged meshes keep paving/curbs cheap even along long city roads.
+ const streetSurfaces=new Map();
+ for(const face of this.parking?.roadsideVisuals?.(state,junction.details)||[]){
+  const key=face.color+':'+face.role;if(!streetSurfaces.has(key))streetSurfaces.set(key,{...face,vertices:[]});
+  const out=streetSurfaces.get(key).vertices,points=face.points.map(p=>[...p]);let area=0;
+  for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length];area+=a[0]*b[1]-a[1]*b[0];}if(area>0)points.reverse();
+  const top=points.map(([x,z])=>[x,face.height,z]),bottom=points.map(([x,z])=>[x,face.height-face.thickness,z]);
+  for(let i=2;i<top.length;i++)out.push(...top[0],...top[i-1],...top[i]);
+  for(let i=0;i<top.length;i++){const j=(i+1)%top.length;out.push(...top[i],...bottom[i],...top[j],...top[j],...bottom[i],...bottom[j]);}
+ }
+ for(const surface of streetSurfaces.values()){
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(surface.vertices,3));geometry.computeVertexNormals();
+  const material=new THREE.MeshStandardMaterial({color:surface.color,roughness:.94,metalness:0,side:THREE.DoubleSide});
+  const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.userData.baseColor=surface.color;
+  mesh.userData.nightRole=surface.role==='driveway'?'night-asphalt':'night-lot-base';this.roadGroup.add(mesh);
+ }
+
  for(const [color,positions]of paint){if(!positions.length)continue;const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.computeVertexNormals();const material=new THREE.MeshStandardMaterial({color,roughness:.83,metalness:0,side:THREE.DoubleSide});const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.userData.baseColor=color;mesh.userData.nightRole='road-marking';this.roadGroup.add(mesh);}
  if(previewOnly)return;
  const gates=new Batch();for(let n=0;n<state.gates.length;n++){const i=state.gates[n],x=i%300,z=Math.floor(i/300),angle=n%2?0:Math.PI/2;gates.box('#dfddd0',x,1.9,z,4.9,.2,.45,angle);for(const sign of[-1,1]){const dx=n%2?0:sign*2.2,dz=n%2?sign*2.2:0;gates.box('#ede9d5',x+dx,.95,z+dz,.2,1.9,.2);}gates.box('#2f746c',x,2.15,z,3.7,.42,.16,angle);}this.roadGroup.add(gates.build());
@@ -5360,7 +5377,7 @@ export class TrafficRenderer{
  }
  createRoute(){this.routeLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:'#fff1a0',transparent:true,opacity:.95}));this.routeLine.renderOrder=4;this.scene.add(this.routeLine);}
  preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview=null){const key=[roadPreview?.key,tool,hover?.x,hover?.y,drag?.cells?.join(','),selected?.kind,selected?.id,state.version,state.buildings.size].join(':');if(key===this.previewKey)return;this.previewKey=key;this.disposeGroup(this.previewGroup);const boxes=[];if(hover&&CATALOG[tool]){const t=CATALOG[tool],check=checkBuilding(tool,hover.x,hover.y),ok=!check.error,ghost={key:tool,id:-1,x:hover.x,y:hover.y,rotation:check.rotation||0},bounds=this.parking.buildingBounds(ghost);boxes.push([hover.x+bounds.w/2,hover.y+bounds.h/2,bounds.w,bounds.h,ok?'#d9f788':'#ff947f']);const b=new Batch();this.building(b,ghost,CATALOG);const model=b.build(false);model.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.52;}});this.previewGroup.add(model);}else if(roadPreview){
-  const receiver={roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),disposeGroup:this.disposeGroup};
+  const receiver={roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),disposeGroup:this.disposeGroup,parking:this.parking};
   TrafficRenderer.prototype.makeRoads.call(receiver,roadPreview.state,ROADS,roadPreview.junction,true);
   receiver.roadGroup.position.y=.035;receiver.signalGroup.position.y=.035;
   if(roadPreview.error)receiver.roadGroup.traverse(o=>{if(o.material){o.material.color.lerp(new THREE.Color('#f17065'),.55);}});
@@ -5386,7 +5403,8 @@ export class TrafficRenderer{
  for(const [x,z,w,d,color]of boxes){const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.22,depthWrite:false}));plane.rotation.x=-Math.PI/2;plane.position.set(x,.14,z);this.previewGroup.add(plane);const points=[new THREE.Vector3(x-w/2,.17,z-d/2),new THREE.Vector3(x+w/2,.17,z-d/2),new THREE.Vector3(x+w/2,.17,z+d/2),new THREE.Vector3(x-w/2,.17,z+d/2),new THREE.Vector3(x-w/2,.17,z-d/2)];this.previewGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color})));}
  }
  render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,signalColor,checkBuilding,parking}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}
- const roadKey=[state.version,state.roads.size,heat].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}const buildKey=[state.buildings.size,...[...state.buildings.values()].map(b=>[b.id,b.x,b.y,b.rotation].join(','))].join(':');if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}this.trees(state,cam);this.cars(state,vehiclePosition,CATALOG);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview);
+ const buildKey=[state.buildings.size,...[...state.buildings.values()].map(b=>[b.id,b.x,b.y,b.rotation].join(','))].join(':');
+ const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}this.trees(state,cam);this.cars(state,vehiclePosition,CATALOG);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview);
  this.updateSignals(signalColor);this.updateGrandSignals();this.updateWeatherLight(state);
  const visualNow=performance.now()*.001;
  if(this.landscapeClock)this.landscapeClock.value=visualNow;

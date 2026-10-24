@@ -870,6 +870,88 @@ function junctionDetails(i){
 }
 function junction(i){return state.junctionCache.has(i)?state.junctionCache.get(i):junctionDetails(i).arms.length;}
 junction.details=junctionDetails;
+// Shared visual-only streetscape: no road graph, lanes, plots or prices change.
+const roadsideVisualCache=new WeakMap();
+function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
+ const stamp=[roadState.version,roadState.roads.size,...[...roadState.buildings.values()].map(b=>[b.id,b.x,b.y,b.rotation].join(','))].join(':');
+ const cached=roadsideVisualCache.get(roadState);if(cached?.stamp===stamp&&cached.details===roadDetails)return cached.faces;
+ const faces=[],layouts=new Map(),nearby=new Map(),hidden=new Set(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
+ const margin=w=>Math.abs(w-ROADS.small.visualWidth)<.01?(roadClearanceWidth(ROADS.small)-w)/2:.14;
+ const blockers=new Map(),gates=[];
+ const indexRect=rect=>{for(let x=Math.floor(rect.x0/8);x<=Math.floor(rect.x1/8);x++)for(let y=Math.floor(rect.y0/8);y<=Math.floor(rect.y1/8);y++){const key=x+':'+y;if(!blockers.has(key))blockers.set(key,[]);blockers.get(key).push(rect);}};
+ for(const b of roadState.buildings.values()){
+  const t=CATALOG[b.key];if(!t)continue;const bounds=buildingBounds(b);
+  indexRect({x0:b.x,y0:b.y,x1:b.x+bounds.w,y1:b.y+bounds.h,building:b.id});
+  const n=DIR[((b.rotation||0)+1)%4],side=[-n[1],n[0]];
+  for(const access of b.access||[]){
+   const road=roadState.roads.get(access.node);if(!road)continue;
+   const u=access.entry?(t.frontageEntranceU??.45):(t.frontageExitU??(t.dualParking?(access.zone==='A'?t.parkingExitA:t.parkingExitB):t.parkingExitU??t.plotWidth-.45));
+   const p=lotPoint(b,u,t.plotHeight),x=p.x-.5,y=p.y-.5,rx=access.node%W,ry=Math.floor(access.node/W),half=roadVisualWidth(road.type)/2;
+   const gap=(rx-x)*n[0]+(ry-y)*n[1]-half,width=t.compactCottage?.36:t.dualParking?.54:.72;
+   const a=-.08,z=Math.max(.06,gap+.035),corners=[[-width/2,a],[width/2,a],[width/2,z],[-width/2,z]].map(([s,v])=>[x+side[0]*s+n[0]*v,y+side[1]*s+n[1]*v]);
+   const xs=corners.map(p=>p[0]),ys=corners.map(p=>p[1]);
+   indexRect({x0:Math.min(...xs)-.035,y0:Math.min(...ys)-.035,x1:Math.max(...xs)+.035,y1:Math.max(...ys)+.035,gate:true});
+   if(gap>1e-4)gates.push({corners,building:b.id});
+  }
+ }
+ const clip=(poly,axis,value,less)=>{
+  if(!poly.length)return [];const output=[];let a=poly[poly.length-1],ai=less?a[axis]<=value:a[axis]>=value;
+  for(const b of poly){const bi=less?b[axis]<=value:b[axis]>=value;if(ai!==bi){const t=(value-a[axis])/(b[axis]-a[axis]);output.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]);}if(bi)output.push(b);a=b;ai=bi;}
+  return output;
+ };
+ const subtract=(poly,r)=>{
+  let inside=poly;const outside=[];
+  for(const [axis,value,less] of [[0,r.x0,false],[0,r.x1,true],[1,r.y0,false],[1,r.y1,true]]){
+   const part=clip(inside,axis,value,!less);if(part.length>=3)outside.push(part);inside=clip(inside,axis,value,less);if(inside.length<3)break;
+  }
+  return outside;
+ };
+ const emit=(points,color,height,thickness,role,ignoreBuilding=null,driveway=false)=>{
+  const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),obstacles=new Set();
+  for(let x=Math.floor(x0/8);x<=Math.floor(x1/8);x++)for(let y=Math.floor(y0/8);y<=Math.floor(y1/8);y++)for(const r of blockers.get(x+':'+y)||[])if(!(r.building===ignoreBuilding||driveway&&r.gate)&&r.x0<x1&&r.x1>x0&&r.y0<y1&&r.y1>y0)obstacles.add(r);
+  let parts=[points];for(const r of obstacles){parts=parts.flatMap(poly=>subtract(poly,r));if(!parts.length)return;}
+  for(const poly of parts){let area=0;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];area+=a[0]*b[1]-a[1]*b[0];}if(Math.abs(area)>1e-7)faces.push({points:poly,color,height,thickness,role});}
+ };
+ const strip=(points,inner,outer,color,height,thickness,role)=>{
+  const pairs=[];
+  for(let i=0;i<points.length;i++){
+   const a=points[Math.max(0,i-1)],p=points[i],b=points[Math.min(points.length-1,i+1)],ax=p[0]-a[0],ay=p[1]-a[1],bx=b[0]-p[0],by=b[1]-p[1],al=Math.hypot(ax,ay),bl=Math.hypot(bx,by);
+   if(al<1e-8&&bl<1e-8){pairs.push(null);continue;}
+   const na=al?[ay/al,-ax/al]:[by/bl,-bx/bl],nb=bl?[by/bl,-bx/bl]:na;
+   let nx=na[0]+nb[0],ny=na[1]+nb[1],length=Math.hypot(nx,ny)||1;nx/=length;ny/=length;const m=1/Math.max(.5,nx*nb[0]+ny*nb[1]);
+   pairs.push([[p[0]+nx*inner*m,p[1]+ny*inner*m],[p[0]+nx*outer*m,p[1]+ny*outer*m]]);
+  }
+  for(let i=1;i<pairs.length;i++)if(pairs[i-1]&&pairs[i])emit([pairs[i-1][0],pairs[i][0],pairs[i][1],pairs[i-1][1]],color,height,thickness,role);
+ };
+ for(const [node] of roadState.roads){const l=roadDetails(node);if(!l)continue;for(const [a,b] of l.hiddenEdges||[])hidden.add(edgeKey(a,b));if(l.arms.length>=3||l.bend)layouts.set(node,l);}
+ for(const l of layouts.values())for(let x=Math.floor(l.x-l.halfX-2);x<=Math.ceil(l.x+l.halfX+2);x++)for(let y=Math.floor(l.y-l.halfY-2);y<=Math.ceil(l.y+l.halfY+2);y++){const key=y*W+x;if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(l);}
+ for(const [i,r] of roadState.roads)for(const j of r.links){
+  if(j<i||hidden.has(edgeKey(i,j)))continue;const x=i%W,y=Math.floor(i/W),nx=j%W,ny=Math.floor(j/W),dx=nx-x,dy=ny-y,len=Math.hypot(dx,dy);if(!len)continue;
+  let wa=roadVisualWidth(r.type),wb=roadVisualWidth(roadState.roads.get(j)?.type),intervals=[[0,1]];
+  for(const l of new Set([...(nearby.get(i)||[]),...(nearby.get(j)||[])])){
+   const horizontal=Math.abs(dx)>Math.abs(dy),d=horizontal?((x+nx)/2>=l.x?0:2):((y+ny)/2>=l.y?1:3),arm=l.arms.find(a=>a.dir===d);
+   if(!arm||(horizontal?Math.abs(y-l.y):Math.abs(x-l.x))>.01)continue;wa=wb=arm.width;
+   let lo=0,hi=1;for(const [start,delta,min,max] of [[x,dx,l.x-l.halfX,l.x+l.halfX],[y,dy,l.y-l.halfY,l.y+l.halfY]]){if(Math.abs(delta)<1e-9){if(start<min||start>max)hi=-1;}else{const a=(min-start)/delta,b=(max-start)/delta;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}}
+   if(hi>lo){const next=[];for(const [a,b] of intervals){if(hi<=a||lo>=b)next.push([a,b]);else{if(lo>a)next.push([a,lo]);if(hi<b)next.push([hi,b]);}}intervals=next;}
+  }
+  const px=-dy/len,py=dx/len,p=(t,offset)=>[x+dx*t+px*offset,y+dy*t+py*offset];
+  for(const [lo,hi] of intervals)for(const sign of [-1,1]){
+   const inner=t=>(wa+(wb-wa)*t)/2,outer=t=>inner(t)+margin(wa)+(margin(wb)-margin(wa))*t;
+   const quad=(a,b,from,to)=>[p(a,sign*from(a)),p(b,sign*from(b)),p(b,sign*to(b)),p(a,sign*to(a))];
+   emit(quad(lo,hi,t=>inner(t)+.055,outer),'#c6c9c4',.135,.045,'sidewalk');
+   emit(quad(lo,hi,inner,t=>inner(t)+.055),'#e1dfd5',.16,.065,'curb');
+   for(const t of [.25,.75])if(t>lo&&t<hi&&outer(t)-inner(t)>.20){const dt=Math.min(.006/len,(hi-lo)/5);emit(quad(t-dt,t+dt,t=>inner(t)+.06,outer),'#a4aca5',.138,.004,'sidewalk-joint');}
+  }
+ }
+ for(const l of layouts.values()){
+  const w=Math.min(...l.arms.map(a=>margin(a.width)));
+  for(const border of l.borders||[]){const points=border.map(([x,y])=>[l.x+x,l.y+y]);
+   strip(points,.055,w,'#c6c9c4',.135,.045,'sidewalk');strip(points,0,.055,'#e1dfd5',.16,.065,'curb');
+  }
+ }
+ for(const gate of gates)emit(gate.corners,'#58666a',.104,.025,'driveway',gate.building,true);
+ roadsideVisualCache.set(roadState,{stamp,details:roadDetails,faces});return faces;
+}
 function drawRoads(roadState=state,roadDetails=junctionDetails){
  const state=roadState;
  const layouts=new Map(),nearby=new Map(),hidden=new Set(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
@@ -881,6 +963,7 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
  const px=-dy/length,py=dx/length,point=(t,off)=>[x+dx*t+px*off,y+dy*t+py*off];segments.push({r,other,x,y,dx,dy,length,wa,wb,intervals,point});
  for(const [lo,hi]of intervals)for(const border of [.14,0]){const a=wa+(wb-wa)*lo,b=wa+(wb-wa)*hi;poly([point(lo,-a/2-border),point(hi,-b/2-border),point(hi,b/2+border),point(lo,a/2+border)].map(([x,y])=>screen(x+.5,y+.5)),border?'#c9c8b5':heat?roadColor(r):'#47565c');}}
  for(const l of layouts.values())poly(l.polygon.map(([x,y])=>screen(l.x+.5+x,l.y+.5+y)),'#47565c');
+ for(const face of roadsideVisuals(roadState,roadDetails))poly(face.points.map(([x,y])=>screen(x+.5,y+.5)),face.color);
  const stroke=(points,color,width=.025,dashed=false)=>{if(points.length<2)return;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(...screen(x+.5,y+.5)):ctx.moveTo(...screen(x+.5,y+.5)));ctx.strokeStyle=color;ctx.lineWidth=Math.max(.55,width*T*cam.z);ctx.lineJoin='round';ctx.lineCap='butt';ctx.setLineDash(dashed?[.45*T*cam.z,.55*T*cam.z]:[]);ctx.stroke();ctx.setLineDash([]);};
  const capacity=width=>Math.max(1,(Object.values(ROADS).find(t=>Math.abs(t.visualWidth-width)<.01)?.lanes||2)/2);
  for(const s of segments){const ca=capacity(s.wa),cb=capacity(s.wb);for(const [lo,hi]of s.intervals){const guide=(oa,ob,color,dashed=false)=>stroke([s.point(lo,oa+(ob-oa)*lo),s.point(hi,oa+(ob-oa)*hi)],color,color==='#ead78c'?.018:.025,dashed);for(const sign of [-1,1]){guide(.035*sign,.035*sign,'#ead78c');guide(s.wa/2*sign,s.wb/2*sign,'#dce3d8');for(let k=1;k<Math.max(ca,cb);k++)guide(Math.min(s.wa/2-.1,k*s.wa/(ca*2))*sign,Math.min(s.wb/2-.1,k*s.wb/(cb*2))*sign,'#dce3d8',true);}}}
@@ -1495,7 +1578,7 @@ function updatePlaceLabels(){
   }
  }
 }
-function draw(){const roadPreview=getRoadPreview();if(renderer3d){renderer3d.render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,signalColor,checkBuilding,parking:{buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor}});updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);drawVehicles();updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();if(tool!=='tracking'&&follow&&state.vehicles.has(follow)){const v=state.vehicles.get(follow);ctx.strokeStyle='#ffe98d';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.beginPath();v.path.slice(v.pos).forEach((i,n)=>{const p=xy(i),s=screen(p[0]+.5,p[1]+.5);n?ctx.lineTo(...s):ctx.moveTo(...s);});ctx.stroke();ctx.setLineDash([]);}
+function draw(){const roadPreview=getRoadPreview();if(renderer3d){renderer3d.render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor}});updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);drawVehicles();updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();if(tool!=='tracking'&&follow&&state.vehicles.has(follow)){const v=state.vehicles.get(follow);ctx.strokeStyle='#ffe98d';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.beginPath();v.path.slice(v.pos).forEach((i,n)=>{const p=xy(i),s=screen(p[0]+.5,p[1]+.5);n?ctx.lineTo(...s):ctx.moveTo(...s);});ctx.stroke();ctx.setLineDash([]);}
 if(hover&&tool!=='hand'&&!ROADS[tool]){if(CATALOG[tool])drawBuilding({key:tool,x:hover.x,y:hover.y,rotation:checkBuilding(tool,hover.x,hover.y).rotation||0},true);else{const cells=drag?.cells||[owner(id(hover.x,hover.y))];for(const i of cells){const [x,y]=xy(i),s=screen(x,y);ctx.fillStyle=tool.startsWith('erase')?'#df7e6c99':'#fbe3989c';ctx.fillRect(s[0],s[1],T*cam.z,T*cam.z*.78);}}}
 if(state.buildings.size===0){const p=screen(154,143);ctx.fillStyle='#214c3ac9';ctx.font=`500 ${Math.max(12,14*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillText('เมืองใหม่ เริ่มจากถนนเส้นแรก',p[0],p[1]);ctx.font=`${Math.max(10,11*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillStyle='#3f6148';ctx.fillText('ถนนหลัก 8 เลนพร้อมแล้ว · เลือกถนนเล็ก แล้วลากต่อออกมา',p[0],p[1]+22*cam.z);}
 }
@@ -4056,6 +4139,6 @@ $('menu').onclick=()=>{
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,renderTools,dockItems,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,renderTools,dockItems,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();reset();requestAnimationFrame(frame);
 })();
