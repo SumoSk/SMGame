@@ -1,0 +1,54 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const prefix=fs.readFileSync('work/test-motion.cjs','utf8').split('const angle=')[0];
+const {game:g,get}=new Function('require',prefix+'return {game,get};')(require);
+const html=fs.readFileSync('index.html','utf8');
+const css=fs.readFileSync('dist/style.css','utf8');
+const choices=['citizenDashboard','touristDashboard','signalManage','trafficHeat','missionDashboard'];
+assert(html.includes('id="cityRightRail"'),'right camera rail missing');
+assert(html.indexOf('id="cityRightRail"')<html.indexOf('id="cameraJoystick"'),'camera joystick must be inside rail');
+assert(html.indexOf('id="cameraJoystick"')<html.indexOf('data-city-shortcut="citizenDashboard"'),'camera joystick must be above city modes');
+const sorted=choices.map(k=>html.indexOf('data-city-shortcut="'+k+'"'));
+assert(sorted.every(n=>n>=0),'all five right rail shortcuts must have markup');
+assert(sorted.every((n,i)=>!i||sorted[i-1]<n),'right rail shortcuts order must match design');
+assert(css.includes('#cityRightRail.city-right-rail')&&css.includes('position:fixed!important'),'rail must float on right');
+assert(css.includes('#cityRightRail #cameraJoystick')&&css.includes('position:relative!important'),'camera should be positioned within rail');
+assert(!get('categories').innerHTML.includes('data-dock-group="traffic"'),'Traffic dock section must be deleted');
+assert(!get('tools').innerHTML.includes('data-tool="signalManage"'),'signals action must leave the old dock');
+assert(!g.dockItems('reports').some(x=>x.key==='missionDashboard'),'daily summary must leave old dock');
+assert(g.dockItems('reports').some(x=>x.key==='sendAi'),'Send AI must remain under City Data');
+assert(g.dockItems('reports').some(x=>x.key==='cityReport'),'existing city report retained');
+const buttons=choices.map(key=>({
+ dataset:{cityShortcut:key},attrs:{},active:false,
+ classList:{toggle(name,value){if(name==='active')this.owner.active=!!value;}},
+ setAttribute(name,value){this.attrs[name]=value;}
+}));
+for(const b of buttons)b.classList.owner=b;
+get('cityQuickModes').querySelectorAll=()=>buttons;
+const click=key=>get('cityQuickModes').onclick({target:{closest:()=>({dataset:{cityShortcut:key}})}});
+const active=key=>buttons.find(b=>b.dataset.cityShortcut===key)?.attrs['aria-pressed'];
+const snapshot=g.snapshot();
+g.renderTools();
+assert(choices.every(k=>active(k)==='false'),'start with all quick actions unselected');
+click('citizenDashboard');
+assert.equal(active('citizenDashboard'),'true','citizen panel turns on');
+click('citizenDashboard');
+assert.equal(active('citizenDashboard'),'false','citizen panel turns off when pressed again');
+click('touristDashboard');
+assert.equal(active('touristDashboard'),'true','tourist panel turns on');
+assert.equal(active('citizenDashboard'),'false','previous citizen panel turns off');
+click('signalManage');
+assert.equal(active('signalManage'),'true','traffic signal inspector can be opened from rail');
+assert.equal(active('touristDashboard'),'false','tourist panel closes when signal tool begins');
+click('signalManage');
+assert.equal(active('signalManage'),'false','signal control can be toggled off');
+click('trafficHeat');
+assert.equal(active('trafficHeat'),'true','heatmap turns on');
+click('trafficHeat');
+assert.equal(active('trafficHeat'),'false','heatmap turns off');
+click('missionDashboard');
+assert(get('dialog').open,'daily city report opens from rail');
+assert(get('dialogContent').innerHTML.includes('รายงานเมือง'),'daily report content available');
+g.closeModal();
+assert.equal(g.snapshot(),snapshot,'quick mode and report actions must not mutate city data');
+console.log('Right city rail passed: camera above five modes, old dock cleaned, signal/heat toggles, citizen/tourist panels, daily report, intact city.');
