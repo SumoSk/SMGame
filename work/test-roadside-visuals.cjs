@@ -13,9 +13,12 @@ const boot=()=>new Function('require',fixture+'return boot();')(require).game;
   assert.strictEqual(g.roadsideVisuals(),faces,'cache unchanged street geometry');
   const half=g.ROADS[type].visualWidth/2,outer=type==='small'?1:half+.14;
   assert(faces.some(f=>f.role==='sidewalk'));assert(faces.some(f=>f.role==='curb'));
+  if(type==='small')assert(faces.some(f=>f.role==='planting-bed')&&faces.some(f=>f.role==='sidewalk'&&f.color==='#b2b5aa'),'concrete sidewalk remains below planting');
+  if(type==='small'){assert(faces.plants.length>0);assert(faces.plants.some(p=>p.flower));for(const p of faces.plants){assert(Math.abs(p.y-100)-.16>=half);assert(Math.abs(p.y-100)+.16<=outer);}assert(!faces.some(f=>f.color==='#e1dfd5'||f.color==='#c6c9c4'));}else assert.equal(faces.plants.length,0);
   for(const f of faces){colors.add(f.color);for(const [x,y] of f.points){assert(Number.isFinite(x)&&Number.isFinite(y));assert(Math.abs(y-100)>=half-1e-6,'keep every traffic lane clear');assert(Math.abs(y-100)<=outer+1e-6,'stay inside existing arterial edge or small-road reserved verge');}}
   const receiver={parking:{roadsideVisuals:g.roadsideVisuals},roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),disposeGroup:TrafficRenderer.prototype.disposeGroup};
   TrafficRenderer.prototype.makeRoads.call(receiver,g.state,g.ROADS,g.junction,true);
+  if(type==='small'){const planted=receiver.roadGroup.children.find(o=>o.userData.roadsidePlants);assert(planted);assert(planted.children.length<=8,'shared instancing for foliage and flowers');assert(planted.children.reduce((n,m)=>n+m.count,0)<=faces.plants.length*9);}
   const newMeshes=receiver.roadGroup.children.filter(m=>['night-lot-base','night-asphalt'].includes(m.userData.nightRole));
   assert(newMeshes.length>=2&&newMeshes.length<=4,'merged paving meshes, not one mesh per slab');
  }
@@ -24,7 +27,7 @@ const boot=()=>new Function('require',fixture+'return boot();')(require).game;
   const vertical=rotation%2;
   assert(g.buildRoad(g.lineCells(g.id(100,100),g.id(vertical?100:120,vertical?120:100)),'small',true));
   const coords=[[105,96],[101,105],[105,101],[96,105]][rotation],b=g.buildBuilding('home_starter',...coords,true);assert(b);assert.equal(b.rotation,rotation);
-  const faces=g.roadsideVisuals(),driveways=faces.filter(f=>f.role==='driveway');assert.equal(driveways.length,2);
+  const faces=g.roadsideVisuals();assert(faces.plants.length>0,'retain planting beside building frontages');const driveways=faces.filter(f=>f.role==='driveway');assert.equal(driveways.length,2);
   const n=[[0,1],[-1,0],[0,-1],[1,0]][rotation];
   for(const [index,u] of [.2,2.8].entries()){
    const gate=g.lotPoint(b,u,3),cx=gate.x-.5,cy=gate.y-.5,face=driveways[index];
@@ -33,6 +36,7 @@ const boot=()=>new Function('require',fixture+'return boot();')(require).game;
    const target=[cx+n[0]*.4125,cy+n[1]*.4125];
    const inside=(p,poly)=>{let yes=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])yes=!yes;}return yes;};
    assert(!faces.filter(f=>f.role!=='driveway').some(f=>inside(target,f.points)),'clear lowered entrance and exit');
+   assert(!(faces.plants||[]).some(p=>Math.abs(target[0]-p.x)<Math.abs(p.ux)*.47+Math.abs(p.uy)*.16&&Math.abs(target[1]-p.y)<Math.abs(p.uy)*.47+Math.abs(p.ux)*.16),'foliage must clear both gates');
   }
   g.demolishBuilding(b,true);const removed=g.roadsideVisuals();assert.notStrictEqual(removed,faces);assert(!removed.some(f=>f.role==='driveway'),'demolition restores the footpath');
  }

@@ -3,6 +3,7 @@ import * as THREE from './vendor/three.module.js';
 const BOX=new THREE.BoxGeometry(1,1,1),CYL=new THREE.CylinderGeometry(1,1,1,10),CYL_SMOOTH=new THREE.CylinderGeometry(1,1,1,32),CONE=new THREE.ConeGeometry(1,1,6),LEAF=new THREE.IcosahedronGeometry(1,1),BALL=new THREE.SphereGeometry(1,12,8);
 // A closed roof prism avoids intersecting roof planes at rotated plots.
 const PITCHED_ROOF=(()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([-.5,0,-.5,-.5,0,.5,-.5,1,0,.5,0,-.5,.5,0,.5,.5,1,0],3));g.setIndex([0,1,2,3,5,4,0,2,5,0,5,3,2,1,4,2,4,5,0,3,4,0,4,1]);const flat=g.toNonIndexed();flat.computeVertexNormals();g.dispose();return flat;})();
+const HEDGE_LEAF=new THREE.SphereGeometry(1,8,5),FLOWER_PETAL=new THREE.IcosahedronGeometry(1,0); // shared low-poly garden geometry
 const UP=new THREE.Vector3(0,1,0),TAU=Math.PI*2;
 const DAYLIGHT=[
  [0,'#1a2941','#adc4e5',.35,.78,.64,1],[180,'#101d34','#8b9fc6',.26,.68,.57,1],
@@ -569,8 +570,8 @@ export class TrafficRenderer{
  }
  this.roadGroup.add(batch.build(false),line.build(false));
  // A few merged meshes keep paving/curbs cheap even along long city roads.
- const streetSurfaces=new Map();
- for(const face of this.parking?.roadsideVisuals?.(state,junction.details)||[]){
+ const streetSurfaces=new Map(),roadside=this.parking?.roadsideVisuals?.(state,junction.details)||[];
+ for(const face of roadside){
   const key=face.color+':'+face.role;if(!streetSurfaces.has(key))streetSurfaces.set(key,{...face,vertices:[]});
   const out=streetSurfaces.get(key).vertices,points=face.points.map(p=>[...p]);let area=0;
   for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length];area+=a[0]*b[1]-a[1]*b[0];}if(area>0)points.reverse();
@@ -585,6 +586,20 @@ export class TrafficRenderer{
   mesh.userData.nightRole=surface.role==='driveway'?'night-asphalt':'night-lot-base';this.roadGroup.add(mesh);
  }
 
+
+ // Static low hedges and pastel flowers are instanced by colour, with no
+ // per-frame animation or dynamic lights. Their full bounds clear driveways.
+ const hedges=new Batch(),petals=['#e7a6bd','#c2add8','#e4c576','#eab69b'];
+ for(const p of roadside.plants||[]){
+  hedges.add(HEDGE_LEAF,'#5d854d',p.x,.155,p.y,.45,.065,.14,0,p.angle,0,null,false,'foliage');
+  for(const side of [-1,1])hedges.add(HEDGE_LEAF,side<0?'#709b5d':'#83a96a',p.x+p.ux*side*.16,.190,p.y+p.uy*side*.16,.24,.050,.12,0,p.angle,0,null,false,'foliage');
+  if(p.flower){
+   const off=p.seed%2?.10:-.10,x=p.x+p.ux*off,z=p.y+p.uy*off,color=petals[(p.seed>>>8)%4];
+   for(let n=0;n<5;n++){const a=n*Math.PI*2/5+(p.seed%7)*.3;hedges.add(FLOWER_PETAL,color,x+Math.cos(a)*.030,.246,z+Math.sin(a)*.030,.027,.010,.020,0,-a,0,null,false,'flower');}
+   hedges.add(FLOWER_PETAL,'#d5b55e',x,.253,z,.019,.008,.019,0,0,0,null,false,'flower');
+  }
+ }
+ if(roadside.plants?.length){const group=hedges.build(false);group.userData.roadsidePlants=true;this.roadGroup.add(group);}
  for(const [color,positions]of paint){if(!positions.length)continue;const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.computeVertexNormals();const material=new THREE.MeshStandardMaterial({color,roughness:.83,metalness:0,side:THREE.DoubleSide});const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.userData.baseColor=color;mesh.userData.nightRole='road-marking';this.roadGroup.add(mesh);}
  if(previewOnly)return;
  const gates=new Batch();for(let n=0;n<state.gates.length;n++){const i=state.gates[n],x=i%300,z=Math.floor(i/300),angle=n%2?0:Math.PI/2;gates.box('#dfddd0',x,1.9,z,4.9,.2,.45,angle);for(const sign of[-1,1]){const dx=n%2?0:sign*2.2,dz=n%2?sign*2.2:0;gates.box('#ede9d5',x+dx,.95,z+dz,.2,1.9,.2);}gates.box('#2f746c',x,2.15,z,3.7,.42,.16,angle);}this.roadGroup.add(gates.build());
