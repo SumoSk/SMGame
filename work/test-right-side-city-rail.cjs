@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),assert=require('node:assert/strict');
-const prefix=fs.readFileSync('work/test-motion.cjs','utf8').split('const angle=')[0];
-const {game:g,get}=new Function('require',prefix+'return {game,get};')(require);
+const prefix=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
+const {game:g,get}=new Function('require',prefix+'return boot();')(require);
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('dist/style.css','utf8');
 const choices=['citizenDashboard','touristDashboard','signalManage','trafficHeat','missionDashboard'];
