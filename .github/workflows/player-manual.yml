@@ -1,0 +1,31 @@
+name: Player manual verification
+on:
+  push:
+    branches: [docs/player-manual-20261025]
+  pull_request:
+    paths: [dist/game.js, work/test-player-manual.cjs, .github/workflows/player-manual.yml]
+permissions:
+  contents: read
+jobs:
+  manual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node work/test-menu-account.cjs
+      - run: node work/test-window-dismiss.cjs
+      - run: node work/test-build-report-menu.cjs
+      - run: npm run build
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node work/test-player-manual.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: player-manual-screenshots
+          path: work/manual-screenshots/
