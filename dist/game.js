@@ -2996,7 +2996,7 @@ function occKey(i,d,l){return `${i}:${d}:${l}`;}
 function cellAvailable(i,d,l,vid){const r=state.roads.get(i);if(!r)return false;const key=occKey(i,d,l),o=state.occ.get(key),res=state.reservations.get(key);if(parkingClaimed(key,vid)||o&&o!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},o)||res&&res.id!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},res.id))return false;const cap=laneCapacity(i,d);let same=0,total=0;for(let dd=0;dd<4;dd++)for(let ll=0;ll<4;ll++){const o=state.occ.get(occKey(i,dd,ll));if(o&&o!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},o)){total++;if(dd===d)same++;}}return l>=0&&l<cap&&same<cap&&(junction(i)>=3||total<cap*2);}
 // Road traffic may pass a road tile held by another vehicle; a physical same-lane leader still governs spacing.
 // Keep signalised intersections on the original exclusive admission rules.
-function roadTraversalAvailable(v,pos){const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);return state.roads.has(i)&&lane>=0&&lane<laneCapacity(i,d)&&(junction(i)<3||cellAvailable(i,d,lane,v.id));}
+function roadTraversalAvailable(v,pos){const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);return state.roads.has(i)&&lane>=0&&lane<laneCapacity(i,d)&&(junction(i)<3||ownsJunctionPass(v,pos)||cellAvailable(i,d,lane,v.id));}
 function occupy(v,pos){const i=v.path[pos],d=dir(i,v.path[Math.min(pos+1,v.path.length-1)]),l=plannedLane(v,pos);v.lane=l;v.occKey=occKey(i,d,l);state.occ.set(v.occKey,v.id);}
 function release(v,keepIntersection=false){if(v.occKey&&state.occ.get(v.occKey)===v.id)state.occ.delete(v.occKey);v.occKey=null;if(!keepIntersection){clearVehicleReservations(v);v.junctionPasses=[];v.committedJunction=null;}}
 function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(c?.vehicleId)return false;const destination=state.buildings.get(toId);if(destination&&parkingFree(destination)<=0)return false;if(kind==='pass'&&state.vehicles.size>=8000)return false;const fromBuilding=state.buildings.get(fromId);if(c&&fromBuilding&&CATALOG[fromBuilding.key].dualParking)parkingSpace(fromBuilding,c.id,true);
@@ -3240,8 +3240,30 @@ function reciprocalLaneSwap(v,other,plan,s,otherPose){
  return laneSwapClearance(a,b,ahead);
 }
 // Already overlapping cars may clear in a stable front-to-back order.
-function overlapEscapePriority(v,other,plan,s,otherPose){
+function convergingLanePair(v,other,plan,s,otherPose){
+ if(v.phase!=='driving'||other.phase!=='driving')return null;
+ const d=motionDirection(v.path,v.pos);
+ if(d!==motionDirection(other.path,other.pos))return null;
+ const axis=DIR[d],origin=positionOnMotion(plan,s),op=motionPlan(other),os=motionDistance(other,op);
+ // Crossing traffic and actual turns keep their existing intersection rules.
+ if([ [plan,s],[op,os] ].some(([p,at])=>p.turns.some(t=>t.endDistance>at-.2&&t.startDistance<at+3.5)))return null;
+ const shifting=(p,at)=>(p.laneShifts??=p.pieces.filter(t=>!t.turn&&!t.line)).find(t=>t.endDistance>at-.5&&t.startDistance<at+3.5&&Math.abs((t.p3.x-t.p0.x)*axis[1]-(t.p3.y-t.p0.y)*axis[0])>.08);
+ const shift=shifting(plan,s),otherShift=shifting(op,os);if(!shift&&!otherShift)return null;
+ if(Math.abs((otherPose.x-origin.x)*axis[1]-(otherPose.y-origin.y)*axis[0])<.08)return null;
+ let shared=false;
+ for(let k=v.pos+1;k<plan.path.length&&plan.nodes[k]-s<=4.5;k++){
+  for(let j=other.pos+1;j<op.path.length&&op.nodes[j]-os<=4.5;j++)if(plan.path[k]===op.path[j]&&plan.lanes[k]===op.lanes[j]){shared=true;break;}
+  if(shared)break;
+ }
+ if(!shared)return null;
+ const ahead=(otherPose.x-origin.x)*axis[0]+(otherPose.y-origin.y)*axis[1];
+ return {wins:ahead< -1e-6||Math.abs(ahead)<=1e-6&&v.id<other.id,stop:Math.max(s,(shift?.startDistance??s)-.7)};
+}
+function overlapEscapePriority(v,other,plan,s,otherPose,merge=null){
  if(v.phase!=='driving'||other.phase!=='driving')return false;
+ // Release saved, mutually blocked merge pairs in one stable order. This
+ // recovery is limited to the converging same-direction lane corridor.
+ if(merge?.wins&&((v.wait||0)>=2&&(other.wait||0)>=2||capsulesOverlap(positionOnMotion(plan,s),otherPose)))return true;
  const origin=positionOnMotion(plan,s),sameDirection=origin.dx*otherPose.dx+origin.dy*otherPose.dy;
  if(!(sameDirection>.88)||!capsulesOverlap(origin,otherPose))return false;
  // The normal traffic limit still applies to cars that are not overlapping.
@@ -3252,7 +3274,7 @@ function physicalTrafficLimit(v,plan,s,lookahead){
  if(!trafficSpatial)return Infinity;const end=Math.min(plan.total,s+lookahead),origin=positionOnMotion(plan,s),x=Math.floor(origin.x/2),y=Math.floor(origin.y/2),key=x+':'+y;let cached=trafficSpatial.candidates.get(v.id),candidates=cached?.key===key&&cached.epoch===trafficSpatial.epoch?cached.ids:null;
  if(!candidates){candidates=[];for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)for(const other of trafficSpatial.cells.get((x+dx)+':'+(y+dy))?.values()||[])if(other.id!==v.id)candidates.push(other.id);trafficSpatial.candidates.set(v.id,{key,epoch:trafficSpatial.epoch,ids:candidates});}
  if(!candidates.length)return Infinity;
- const piece=plan.pieces.find(p=>p.line&&p.startDistance<=s&&p.endDistance>=end),near=[];
+ const piece=plan.pieces.find(p=>p.line&&p.startDistance<=s&&p.endDistance>=end),near=[];let mergeLimit=Infinity;
  for(const id of candidates){
   const otherCar=state.vehicles.get(id);
   // Road cars ghost through parked, departing and route-stuck vehicles, not through moving same-lane leaders.
@@ -3263,10 +3285,12 @@ function physicalTrafficLimit(v,plan,s,lookahead){
   const record=trafficSpatial.cars.get(id);if(!record)continue;
   const p=record.pose,x=p.x-origin.x,y=p.y-origin.y;
   if(x*x+y*y>(lookahead+.7)*(lookahead+.7))continue;
+  const merge=convergingLanePair(v,otherCar,plan,s,p);
+  if(merge&&!merge.wins)mergeLimit=Math.min(mergeLimit,merge.stop);
   // Only lateral crossings may ghost. Existing overlaps are released in
   // front-to-back order instead of forcing every vehicle to stop forever.
   if(reciprocalLaneSwap(v,otherCar,plan,s,p)
-   ||overlapEscapePriority(v,otherCar,plan,s,p))continue;
+   ||overlapEscapePriority(v,otherCar,plan,s,p,merge))continue;
   if(piece&&origin.dx!=null&&p.dx!=null&&Math.abs(origin.dx*p.dy-origin.dy*p.dx)<.01){
    const across=Math.abs(x*origin.dy-y*origin.dx);
    // On a straight stretch, cars in another parallel lane must not hold up the left lane.
@@ -3275,9 +3299,9 @@ function physicalTrafficLimit(v,plan,s,lookahead){
   }
   near.push(p);
  }
- if(!near.length)return Infinity;let safe=s;
- for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(const other of near)if(capsulesOverlap(p,other))return Math.max(s,safe-.025);safe=along;if(along===end)break;}
- return Infinity;
+ if(!near.length)return mergeLimit;let safe=s;
+ for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(const other of near)if(capsulesOverlap(p,other))return Math.min(mergeLimit,Math.max(s,safe-.025));safe=along;if(along===end)break;}
+ return mergeLimit;
 }
 function motionBarrier(v,plan,s,budget=-1){
  const scan=Math.min(3,Math.max(.8,(v.speed||0)*(v.speed||0)/9.6+.3,budget>=0?budget+.1:0));
