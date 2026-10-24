@@ -1045,53 +1045,99 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
  for(const l of layouts.values()){
  for(const edge of l.borders){const points=edge.map(([x,y])=>[l.x+x,l.y+y]);stroke(points,'#c9c8b5',.28);stroke(points,'#dce3d8');}
  if(l.bend){const [a,b]=l.ports,va=DIR[a.dir],vb=DIR[b.dir],ca=capacity(a.width),cb=capacity(b.width),guide=(oa,ob,color,dashed=false)=>{const ax=va[0]*a.extent-va[1]*oa,ay=va[1]*a.extent+va[0]*oa,bx=vb[0]*b.extent+vb[1]*ob,by=vb[1]*b.extent-vb[0]*ob,cx=a.dir%2===0?bx:ax,cy=a.dir%2===0?ay:by,points=[];for(let k=0;k<=64;k++){const t=k/64,u=1-t;points.push([l.x+u*u*ax+2*u*t*cx+t*t*bx,l.y+u*u*ay+2*u*t*cy+t*t*by]);}stroke(points,color,color==='#ead78c'?.018:.025,dashed);};for(const sign of [-1,1]){guide(.035*sign,.035*sign,'#ead78c');for(let k=1;k<Math.max(ca,cb);k++)guide(Math.min(a.width/2-.1,k*a.width/(ca*2))*sign,Math.min(b.width/2-.1,k*b.width/(cb*2))*sign,'#dce3d8',true);}}
- else if(cam.z>.4){for(const port of l.ports){const d=port.dir,[vx,vy]=DIR[d],px=-vy,py=vx,offset=port.extent+.13,point=(along,side)=>[l.x+vx*along+px*side,l.y+vy*along+py*side];stroke([point(offset,.06),point(offset,port.width/2-.06)],'#edf0df',.075);const [sx,sy]=screen(...point(offset,port.width/2+.3).map(v=>v+.5));ctx.fillStyle='#263e3a';ctx.fillRect(sx-2*cam.z,sy-4*cam.z,4*cam.z,8*cam.z);ctx.fillStyle=signalColor(l.node,d%2)==='green'?'#a4dc90':signalColor(l.node,d%2)==='yellow'?'#efd581':'#f08b75';ctx.beginPath();ctx.arc(sx,sy,1.7*cam.z,0,7);ctx.fill();}}
+ else if(cam.z>.4){for(const port of l.ports){const d=port.dir,[vx,vy]=DIR[d],px=-vy,py=vx,offset=port.extent+.13,point=(along,side)=>[l.x+vx*along+px*side,l.y+vy*along+py*side];stroke([point(offset,.06),point(offset,port.width/2-.06)],'#edf0df',.075);const incoming=(d+2)%4,cap=laneCapacity(port.node,incoming);for(let lane=0;lane<cap;lane++){const side=port.width*.25+(lane+.5-cap/2)*port.width/(2*cap),[sx,sy]=screen(...point(offset,side).map(v=>v+.5));ctx.fillStyle='#263e3a';ctx.fillRect(sx-2*cam.z,sy-4*cam.z,4*cam.z,8*cam.z);const c=signalColor(l.node,incoming,lane);ctx.fillStyle=c==='green'?'#a4dc90':c==='yellow'?'#efd581':'#f08b75';ctx.beginPath();ctx.arc(sx,sy,1.7*cam.z,0,7);ctx.fill();}}}
  }
  if(selected?.kind==='road'&&junction(selected.id)>=3){const [x,y]=xy(selected.id),p=screen(x+.5,y+.5);ctx.strokeStyle='#fff0a9';ctx.lineWidth=2.5*cam.z;ctx.beginPath();ctx.arc(p[0],p[1],Math.max(12,17*cam.z),0,Math.PI*2);ctx.stroke();}
  if(debug)for(const [i]of state.roads){const [x,y]=xy(i),p=screen(x+.5,y+.5);ctx.fillStyle='#fff';ctx.font=`${9*cam.z}px monospace`;ctx.fillText(String(occupancy(i)),p[0],p[1]);}
 }
 
 function roadColor(r){return r.wait>4?'#363b38':r.wait>1?'#e36351':r.load>.75?'#edaa51':r.load>.4?'#dbce68':'#67ab76';}
+// Exclusive per-approach, per-lane signaling: ONE incoming lane green at a time.
+// Keep historic eastWest/northSouth minute settings (now per lane) and old saves.
 const SIGNAL_YELLOW_MINUTES=1,SIGNAL_CLEAR_MINUTES=1,SIGNAL_MIN_GREEN=5,SIGNAL_MAX_GREEN=240;
 const RECOMMENDED_SIGNAL_GREEN_MINUTES=6;
+const SIGNAL_DIRECTION_NAMES=['ตะวันออก','ใต้','ตะวันตก','เหนือ'];
 const signalDefaults=()=>({...state.signalDefaults,mode:'auto',axis:0,holdUntil:0});
 function signalSettings(i){return state.signals.get(i)||signalDefaults();}
-function signalCycle(i){const s=signalSettings(i);return s.eastWest+s.northSouth+2*(SIGNAL_YELLOW_MINUTES+SIGNAL_CLEAR_MINUTES);}
-function signalProgress(i){const cycle=signalCycle(i);return (state.time+(i%17)*cycle/24)%cycle;}
+function signalSlots(i){
+ if(!state.roads.has(i)||junction(i)<3)return[];
+ const cache=state.signalSlotCache??(state.signalSlotCache=new Map()),cached=cache.get(i);
+ if(cached)return cached;
+ const slots=[];
+ for(const arm of [...junctionDetails(i).arms].sort((a,b)=>a.dir-b.dir)){
+  const incoming=(arm.dir+2)%4; // arm points OUT of the junction
+  for(let lane=0,cap=laneCapacity(arm.node,incoming);lane<cap;lane++)slots.push({incoming,lane,axis:incoming%2});
+ }
+ cache.set(i,slots);return slots;
+}
+function signalDuration(setting,slot){return slot.axis===0?setting.eastWest:setting.northSouth;}
+function signalCycle(i){const setting=signalSettings(i);return signalSlots(i).reduce((n,slot)=>n+signalDuration(setting,slot)+SIGNAL_YELLOW_MINUTES+SIGNAL_CLEAR_MINUTES,0);}
+function signalProgress(i){const cycle=signalCycle(i);return cycle?(state.time+(i%17)*cycle/24)%cycle:0;}
+function signalManualSlot(i,setting,slots=signalSlots(i)){
+ if(Number.isInteger(setting.slot)&&setting.slot>=0&&setting.slot<slots.length)return setting.slot;
+ return Math.max(0,slots.findIndex(slot=>slot.axis===setting.axis));
+}
 function signalStatus(i){
- const s=signalSettings(i);if(s.holdUntil>state.time)return{phase:-1,yellowAxis:-1,remaining:s.holdUntil-state.time};
- if(s.mode==='manual')return{phase:s.axis,yellowAxis:-1,remaining:null};
- const phase=signalProgress(i),ew=s.eastWest,ns=s.northSouth,yellow=SIGNAL_YELLOW_MINUTES,clear=SIGNAL_CLEAR_MINUTES;
- if(phase<ew)return{phase:0,yellowAxis:-1,remaining:ew-phase};
- if(phase<ew+yellow)return{phase:2,yellowAxis:0,remaining:ew+yellow-phase};
- if(phase<ew+yellow+clear)return{phase:-1,yellowAxis:-1,remaining:ew+yellow+clear-phase};
- if(phase<ew+yellow+clear+ns)return{phase:1,yellowAxis:-1,remaining:ew+yellow+clear+ns-phase};
- if(phase<ew+2*yellow+clear+ns)return{phase:2,yellowAxis:1,remaining:ew+2*yellow+clear+ns-phase};
- return{phase:-1,yellowAxis:-1,remaining:signalCycle(i)-phase};
+ const setting=signalSettings(i),slots=signalSlots(i),red=remaining=>({phase:-1,slotIndex:-1,incoming:-1,lane:-1,yellow:false,remaining});
+ if(!slots.length)return red(null);
+ if(setting.holdUntil>state.time)return red(setting.holdUntil-state.time);
+ if(setting.mode==='manual'){
+  const slotIndex=signalManualSlot(i,setting,slots),slot=slots[slotIndex];
+  return{phase:slot.incoming,slotIndex,incoming:slot.incoming,lane:slot.lane,yellow:false,remaining:null};
+ }
+ let elapsed=signalProgress(i);
+ for(let n=0;n<slots.length;n++){
+  const slot=slots[n],green=signalDuration(setting,slot);
+  if(elapsed<green)return{phase:slot.incoming,slotIndex:n,incoming:slot.incoming,lane:slot.lane,yellow:false,remaining:green-elapsed};
+  elapsed-=green;
+  if(elapsed<SIGNAL_YELLOW_MINUTES)return{phase:4,slotIndex:n,incoming:slot.incoming,lane:slot.lane,yellow:true,remaining:SIGNAL_YELLOW_MINUTES-elapsed};
+  elapsed-=SIGNAL_YELLOW_MINUTES;
+  if(elapsed<SIGNAL_CLEAR_MINUTES)return red(SIGNAL_CLEAR_MINUTES-elapsed);
+  elapsed-=SIGNAL_CLEAR_MINUTES;
+ }
+ return red(0);
 }
 function signalPhase(i){return signalStatus(i).phase;}
-function signalColor(i,axis){const s=signalStatus(i);return s.phase===axis?'green':s.phase===2&&s.yellowAxis===axis?'yellow':'red';}
+function signalColor(i,incoming,lane=0){const st=signalStatus(i);return st.incoming!==incoming||st.lane!==lane?'red':st.yellow?'yellow':st.phase>=0?'green':'red';}
+function signalAllows(i,incoming,lane=0){return signalColor(i,incoming,lane)==='green';}
 function editSignal(i,changes){
  if(!state.roads.has(i)||junction(i)<3)return false;
- const current=signalSettings(i),next={...current,...changes};
- if(!Number.isInteger(next.eastWest)||next.eastWest<SIGNAL_MIN_GREEN||next.eastWest>SIGNAL_MAX_GREEN||!Number.isInteger(next.northSouth)||next.northSouth<SIGNAL_MIN_GREEN||next.northSouth>SIGNAL_MAX_GREEN||!['auto','manual'].includes(next.mode)||![0,1].includes(next.axis))return false;
- next.holdUntil=next.mode!==current.mode||next.axis!==current.axis?state.time+SIGNAL_CLEAR_MINUTES:current.holdUntil;
+ const current=signalSettings(i),next={...current,...changes},slots=signalSlots(i);
+ if(!Number.isInteger(next.eastWest)||next.eastWest<SIGNAL_MIN_GREEN||next.eastWest>SIGNAL_MAX_GREEN||
+ !Number.isInteger(next.northSouth)||next.northSouth<SIGNAL_MIN_GREEN||next.northSouth>SIGNAL_MAX_GREEN||
+ !['auto','manual'].includes(next.mode)||![0,1].includes(next.axis)||
+ (next.slot!==undefined&&(!Number.isInteger(next.slot)||next.slot<0||next.slot>=slots.length)))return false;
+ next.holdUntil=next.mode!==current.mode||signalManualSlot(i,next,slots)!==signalManualSlot(i,current,slots)||
+ next.axis!==current.axis?state.time+SIGNAL_CLEAR_MINUTES:current.holdUntil;
  state.signals.set(i,next);return true;
 }
-function controlSignal(i,action){const s=signalSettings(i);if(action==='manual'){const phase=signalPhase(i);return editSignal(i,{mode:'manual',axis:phase===1?1:phase===0?0:s.axis});}if(action==='switch'&&s.mode==='manual')return editSignal(i,{axis:1-s.axis});if(action==='auto')return editSignal(i,{mode:'auto'});return false;}
+function controlSignal(i,action){
+ const settings=signalSettings(i),slots=signalSlots(i);if(!slots.length)return false;
+ if(action==='manual'){
+  const active=signalStatus(i),slot=active.slotIndex>=0?active.slotIndex:signalManualSlot(i,settings,slots);
+  return editSignal(i,{mode:'manual',slot,axis:slots[slot].axis});
+ }
+ if(action==='switch'&&settings.mode==='manual'){
+  const slot=(signalManualSlot(i,settings,slots)+1)%slots.length;
+  return editSignal(i,{slot,axis:slots[slot].axis});
+ }
+ if(action==='auto')return editSignal(i,{mode:'auto'});
+ return false;
+}
 function setSignalDefaults(eastWest,northSouth,applyExisting=false){
- if(!Number.isInteger(eastWest)||eastWest<SIGNAL_MIN_GREEN||eastWest>SIGNAL_MAX_GREEN||!Number.isInteger(northSouth)||northSouth<SIGNAL_MIN_GREEN||northSouth>SIGNAL_MAX_GREEN)return false;
- if(!applyExisting)for(const [node] of state.roads)if(junction(node)>=3&&!state.signals.has(node))state.signals.set(node,signalDefaults());
+ if(!Number.isInteger(eastWest)||eastWest<SIGNAL_MIN_GREEN||eastWest>SIGNAL_MAX_GREEN||
+ !Number.isInteger(northSouth)||northSouth<SIGNAL_MIN_GREEN||northSouth>SIGNAL_MAX_GREEN)return false;
+ if(!applyExisting)for(const [node]of state.roads)if(junction(node)>=3&&!state.signals.has(node))state.signals.set(node,signalDefaults());
  state.signalDefaults={eastWest,northSouth};
- if(applyExisting)for(const [node] of state.roads)if(junction(node)>=3){const current=signalSettings(node);state.signals.set(node,{...current,eastWest,northSouth});}
+ if(applyExisting)for(const [node]of state.roads)if(junction(node)>=3){
+  const current=signalSettings(node);state.signals.set(node,{...current,eastWest,northSouth});
+ }
  return true;
 }
 function restoreRecommendedSignals(){
  state.signalDefaults={eastWest:RECOMMENDED_SIGNAL_GREEN_MINUTES,northSouth:RECOMMENDED_SIGNAL_GREEN_MINUTES};
- let count=0;
- for(const [node] of state.roads)if(junction(node)>=3){
-  state.signals.set(node,{...signalDefaults(),holdUntil:state.time+SIGNAL_CLEAR_MINUTES});
-  count++;
+ let count=0;for(const [node]of state.roads)if(junction(node)>=3){
+  state.signals.set(node,{...signalDefaults(),holdUntil:state.time+SIGNAL_CLEAR_MINUTES});count++;
  }
  return count;
 }
@@ -1111,7 +1157,7 @@ function laneOffset(i,d,lane){const r=state.roads.get(i),type=movementRoad(i,d),
 function angleDelta(a,b){return Math.atan2(Math.sin(b-a),Math.cos(b-a));}
 function bezierPoint(p0,p1,p2,p3,t){const u=1-t,uu=u*u,tt=t*t;return{x:uu*u*p0.x+3*uu*t*p1.x+3*u*tt*p2.x+tt*t*p3.x,y:uu*u*p0.y+3*uu*t*p1.y+3*u*tt*p2.y+tt*t*p3.y};}
 function bezierTangent(p0,p1,p2,p3,t){const u=1-t;return{x:3*u*u*(p1.x-p0.x)+6*u*t*(p2.x-p1.x)+3*t*t*(p3.x-p2.x),y:3*u*u*(p1.y-p0.y)+6*u*t*(p2.y-p1.y)+3*t*t*(p3.y-p2.y)};}
-function signalAllows(i,entering){const phase=signalPhase(i);return phase>=0&&phase<2&&phase===entering%2;}
+
 function stopProgress(v,pos){const node=v.path[pos],prev=v.path[Math.max(0,pos-1)];if(node==null||prev==null)return 0;const gap=Math.max(.05,1-TRAFFIC_RULES.stopLineOffset-TRAFFIC_RULES.vehicleHalfLength);return Math.min(.24,Math.max(.04,gap));}
 function nextTurn(v,pos){for(let n=pos;n<Math.min(pos+4,v.path.length-2);n++){const d1=dir(v.path[n],v.path[n+1]),d2=dir(v.path[n+1],v.path[n+2]);if(d1!==d2)return(d2-d1+4)%4;}return 0;}
 function occupancy(i){let n=0;for(let d=0;d<4;d++)for(let l=0;l<4;l++)if(state.occ.has(`${i}:${d}:${l}`))n++;return n;}
@@ -2243,38 +2289,56 @@ $('dialog').addEventListener('close',clearRoadPreview);
 $('dialog').addEventListener('cancel',()=>{dialogRevision++;clearRoadPreview();});
 const row=(a,b)=>`<div class="detail-row"><span>${a}</span><strong>${b}</strong></div>`;
 const action=(name,key,value)=>`<button class="action" data-action="${key}" data-value="${value??''}">${name}</button>`;
+function signalSlotName(slot){return slot?SIGNAL_DIRECTION_NAMES[slot.incoming]+' · เลน '+(slot.lane+1):'แดงทุกเลน';}
 function globalSignalInspector(){
  const s=state.signalDefaults,count=[...state.roads.keys()].filter(i=>junction(i)>=3).length;
  return `<span class="tag">ระบบไฟจราจรทั้งเมือง</span><h2>🚦 ตั้งค่าไฟทุกแยก</h2>${row('แยกที่มีไฟจราจร',count+' แยก')}`+
- `<section class="signal-control"><h3>ค่าเริ่มต้นไฟเขียวอัตโนมัติ</h3><div class="signal-times">`+
- `<label for="signalDefaultEW">แนวนอน <span><input class="signal-minutes" id="signalDefaultEW" type="number" inputmode="numeric" min="5" max="240" step="1" value="${s.eastWest}"> นาที</span></label>`+
- `<label for="signalDefaultNS">แนวตั้ง <span><input class="signal-minutes" id="signalDefaultNS" type="number" inputmode="numeric" min="5" max="240" step="1" value="${s.northSouth}"> นาที</span></label></div>`+
- `<p class="signal-note">ไฟเหลือง ${SIGNAL_YELLOW_MINUTES} นาที และแดงเคลียร์แยก ${SIGNAL_CLEAR_MINUTES} นาทีต่อช่วง · รอบค่าเริ่มต้น ${s.eastWest+s.northSouth+2*(SIGNAL_YELLOW_MINUTES+SIGNAL_CLEAR_MINUTES)} นาทีเกม</p>`+
+ `<section class="signal-control"><h3>เวลาเขียวต่อเลน · ปล่อยทีละเลน</h3><div class="signal-times">`+
+ `<label for="signalDefaultEW">เลนแนวนอน <span><input class="signal-minutes" id="signalDefaultEW" type="number" inputmode="numeric" min="5" max="240" step="1" value="${s.eastWest}"> นาที</span></label>`+
+ `<label for="signalDefaultNS">เลนแนวตั้ง <span><input class="signal-minutes" id="signalDefaultNS" type="number" inputmode="numeric" min="5" max="240" step="1" value="${s.northSouth}"> นาที</span></label></div>`+
+ `<p class="signal-note">ทีละทิศและทีละเลน · เหลือง ${SIGNAL_YELLOW_MINUTES} นาที และแดงเคลียร์แยก ${SIGNAL_CLEAR_MINUTES} นาทีต่อเลน · แยกใหญ่มีรอบไฟยาวขึ้น</p>`+
  action('บันทึกเป็นค่าเริ่มต้นสำหรับแยกใหม่','signal-defaults-save')+
  action('ใช้เวลานี้กับทุกแยกในเมือง','signal-defaults-apply')+
- action('คืนค่าแนะนำทุกแยก (6 + 6 นาที)','signal-defaults-reset')+
- `<p class="signal-note">ใช้เวลานี้กับทุกแยกจะคงโหมดควบคุมเองไว้ · คืนค่าแนะนำจะเปลี่ยนทุกแยกกลับเป็นอัตโนมัติ ไฟเขียวฝั่งละ 6 นาที พร้อมช่วงไฟเหลืองและแดงเคลียร์แยก · คลิกแยกบนแผนที่เพื่อปรับทีละจุด</p></section>`;
+ action('คืนค่าแนะนำทุกแยก (เลนละ 6 นาที)','signal-defaults-reset')+
+ `<p class="signal-note">ใช้เวลานี้กับทุกแยกจะคงโหมดควบคุมเองไว้ · คืนค่าแนะนำจะเปลี่ยนทุกแยกกลับเป็นอัตโนมัติ ไฟเขียวเลนละ 6 นาที พร้อมช่วงไฟเหลืองและแดงเคลียร์แยก · คลิกแยกบนแผนที่เพื่อปรับทีละจุด</p></section>`;
 }
+
 function signalInspector(i){
- const setting=signalSettings(i),status=signalStatus(i),manual=setting.mode==='manual',direction=status.phase===0?'ตะวันออก–ตะวันตก':status.phase===1?'เหนือ–ใต้':status.phase===2?'ไฟเหลือง':'แดงทุกทิศ';
- const color=axis=>signalColor(i,axis),remaining=status.remaining==null?'รอสั่งสลับไฟ':Math.ceil(status.remaining)+' นาทีในเกม';
- return `<section class="signal-control" data-node="${i}"><h3>🚦 ควบคุมไฟแยกนี้</h3><div class="signal-current"><span class="signal-mode">${manual?'ควบคุมเอง':'อัตโนมัติ'}</span><strong>${direction}</strong><small>${remaining}</small></div>`+
- `<div class="signal-direction" data-axis="0"><span class="signal-lamp ${color(0)}"></span><span>↔ ตะวันออก–ตะวันตก</span><b>${color(0)==='green'?'เขียว':color(0)==='yellow'?'เหลือง':'แดง'}</b></div>`+
- `<div class="signal-direction" data-axis="1"><span class="signal-lamp ${color(1)}"></span><span>↕ เหนือ–ใต้</span><b>${color(1)==='green'?'เขียว':color(1)==='yellow'?'เหลือง':'แดง'}</b></div>`+
- `<h3>ตั้งเวลาไฟเขียวอัตโนมัติ</h3><div class="signal-times"><label for="signalEW">แนวนอน <span><input class="signal-minutes" id="signalEW" type="number" inputmode="numeric" min="5" max="240" step="1" value="${setting.eastWest}"> นาที</span></label>`+
- `<label for="signalNS">แนวตั้ง <span><input class="signal-minutes" id="signalNS" type="number" inputmode="numeric" min="5" max="240" step="1" value="${setting.northSouth}"> นาที</span></label></div>`+
- `<p class="signal-note">ไฟเหลือง ${SIGNAL_YELLOW_MINUTES} นาที และแดงทุกทิศ ${SIGNAL_CLEAR_MINUTES} นาทีต่อครั้ง</p>${action('บันทึกเวลาไฟแยกนี้','signal-save',i)}`+
- (manual?`<div class="signal-manual">${action('สลับไฟ → '+(setting.axis===0?'เหนือ–ใต้':'ตะวันออก–ตะวันตก'),'signal-switch',i)}${action('กลับสู่ระบบอัตโนมัติ','signal-auto',i)}</div>`:action('ควบคุมไฟเอง','signal-manual',i))+
- (category==='signals'?action('ตั้งค่าไฟจราจรทั้งเมือง','signal-global',i):'')+`</section>`;
+ const setting=signalSettings(i),status=signalStatus(i),manual=setting.mode==='manual',slots=signalSlots(i);
+ const active=slots[status.slotIndex],current=status.yellow?'ไฟเหลือง · '+signalSlotName(active):
+  status.phase>=0?signalSlotName(active):'แดงทุกเลน';
+ const remaining=status.remaining==null?'รอสั่งสลับไฟ':Math.ceil(status.remaining)+' นาทีในเกม';
+ const rows=slots.map((slot,n)=>{
+  const color=signalColor(i,slot.incoming,slot.lane);
+  return `<div class="signal-direction" data-slot="${n}"><span class="signal-lamp ${color}"></span>
+  <span>${signalSlotName(slot)}</span><b>${color==='green'?'เขียว':color==='yellow'?'เหลือง':'แดง'}</b></div>`;
+ }).join('');
+ const next=slots.length?slots[(signalManualSlot(i,setting,slots)+1)%slots.length]:null;
+ return `<section class="signal-control" data-node="${i}"><h3>🚦 ควบคุมไฟแยกนี้</h3>
+  <div class="signal-current"><span class="signal-mode">${manual?'ควบคุมเอง':'อัตโนมัติ'}</span><strong>${current}</strong><small>${remaining}</small></div>${rows}
+  <h3>ตั้งเวลาเขียวต่อเลน</h3><div class="signal-times">
+  <label for="signalEW">เลนแนวนอน <span><input class="signal-minutes" id="signalEW" type="number" min="5" max="240" value="${setting.eastWest}"> นาที</span></label>
+  <label for="signalNS">เลนแนวตั้ง <span><input class="signal-minutes" id="signalNS" type="number" min="5" max="240" value="${setting.northSouth}"> นาที</span></label></div>
+  <p class="signal-note">เปิดเขียวทีละเลน · เหลือง ${SIGNAL_YELLOW_MINUTES} นาที · แดงเคลียร์ ${SIGNAL_CLEAR_MINUTES} นาที · รอบ ${signalCycle(i)} นาทีเกม</p>`+
+  action('บันทึกเวลาไฟแยกนี้','signal-save',i)+
+  (manual?`<div class="signal-manual">${action('สลับไป '+signalSlotName(next),'signal-switch',i)}${action('กลับสู่ระบบอัตโนมัติ','signal-auto',i)}</div>`:
+   action('ควบคุมไฟเอง','signal-manual',i))+
+  (category==='signals'?action('ตั้งค่าไฟจราจรทั้งเมือง','signal-global',i):'')+`</section>`;
 }
 function refreshSignalInspector(i){
  const root=$('inspectContent').querySelector?.(`.signal-control[data-node="${i}"]`);
  if(!root)return false;
- const status=signalStatus(i),mode=signalSettings(i).mode;
- root.querySelector('.signal-mode').textContent=mode==='manual'?'ควบคุมเอง':'อัตโนมัติ';
- root.querySelector('.signal-current strong').textContent=status.phase===0?'ตะวันออก–ตะวันตก':status.phase===1?'เหนือ–ใต้':status.phase===2?'ไฟเหลือง':'แดงทุกทิศ';
+ const status=signalStatus(i),setting=signalSettings(i),slots=signalSlots(i),active=slots[status.slotIndex];
+ root.querySelector('.signal-mode').textContent=setting.mode==='manual'?'ควบคุมเอง':'อัตโนมัติ';
+ root.querySelector('.signal-current strong').textContent=status.yellow?'ไฟเหลือง · '+signalSlotName(active):
+  status.phase>=0?signalSlotName(active):'แดงทุกเลน';
  root.querySelector('.signal-current small').textContent=status.remaining==null?'รอสั่งสลับไฟ':Math.ceil(status.remaining)+' นาทีในเกม';
- for(const axis of [0,1]){const line=root.querySelector(`.signal-direction[data-axis="${axis}"]`),color=signalColor(i,axis);line.querySelector('.signal-lamp').className='signal-lamp '+color;line.querySelector('b').textContent=color==='green'?'เขียว':color==='yellow'?'เหลือง':'แดง';}
+ for(let n=0;n<slots.length;n++){
+  const slot=slots[n],line=root.querySelector(`.signal-direction[data-slot="${n}"]`);if(!line)continue;
+  const color=signalColor(i,slot.incoming,slot.lane);
+  line.querySelector('.signal-lamp').className='signal-lamp '+color;
+  line.querySelector('b').textContent=color==='green'?'เขียว':color==='yellow'?'เหลือง':'แดง';
+ }
  return true;
 }
 function renderInspector(force=false){
@@ -3560,7 +3624,7 @@ function junctionPriority(request,node){
 function queueAllows(v,pos,connector){
  const node=v.path[pos],queue=state.junctionQueues?.get(node);if(!queue)return true;
  const own=queue.find(q=>q.id===v.id&&q.pos===pos);if(!own)return true;
- const eligible=q=>{const car=state.vehicles.get(q.id);return car&&junctionExitAvailable(car,q.pos)&&(!signalRequired(node)||signalAllows(node,q.connector.incoming))&&!queue.some(front=>front.id!==q.id&&front.connector.incoming===q.connector.incoming&&front.connector.laneIn===q.connector.laneIn&&front.distance<q.distance-.01);};
+ const eligible=q=>{const car=state.vehicles.get(q.id);return car&&junctionExitAvailable(car,q.pos)&&(!signalRequired(node)||signalAllows(node,q.connector.incoming,q.connector.laneIn))&&!queue.some(front=>front.id!==q.id&&front.connector.incoming===q.connector.incoming&&front.connector.laneIn===q.connector.laneIn&&front.distance<q.distance-.01);};
  if(!eligible(own))return false;const priority=junctionPriority(own,node);
  for(const other of queue){if(other.id===v.id||!eligible(other)||!connectorsConflict(connector,other.connector))continue;const p=junctionPriority(other,node);if(p<priority||p===priority&&(other.at<own.at||other.at===own.at&&(other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id)))return false;}
  return true;
@@ -3591,7 +3655,7 @@ function junctionExitAvailable(v,pos){
 }
 function intersectionAllowed(v,pos,ignoreSignal=false){
  if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
- const entering=motionDirection(v.path,pos-1);if(signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering))return false;
+ const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return false;
  const connector=junctionConnector(v,pos),lock=state.reservations.get('junction:'+i);
  for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos)))return false;}}
  if(!ignoreSignal&&!queueAllows(v,pos,connector))return false;
@@ -3749,7 +3813,7 @@ function motionBarrier(v,plan,s,budget=-1){
   const allowed=intersectionAllowed(v,g.pos,inside);
   if(!allowed){
    const stop=Math.max(s,g.stop);
-   if(stop<limit){limit=stop;reason=signalRequired(g.node)&&!signalAllows(g.node,dir(v.path[g.pos-1],g.node))?'ไฟแดง':'คิวแยก';}
+   if(stop<limit){limit=stop;reason=signalRequired(g.node)&&!signalAllows(g.node,dir(v.path[g.pos-1],g.node),plannedLane(v,g.pos-1))?'ไฟแดง':'คิวแยก';}
   }else if(inside||(budget>=0&&g.stop<=s+budget+1e-8&&g.stop<=limit))reserveIntersection(v,g.pos);
  }
  return{limit,reason};
@@ -4099,7 +4163,7 @@ function getRoadPreview(){
  roadPreviewCache={source:live,key,plan};return plan;
 }
 function buildRoad(cells,type,confirmed=false){const check=checkRoad(cells,type);if(check.error){toast(check.error);return false;}if(!confirmed){pendingRoadPreview={cells:[...cells],type};$('dialog').classList.add('road-preview-confirm');confirmAction('สร้าง'+ROADS[type].name,`ความยาว ${cells.length} ช่อง · ${ROADS[type].lanes} เลน<br>ค่าก่อสร้าง ${money(check.cost)}<br>อาคารจะวางทับพื้นที่ถนนไม่ได้`,()=>buildRoad(cells,type,true));const endpoint=cells[cells.length-1];positionConstructionAtWorld(endpoint%W,Math.floor(endpoint/W));return;}const changed=[];for(const i of cells){const r=state.roads.get(i);if(!r){state.roads.set(i,{type,main:false,links:new Set(),load:0,wait:0});changed.push(i);}else if(ROADS[type].lanes>ROADS[r.type].lanes){r.type=type;changed.push(i);}}for(let k=1;k<cells.length;k++)link(cells[k-1],cells[k]);state.money-=check.cost;missionMoney('roadCost',check.cost);missionCount('roadsBuilt',changed.length);roadChanged(changed);toast('สร้างถนนแล้ว · '+money(check.cost));updateUI();return true;}
-function roadChanged(cells,removedRoads=null){state.version++;roadPreviewCache=null;renderer3d?.invalidateRoads?.();state.routeCache.clear();state.junctionCache.clear();state.junctionLayoutCache?.clear();for(const node of state.signals.keys())if(junction(node)<3)state.signals.delete(node);rebuildFootprint();for(const b of state.buildings.values())b.access=accessFor(b);
+function roadChanged(cells,removedRoads=null){state.version++;roadPreviewCache=null;renderer3d?.invalidateRoads?.();state.routeCache.clear();state.junctionCache.clear();state.junctionLayoutCache?.clear();state.signalSlotCache?.clear();for(const node of state.signals.keys())if(junction(node)<3)state.signals.delete(node);rebuildFootprint();for(const b of state.buildings.values())b.access=accessFor(b);
  // Road removal is allowed under a car: transfer ONLY vehicles physically
  // occupying a deleted road tile to a city gate, keeping their destination.
  // Existing routes elsewhere retain their normal repair behaviour.
@@ -4459,9 +4523,9 @@ $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)
   toast(a==='signal-defaults-apply'?'ปรับเวลาไฟเขียวทุกแยกแล้วค่ะ':'บันทึกค่าเริ่มต้นสำหรับแยกใหม่แล้วค่ะ');renderInspector(true);return;
  }
  if(a==='signal-global'){selected={kind:'signals'};renderInspector(true);return;}
- if(a.startsWith('signal-')){if(selected?.kind!=='road'||selected.id!==v)return;if(a==='signal-save'){const rawEW=String($('signalEW').value).trim(),rawNS=String($('signalNS').value).trim(),eastWest=Number(rawEW),northSouth=Number(rawNS);if(!rawEW||!rawNS||!editSignal(v,{eastWest,northSouth})){toast('ตั้งเวลาไฟเขียวฝั่งละ 5–240 นาที (จำนวนเต็ม) ค่ะ');return;}toast('บันทึกเวลาไฟแยกนี้แล้วค่ะ');}else{const key=a==='signal-manual'?'manual':a==='signal-switch'?'switch':a==='signal-auto'?'auto':'';if(!controlSignal(v,key))return;toast(key==='manual'?'เปิดโหมดควบคุมไฟเองแล้วค่ะ':key==='switch'?'สลับไฟแล้ว · รอแดงทุกทิศ '+SIGNAL_CLEAR_MINUTES+' นาที':'กลับสู่ไฟอัตโนมัติแล้วค่ะ');}renderInspector(true);return;}
+ if(a.startsWith('signal-')){if(selected?.kind!=='road'||selected.id!==v)return;if(a==='signal-save'){const rawEW=String($('signalEW').value).trim(),rawNS=String($('signalNS').value).trim(),eastWest=Number(rawEW),northSouth=Number(rawNS);if(!rawEW||!rawNS||!editSignal(v,{eastWest,northSouth})){toast('ตั้งเวลาไฟเขียวต่อเลน 5–240 นาที (จำนวนเต็ม) ค่ะ');return;}toast('บันทึกเวลาไฟแยกนี้แล้วค่ะ');}else{const key=a==='signal-manual'?'manual':a==='signal-switch'?'switch':a==='signal-auto'?'auto':'';if(!controlSignal(v,key))return;toast(key==='manual'?'เปิดโหมดควบคุมไฟเองแล้วค่ะ':key==='switch'?'สลับไฟแล้ว · รอแดงทุกทิศ '+SIGNAL_CLEAR_MINUTES+' นาที':'กลับสู่ไฟอัตโนมัติแล้วค่ะ');}renderInspector(true);return;}
  if(a==='incident-resolve'){openTrafficIncident(v);return;}if(a==='tow'){if(towVehicle(v)){selected=null;$('inspector').classList.add('hidden');toast('ลากรถออกแล้ว · ยกเลิกเที่ยวเดินทาง');updateUI();}}if(a==='reroute'){const car=state.vehicles.get(v),ok=car?.phase==='stuck'?recoverVehicle(car,true):car?checkDepartureRoute(car):false;toast(ok?'พบเส้นทางแล้ว จะออกเดินทางเมื่อถนนว่าง':'ยังไม่มีเส้นทางที่ไปต่อได้ค่ะ');renderInspector();}if(a==='citizen'){selected={kind:'citizen',id:v};renderInspector();}if(a==='tourist-dashboard'){category='tourists';selectTool('touristDashboard');return;}if(a==='follow'){follow=follow===v?null:v;renderInspector();}if(a==='move-building'){beginMoveBuilding(v);return;}if(a==='demolish')demolishBuilding(state.buildings.get(v));if(a==='heat')toggleTrafficHeat();};
-$('help').onclick=()=>{modal('<span class="eyebrow">WELCOME, CITY MAKER</span><h2>ทุกคันมีชีวิต<br>ทุกถนนมีความหมาย</h2><p>เริ่มด้วยงบ 500,000 บาท และถนนหลัก 8 เลนที่ไม่เสียค่าดูแล เมืองจะเติบโตจากการเดินทางที่คุณออกแบบ</p><ol><li>เลือก <b>ถนนเล็ก</b> แล้วลากจากถนนหลักออกไป</li><li>เลือก <b>บ้าน</b> วางชิดขอบถนน คนจะขับรถจากประตูเมืองเข้ามา</li><li>สร้าง <b>สำนักงานหรือโรงงาน</b> ให้คนมีงาน ก่อนเพิ่มร้านค้าและสวน</li><li>คลิกรถเพื่อดูต้นทาง ปลายทาง และปัญหา เปิดแผนที่รถติดเพื่อหาจุดคอขวด</li><li>คลิก <b>ทางแยกไฟแดง</b> เพื่อตั้งเวลาของแยกนั้น หรือเลือกควบคุมไฟเองและกดสลับฝั่งที่ได้ไฟเขียว</li></ol><p>ลากเพื่อเลื่อน · เลื่อนล้อหรือใช้สองนิ้วเพื่อซูม<br>Space หยุดเวลา · B สร้างถนน · Esc สำรวจเมือง<br>รถขับชิดซ้าย อาคารฝั่งตรงข้ามต้องมีทางวนกลับ</p><div class="actions"><button class="primary" id="helpDone">เริ่มสร้างเมือง</button></div>');$('helpDone').onclick=closeModal;};
+$('help').onclick=()=>{modal('<span class="eyebrow">WELCOME, CITY MAKER</span><h2>ทุกคันมีชีวิต<br>ทุกถนนมีความหมาย</h2><p>เริ่มด้วยงบ 500,000 บาท และถนนหลัก 8 เลนที่ไม่เสียค่าดูแล เมืองจะเติบโตจากการเดินทางที่คุณออกแบบ</p><ol><li>เลือก <b>ถนนเล็ก</b> แล้วลากจากถนนหลักออกไป</li><li>เลือก <b>บ้าน</b> วางชิดขอบถนน คนจะขับรถจากประตูเมืองเข้ามา</li><li>สร้าง <b>สำนักงานหรือโรงงาน</b> ให้คนมีงาน ก่อนเพิ่มร้านค้าและสวน</li><li>คลิกรถเพื่อดูต้นทาง ปลายทาง และปัญหา เปิดแผนที่รถติดเพื่อหาจุดคอขวด</li><li>คลิก <b>ทางแยกไฟแดง</b> เพื่อตั้งเวลาของแยกนั้น หรือเลือกควบคุมไฟเองและกดสลับเลนที่ได้ไฟเขียว</li></ol><p>ลากเพื่อเลื่อน · เลื่อนล้อหรือใช้สองนิ้วเพื่อซูม<br>Space หยุดเวลา · B สร้างถนน · Esc สำรวจเมือง<br>รถขับชิดซ้าย อาคารฝั่งตรงข้ามต้องมีทางวนกลับ</p><div class="actions"><button class="primary" id="helpDone">เริ่มสร้างเมือง</button></div>');$('helpDone').onclick=closeModal;};
 function snapshot(){return JSON.stringify({format:2,morningPlanningDay:state.morningPlanningDay,parkingVersion:PARKING_VERSION,missionStats:state.missionStats,city:state.city,money:state.money,incidentRewards:state.incidentRewards,time:state.time,nextId:state.nextId,profileSeq:state.profileSeq,tourism:state.tourism,plantedTrees:state.plantedTrees,hiddenAutoTrees:state.hiddenAutoTrees,nextTouristAt:state.nextTouristAt,roads:[...state.roads].map(([i,r])=>[i,{...r,links:[...r.links]}]),buildings:[...state.buildings].map(([i,b])=>[i,{...b,residents:[...b.residents],workers:[...b.workers],visitors:[...b.visitors],parked:[...b.parked],guests:[...(b.guests||[])]}]),citizens:[...state.citizens].map(([i,c])=>[i,{...c,scheduled:[...c.scheduled],failKinds:[...c.failKinds]}]),vehicles:[...state.vehicles].map(([i,v])=>[i,{...v,pathSet:[...v.pathSet]}]),signals:[...state.signals],signalDefaults:state.signalDefaults,events:state.events,cam,news});}
 const SAVE_KEY='traffic-fixer-thailand-saves-v2',LEGACY_SAVE_KEY='traffic-fixer-thailand-v1';
 const escapeSaveText=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4501,7 +4565,7 @@ function validateSave(s){
  if(s.hiddenAutoTrees!==undefined&&(!Array.isArray(s.hiddenAutoTrees)||s.hiddenAutoTrees.length>6000||s.hiddenAutoTrees.some(i=>!Number.isInteger(i)||i<0||i>=W*H)))throw Error('Invalid tree clearings');
  for(const key of ['roads','buildings','citizens','vehicles'])if(!Array.isArray(s[key])||s[key].some(e=>!Array.isArray(e)||e.length!==2||!Number.isInteger(e[0])||!e[1])||new Set(s[key].map(e=>e[0])).size!==s[key].length)throw Error('Invalid '+key);
  for(const [i,r]of s.roads)if(i<0||i>=W*H||!ROADS[r.type]||!Array.isArray(r.links)||r.links.some(n=>!Number.isInteger(n)||n<0||n>=W*H))throw Error('Invalid road');
- if(s.signals!==undefined){if(!Array.isArray(s.signals)||s.signals.length>s.roads.length||new Set(s.signals.map(e=>e?.[0])).size!==s.signals.length)throw Error('Invalid signals');const roads=new Set(s.roads.map(e=>e[0]));for(const e of s.signals){if(!Array.isArray(e)||e.length!==2||!Number.isInteger(e[0])||!roads.has(e[0]))throw Error('Invalid signal node');const c=e[1];if(!c||!Number.isInteger(c.eastWest)||c.eastWest<SIGNAL_MIN_GREEN||c.eastWest>SIGNAL_MAX_GREEN||!Number.isInteger(c.northSouth)||c.northSouth<SIGNAL_MIN_GREEN||c.northSouth>SIGNAL_MAX_GREEN||!['auto','manual'].includes(c.mode)||![0,1].includes(c.axis)||!Number.isFinite(c.holdUntil))throw Error('Invalid signal setting');}}
+ if(s.signals!==undefined){if(!Array.isArray(s.signals)||s.signals.length>s.roads.length||new Set(s.signals.map(e=>e?.[0])).size!==s.signals.length)throw Error('Invalid signals');const roads=new Set(s.roads.map(e=>e[0]));for(const e of s.signals){if(!Array.isArray(e)||e.length!==2||!Number.isInteger(e[0])||!roads.has(e[0]))throw Error('Invalid signal node');const c=e[1];if(!c||!Number.isInteger(c.eastWest)||c.eastWest<SIGNAL_MIN_GREEN||c.eastWest>SIGNAL_MAX_GREEN||!Number.isInteger(c.northSouth)||c.northSouth<SIGNAL_MIN_GREEN||c.northSouth>SIGNAL_MAX_GREEN||!['auto','manual'].includes(c.mode)||![0,1].includes(c.axis)||!Number.isFinite(c.holdUntil)||(c.slot!==undefined&&(!Number.isInteger(c.slot)||c.slot<0||c.slot>15)))throw Error('Invalid signal setting');}}
  for(const [,b]of s.buildings)if(!CATALOG[b.key]||!Number.isInteger(b.x)||!Number.isInteger(b.y)||!valid(b.x,b.y)||!valid(b.x+buildingBounds(b).w-1,b.y+buildingBounds(b).h-1)||!Number.isInteger(b.rotation)||b.rotation<0||b.rotation>3||!Array.isArray(b.parkingSlots)||b.parkingSlots.length!==CATALOG[b.key].parkingCapacity||['residents','workers','visitors','parked','access'].some(k=>!Array.isArray(b[k])))throw Error('Invalid building');
  for(const [,c]of s.citizens)if(!Array.isArray(c.scheduled)||!Array.isArray(c.failKinds))throw Error('Invalid citizen');
  for(const [,v]of s.vehicles)if(!Array.isArray(v.pathSet)||!Array.isArray(v.path))throw Error('Invalid vehicle');
@@ -4902,6 +4966,6 @@ $('menu').onclick=openMainMenu;
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;missionAutoPulse();for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalSlots,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();startNewCity();requestAnimationFrame(frame);
 })();

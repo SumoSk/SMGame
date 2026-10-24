@@ -5,14 +5,17 @@ const document={getElementById:get,querySelector:()=>element(),querySelectorAll:
 const sandbox={document,window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:x=>game=x},innerWidth:1440,innerHeight:900,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage:{setItem:noop,getItem:()=>null},console};
 vm.createContext(sandbox);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),sandbox);
 function findVehicle(){return [...game.state.vehicles.values()][0];}
-function redFor(node,dir){for(let n=0;n<60;n++){if(game.signalPhase(node)===1&&dir%2===0)return;game.state.time++;}}
+function redFor(node,dir){for(let n=0;n<200;n++){if(!game.signalAllows(node,dir,0))return;game.state.time++;}throw Error('no red signal');}
 game.reset();
 const center=game.id(150,150),west=game.id(149,150),east=game.id(151,150),north=game.id(150,149);
-const signalAt=minute=>{game.state.time=16*40-(center%17)*16/24+minute;return game.signalPhase(center);};
-for(const [minute,expected] of [[0,0],[5.9,0],[6,2],[6.9,2],[7,-1],[7.9,-1],[8,1],[13.9,1],[14,2],[14.9,2],[15,-1],[15.9,-1],[16,0]]){
- assert.equal(signalAt(minute),expected,`signal phase at ${minute} minutes in the 16-minute cycle`);
+const cycle=game.signalCycle(center),slots=game.signalSlots(center),first=slots[0];
+assert.equal(cycle,128,'eight-lane four-way crossing releases all 16 inbound lanes separately');
+const signalAt=minute=>{game.state.time=cycle*40-(center%17)*cycle/24+minute;return game.signalStatus(center);};
+for(const [minute,expected,expectedLane]of [[0,first.incoming,0],[5.9,first.incoming,0],[6,4,0],[6.9,4,0],[7,-1,-1],[7.9,-1,-1],[8,first.incoming,1],[13.9,first.incoming,1],[14,4,1],[15,-1,-1],[16,first.incoming,2],[128,first.incoming,0]]){
+ const status=signalAt(minute);assert.equal(status.phase,expected,'lane signal at minute '+minute);
+ assert.equal(status.lane,expectedLane,'lane sequence at minute '+minute);
 }
-assert.equal(signalAt(0),signalAt(16),'traffic light cycle repeats exactly every 16 game minutes');
+assert.equal(signalAt(0).phase,signalAt(cycle).phase,'signal cycle repeats exactly');
 game.state.roads.get(west).type='medium';game.state.roads.get(east).type='medium';game.state.roads.get(north).type='large';game.state.junctionCache.clear();
 redFor(center,0);
 assert.equal(game.junction(center),4,'mixed road crossing must remain a four-way junction');

@@ -1,6 +1,6 @@
 {
   "name": "traffic-fixer-thailand",
-  "version": "2.6",
+  "version": "2.6.1",
   "private": true,
   "description": "เกมสร้างเมืองและแก้ปัญหาจราจรแบบไทย",
   "scripts": {
