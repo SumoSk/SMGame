@@ -41,6 +41,136 @@ function climateAt(time,city){
 }
 function hash(a,b=0){return ((Math.sin(a*127.1+b*311.7)*43758.5453)%1+1)%1;}
 
+// v2.4.3 landscape materials. All detail is render-only, world anchored and
+// deterministic. One mipmapped noise atlas serves every surface (no downloads,
+// per-frame geometry, game RNG or changes to the buildable grid).
+const TERRAIN_PALETTES={
+ phuket:['#526b3d','#82965b','#b0a36d','#9a8864'],
+ bangkok:['#657544','#91a367','#b4ad7d','#8d8066'],
+ chiangmai:['#49623c','#7c9558','#aaa46b','#8b795b'],
+ korat:['#6c7843','#9ca566','#b7a272','#a18362']
+};
+function landscapeNoise(){
+ const size=128,data=new Uint8Array(size*size*4);let seed=743923;
+ for(let i=0;i<data.length;i+=4){for(let c=0;c<3;c++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;data[i+c]=seed>>>24;}data[i+3]=255;}
+ const texture=new THREE.DataTexture(data,size,size,THREE.RGBAFormat);
+ texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.magFilter=THREE.LinearFilter;
+ texture.minFilter=THREE.LinearMipmapLinearFilter;texture.generateMipmaps=true;
+ texture.needsUpdate=true;return texture;
+}
+const LANDSCAPE_GLSL=`
+ varying vec3 vLandscapeWorld;
+ uniform sampler2D landscapeNoiseMap;
+ float landNoise(vec2 p){
+  vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+  return texture2D(landscapeNoiseMap,(i+f+0.5)/128.0).r;
+ }
+ float coastX(float z){return 125.0+sin(z*.032)*5.0+sin(z*.072)*2.0;}
+`;
+function landscapeShader(material,noise,fragment,extra='',uniforms={}){
+ material.onBeforeCompile=shader=>{
+  Object.assign(shader.uniforms,{landscapeNoiseMap:{value:noise}},uniforms);
+  shader.vertexShader='varying vec3 vLandscapeWorld;\n'+shader.vertexShader;
+  shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
+   '#include <begin_vertex>\nvLandscapeWorld=(modelMatrix*vec4(position,1.0)).xyz;');
+  shader.fragmentShader=LANDSCAPE_GLSL+extra+'\n'+shader.fragmentShader;
+  shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
+   '#include <color_fragment>\n'+fragment);
+ };
+ // City and material kind are encoded in this key, so Three never reuses a
+ // compiled grass program for water or a different city's palette.
+ material.customProgramCacheKey=()=>fragment+extra;
+ return material;
+}
+function landscapeMaterial(city,kind,noise){
+ const palette=TERRAIN_PALETTES[city]||TERRAIN_PALETTES.korat;
+ const c=hex=>{const a=new THREE.Color(hex);return `vec3(${a.r.toFixed(5)},${a.g.toFixed(5)},${a.b.toFixed(5)})`;};
+ const material=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:kind==='wetSand'?.75:.97});
+ material.userData.landscapeKind=kind;
+ let fragment=`vec2 p=vLandscapeWorld.xz;
+  float broad=landNoise(p/24.0+vec2(17.0,43.0));
+  float speckle=landNoise(p/4.5+vec2(41.0,9.0));
+  float fine=landNoise(p/.48);
+  float grain=texture2D(landscapeNoiseMap,p/3.7).g;
+ `;
+ if(kind==='grass'){
+  fragment+=`vec3 turf=mix(${c(palette[0])},${c(palette[1])},.28+broad*.65);
+   float dry=smoothstep(.54,.79,landNoise(p/11.0+vec2(93.0,21.0)))*.62;
+   turf=mix(turf,${c(palette[2])},dry);
+   float soil=smoothstep(.70,.87,speckle)*(.24+dry*.4);
+   turf=mix(turf,${c(palette[3])},soil);
+   // Occasional soft lawn clearings, with restrained mowing bands.
+   float lawn=smoothstep(.70,.88,broad)*(1.0-dry);
+   float mowing=.5+.5*sin((p.x*.71+p.y*.34)*3.14159);
+   turf=mix(turf,mix(${c(palette[0])},${c(palette[1])},.66+mowing*.08),lawn*.58);
+   turf*=.91+speckle*.13+fine*.08+(grain-.5)*.07;
+  `;
+  if(city==='phuket')fragment+=`float shore=1.0-smoothstep(1.6,4.8,p.x-coastX(p.y));
+   turf=mix(turf,${c('#b5aa7b')},shore*.72);`;
+  if(city==='bangkok')fragment+=`float bank=abs(p.x-(125.0+sin(p.y*.047)*5.0))-4.0;
+   turf=mix(turf,${c('#827c59')},(1.0-smoothstep(0.0,1.6,bank))*.68);`;
+  fragment+='diffuseColor.rgb*=turf;';
+ }else if(kind==='sand'||kind==='wetSand'){
+  const wet=kind==='wetSand';
+  fragment+=`vec3 sand=mix(${c(wet?'#a29670':'#c8b58a')},${c(wet?'#c2b48b':'#eddfb2')},.32+broad*.48+speckle*.16);
+   float ripple=sin(p.y*17.0+sin(p.x*1.7)*2.4+speckle*3.0);
+   sand*=.96+fine*.055+(grain-.5)*.055+ripple*.012;
+   diffuseColor.rgb*=sand;`;
+ }else fragment+=`diffuseColor.rgb*=.88+speckle*.16+fine*.08;`;
+ return landscapeShader(material,noise,fragment);
+}
+function landscapeWater(city,river,noise,clock){
+ const material=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:river?.36:.27,metalness:.08});
+ material.userData.landscapeKind=river?'river':'sea';
+ const c=hex=>{const a=new THREE.Color(hex);return `vec3(${a.r.toFixed(5)},${a.g.toFixed(5)},${a.b.toFixed(5)})`;};
+ const fragment=`vec2 p=vLandscapeWorld.xz;
+  float drift=landscapeTime*.16;
+  float shimmer=sin(p.x*3.8+p.y*2.1+drift*2.0)*sin(p.y*4.7-p.x*1.5-drift);
+  float variation=landNoise(p/9.0+vec2(drift*.04,0.0));
+  ${river?`
+   float depth=1.0-smoothstep(1.8,4.05,abs(p.x-(125.0+sin(p.y*.047)*5.0)));
+   vec3 water=mix(${c('#879f82')},${c('#386b69')},depth*.83);
+   float current=pow(max(0.0,sin(p.y*8.0+p.x*1.8-drift*3.0)),18.0)*.035;
+   water+=current;
+  `:`
+   float offshore=max(0.0,coastX(p.y)-2.2-p.x);
+   vec3 water=mix(${c('#7ac8bd')},${c('#2d8e9c')},smoothstep(0.0,13.0,offshore));
+   water=mix(water,${c('#245d79')},smoothstep(12.0,48.0,offshore));
+   float wave=sin(offshore*4.5-landscapeTime*1.25+sin(p.y*.8)*.65);
+   float foam=pow(max(0.0,wave),12.0)*(1.0-smoothstep(.2,3.1,offshore));
+   foam*=.43+.34*landNoise(vec2(p.y*1.7,offshore*3.0));
+   water=mix(water,${c('#e1efe1')},foam*.64);
+  `}
+  water*=.94+variation*.1+shimmer*.018;
+  diffuseColor.rgb*=water;
+ `;
+ landscapeShader(material,noise,fragment,'uniform float landscapeTime;', {landscapeTime:clock});
+ const compile=material.onBeforeCompile;
+ material.onBeforeCompile=shader=>{
+  compile(shader);
+  shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_begin>',
+   `#include <normal_fragment_begin>
+    vec2 wp=vLandscapeWorld.xz;
+    float wt=landscapeTime;
+    vec3 rippleNormal=vec3(sin(wp.x*2.1+wp.y*1.4+wt*.7)*.045,0.0,cos(wp.y*2.9-wp.x*.8-wt*.55)*.055);
+    normal=normalize(normal+mat3(viewMatrix)*rippleNormal);`);
+ };
+ return material;
+}
+
+function mountainHeight(x,z){
+ // Same scenery footprint as the old Chiang Mai peaks; the city stays flat.
+ let h=0;
+ for(let n=0;n<12;n++){
+  const px=100+n%4*8+(hash(n,7)-.5)*3,pz=105+Math.floor(n/4)*15+(hash(n,19)-.5)*3;
+  const dx=(x-px)/9.5,dz=(z-pz)/10;
+  const shape=Math.max(0,1-Math.hypot(dx,dz));
+  const ridge=1+Math.sin(x*.61+z*.39)*.12+Math.sin(z*.89-x*.4)*.07;
+  h=Math.max(h,Math.pow(shape,1.28)*(5.8+hash(n,17)*7)*ridge);
+ }
+ return h;
+}
+
 const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van'];
 const VEHICLE_WEIGHTS=[[26,36,20,10,4,1,1,2],[11,16,42,20,5,1,1,4],[7,12,11,24,33,6,5,2],[2,4,5,10,25,24,28,2]];
 const VEHICLE_STYLES=[
@@ -238,15 +368,87 @@ export class TrafficRenderer{
  world(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const p=new THREE.Vector3();this.ray.ray.intersectPlane(this.ground,p);return[p.x,p.z];}
  pickBuilding(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const hits=this.ray.intersectObjects(this.buildingGroup.children,true);for(const h of hits){const id=h.object.userData.ids?.[h.instanceId];if(id!=null)return id;}return null;}
  coast(z){return 125+Math.sin(z*.032)*5+Math.sin(z*.072)*2;}
- groundShape(points,color,height){const shape=new THREE.Shape();points.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));shape.closePath();const geo=new THREE.ShapeGeometry(shape);geo.rotateX(-Math.PI/2);const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:1}));m.position.y=height;m.receiveShadow=true;this.scene.add(m);this.terrainGroup.push(m);return m;}
- terrain(city){if(this.terrainGroup)for(const m of this.terrainGroup){this.scene.remove(m);m.traverse(o=>{if(o.geometry&&!([BOX,CYL,CONE,LEAF,BALL].includes(o.geometry)))o.geometry.dispose();if(o.material)o.material.dispose();});}this.terrainGroup=[];this.city=city;
- const water=new THREE.Mesh(new THREE.PlaneGeometry(650,650,1,1),new THREE.MeshStandardMaterial({color:'#399fa9',roughness:.38,metalness:.07}));water.rotation.x=-Math.PI/2;water.position.set(150,-.35,150);water.receiveShadow=true;this.scene.add(water);this.terrainGroup.push(water);
- const coast=[];for(let z=-50;z<=350;z+=2)coast.push([this.coast(z),z]);if(city==='phuket'){this.groundShape([...coast, [370,350],[370,-50]],'#ead79d',-.12);this.groundShape([...coast.map(([x,z])=>[x+1.6,z]),[370,350],[370,-50]],'#87b675',0);this.groundShape([...coast.map(([x,z])=>[x-1.2,z]),...coast.slice().reverse().map(([x,z])=>[x-3.8,z])],'#69c8c1',-.28);}
- else{this.groundShape([[-40,-40],[-40,340],[340,340],[340,-40]],city==='chiangmai'?'#80ab69':'#8db477',0);if(city==='bangkok'){const l=[],r=[];for(let z=-40;z<=340;z+=2){const x=125+Math.sin(z*.047)*5;l.push([x-4,z]);r.push([x+4,z]);}this.groundShape([...l,...r.reverse()],'#63b6b5',.015);}}
- const wavePositions=[];if(city==='phuket')for(let z=60;z<240;z+=2.4)for(let x=85;x<this.coast(z)-5;x+=6){if(hash(x,z)>.5)continue;const len=.7+hash(z,x)*2;wavePositions.push(x,-.3,z,x+len,-.3,z+.1);}
- if(wavePositions.length){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(wavePositions,3));const lines=new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color:'#9edcd4',transparent:true,opacity:.48}));this.scene.add(lines);this.terrainGroup.push(lines);}
- const terrainBatch=new Batch();if(city==='chiangmai')for(let n=0;n<12;n++){const x=100+(n%4)*8,z=105+Math.floor(n/4)*15;terrainBatch.add(CONE,['#6f9168','#81a875','#597c62'][n%3],x,2.5,z,8,6+n%3*3,8,0,.4,0);}if(city==='phuket')for(let n=0;n<35;n++){const z=90+n*4.1,x=this.coast(z)-1+hash(n)*.6;terrainBatch.add(LEAF,'#b1b3a1',x,-.08,z,.35+hash(n)*.5,.22,.5,0,n,0);}const group=terrainBatch.build();this.scene.add(group);this.terrainGroup.push(group);this.treeKey='';
+ groundShape(points,color,height){
+  const shape=new THREE.Shape();points.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));shape.closePath();
+  const geo=new THREE.ShapeGeometry(shape);geo.rotateX(-Math.PI/2);
+  const material=color?.isMaterial?color:new THREE.MeshStandardMaterial({color,roughness:1});
+  const mesh=new THREE.Mesh(geo,material);mesh.position.y=height;mesh.receiveShadow=true;
+  this.scene.add(mesh);this.terrainGroup.push(mesh);return mesh;
  }
+ terrain(city){
+  if(this.terrainGroup)for(const mesh of this.terrainGroup){
+   this.scene.remove(mesh);mesh.traverse(o=>{
+    if(o.geometry&&!([BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF].includes(o.geometry)))o.geometry.dispose();
+    if(o.material)for(const material of Array.isArray(o.material)?o.material:[o.material])material.dispose();
+   });
+  }
+  // The small atlas belongs to this renderer and survives map switches. No
+  // cached material or GPU mesh is retained from the preceding city.
+  this.landscapeNoiseMap??=landscapeNoise();this.landscapeClock??={value:0};
+  this.terrainGroup=[];this.city=city;
+  const noise=this.landscapeNoiseMap,clock=this.landscapeClock;
+  const grass=landscapeMaterial(city,'grass',noise);
+  const water=new THREE.Mesh(new THREE.PlaneGeometry(900,900),landscapeWater(city,false,noise,clock));
+  water.rotation.x=-Math.PI/2;water.position.set(150,-.26,150);water.receiveShadow=true;
+  this.scene.add(water);this.terrainGroup.push(water);
+  const coast=[];for(let z=-50;z<=350;z+=.8)coast.push([this.coast(z),z]);
+  const strip=(points,a,b,material,y)=>this.groundShape([...points.map(([x,z])=>[x+a,z]),...points.slice().reverse().map(([x,z])=>[x+b,z])],material,y);
+  if(city==='phuket'){
+   this.groundShape([...coast.map(([x,z])=>[x-2.2,z]),[370,350],[370,-50]],landscapeMaterial(city,'sand',noise),-.12);
+   this.groundShape([...coast.map(([x,z])=>[x+1.6,z]),[370,350],[370,-50]],grass,0);
+   strip(coast,-2.2,-1.05,landscapeMaterial(city,'wetSand',noise),-.105);
+  }else{
+   this.groundShape([[-40,-40],[-40,340],[340,340],[340,-40]],grass,0);
+   if(city==='bangkok'){
+    const river=[];for(let z=-40;z<=340;z+=.8)river.push([125+Math.sin(z*.047)*5,z]);
+    strip(river,-4,4,landscapeWater(city,true,noise,clock),.015);
+    // Narrow silt margins stay within the existing river width and do not
+    // move the river, road crossings or buildable banks.
+    strip(river,-4,-3.65,landscapeMaterial(city,'wetSand',noise),.017);
+    strip(river,3.65,4,landscapeMaterial(city,'wetSand',noise),.017);
+   }
+  }
+  const details=new Batch();
+  if(city==='chiangmai'){
+   const geometry=new THREE.PlaneGeometry(49,53,72,78);geometry.rotateX(-Math.PI/2);geometry.translate(111,0,120);
+   const positions=geometry.attributes.position,colors=[],shade=new THREE.Color();
+   for(let i=0;i<positions.count;i++){
+    const x=positions.getX(i),z=positions.getZ(i),height=mountainHeight(x,z);
+    positions.setY(i,height+.003);
+    const slope=Math.hypot(mountainHeight(x+.25,z)-mountainHeight(x-.25,z),mountainHeight(x,z+.25)-mountainHeight(x,z-.25))/.5;
+    const rock=smooth((slope-.64)/1.25)*smooth((height-2.3)/3.3);
+    shade.set('#63754c').lerp(new THREE.Color('#415b3d'),smooth(height/8)*.8);
+    shade.lerp(new THREE.Color('#8c8c75'),rock*.82);
+    shade.multiplyScalar(.89+hash(x,z)*.19);colors.push(shade.r,shade.g,shade.b);
+   }
+   const triangles=[],indices=geometry.index.array;
+   for(let i=0;i<indices.length;i+=3){const a=indices[i],b=indices[i+1],c=indices[i+2];
+    if(Math.max(positions.getY(a),positions.getY(b),positions.getY(c))>.035)triangles.push(a,b,c);
+   }
+   geometry.setIndex(triangles);geometry.computeVertexNormals();geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+   const material=landscapeMaterial(city,'rock',noise);material.vertexColors=true;
+   const mountains=new THREE.Mesh(geometry,material);mountains.castShadow=true;mountains.receiveShadow=true;mountains.userData.landscapeKind='mountains';
+   this.scene.add(mountains);this.terrainGroup.push(mountains);
+   // Small forest stands follow the hillside elevation; use instancing and
+   // existing tree geometry, not hundreds of separate draw calls.
+   for(let n=0;n<155;n++){
+    const x=92+hash(n,13)*40,z=98+hash(n,53)*44,h=mountainHeight(x,z);
+    if(h<.8||h>8.2||hash(n,71)<.23)continue;
+    const start=new Map([...details.data].map(([key,v])=>[key,v.items.length]));
+    this.tree(details,x,z,.45+hash(n,91)*.5,n%4?'pine':'shade');
+    for(const [key,record] of details.data)for(let i=start.get(key)||0;i<record.items.length;i++)record.items[i].y+=h;
+   }
+  }
+  if(city==='phuket'){
+   for(let n=0;n<95;n++){
+    const z=55+hash(n,9)*225,x=this.coast(z)-1.1+hash(n,21)*1.8;
+    const size=.08+hash(n,37)*.27;
+    details.add(LEAF,['#9b9984','#c2b79a','#aaa98c'][n%3],x,-.07,z,size,size*.36,size*.71,0,n,0);
+   }
+  }
+  const group=details.build();this.scene.add(group);this.terrainGroup.push(group);this.treeKey='';
+ }
+
  tree(batch,x,z,scale=1,kind='shade'){
  // Historic building renderers pass a boolean palm flag; keep it compatible.
  if(kind===true)kind='palm';else if(kind===false)kind='shade';
@@ -4564,6 +4766,7 @@ export class TrafficRenderer{
  render({state,cam,hover,drag,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,signalColor,checkBuilding,parking}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}
  const roadKey=[state.version,state.roads.size,heat].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}const buildKey=[state.buildings.size,...state.buildings.keys()].join(':');if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}this.trees(state,cam);this.cars(state,vehiclePosition,CATALOG);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding);
  this.updateSignals(signalColor);this.updateGrandSignals();this.updateWeatherLight(state);
+ if(this.landscapeClock)this.landscapeClock.value=performance.now()*.001;
  if(heat){if(!this.heatGroup){this.heatGroup=new THREE.Group();this.scene.add(this.heatGroup);}if(!this.heatAt||state.time-this.heatAt>1){this.heatAt=state.time;this.disposeGroup(this.heatGroup);const b=new Batch();for(const[i,r]of state.roads){if(r.load<.1&&r.wait<.1)continue;const color=r.wait>3?'#ce6156':r.wait>.5?'#eda858':'#92c77b';b.box(color,i%300,.13,Math.floor(i/300),ROADS[r.type].width*.92,.018,.9);}this.heatGroup.add(b.build(false));}this.heatGroup.visible=true;}else if(this.heatGroup)this.heatGroup.visible=false;
  const v=state.vehicles.get(follow);this.routeLine.visible=!!v;if(v){const points=v.path.slice(v.pos).map(i=>new THREE.Vector3(i%300,.2,Math.floor(i/300)));this.routeLine.geometry.dispose();this.routeLine.geometry=new THREE.BufferGeometry().setFromPoints(points);}
  if(debug||ROADS[tool]||CATALOG[tool]||tool.startsWith('tree:')||tool==='treeRow'||tool==='treeBrush'||tool==='eraseTree'){if(!this.grid){this.grid=new THREE.GridHelper(80,80,'#dfefba','#d0e0a0');this.grid.material.transparent=true;this.grid.material.opacity=.2;this.grid.position.y=.125;this.scene.add(this.grid);}this.grid.visible=true;this.grid.position.x=Math.round(cam.x);this.grid.position.z=Math.round(cam.y);}else if(this.grid)this.grid.visible=false;

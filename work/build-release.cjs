@@ -27,6 +27,8 @@ const inline=`\nconst makeModule=source=>URL.createObjectURL(new Blob([source],{
 const html=read('dist/index.html')
  .replace(/<link rel="stylesheet" href="style\.css[^"\s]*">/,()=>'<style>\n'+read('dist/style.css')+'</style>')
  .replace(/<script type="module" src="bootstrap\.js[^"\s]*"><\/script>/,()=>'<script type="module">'+inline+'</script>');
-if((html.match(/<\/script>/g)||[]).length!==2)throw new Error('Unsafe standalone script content');
+// Theme initialization and its toggle are separate inline scripts in v2.4.3.
+// Embedding the module must preserve that template's script boundaries.
+if((html.match(/<\/script>/g)||[]).length!==(read('dist/index.html').match(/<\/script>/g)||[]).length)throw new Error('Unsafe standalone script content');
 fs.writeFileSync(path.join(root,'outputs/Traffic-Fixer-Thailand-3D.html'),html);
 console.log(JSON.stringify({gameVersion,memberVersion,bootstrapVersion:version,standaloneBytes:Buffer.byteLength(html)}));
