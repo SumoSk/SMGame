@@ -2194,8 +2194,17 @@ function positionConstructionDialog(x,y){
 }
 function positionConstructionAtWorld(x,y){const point=screen(x+(renderer3d?0:.5),y+(renderer3d?0:.5),.15);positionConstructionDialog(point[0],point[1]);}
 window.addEventListener('resize',()=>{if(constructionAnchor&&$('dialog').open)positionConstructionDialog(constructionAnchor.x,constructionAnchor.y);});
-function closeModal(){dialogRevision++;$('dialog').close();clearRoadPreview();}
+function closeModal(){dialogRevision++;if($('dialog').open)$('dialog').close();clearRoadPreview();}
 window.SMGameCloseDialog=closeModal;
+$('dialogCloseTop').onclick=closeModal;
+// For native HTML <dialog>, a backdrop click targets the dialog element,
+// whereas clicks in the content or its padding remain inside its rectangle.
+$('dialog').addEventListener('click',event=>{
+ if(event.target!==$('dialog')||!$('dialog').open)return;
+ const rect=$('dialog').getBoundingClientRect?.();
+ if(!rect||!Number.isFinite(event.clientX)||!Number.isFinite(event.clientY))return;
+ if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)closeModal();
+});
 $('dialog').addEventListener('close',clearRoadPreview);
 $('dialog').addEventListener('cancel',()=>{dialogRevision++;clearRoadPreview();});
 const row=(a,b)=>`<div class="detail-row"><span>${a}</span><strong>${b}</strong></div>`;
@@ -4320,6 +4329,18 @@ canvas.addEventListener('pointerup',e=>{
 });
 canvas.addEventListener('pointercancel',e=>{ignoredTouchPointers.delete(e.pointerId);pointers.delete(e.pointerId);drag=null;pinch=null;});canvas.addEventListener('contextmenu',e=>{e.preventDefault();cancelInteraction();});canvas.addEventListener('pointerleave',()=>hover=null);
 canvas.addEventListener('wheel',e=>{e.preventDefault();const before=world(e.clientX,e.clientY);cam.z=Math.max(.22,Math.min(5.2,cam.z*(e.deltaY<0?1.12:.89)));if(renderer3d)renderer3d.updateCamera(cam);const after=world(e.clientX,e.clientY);cam.x+=before[0]-after[0];cam.y+=before[1]-after[1];},{passive:false});
+// Close nonmodal city panels when the user touches anywhere else.
+// Do not consume the pointer event: map and toolbar remain immediately usable.
+// Main dialogs and the login gate handle their own backdrops instead.
+document.addEventListener?.('pointerdown',event=>{
+ if($('dialog')?.open||$('memberGate')?.open)return;
+ const daily=document.getElementById('missionDailyAuto');
+ if(daily&&!daily.contains?.(event.target))missionAutoClose(true);
+ for(const [id,close] of [['inspector','closeInspector'],['citizensDashboard','closeCitizensDashboard'],['touristsDashboard','closeTouristsDashboard']]){
+  const panel=$(id);
+  if(panel&&!panel.classList.contains('hidden')&&!panel.contains?.(event.target))$(close)?.onclick?.();
+ }
+},true);
 window.addEventListener('keydown',e=>{if($('dialog').open)return;if(e.key==='Escape'){cancelInteraction();return;}if(e.target?.matches?.('input,textarea,select,[contenteditable="true"]'))return;if(e.code==='Space'){e.preventDefault();state.speed=state.speed?0:1;updateUI();}if(['1','2','5'].includes(e.key)){state.speed=+e.key;updateUI();}if(e.key.toLowerCase()==='h')toggleTrafficHeat();if(e.key.toLowerCase()==='b'){category='roads';selectTool('small');}if(e.key.toLowerCase()==='s'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openCloudSaveDialog();}});
 $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action,v=+b.dataset.value;
  if(a==='signal-defaults-reset'){
