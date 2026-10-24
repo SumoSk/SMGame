@@ -2302,7 +2302,7 @@ else if(selected.kind==='population')html='<span class="tag">ผู้คนใ�
 else if(selected.kind==='happiness')html='<span class="tag">คุณภาพชีวิต</span><h2>ความสุข '+Math.round(s.happy)+'%</h2>'+row('มีความสุข',[...state.citizens.values()].filter(c=>c.resident&&c.happy>=80).length+' คน')+row('กำลังมีปัญหา',[...state.citizens.values()].filter(c=>c.resident&&c.happy<55).length+' คน')+'<p>ฐานเดินทาง 2 นาทีเกมต่อบล็อก + เผื่อรวม 20 นาที · ตัดสินเมื่อถึงอาคาร เที่ยวเดียวมีผลหลักครั้งเดียว และความเครียดจากรถติดเกินเวลาเผื่อไม่เกิน 2 แต้มต่อเที่ยว ภาษีลดเฉพาะปัญหาการทำงาน</p><p>งาน: ตรงเวลา +4 / สาย −2 / พลาด −6 · กิจกรรมเสริม: ตรงเวลา +3 / สายแต่สำเร็จ +1 / ไปไม่ทัน −2 · ข้ามก่อนออกเพราะเวลาไม่พอ: 0</p><p>ความสุขต่ำกว่า 25% ต่อเนื่อง 3 วัน หรือไม่มีงาน 5 วัน จึงเตรียมย้ายออก แก้ปัญหาแล้วความสุขฟื้นได้</p>';
 else html='<span class="tag">การเดินทาง</span><h2>จราจรในเมือง</h2>'+row('รถทั้งหมด',state.vehicles.size+' คัน')+row('กำลังรอ',s.waiting+' คัน')+row('ความคล่องตัว',Math.round(s.flow)+'%')+'<p>คลิกที่รถเพื่อดูว่าของใคร กำลังไปไหน และติดอยู่เพราะอะไร เพิ่มเลนหรือกระจายงานและบริการให้ใกล้บ้านช่วยลดการเดินทาง</p>'+action(heat?'ปิดแผนที่รถติด':'เปิดแผนที่รถติด','heat');
 $('inspector').classList.remove('hidden');
- html=html.replace(/<span class="tag">[^<]*<\/span>/g,'');
+ // Keep the category label so each details panel has the same heading hierarchy.
  for(const note of ['การเข้าออกจากขอบทางฝั่งซ้ายตามทิศรถ หากอยู่คนละฝั่ง รถต้องวนกลับตามเส้นทาง','เวลาโดยประมาณ ปรับตามการเดินทางและเวลาถึงจริง','ถนนหลักเริ่มต้นของเมือง รื้อไม่ได้','รถขับชิดซ้ายและใช้เลนตามเส้นทาง เมื่อเต็มจะรอคิว','ภาษีปกติ 500 บาท ทำงานสาย 400 บาท พลาดงาน 250 บาท กิจกรรมอื่นไม่ลดภาษี ถนนหลักไม่มีค่าดูแล','มีบ้านว่าง เส้นทางจากประตูเมือง และความสุขตั้งแต่ 70% จึงจะมีคนย้ายเข้า คนจะนับเป็นประชากรเมื่อเดินทางถึงบ้านจริง','ไปทำงานและใช้บริการทันเวลาช่วยให้มีความสุข รถติด ไปสาย ไม่มีงาน และขาดบริการทำให้ความสุขลดลง','ต่ำกว่า 25% หรือว่างงาน 2 วัน ประชาชนจะเตรียมย้ายออก','คลิกที่รถเพื่อดูว่าของใคร กำลังไปไหน และติดอยู่เพราะอะไร เพิ่มเลนหรือกระจายงานและบริการให้ใกล้บ้านช่วยลดการเดินทาง'])html=html.replace('<p>'+note+'</p>','');
  if(selected.kind==='vehicle'&&state.vehicles.has(selected.id)&&state.citizens.get(state.vehicles.get(selected.id).citizenId)?.tourist)html+=vehicleRecoveryActions(state.vehicles.get(selected.id));
 const journey=selectedCarVehicle();
@@ -2310,7 +2310,24 @@ const journey=selectedCarVehicle();
   const label=remaining==null?'ไม่มีเวลานัด':status==='red'?'สายแล้ว '+Math.ceil(-remaining)+' นาที':journey.arrivedAt!=null?'ถึงอาคารแล้ว':status==='orange'?'เหลือ '+Math.ceil(remaining)+' นาที ก่อนสาย':'ยังไม่สาย';
   html='<section class="selected-car-journey">'+row('ต้นทาง',escapeSaveText(trackingOrigin(journey)))+row('ปลายทาง',escapeSaveText(trackingDestination(journey)))+row('สถานะเวลา','<span style="color:'+CAR_STATUS_COLORS[status]+'">◆</span> '+label)+'</section>'+html;
  }
-$('inspectContent').innerHTML=html;
+// Consistent, semantic headers across buildings, vehicles, roads and city metrics.
+ const inspectorKinds={
+  building:['▤','อาคารในเมือง'],vehicle:['↗','ข้อมูลรถและการเดินทาง'],
+  parked:['▣','รถในลานจอด'],road:['═','ถนนและทางแยก'],
+  citizen:['♙','ประชาชน'],signals:['●','ควบคุมไฟจราจร'],
+  money:['฿','การเงินเมือง'],population:['♙','ประชากร'],
+  happiness:['♡','คุณภาพชีวิต'],tourists:['✧','นักท่องเที่ยว'],
+  traffic:['↗','การจราจร']
+ };
+ const [panelIcon,panelLabel]=inspectorKinds[selected.kind]||['▦','ข้อมูลเมือง'];
+ // Car routes appear below the header rather than interrupting the title.
+ let journeyCard='';
+ html=html.replace(/<section class="selected-car-journey">[\s\S]*?<\/section>/,part=>{journeyCard=part;return '';});
+ html=html.replace(/(<span class="tag">[^<]*<\/span>)?\s*(<h2>[\s\S]*?<\/h2>)/,
+  (_all,tag,heading)=>'<header class="sm-inspector-heading"><span class="sm-inspector-mark" aria-hidden="true">'+panelIcon+
+   '</span><div class="sm-inspector-heading-text">'+(tag||'<span class="tag">'+panelLabel+'</span>')+heading+'</div></header>'+journeyCard);
+ $('inspector').dataset.kind=selected.kind;
+ $('inspectContent').innerHTML=html;
 }
 function buildingName(i){const b=state.buildings.get(i);return b?CATALOG[b.key].name+' #'+i:'ยังไม่มี';}
 function citizenName(c){return c?['กานต์','ต้น','พลอย','มะลิ','นนท์','แพรว','ภูมิ','ฟ้า','บีม','อิง','พีท','ข้าวหอม'][c.id%12]+' #'+c.id:'ประชาชน';}
@@ -3196,7 +3213,7 @@ function missionReportMarkup(which='current'){
  ['ช่องถนนทั้งหมด',int(summary.roads)],['อาคารทั้งหมด',int(summary.buildings)],['โรงแรม',int(summary.hotels)],['ต้นไม้ที่ปลูกเอง',int(summary.trees)]
  ]:[];
  const isPrevious=which==='previous',dayLabel='วันที่ '+(s.day+1);
- return '<div class="daily-report-body"><span class="eyebrow">SMCITY · DAILY CITY REPORT</span><h2>📋 รายงานเมือง '+dayLabel+'</h2><p class="mission-sub">'+(isPrevious?'สรุปผลวันก่อนหน้า · ปิดบัญชีแล้ว':'สถานะระหว่างวัน · ตัวเลขเปลี่ยนตามการเล่น')+' · เวลาเกม '+timeText(s.since)+' น. เริ่มบันทึก</p>'+
+ return '<div class="daily-report-body"><header class="sm-report-header"><span class="eyebrow">SMCITY · DAILY CITY REPORT</span><h2>📋 รายงานเมือง '+dayLabel+'</h2><p class="mission-sub">'+(isPrevious?'สรุปผลวันก่อนหน้า · ปิดบัญชีแล้ว':'สถานะระหว่างวัน · ตัวเลขเปลี่ยนตามการเล่น')+' · เวลาเกม '+timeText(s.since)+' น. เริ่มบันทึก</p></header>'+
  '<div class="mission-grid daily-report-highlights">'+[
  ['ภารกิจสำเร็จ',int(s.success)],['อัตราสำเร็จ',percent(s.rate)],['ภารกิจไม่สำเร็จ',int(s.failed)],
  ['เฉลี่ยต่อบล็อก',fraction(s.secondsPerBlock)+' วินาที'],['รายรับที่บันทึกได้',money(revenue)],['เงินเปลี่ยนสุทธิ',moneySigned(financeDelta)]
