@@ -4841,13 +4841,7 @@ function openReportMenu(){
   '<div class="actions"><button type="button" id="reportMenuBack">เมนูหลัก</button><button type="button" id="reportMenuClose" class="primary">กลับไปเล่น</button></div>');
  $('reportMenuBack').onclick=openMainMenu;
  $('reportMenuClose').onclick=closeModal;
- $('dialogContent').querySelector?.('.smcity-report-list')?.addEventListener?.('click',event=>{
-  const button=event.target.closest?.('[data-report-action]');
-  if(!button)return;
-  const handlers={sendAi:sendCurrentMapToAi,travelLog:openTravelLog,cityReport:openCityReport,incidentLog:openManualIncidentLog};
-  handlers[button.dataset.reportAction]?.();
- });
- // Event delegation on dialogContent also supports lightweight test DOMs.
+ // A single delegated click handler avoids accidental double execution.
  $('dialogContent').onclick=event=>{
   const button=event.target.closest?.('[data-report-action]');
   if(!button)return;
