@@ -4865,3 +4865,39 @@ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tool .tool-price
   font-size:7px!important;padding:1px 2px!important;
  }
 }
+
+
+/* SMCITY 2026-10-25 — equal-size construction cards and clean labels */
+/* Keep the budget amount and accessible name, hide its redundant caption. */
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money .metric-text>small{
+ display:none!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money .metric-text{
+ display:flex!important;align-items:center!important;min-height:0!important;
+}
+/* The category tabs already describe what is being built. */
+body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-context #subcategories::before{
+ content:none!important;display:none!important;margin:0!important;
+}
+/* Uniform widths across Road / Housing / Office / Shops / Leisure / etc.
+   Neutralize the previous fewer-than-five-items flex expansion. */
+body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool,
+body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools:not(:has(>.tool:nth-child(5)))>.tool{
+ box-sizing:border-box!important;
+ flex:0 0 94px!important;
+ width:94px!important;min-width:94px!important;max-width:94px!important;
+}
+/* iPad portrait/landscape */
+@media(min-width:721px) and (max-width:1100px){
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool,
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools:not(:has(>.tool:nth-child(5)))>.tool{
+  flex-basis:88px!important;width:88px!important;min-width:88px!important;max-width:88px!important;
+ }
+}
+/* Phones: retain a comfortable, scrollable tool strip without stretched cards. */
+@media(max-width:720px){
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool,
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools:not(:has(>.tool:nth-child(5)))>.tool{
+  flex-basis:82px!important;width:82px!important;min-width:82px!important;max-width:82px!important;
+ }
+}
