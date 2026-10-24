@@ -4903,6 +4903,200 @@ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools:not(:has(>
   flex-basis:82px!important;width:82px!important;min-width:82px!important;max-width:82px!important;
  }
 }
+
+
+/* SMCITY 2026-10-25 — mobile / iPad dock visibility and readable demand */
+/* Desktop remains unchanged. Respect bottom safe areas on touch layouts. */
+@media (max-width:920px), (max-width:1240px) and (hover:none) and (pointer:coarse){
+ body>.bottom{
+  position:absolute!important;bottom:max(5px,env(safe-area-inset-bottom,0px))!important;
+  max-height:calc(100dvh - 10px - env(safe-area-inset-bottom,0px))!important;
+  overflow:visible!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed){
+  box-sizing:border-box!important;
+  max-height:calc(100dvh - 12px - env(safe-area-inset-bottom,0px))!important;
+  overflow:hidden!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone,
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #buildDock,
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-body,
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-context{
+  box-sizing:border-box!important;min-height:0!important;max-height:100%!important;
+  overflow:hidden!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools{
+  box-sizing:border-box!important;flex:1 1 auto!important;min-height:0!important;
+  overflow-x:auto!important;overflow-y:hidden!important;
+  overscroll-behavior-x:contain!important;-webkit-overflow-scrolling:touch!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool{
+  box-sizing:border-box!important;flex-shrink:0!important;
+  height:100%!important;min-height:0!important;max-height:100%!important;
+ }
+ /* Demand is a table: label | capacity | using | missing, not an unlabelled strip. */
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .city-demand-panel{
+  display:flex!important;flex-direction:column!important;
+  align-items:stretch!important;min-height:0!important;overflow:hidden!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-control-heading{
+  display:flex!important;flex-direction:row!important;
+  align-items:center!important;justify-content:space-between!important;
+  gap:7px!important;flex:0 0 21px!important;
+  height:21px!important;min-height:21px!important;max-height:21px!important;
+  padding:0 3px!important;margin:0 0 2px!important;
+  border-bottom:1px solid var(--ui-v8-border,#d5e5d8)!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-control-heading strong{
+  font-size:10px!important;line-height:1.2!important;white-space:nowrap!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-control-heading .mini-demand-legend{
+  display:block!important;flex:0 0 auto!important;
+  font-size:9px!important;line-height:1.2!important;
+  white-space:nowrap!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .panel-content{
+  display:block!important;flex:1 1 auto!important;
+  width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;
+  overflow-x:hidden!important;overflow-y:auto!important;
+  scrollbar-width:thin!important;touch-action:pan-y!important;
+  overscroll-behavior-y:contain!important;-webkit-overflow-scrolling:touch!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-needs-list{
+  box-sizing:border-box!important;display:flex!important;
+  flex-direction:column!important;flex-wrap:nowrap!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  height:auto!important;min-height:0!important;
+  gap:0!important;padding:0!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need{
+  box-sizing:border-box!important;
+  display:flex!important;flex:0 0 auto!important;flex-direction:row!important;
+  justify-content:space-between!important;align-items:center!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  height:23px!important;min-height:23px!important;max-height:23px!important;
+  gap:5px!important;margin:0!important;padding:2px 4px!important;
+  border:0!important;border-bottom:1px solid var(--ui-v8-border,#d5e5d8)!important;
+  border-radius:0!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need>span{
+  box-sizing:border-box!important;display:block!important;
+  flex:1 1 auto!important;width:auto!important;min-width:0!important;max-width:none!important;
+  font-size:10px!important;line-height:1.2!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need-values{
+  display:grid!important;flex:0 0 auto!important;
+  grid-template-columns:repeat(3,minmax(24px,32px))!important;
+  align-items:center!important;justify-content:end!important;
+  gap:2px!important;width:100px!important;min-width:100px!important;max-width:100px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need-values b,
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need-values strong{
+  display:block!important;min-width:0!important;width:auto!important;
+  font-size:10px!important;line-height:1.2!important;
+  text-align:center!important;font-variant-numeric:tabular-nums!important;
+ }
+}
+/* iPad portrait: two compact panels over a full-width builder. */
+@media (min-width:721px) and (max-width:920px){
+ body>.bottom>.control-deck:not(.tools-collapsed){
+  display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,.72fr)!important;
+  grid-template-rows:116px 118px!important;
+  height:234px!important;min-height:0!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.builder-zone{
+  grid-row:2!important;grid-column:1/-1!important;
+  height:118px!important;max-height:118px!important;min-height:0!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-head{
+  height:35px!important;min-height:35px!important;max-height:35px!important;flex-basis:35px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #subcategories{
+  height:29px!important;min-height:29px!important;max-height:29px!important;flex-basis:29px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-control-mini{
+  height:116px!important;max-height:116px!important;min-height:0!important;
+ }
+}
+/* Tablet landscape: prevent iPad WebKit from shrinking construction controls.
+   Mouse-driven PC layouts at this width are intentionally unaffected. */
+@media (min-width:921px) and (max-width:1240px) and (hover:none) and (pointer:coarse){
+ body>.bottom>.control-deck:not(.tools-collapsed){
+  height:151px!important;min-height:0!important;max-height:151px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-head{
+  height:36px!important;min-height:36px!important;max-height:36px!important;flex-basis:36px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #subcategories{
+  height:30px!important;min-height:30px!important;max-height:30px!important;flex-basis:30px!important;
+ }
+}
+/* Phones: three non-overlapping rows, with readable vertical demand columns.
+   The construction row is last and is wholly inside the visible viewport. */
+@media (max-width:720px){
+ body>.bottom>.control-deck:not(.tools-collapsed){
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:67px 82px minmax(0,1fr)!important;
+  width:calc(100vw - 8px)!important;
+  height:min(270px,calc(100dvh - 12px - env(safe-area-inset-bottom,0px)))!important;
+  min-height:0!important;
+  max-height:calc(100dvh - 12px - env(safe-area-inset-bottom,0px))!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+  grid-row:1!important;grid-column:1!important;
+  height:67px!important;min-height:0!important;max-height:67px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-control-mini{
+  grid-row:2!important;grid-column:1!important;
+  height:82px!important;min-height:0!important;max-height:82px!important;
+  border-right:0!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.builder-zone{
+  grid-row:3!important;grid-column:1!important;
+  height:100%!important;min-height:0!important;max-height:100%!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .city-demand-panel{
+  flex-direction:column!important;align-items:stretch!important;
+  gap:0!important;padding:2px 5px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-control-heading{
+  flex-basis:18px!important;height:18px!important;min-height:18px!important;max-height:18px!important;
+  margin:0 0 1px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need{
+  height:22px!important;min-height:22px!important;max-height:22px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-head{
+  height:34px!important;min-height:34px!important;max-height:34px!important;flex-basis:34px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #subcategories{
+  height:29px!important;min-height:29px!important;max-height:29px!important;flex-basis:29px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-body{
+  flex:1 1 auto!important;min-height:0!important;max-height:none!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-context{
+  flex:1 1 auto!important;height:auto!important;min-height:0!important;max-height:none!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools{
+  flex:1 1 auto!important;min-height:0!important;max-height:none!important;
+ }
+}
+@media (max-width:720px) and (orientation:landscape) and (max-height:500px){
+ body>.bottom>.control-deck:not(.tools-collapsed){
+  grid-template-rows:51px 69px minmax(0,1fr)!important;
+  height:min(220px,calc(100dvh - 12px - env(safe-area-inset-bottom,0px)))!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{height:51px!important;max-height:51px!important}
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-control-mini{height:69px!important;max-height:69px!important}
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-head{
+  height:31px!important;min-height:31px!important;max-height:31px!important;flex-basis:31px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #subcategories{
+  height:26px!important;min-height:26px!important;max-height:26px!important;flex-basis:26px!important;
+ }
+}
 </style><style id="smcity-dark-mode-v242">
 /* SMCITY v2.5.2 — high-contrast BLACK interface mode.
    Keep the current theme class and localStorage key so existing choices survive.
