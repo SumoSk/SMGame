@@ -41,8 +41,9 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(!get('tools').innerHTML.includes('tool-parking'),'building cards must not show redundant parking capacity');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'food'}})}});
  assert(get('tools').innerHTML.includes('class="tool-capacity">12</span>'),'shops must show bare numeric service capacity');
- get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'traffic'}})}});
- assert(get('tools').innerHTML.includes('data-tool="signalManage"'),'traffic top-level group must show signal management');
+ // Traffic tools moved into the right-side rail; landscaping navigation remains unchanged.
+ assert(!get('categories').innerHTML.includes('data-dock-group="traffic"'),'Traffic top-level dock group must be absent');
+ assert(fs.readFileSync('index.html','utf8').includes('data-city-shortcut="signalManage"'),'traffic signal control is available in the right rail');
  const uiCss=fs.readFileSync('dist/style.css','utf8');
  assert(uiCss.includes('flex:0 0 106px!important')&&uiCss.includes('min-width:106px!important;max-width:106px!important'),'desktop cards must use fixed widths regardless of item count');
  assert(uiCss.includes('height:78px!important;min-height:78px!important;max-height:78px!important'),'desktop cards must use a fixed height');
