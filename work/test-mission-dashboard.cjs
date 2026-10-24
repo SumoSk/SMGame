@@ -1,11 +1,11 @@
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const prelude=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
-const {boot}=new Function('require',prelude+'return {boot};')(require);
-const {game:g,get}=boot();
+const {city}=new Function('require',prelude+'return {city};')(require);
+const {game:g,get}=city();
 const stats=()=>g.missionStatsSummary();
 assert.equal(stats().total,0);
 assert(g.dockItems('reports').some(x=>x.key==='missionDashboard'));
-const c=g.newCitizen({id:999});c.resident=true;c.happy=70;
+const c=[...g.state.citizens.values()].find(person=>person.resident&&!person.tourist);assert(c,'need existing resident');c.happy=70;
 const result=(id,kind,outcome,duration)=>g.journeyResult(c,{id,kind,startedAt:600,arrivedAt:duration==null?null:600+duration,travelBudget:{totalMinutes:100},congestionMinutes:15},outcome,'fixture');
 result(101,'work','ontime',60);assert.equal(stats().total,1);
 result(101,'work','ontime',60);assert.equal(stats().total,1,'duplicate result must not add counts');
