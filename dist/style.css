@@ -3485,3 +3485,6 @@ body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-head>#toggleDock{
   max-height:23px!important;padding:1px!important;
  }
 }
+
+/* Keep the proposed road visible while choosing whether to build. */
+dialog.road-preview-confirm::backdrop{background:#163d3c12;backdrop-filter:none}
