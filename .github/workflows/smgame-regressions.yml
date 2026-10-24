@@ -22,6 +22,7 @@ jobs:
       - run: node work/test-mission-dashboard.cjs
       - run: node work/test-travel-log.cjs
       - run: node work/test-landscaping.cjs
+      - run: node work/test-landscape-detail.cjs
       - run: node work/test-menu-account.cjs
       - run: node work/test-window-dismiss.cjs
       - run: node work/test-building-quick-actions.cjs

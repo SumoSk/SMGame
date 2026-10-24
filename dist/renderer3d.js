@@ -3,7 +3,24 @@ import * as THREE from './vendor/three.module.js';
 const BOX=new THREE.BoxGeometry(1,1,1),CYL=new THREE.CylinderGeometry(1,1,1,10),CYL_SMOOTH=new THREE.CylinderGeometry(1,1,1,32),CONE=new THREE.ConeGeometry(1,1,6),LEAF=new THREE.IcosahedronGeometry(1,1),BALL=new THREE.SphereGeometry(1,12,8);
 // A closed roof prism avoids intersecting roof planes at rotated plots.
 const PITCHED_ROOF=(()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([-.5,0,-.5,-.5,0,.5,-.5,1,0,.5,0,-.5,.5,0,.5,.5,1,0],3));g.setIndex([0,1,2,3,5,4,0,2,5,0,5,3,2,1,4,2,4,5,0,3,4,0,4,1]);const flat=g.toNonIndexed();flat.computeVertexNormals();g.dispose();return flat;})();
-const HEDGE_LEAF=new THREE.SphereGeometry(1,8,5),FLOWER_PETAL=new THREE.IcosahedronGeometry(1,0); // shared low-poly garden geometry
+// Shared landscape primitives are GPU-instanced, never created for individual trees.
+const LEAF_FINE=new THREE.SphereGeometry(1,12,9);
+const TWIG=new THREE.CylinderGeometry(.68,1,1,8);
+const PINE_FINE=new THREE.ConeGeometry(1,1,12,4);
+const HEDGE_LEAF=new THREE.SphereGeometry(1,12,8),FLOWER_PETAL=new THREE.IcosahedronGeometry(1,1);
+const PALM_FROND=(()=>{
+ const positions=[],indices=[],segments=9;
+ for(let i=0;i<=segments;i++){
+  const t=i/segments,spread=Math.sin(Math.PI*t)*(.14+.045*Math.sin(t*11)),y=.10*Math.sin(Math.PI*t)-.40*t*t;
+  positions.push(t,y,-spread,t,y+.025+spread*.10,spread);
+  if(i<segments){const k=i*2;indices.push(k,k+1,k+2,k+1,k+3,k+2);}
+ }
+ const geometry=new THREE.BufferGeometry();
+ geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+ geometry.setIndex(indices);geometry.computeVertexNormals();
+ return geometry;
+})();
+const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND];
 const CAR_DIAMOND=new THREE.OctahedronGeometry(1,0);
 const UP=new THREE.Vector3(0,1,0),TAU=Math.PI*2;
 const DAYLIGHT=[
@@ -105,7 +122,13 @@ function landscapeMaterial(city,kind,noise){
    float lawn=smoothstep(.70,.88,broad)*(1.0-dry);
    float mowing=.5+.5*sin((p.x*.71+p.y*.34)*3.14159);
    turf=mix(turf,mix(${c(palette[0])},${c(palette[1])},.66+mowing*.08),lawn*.58);
-   turf*=.91+speckle*.13+fine*.08+(grain-.5)*.07;
+   // Fractal soil, clover and slender close-up blades without extra meshes.
+    float micro=landNoise(p/.16+vec2(19.0,71.0));
+    vec2 bladeUV=fract(p*9.0+vec2(landNoise(floor(p*9.0)),grain));
+    float blade=(1.0-smoothstep(.04,.12,abs(bladeUV.x-.5)))*(1.0-smoothstep(.55,.95,bladeUV.y));
+    float clover=smoothstep(.79,.90,landNoise(p/.85+vec2(3.0,31.0)))*.10;
+    turf*=.89+speckle*.13+fine*.07+micro*.065+(grain-.5)*.06+blade*.045;
+    turf=mix(turf,turf*1.13,clover);
   `;
   if(city==='phuket')fragment+=`float shore=1.0-smoothstep(1.6,4.8,p.x-coastX(p.y));
    turf=mix(turf,${c('#b5aa7b')},shore*.72);`;
@@ -116,7 +139,8 @@ function landscapeMaterial(city,kind,noise){
   const wet=kind==='wetSand';
   fragment+=`vec3 sand=mix(${c(wet?'#a29670':'#c8b58a')},${c(wet?'#c2b48b':'#eddfb2')},.32+broad*.48+speckle*.16);
    float ripple=sin(p.y*17.0+sin(p.x*1.7)*2.4+speckle*3.0);
-   sand*=.96+fine*.055+(grain-.5)*.055+ripple*.012;
+   float pebbles=smoothstep(.82,.96,landNoise(p/.13+vec2(13.0,8.0)));
+    sand*=.955+fine*.052+(grain-.5)*.052+ripple*.012+pebbles*.019;
    diffuseColor.rgb*=sand;`;
  }else fragment+=`diffuseColor.rgb*=.88+speckle*.16+fine*.08;`;
  return landscapeShader(material,noise,fragment);
@@ -401,7 +425,22 @@ class Batch{
  constructor(){this.data=new Map();this.group=new THREE.Group();}
  add(geo,color,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0,buildingId=null,glow=false,finish='matte'){const key=geo.uuid+color+(glow?'@light':'')+finish;if(!this.data.has(key))this.data.set(key,{geo,color,glow,finish,items:[]});this.data.get(key).items.push({x,y,z,sx,sy,sz,rx,ry,rz,buildingId});}
  box(color,x,y,z,sx,sy,sz,ry=0,id=null,glow=false,finish='matte'){this.add(BOX,color,x,y,z,sx,sy,sz,0,ry,0,id,glow,finish);}
- build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=new THREE.MeshStandardMaterial({color,roughness:glow?.4:roughness,metalness,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){material.emissive.set(color);material.emissiveIntensity=1.6;material.toneMapped=false;}const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.baseColor=color;mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
+ build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=new THREE.MeshStandardMaterial({color,roughness:glow?.4:roughness,metalness,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){material.emissive.set(color);material.emissiveIntensity=1.6;material.toneMapped=false;}
+ if(finish==='foliage'||finish==='bark'){
+  material.roughness=finish==='foliage'?.95:.92;
+  if(finish==='foliage')material.side=THREE.DoubleSide;
+  material.onBeforeCompile=shader=>{
+   shader.vertexShader='varying vec3 vNatureLocal;\n'+shader.vertexShader;
+   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvNatureLocal=position;');
+   shader.fragmentShader='varying vec3 vNatureLocal;\n'+shader.fragmentShader;
+   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
+    '#include <color_fragment>\n'+(finish==='bark'?
+     'float ridges=sin(vNatureLocal.y*39.0+sin(vNatureLocal.x*7.0)*1.8)*.043;diffuseColor.rgb*=.92+ridges+abs(sin(vNatureLocal.z*21.0))*.035;':
+     'float mottling=sin(vNatureLocal.x*21.0+vNatureLocal.y*11.0)*sin(vNatureLocal.z*24.0-vNatureLocal.y*14.0);diffuseColor.rgb*=.96+mottling*.055;'));
+  };
+  material.customProgramCacheKey=()=>finish==='bark'?'landscape-bark-v1':'landscape-foliage-v1';
+ }
+ const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.baseColor=color;mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
 
 export class TrafficRenderer{
@@ -411,7 +450,7 @@ export class TrafficRenderer{
  this.ray=new THREE.Raycaster();this.ground=new THREE.Plane(UP,0);this.ndc=new THREE.Vector2();this.point=new THREE.Vector3();this.lastKey='';this.roadKey='';this.buildKey='';this.treeKey='';this.previewKey='';this.buildingMeshes=null;this.cameraKey='';this.cam=null;this.w=innerWidth;this.h=innerHeight;this.materials=[];
  this.roadGroup=new THREE.Group();this.buildingGroup=new THREE.Group();this.treeGroup=new THREE.Group();this.previewGroup=new THREE.Group();this.signalGroup=new THREE.Group();this.lampGroup=new THREE.Group();this.scene.add(this.roadGroup,this.buildingGroup,this.treeGroup,this.previewGroup,this.signalGroup,this.lampGroup);this.createCars();this.createRoute();this.createAtmosphere();this.resize();
  }
- disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.geometry&&!([BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF].includes(x.geometry)))x.geometry.dispose();});}}
+ disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.geometry&&!SHARED_RENDER_GEOMETRIES.includes(x.geometry))x.geometry.dispose();});}}
  resize(){this.w=innerWidth;this.h=innerHeight;this.renderer.setSize(this.w,this.h,false);if(this.cam)this.updateCamera(this.cam);}
  createAtmosphere(){
   // Keep the city unobstructed at every hour: no atmospheric fog/haze.
@@ -516,7 +555,7 @@ export class TrafficRenderer{
  terrain(city){
   if(this.terrainGroup)for(const mesh of this.terrainGroup){
    this.scene.remove(mesh);mesh.traverse(o=>{
-    if(o.geometry&&!([BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF].includes(o.geometry)))o.geometry.dispose();
+    if(o.geometry&&!SHARED_RENDER_GEOMETRIES.includes(o.geometry))o.geometry.dispose();
     if(o.material)for(const material of Array.isArray(o.material)?o.material:[o.material])material.dispose();
    });
   }
@@ -587,36 +626,122 @@ export class TrafficRenderer{
   const group=details.build();this.scene.add(group);this.terrainGroup.push(group);this.treeKey='';
  }
 
- tree(batch,x,z,scale=1,kind='shade'){
- // Historic building renderers pass a boolean palm flag; keep it compatible.
- if(kind===true)kind='palm';else if(kind===false)kind='shade';
- const tone=hash(x+7,z+3),dark=tone>.55?'#477e53':'#568e5b',bright=tone>.55?'#6b9d5a':'#75a961';
- if(kind==='palm'){
-  batch.add(CYL,'#9d8560',x,.72*scale,z,.07*scale,1.45*scale,.07*scale,0,0,-.08);
-  for(let n=0;n<7;n++){const a=n/7*TAU;batch.add(LEAF,n%2?'#438b60':'#64a765',x+Math.cos(a)*.38*scale,1.51*scale,z+Math.sin(a)*.38*scale,.56*scale,.09*scale,.16*scale,0,-a,Math.cos(a)*.2);}
-  batch.add(BALL,'#759e46',x,1.52*scale,z,.14*scale,.17*scale,.14*scale);return;
- }
- if(kind==='pine'){
-  batch.add(CYL,'#785f48',x,.52*scale,z,.072*scale,1.04*scale,.072*scale);
-  for(let i=0;i<3;i++)batch.add(CONE,i%2?'#477452':'#356b4b',x,(.65+i*.34)*scale,z,(.46-i*.09)*scale,(.77-i*.11)*scale,(.46-i*.09)*scale);
-  return;
- }
- if(kind==='shrub'){
-  batch.add(LEAF,'#39734b',x,.21*scale,z,.40*scale,.25*scale,.35*scale);
-  batch.add(LEAF,bright,x-.23*scale,.26*scale,z-.08*scale,.29*scale,.30*scale,.28*scale);
-  batch.add(LEAF,'#81ac69',x+.18*scale,.24*scale,z+.1*scale,.31*scale,.27*scale,.29*scale);return;
- }
- if(kind==='banyan'){
-  batch.add(CYL,'#826849',x,.51*scale,z,.12*scale,1.02*scale,.12*scale);
-  batch.add(LEAF,dark,x,.98*scale,z,.86*scale,.37*scale,.65*scale);
-  batch.add(LEAF,bright,x-.43*scale,1.17*scale,z-.04*scale,.53*scale,.34*scale,.55*scale);
-  batch.add(LEAF,'#629b61',x+.40*scale,1.13*scale,z+.14*scale,.53*scale,.36*scale,.53*scale);return;
- }
- batch.add(CYL,'#947653',x,.37*scale,z,.075*scale,.74*scale,.075*scale);
- const pink=kind==='flower';
- batch.add(LEAF,pink?'#dc8ca3':dark,x,.89*scale,z,.52*scale,.55*scale,.50*scale,0,hash(x,z)*3,0);
- batch.add(LEAF,pink?'#efaab7':bright,x-.18*scale,1.18*scale,z-.12*scale,.37*scale,.37*scale,.36*scale);
- if(pink)batch.add(LEAF,'#f4c5cb',x+.25*scale,1.09*scale,z+.14*scale,.31*scale,.31*scale,.33*scale);
+ tree(batch,x,z,scale=1,kind='shade',detail='standard'){
+  // Render-only upgrade: preserves tree kinds, footprint coordinates and save schema.
+  if(kind===true)kind='palm';else if(kind===false)kind='shade';
+  const near=detail==='near',tone=hash(x+7,z+3);
+  const bark=tone>.52?'#79634b':'#927559',dark=tone>.55?'#3c784e':'#457f50';
+  const mid=tone>.55?'#57935d':'#629b60',light=tone>.55?'#78ad6a':'#82b773';
+  const twig=(ax,ay,az,bx,by,bz,radius,color=bark)=>{
+   const direction=new THREE.Vector3(bx-ax,by-ay,bz-az),length=direction.length();
+   if(length<.0001)return;
+   const rotation=new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(UP,direction.multiplyScalar(1/length)));
+   batch.add(TWIG,color,x+(ax+bx)*.5*scale,(ay+by)*.5*scale,z+(az+bz)*.5*scale,
+    radius*scale,length*scale,radius*scale,rotation.x,rotation.y,rotation.z,null,false,'bark');
+  };
+  const foliage=(color,dx,dy,dz,sx,sy,sz,rotation=0,high=near)=>{
+   batch.add(high?LEAF_FINE:LEAF,color,x+dx*scale,dy*scale,z+dz*scale,sx*scale,sy*scale,sz*scale,
+    0,rotation,0,null,false,'foliage');
+  };
+  // Building-plot landscaping remains cardinally symmetric: rotating an
+  // existing lot must not change its collision-free decorative silhouette.
+  if(detail==='standard'){
+   if(kind==='palm'){
+    twig(0,.04,0,0,1.40,0,.084,'#96734c');
+    for(let n=0;n<8;n++)batch.add(PALM_FROND,n%2?mid:light,x,1.43*scale,z,.85*scale,scale,scale,
+     0,n*TAU/8,0,null,false,'foliage');
+    foliage('#98b368',0,1.43,0,.13,.10,.13);
+   }else if(kind==='pine'){
+    twig(0,.03,0,0,1.6,0,.08);
+    for(let i=0;i<4;i++)batch.add(PINE_FINE,i%2?dark:mid,x,(.62+i*.27)*scale,z,
+     (.49-i*.095)*scale,.66*scale,(.49-i*.095)*scale,0,0,0,null,false,'foliage');
+   }else{
+    if(kind!=='shrub')twig(0,.03,0,0,.88,0,kind==='banyan'?.14:.09);
+    const height=kind==='shrub'?.23:kind==='banyan'?1.11:1.13;
+    const radius=kind==='shrub'?.19:kind==='banyan'?.43:.31;
+    const top=kind==='flower'?'#e99fb8':mid;
+    foliage(kind==='flower'?'#cf859f':dark,0,height,0,radius*1.6,.34,radius*1.6,0,true);
+    for(let n=0;n<4;n++){
+     const a=n*Math.PI/2;
+     foliage(n%2?top:light,Math.cos(a)*radius,height+.06,Math.sin(a)*radius,
+      radius*.93,.25,radius*.93,0,true);
+    }
+   }
+   return;
+  }
+  if(kind==='palm'){
+   twig(0,.04,0,.055,1.40,-.035,.084,'#96734c');
+   if(near)for(let n=0;n<5;n++)batch.add(CYL,'#b79a68',x+.02*scale,(.27+n*.20)*scale,z-.014*scale,
+    .089*scale,.016*scale,.089*scale,0,0,.04,null,false,'bark');
+   const fronds=near?10:7;
+   for(let n=0;n<fronds;n++){
+    const a=n/fronds*TAU+hash(x,z)*.27;
+    batch.add(PALM_FROND,n%3===0?dark:n%2?mid:light,x+.055*scale,1.43*scale,z-.035*scale,
+     (n%3===0?.92:.77)*scale,scale,scale,0,a,0,null,false,'foliage');
+   }
+   foliage('#98b368',.055,1.43,-.035,.13,.10,.13);
+   if(near)for(let n=0;n<3;n++)foliage('#a0af57',.06+Math.cos(n*TAU/3)*.12,1.30,-.035+Math.sin(n*TAU/3)*.12,.065,.10,.065);
+   return;
+  }
+  if(kind==='pine'){
+   twig(0,.025,0,0,1.70,0,.087,'#806347');
+   const crowns=near?5:3;
+   for(let i=0;i<crowns;i++){
+    const level=i/(crowns-1),radius=.53-level*.34,y=.59+level*.69;
+    batch.add(near?PINE_FINE:CONE,i%3===0?dark:i%2?mid:'#356a4b',x,y*scale,z,
+     radius*scale,(near?.62:.79)*scale,radius*scale,0,hash(x+i,z)*.4,0,null,false,'foliage');
+   }
+   if(near)for(let n=0;n<5;n++){const a=n*TAU/5;foliage(n%2?dark:light,Math.cos(a)*.32,.76+hash(n,x)*.32,Math.sin(a)*.32,.17,.12,.19);}
+   return;
+  }
+  if(kind==='shrub'){
+   const clumps=near?9:4;
+   for(let n=0;n<clumps;n++){
+    const angle=n*2.39996+hash(x,z),ring=n===0?0:.18+.13*hash(n,x),height=.19+.12*hash(z,n);
+    foliage(n%3===0?dark:n%3===1?mid:light,Math.cos(angle)*ring,height,
+     Math.sin(angle)*ring,.30-.055*hash(n,z),.20+.045*hash(n,x),.25,angle);
+   }
+   if(near)for(let n=0;n<4;n++){const a=n*TAU/4;foliage('#91bc74',Math.cos(a)*.23,.31,Math.sin(a)*.22,.09,.085,.08,a);}
+   return;
+  }
+  if(kind==='banyan'){
+   twig(0,.035,0,0,.96,0,.145);
+   for(const side of [-1,1]){
+    twig(side*.025,.65,0,side*.57,1.07,-.10,.066);
+    if(near)twig(side*.52,1.06,-.1,side*.76,.78,-.09,.020,'#7f654a');
+   }
+   foliage(dark,0,1.02,0,.72,.38,.66);
+   foliage(mid,-.42,1.17,-.10,.50,.39,.52);
+   foliage(light,.41,1.20,.12,.49,.40,.48);
+   const crowns=near?9:4;
+   for(let n=0;n<crowns;n++){
+    const a=n*2.399963+hash(x,z),ring=.36+.27*hash(n,z);
+    foliage(n%3===0?dark:n%3===1?light:mid,Math.cos(a)*ring,1.22+.16*hash(n,x),
+     Math.sin(a)*ring,.32,.26,.30,a);
+   }
+   return;
+  }
+  // Shade and flowering trees share tapered trunks and an irregular layered crown.
+  twig(0,.035,0,.025,.88,.015,.10);
+  for(const side of [-1,1]){
+   twig(.015,.68,.01,side*.38,1.05,.045+side*.09,.052);
+   if(near)twig(side*.28,.92,.02+side*.07,side*.52,1.12,.04+side*.15,.028);
+  }
+  const flowering=kind==='flower';
+  foliage(flowering?'#b96d8b':dark,0,1.16,0,.50,.42,.44);
+  const crowns=near?10:5;
+  for(let n=0;n<crowns;n++){
+   const a=n*2.399963+hash(x,z),ring=.24+.30*hash(n,x);
+   const color=flowering?['#d987a4','#eda1bb','#efbed0','#c97f9d'][n%4]:
+    [dark,mid,light,'#579367'][n%4];
+   foliage(color,Math.cos(a)*ring,1.12+.24*hash(z,n),Math.sin(a)*ring,
+    .28+.09*hash(x,n),.27+.055*hash(n,z),.29,a);
+  }
+  if(flowering&&near)for(let n=0;n<9;n++){
+   const a=n*2.399963,ring=.24+.26*hash(n,x);
+   foliage(n%2?'#f5d4db':'#ffe1df',Math.cos(a)*ring,1.25+.2*hash(n,z),
+    Math.sin(a)*ring,.070,.065,.075,a);
+  }
  }
  trees(state,cam){
  const cellX=Math.floor(cam.x/18),cellZ=Math.floor(cam.y/18);
@@ -636,12 +761,12 @@ export class TrafficRenderer{
   const tx=x+hash(z,x)*1.8,tz=z+hash(x+7,z)*1.8,ix=Math.floor(tx),iz=Math.floor(tz);
   if(!clear(tx,tz)||hidden.has(iz*300+ix))continue;
   const variety=hash(tx+12,tz+3),kind=state.city==='phuket'&&variety>.56?'palm':types[Math.min(types.length-1,Math.floor(variety*types.length))];
-  this.tree(b,tx,tz,(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),kind);
+  this.tree(b,tx,tz,(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),kind,Math.hypot(tx-cam.x,tz-cam.y)<27?'near':'far');
  }
  for(const t of state.plantedTrees||[]){
   if(Math.abs(t.x-cellX*18)>span+3||Math.abs(t.y-cellZ*18)>span+3||!clear(t.x,t.y))continue;
   const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:t.kind==='palm'?1.12:1.04;
-  this.tree(b,t.x,t.y,scale,t.kind);
+  this.tree(b,t.x,t.y,scale,t.kind,Math.hypot(t.x-cam.x,t.y-cam.y)<27?'near':'far');
  }
  this.treeGroup.add(b.build());
  }
