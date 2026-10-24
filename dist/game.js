@@ -4548,6 +4548,9 @@ async function quickSaveCloud(){
  }
 }
 window.SMGameOnCloudSaved=()=>toast('บันทึกเกมออนไลน์แล้วค่ะ');
+// After guest registration and the first cloud save, show the regular Save/Load panel.
+// Share the same entry point with registered players to avoid duplicate menus.
+window.SMGameOpenSaveDialog=()=>openCloudSaveDialog();
 async function openCloudSaveDialog(){
  const api=window.SMGameAccount;
  if(!api?.user){quickSaveCloud();return;}
