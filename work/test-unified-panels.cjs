@@ -38,6 +38,14 @@ assert(css.includes(':root.smcity-gray-ui{\n --sm-panel-bg:'),'dark mode tokens'
 for(const token of ['--sm-panel-card','--sm-panel-line','--sm-panel-muted','--sm-panel-accent'])assert(css.includes(token),'missing token '+token);
 for(const selector of ['#inspector .sm-inspector-heading','.citizens-dashboard .citizen-kpis','.daily-report-body .daily-report-section','#dialog:not(.construction-confirm)','.member-card{'])assert(css.includes(selector),'missing panel style '+selector);
 assert(css.includes('@media(max-width:720px){'),'iPad/phone responsive styles preserved');
+const leftSheet=css.slice(css.lastIndexOf('/* SMCITY compact LEFT rail and left-anchored city information windows.'));
+assert(leftSheet.length>2000,'left panel alignment overrides are required');
+for(const id of ['#inspector:not(.hidden)','#citizensDashboard.citizens-dashboard:not(.hidden)','#touristsDashboard.citizens-dashboard:not(.hidden)','#missionDailyAuto.daily-report-auto','#dialog:not(.construction-confirm)'])assert(leftSheet.includes(id),'not left-aligned: '+id);
+assert(leftSheet.includes('left:calc(77px + env(safe-area-inset-left,0px))!important'),'desktop information panels start after left rail');
+assert(leftSheet.includes('left:calc(63px + env(safe-area-inset-left,0px))!important'),'touch information panels start after narrow left rail');
+assert(leftSheet.includes('aspect-ratio:1/1!important'),'square shortcut icons');
+assert(leftSheet.includes('width:52px!important')&&leftSheet.includes('height:52px!important'),'compact shortcut size');
+
 const after=JSON.parse(g.snapshot());
 for(const key of ['city','money','roads','buildings','citizens','vehicles','signals'])assert.deepEqual(after[key],baseline[key],key+' must not change when rendering windows');
 console.log('Unified panels passed: building/signal details, citizen/tourist cards, report, modal, light/dark responsive tokens, city unchanged.');
