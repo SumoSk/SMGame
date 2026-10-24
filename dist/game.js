@@ -2326,7 +2326,7 @@ const journey=selectedCarVehicle();
  html=html.replace(/(<span class="tag">[^<]*<\/span>)?\s*(<h2>[\s\S]*?<\/h2>)/,
   (_all,tag,heading)=>'<header class="sm-inspector-heading"><span class="sm-inspector-mark" aria-hidden="true">'+panelIcon+
    '</span><div class="sm-inspector-heading-text">'+(tag||'<span class="tag">'+panelLabel+'</span>')+heading+'</div></header>'+journeyCard);
- $('inspector').dataset.kind=selected.kind;
+ if($('inspector').dataset)$('inspector').dataset.kind=selected.kind;
  $('inspectContent').innerHTML=html;
 }
 function buildingName(i){const b=state.buildings.get(i);return b?CATALOG[b.key].name+' #'+i:'ยังไม่มี';}
