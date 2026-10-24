@@ -1,15 +1,15 @@
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
-const {spawn}=require('node:child_process');
+const http=require('node:http'),path=require('node:path');
 const fs=require('node:fs');
 (async()=>{
- const server=spawn(process.execPath,['work/server.cjs'],{stdio:'inherit'});
+ const server=http.createServer((req,res)=>{const pathname=new URL(req.url,'http://localhost').pathname;const file=path.resolve('.','.'+(pathname==='/'?'/index.html':pathname));if(!file.startsWith(process.cwd()+path.sep)){res.writeHead(403);return res.end();}fs.readFile(file,(e,data)=>{if(e){res.writeHead(404);return res.end();}res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8'})[path.extname(file)]||'application/octet-stream');res.end(data);});}).listen(4173,'127.0.0.1');
  let browser;
  try{
   for(let i=0;i<60;i++){try{if((await fetch('http://127.0.0.1:4173')).ok)break;}catch{}await new Promise(r=>setTimeout(r,250));}
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   const page=await browser.newPage({viewport:{width:1440,height:1000}});
-  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('PAGE ERROR:',e.message);});
   await page.addInitScript(()=>{window.__TRAFFIC_TEST_HARNESS__=api=>window.manualTestGame=api;});
   await page.goto('http://127.0.0.1:4173',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>!!window.manualTestGame,{timeout:30000});
@@ -61,5 +61,5 @@ const fs=require('node:fs');
   await page.locator('#menuClose').click();
   assert.equal(errors.length,0,errors.join('\n'));
   console.log('Manual verified: 21 chapters, search, no results, safe input, navigation, tables, desktop/tablet/mobile/dark layouts, close/reopen, unchanged city.');
- }finally{if(browser)await browser.close();server.kill();}
+ }finally{if(browser)await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
