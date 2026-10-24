@@ -107,6 +107,9 @@ if (gate) {
     tab.addEventListener('click', () => setMode(tab.dataset.memberMode)));
   $('memberClose').addEventListener('click', closeMember);
   $('memberBack').addEventListener('click', closeMember);
+  // The login overlay fills the viewport. Only a direct hit on that overlay,
+  // not a click on the form card or its fields, may dismiss it.
+  gate.addEventListener('click', event => { if (event.target === gate) closeMember(); });
   gate.addEventListener('cancel', event => { event.preventDefault(); closeMember(); });
   gate.addEventListener('close', () => { window.SMGameAuthLocked = false; gate.hidden = true; });
   $('memberRetrySave').addEventListener('click', persistPendingSave);
