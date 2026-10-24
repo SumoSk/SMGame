@@ -24,11 +24,13 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert.equal(g.state.hiddenAutoTrees.length,0);
  const bad=JSON.parse(before);bad.plantedTrees=[{x:-10,y:30,kind:'flower'}];
  assert.equal(g.loadGame(true,null,JSON.stringify(bad)),false,'invalid tree save must be rejected');
- get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'green'}})}});
+ // No redundant group row: Landscape and Roads are direct build categories.
+ assert.equal(get('categories').innerHTML,'','old Buildings/Landscape/City Data group row must be empty');
+ assert(get('subcategories').innerHTML.includes('data-category="landscape"'),'landscaping is in primary construction tabs');
+ get('subcategories').onclick({target:{closest:()=>({dataset:{category:'landscape'}})}});
  assert(get('tools').innerHTML.includes('data-tool="tree:shade"'));
  assert(get('tools').innerHTML.includes('data-tool="treeBrush"'));
- // Road selection is the first subsection under the building tab.
- get('categories').onclick({target:{closest:()=>({dataset:{dockGroup:'build'}})}});
+ get('subcategories').onclick({target:{closest:()=>({dataset:{category:'roads'}})}});
  assert(get('tools').innerHTML.includes('data-tool="small"'),'small road tool must be present');
  assert(get('tools').innerHTML.includes('data-tool="medium"'),'medium road tool must be present');
  assert(get('tools').innerHTML.includes('data-tool="large"'),'large road tool must be present');
