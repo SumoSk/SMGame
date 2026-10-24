@@ -3563,3 +3563,14 @@ dialog:has(.daily-report-modal){width:min(860px,calc(100vw - 24px));max-height:c
 :root.smcity-gray-ui .daily-report-auto .mission-card{background:#1c2420;color:#eff7ef;border-color:#35473b}
 :root.smcity-gray-ui .daily-report-auto>.actions{background:#171d1a}
 @media(max-width:680px){.daily-report-sections{grid-template-columns:1fr}.daily-report-auto{top:calc(env(safe-area-inset-top,0px) + 48px);right:6px;width:min(400px,calc(100vw - 12px));max-height:72dvh;padding:10px}.daily-report-auto .daily-report-topbar{top:-10px;margin:-10px -10px 8px;padding:8px 10px}.daily-report-highlights .mission-card strong{font-size:16px}}
+
+/* Consistent dismiss control on every city dialog. Pinned outside dynamic content
+   so changing async save screens never removes it. */
+#dialog > .dialog-close-top{position:absolute;top:9px;right:9px;z-index:10;display:grid;place-items:center;width:33px;height:33px;min-width:33px;min-height:33px;padding:0;border:1px solid #cbdcd0;border-radius:10px;background:#f0f5ee;color:#37584a;font:700 24px/1 system-ui,sans-serif;cursor:pointer;touch-action:manipulation;box-shadow:0 1px 5px #143c341b}
+#dialog > .dialog-close-top:hover,#dialog > .dialog-close-top:focus-visible{background:#e1eee3;outline:2px solid #7ba890;outline-offset:1px}
+#dialog > #dialogContent{padding-right:26px}
+#dialog.construction-confirm > .dialog-close-top{top:5px;right:6px;width:29px;height:29px;min-width:29px;min-height:29px;font-size:21px}
+#dialog.construction-confirm > #dialogContent{padding-right:27px}
+:root.smcity-gray-ui #dialog > .dialog-close-top{background:#29362f;color:#f1f8f0;border-color:#52695a;box-shadow:none}
+:root.smcity-gray-ui #dialog > .dialog-close-top:hover{background:#3c5143}
+@media(max-width:540px){#dialog > .dialog-close-top{width:31px;height:31px;min-width:31px;min-height:31px;top:7px;right:7px}#dialog > #dialogContent{padding-right:23px}}
