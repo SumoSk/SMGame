@@ -1997,10 +1997,10 @@ export class TrafficRenderer{
      const x=1.64+i*.36;
      block(i%3===0?orange:'#819298',x,2.24,B+.40,.044,.025,.72,'metal');
     }
-    block('#596971',cx,1.26,B+.17,5.21,.86,.084,'metal');
+    block('#596971',cx,1.97,B+.17,5.21,.30,.084,'metal');
     for(let j=0;j<7;j++){
      const xx=1.75+j*.75;
-     block('#a8bbc1',xx,1.22,B+.226,.23,.33,.019,'glass');
+     block('#a8bbc1',xx,1.98,B+.226,.23,.17,.019,'glass');
     }
     machine(2.25,z,0,1);
     workbench(4.11,z+.14);
@@ -2189,13 +2189,31 @@ export class TrafficRenderer{
    const record=(kind,u,y,v,extra={})=>{
     const p=point(u,v);(batch.factoryEffects??=[]).push({kind,id,x:p.x-.5,y,z:p.y-.5,turn,tier,...extra});
    };
-   // Rear insulated wall, orange plinth, upright seams and clerestory band.
-   block('#a4b1ae',cx,(eave+.25)/2,shellBack,shellW,eave-.25,.12,'metal');
-   block(burnt,cx,.51,shellBack-.075,shellW,.48,.075,'metal');
+   // Part-raised rear loading shutters expose the production floor while
+   // retaining the insulated upper wall, clerestory and structural columns.
+   // Every part stays on the building side of the existing parking boundary.
+   const rearDoorTop=tier===1?1.72:tier===2?2.30:3.00;
+   const rearRoll=tier===1?.28:tier===2?.36:.42;
+   block('#a4b1ae',cx,(eave+rearDoorTop)/2,shellBack,shellW,eave-rearDoorTop,.12,'metal');
    block('#577d86',cx,eave-.46,shellBack-.073,shellW-.28,.44,.035,'glass');
    for(let k=0;k<Math.floor(shellW/.28);k++){
     const x=shellL+.13+k*.28;
-    block('#d5dcd7',x,(eave+.25)/2,shellBack-.074,.020,eave-.25,.022,'metal');
+    block('#d5dcd7',x,(eave+rearDoorTop)/2,shellBack-.074,.020,eave-rearDoorTop,.022,'metal');
+   }
+   for(let bay=0;bay<bays;bay++){
+    const x=shellL+(bay+.5)*bayW,doorW=bayW-.28;
+    for(const side of[-1,1]){
+     const post=x+side*bayW/2;
+     block('#b4c2bf',post,(rearDoorTop+.25)/2,shellBack,.12,rearDoorTop-.25,.16,'metal');
+     block(burnt,post,.48,shellBack-.10,.14,.45,.07,'metal');
+     block('#efbb63',post,1.05,shellBack-.10,.14,.12,.022,'metal');
+    }
+    block('#72898f',x,rearDoorTop-rearRoll/2,shellBack-.025,doorW,rearRoll,.075,'metal');
+    for(let j=0;j<5;j++)block('#b6c9c8',x,rearDoorTop-rearRoll+(j+.5)*rearRoll/5,shellBack-.073,doorW,.019,.023,'metal');
+    block(orange,x,rearDoorTop-rearRoll-.025,shellBack-.077,doorW,.055,.075,'metal');
+    block('#526a73',x,rearDoorTop+.055,shellBack-.08,doorW+.08,.14,.18,'metal');
+    block('#ffe3b1',x,rearDoorTop-.075,shellBack-.124,doorW*.83,.025,.026,'glass',true);
+    block('#cebfa4',x,.255,shellBack+.06,doorW,.025,.25,'stone');
    }
    for(const side of[-1,1]){
     const x=side<0?shellL:shellR;
