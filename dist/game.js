@@ -18,7 +18,7 @@ for(const [kind,rows] of Object.entries(catalogData))rows.forEach((r,i)=>{const 
 // Version 6 of the parking layout is the new v5 architectural masterplan.
 // There are exactly two facing stall rows, one continuous aisle, no inner banks.
 // Preserve the previous home_large key, existing buildings and all v7 saves.
-CATALOG.home_starter={key:'home_starter',kind:'home',name:'บ้านเริ่มต้น',size:3,cost:24000,maint:60,residents:6,jobs:0,service:0,beds:0};
+CATALOG.home_starter={key:'home_starter',kind:'home',name:'บ้านเริ่มต้น',size:3,cost:24000,maint:60,residents:6,jobs:0,service:0,beds:0,starterTier:true};
 CATALOG.home_small.name='บ้านรุ่นเก่า 2 คน';
 CATALOG.home_medium.name='บ้านรุ่นเก่า 10 คน';
 CATALOG.home_large.name='บ้านเล็ก';
@@ -26,13 +26,20 @@ CATALOG.home_dual={key:'home_dual',kind:'home',name:'บ้านกลาง',s
 // New large home is an additional type: two complete small-home parking banks
 // stacked front-to-back, not stretched sideways. Existing homes remain intact.
 CATALOG.home_grand={key:'home_grand',kind:'home',name:'บ้านใหญ่',size:6,cost:285000,maint:980,residents:60,jobs:0,service:0,beds:0,stackedParking:true};
+// Additional starter tiers; all existing building keys and saved plots remain intact.
+const STARTER_PRICES={shop:[3000,40],restaurant:[5000,60],mall:[12000,100],office:[6000,70],factory:[8000,100],park:[2500,15],pub:[6000,70],casino:[30000,300],hotel:[2500,25]};
+for(const [kind,[cost,maint]] of Object.entries(STARTER_PRICES)){
+ const key=kind+'_starter',workplace=kind==='office'||kind==='factory',hotel=kind==='hotel';
+ CATALOG[key]={key,kind,name:KINDS[kind].name+'เริ่มต้น',size:3,cost,maint,residents:0,
+  jobs:workplace?6:1,service:workplace||hotel?0:5,beds:hotel?5:0,starterTier:true};
+}
 // New building occupancy schedule; hotel and costs are unchanged.
 const CAPACITY_PLAN={"home_large":[20,0,0],"home_dual":[40,0,0],"home_grand":[60,0,0],"office_small":[0,15,0],"office_medium":[0,30,0],"office_large":[0,60,0],"factory_small":[0,20,0],"factory_medium":[0,40,0],"factory_large":[0,60,0],"shop_small":[0,2,8],"shop_medium":[0,4,16],"shop_large":[0,8,32],"restaurant_small":[0,3,10],"restaurant_medium":[0,6,20],"restaurant_large":[0,10,40],"mall_small":[0,3,12],"mall_medium":[0,6,24],"mall_large":[0,12,48],"park_small":[0,1,14],"park_medium":[0,2,28],"park_large":[0,4,56],"pub_small":[0,2,8],"pub_medium":[0,4,16],"pub_large":[0,8,32]};
 for(const [key,[residents,jobs,service]] of Object.entries(CAPACITY_PLAN))Object.assign(CATALOG[key],{residents,jobs,service});
-for(const t of Object.values(CATALOG))if((t.kind==='home'&&['home_large','home_dual'].includes(t.key))||(!['hotel','home'].includes(t.kind))){t.plannedParking=true;t.modelTier=t.key==='home_large'?1:t.key==='home_dual'?2:t.key.endsWith('_small')?1:t.key.endsWith('_medium')?2:3;}
+for(const t of Object.values(CATALOG))if(!t.starterTier&&((t.kind==='home'&&['home_large','home_dual'].includes(t.key))||(!['hotel','home'].includes(t.kind)))){t.plannedParking=true;t.modelTier=t.key==='home_large'?1:t.key==='home_dual'?2:t.key.endsWith('_small')?1:t.key.endsWith('_medium')?2:3;}
 const PARKING_VERSION=9,LOT_SPEED=1.35;
 for(const t of Object.values(CATALOG)){
- t.parkingCapacity=t.beds||t.residents||t.jobs+t.service;
+ t.parkingCapacity=t.starterTier?6:t.beds||t.residents||t.jobs+t.service;
  t.parkingColumns=Math.ceil(t.parkingCapacity/2);
  t.parkingRows=1; // one double-sided bank = exactly two long parallel stall rows
  t.parkingPhysicalRows=2;
@@ -45,7 +52,7 @@ for(const t of Object.values(CATALOG)){
  t.parkingLayout=null;
  if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.88;t.plotWidth=20;t.plotHeight=11;t.parkingAisle=9.15;t.parkingUpperAisle=6.55;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
  if(t.stackedParking){t.parkingColumns=15;t.parkingRows=2;t.parkingPhysicalRows=4;t.parkingPitch=.55;t.parkingRowOffset=.79;t.parkingAisle=4.90;t.parkingRearAisle=2.05;t.plotWidth=11;t.plotHeight=13;t.compactParking=true;t.frontageEntranceU=3.0;t.frontageExitU=8.0;t.frontageV=12.43;}
- if(t.key==='home_starter'){
+ if(t.starterTier){
   t.compactCottage=true;t.parkingColumns=6;t.parkingPhysicalRows=1;
   t.plotWidth=3;t.plotHeight=3;t.parkingStartU=.15;t.parkingPitch=.45;
   t.parkingAisle=2.70;t.parkingRowOffset=.80;
@@ -1771,7 +1778,7 @@ const dockGroups=[
 let dockGroup='build';
 function toggleTrafficHeat(){heat=!heat;renderTools();}
 function dockItems(currentCategory){
- let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(currentCategory==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'},{key:'trafficHeat',name:'ความหนาแน่นจราจร',icon:'🌡️',sub:'เปิดหรือปิดแผนที่แสดงความหนาแน่น',price:'แตะเพื่อสลับการแสดงผล'}];}else if(currentCategory==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(currentCategory==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ลากลบถนนต่อเนื่อง · ถนนหลักรื้อไม่ได้',price:'รื้อฟรี'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'รื้อฟรี'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>a.kind==='home'?a.residents-b.residents:0).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
+ let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(currentCategory==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'},{key:'trafficHeat',name:'ความหนาแน่นจราจร',icon:'🌡️',sub:'เปิดหรือปิดแผนที่แสดงความหนาแน่น',price:'แตะเพื่อสลับการแสดงผล'}];}else if(currentCategory==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(currentCategory==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ลากลบถนนต่อเนื่อง · ถนนหลักรื้อไม่ได้',price:'รื้อฟรี'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'รื้อฟรี'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
 // New two-level dock: five main sections stay visible. Only Buildings has
@@ -2006,7 +2013,7 @@ function ensureRoutine(c){
 function workRoutine(c){
  const b=state.buildings.get(c.workId);if(!b)return null;const kind=CATALOG[b.key].kind;
  const workerIndex=[...b.workers].sort((a,b)=>a-b).indexOf(c.id),slot=(workerIndex<0?c.id:workerIndex)%3;
- if(kind==='casino'||kind==='factory'){
+ if(kind==='casino'||kind==='factory'||kind==='hotel'){
   const start=[60,540,1020][slot];return{kind,shift:slot===0||slot===2?3:0,leave:start-65,end:start+480,open:0,close:2880};
  }
  if(kind==='pub')return{kind,shift:3,leave:1015,end:1620,open:960,close:1740};

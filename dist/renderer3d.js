@@ -659,6 +659,228 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
+  // STARTER COLLECTION: nine purpose-built 3x3 designs. All architecture
+  // stops before v=1.27; the shared six-bay forecourt begins at v=1.28.
+  if(t.starterTier&&b.key!=='home_starter'){
+   const ivory='#eee5d6',stone='#c7bba7',gold='#bd9a5e',glass='#5b8d9d';
+   const glyphs={A:['010','101','111','101','101'],B:['110','101','110','101','110'],C:['011','100','100','100','011'],D:['110','101','101','101','110'],E:['111','100','110','100','111'],F:['111','100','110','100','100'],H:['101','101','111','101','101'],I:['111','010','010','010','111'],K:['101','101','110','101','101'],L:['100','100','100','100','111'],M:['101','111','111','101','101'],N:['101','111','111','111','101'],O:['010','101','101','101','010'],P:['110','101','110','100','100'],R:['110','101','110','101','101'],S:['011','100','010','001','110'],T:['111','010','010','010','010'],U:['101','101','101','101','111'],W:['101','101','111','111','101']};
+   const badge=(text,x,y,z,w,bg,ink)=>{
+    const unit=w/(text.length*4+1);
+    block(bg,x,y,z,w+.06,unit*6,.045,'metal');
+    for(let n=0;n<text.length;n++)for(let row=0;row<5;row++)for(let col=0;col<3;col++)
+     if(glyphs[text[n]]?.[row][col]==='1')block(ink,x-w/2+(n*4+col+1)*unit,y+(2-row)*unit,z+.029,unit*.78,unit*.78,.013,'glass',true);
+   };
+   const planter=(x,z,r=.13,y=.08)=>{
+    block('#b6a58b',x,y+.09,z,r*1.6,.18,r*1.5,'stone');
+    block('#638969',x,y+.24,z,r*1.7,.19,r*1.6,'stone');
+    block('#98ae7e',x,y+.34,z,r*1.1,.11,r,'stone');
+   };
+   const table=(x,z,y=.10)=>{
+    pole('#6c7066',x,y+.20,z,.022,.34,'metal');
+    pole('#e8decc',x,y+.39,z,.16,.045,'stone');
+    pole('#f5eee1',x,y+.42,z,.065,.014,'stone');
+    pole('#d5b46c',x+.055,y+.44,z-.025,.025,.055,'glass');
+    for(const side of [-1,1]){
+     block('#987650',x+side*.21,y+.22,z,.13,.045,.14,'wood');
+     block('#987650',x+side*.27,y+.33,z,.025,.22,.14,'wood');
+    }
+   };
+   const local=(geo,c,x,y,z,w,h,d,rx=0,ry=0,rz=0,glow=false)=>{
+    const p=point(x,z),q=new THREE.Quaternion().setFromEuler(new THREE.Euler(rx,ry,rz));
+    q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),turn));
+    const angles=new THREE.Euler().setFromQuaternion(q);
+    batch.add(geo,c,p.x-.5,y,p.y-.5,w,h,d,angles.x,angles.y,angles.z,id,glow,glow?'glass':'metal');
+   };
+   if(t.kind==='shop'){
+    // Sunny yellow neighbourhood mini-market: open produce counter + shutter.
+    block('#c5b897',1.50,.10,.62,2.70,.14,1.10,'stone');
+    block('#f0ce74',1.50,.65,.56,2.48,.98,.93,'stone');
+    block('#846b43',1.50,.25,.56,2.53,.10,.97,'wood');
+    block('#c3963e',1.50,1.19,.57,2.70,.12,1.07,'metal');
+    block('#eac253',1.50,1.04,1.08,2.68,.09,.30,'metal');
+    for(let n=0;n<12;n++)block(n%2?'#f3e7bf':'#dab04f',.30+n*.215,1.01,1.22,.21,.14,.035,'cloth');
+    badge('MART',1.50,1.23,1.12,1.12,'#a17a36','#fff3ce');
+    pane(.75,.69,1.04,.72,.53,true,'#789782');
+    block('#607664',1.58,.63,1.053,.43,.83,.055,'glass');
+    block('#e9dec1',1.58,.63,1.09,.025,.80,.025,'metal');
+    block('#c4bda6',2.25,.64,1.035,.69,.77,.055,'metal');
+    for(let y=.32;y<1.03;y+=.10)block('#979c89',2.25,y,1.076,.66,.025,.025,'metal');
+    for(const x of [.45,.74,1.03]){
+     block('#a38655',x,.27,1.13,.25,.23,.22,'wood');
+     for(const side of [-1,1])local(BALL,x<.7?'#aaae63':'#d49b65',x+side*.06,.42,1.13,.055,.055,.06);
+    }
+    planter(2.69,1.10,.10);return;
+   }
+   if(t.kind==='restaurant'){
+    // Blue bistro: pitched kitchen pavilion + a separate open dining pergola.
+    block('#d7cab4',1.50,.10,.63,2.72,.14,1.12,'stone');
+    block('#eee6d9',1.04,.62,.57,1.52,.92,.90,'stone');
+    gable('#427a98',1.04,.61,1.70,1.04,1.14,.36);
+    block('#356988',1.04,.30,.57,1.57,.22,.93,'stone');
+    pane(.72,.71,1.04,.59,.49,true,'#759da7');
+    block('#3b718c',1.40,.61,1.055,.35,.81,.055,'wood');
+    block('#9ac0c3',1.40,.78,1.09,.22,.29,.022,'glass');
+    badge('DINE',1.04,1.21,1.10,.83,'#36677e','#fff0cd');
+    for(const x of [1.91,2.73])for(const z of [.20,1.12])block('#c3b59e',x,.64,z,.045,1.13,.045,'wood');
+    for(let n=0;n<6;n++)block('#447e99',2.32,1.23,.20+n*.178,.91,.045,.07,'wood');
+    table(2.32,.47);table(2.32,.96);
+    for(const x of [.30,1.75])planter(x,1.12,.09);
+    block('#ffe3b1',1.60,.98,1.10,.065,.11,.06,'glass',true);return;
+   }
+   if(t.kind==='mall'){
+    // Ivory/brass boutique galleria, with an offset round glazed atrium.
+    block('#d2c6b1',1.50,.11,.63,2.74,.16,1.12,'stone');
+    block('#eae1d1',1.04,.91,.60,1.55,1.51,.99,'stone');
+    block('#b69c70',1.04,.44,1.12,1.62,.10,.10,'metal');
+    for(const x of [.40,1.04,1.68])block(ivory,x,.74,1.13,.075,1.24,.095,'stone');
+    pane(.72,.80,1.10,.44,.83,true,'#628b90');
+    pane(1.35,.80,1.10,.44,.83,true,'#628b90');
+    for(const x of [.58,1.10,1.58])pane(x,1.39,1.10,.32,.25,false,'#6d9496');
+    pole('#628f9c',2.21,.92,.64,.46,1.52,'glass');
+    pole('#d7c6a0',2.21,1.72,.64,.49,.09,'metal');
+    pole('#9ab2ad',2.21,1.80,.64,.37,.07,'glass');
+    for(const x of [1.90,2.21,2.52])block(gold,x,.91,1.075,.025,1.43,.035,'metal');
+    block(ivory,2.74,1.01,.66,.12,1.72,1.04,'stone');
+    block(gold,2.78,1.02,1.19,.035,1.70,.025,'metal');
+    block('#f3eadb',1.03,1.72,.60,1.68,.12,1.08,'stone');
+    badge('MALL',1.05,1.84,1.12,1.06,'#977c50','#fff3d0');
+    for(const x of [.36,1.71,2.67])planter(x,1.14,.08);return;
+   }
+   if(t.kind==='office'){
+    // Teal glass office: tall slim slab, a low side wing and roof solar array.
+    block('#c4c5b7',1.5,.10,.63,2.72,.15,1.12,'stone');
+    block('#4e8290',1.01,1.12,.61,1.42,1.99,.99,'glass');
+    block('#427180',2.22,.67,.63,1.01,1.10,.96,'glass');
+    for(const y of [.24,.84,1.44,2.04])block('#c7d5ce',1.01,y,1.13,1.48,.055,.07,'metal');
+    for(const x of [.34,.77,1.20,1.69])block('#bbcfcc',x,1.13,1.14,.032,1.88,.04,'metal');
+    for(const y of [.51,1.10,1.70])for(const x of [.55,.98,1.43])block('#a2bebe',x,y,1.15,.29,.30,.015,'glass');
+    block('#d2dbd2',2.23,1.24,.62,1.09,.075,1.04,'metal');
+    pane(2.18,.72,1.13,.65,.71,true,'#416571');
+    badge('WORK',2.22,1.33,1.14,.82,'#315c69','#e8f4e5');
+    block('#d8e0d5',1.02,2.17,.60,1.54,.11,1.07,'metal');
+    local(BOX,'#365b73',1.02,2.28,.59,1.12,.05,.65,-.16);
+    for(const x of [.72,1.04,1.36])block('#adc5ce',x,2.31,.60,.015,.02,.58,'metal');
+    planter(2.67,1.12,.10);return;
+   }
+   if(t.kind==='factory'){
+    // Orange industrial workshop: corrugated hall, machinery, ducts and stacks.
+    block('#a9a79a',1.50,.10,.63,2.73,.14,1.12,'stone');
+    block('#617578',1.50,.67,.60,2.43,.99,.96,'metal');
+    for(let x=.32;x<2.74;x+=.13)block('#81918d',x,.68,1.10,.024,.93,.035,'metal');
+    block('#bd7b39',1.50,.26,1.12,2.50,.13,.08,'metal');
+    block('#d89544',1.50,1.20,.60,2.60,.12,1.04,'metal');
+    for(const x of [.62,1.49,2.36]){
+     gable('#748888',x,.59,.79,.94,1.23,.20);
+     block('#a8c6c8',x,1.35,.79,.57,.035,.22,'glass');
+    }
+    block('#343e40',2.05,.63,1.14,.79,.72,.045,'metal');
+    for(let y=.31;y<.96;y+=.08)block('#7d8b86',2.05,y,1.17,.74,.028,.022,'metal');
+    pane(1.05,.78,1.11,.45,.44,true,'#b2c4ba');
+    for(const x of [.45,.67]){
+     pole('#797b6a',x,.49,1.12,.07,.60,'metal');
+     pole('#db974b',x,.79,1.12,.085,.04,'metal');
+    }
+    for(const x of [.52,2.48]){
+     pole('#6c7770',x,1.65,.37,.065,.69,'metal');
+     pole('#d09a54',x,1.99,.37,.09,.06,'metal');
+    }
+    badge('WORKS',1.50,1.08,1.15,1.16,'#9d622e','#fff0ca');
+    block('#f3bd64',2.64,1.30,1.12,.065,.09,.06,'glass',true);return;
+   }
+   if(t.kind==='park'){
+    // Pocket garden: open planting beds, a fountain, benches and staff kiosk.
+    block('#9ba77c',1.50,.08,.63,2.75,.10,1.13,'stone');
+    block('#d4c4a7',1.50,.15,.94,2.58,.05,.25,'stone');
+    block('#d4c4a7',1.50,.15,.60,.24,.05,.94,'stone');
+    for(const x of [.52,2.18]){
+     block('#b5aa8a',x,.18,.41,.63,.15,.49,'stone');
+     pole('#987950',x,.44,.41,.035,.56,'wood');
+     local(BALL,'#5c8b60',x,.81,.41,.24,.27,.23);
+     local(BALL,'#88a56e',x-.12,.85,.41,.15,.17,.16);
+    }
+    pole('#c4bca3',1.50,.20,.49,.29,.17,'stone');
+    pole('#7ab8b5',1.50,.29,.49,.24,.03,'glass');
+    pole('#acced1',1.50,.49,.49,.018,.39,'glass');
+    local(BALL,'#91c9c7',1.50,.68,.49,.06,.05,.06);
+    for(const x of [.63,2.14]){
+     block('#9f8058',x,.30,1.06,.56,.055,.18,'wood');
+     block('#9f8058',x,.43,1.15,.56,.23,.035,'wood');
+     for(const side of [-1,1])block('#676f5b',x+side*.20,.21,1.06,.04,.20,.13,'metal');
+    }
+    block('#a8b58f',2.63,.43,.39,.40,.59,.44,'wood');
+    block('#6d8c6f',2.63,.77,.39,.48,.09,.49,'metal');
+    block('#c4d6c2',2.63,.51,.625,.23,.24,.02,'glass');
+    badge('PARK',1.50,1.02,.14,.81,'#527853','#e5e6b9');
+    for(const x of [1.03,1.97])pole('#796c51',x,.53,.14,.023,.90,'wood');
+    for(const x of [.30,.94,1.99,2.75])planter(x,.76,.075);return;
+   }
+   if(t.kind==='pub'){
+    // Purple club: sculpted roof fins, round side lights and a music-note sign.
+    block('#817987',1.50,.11,.63,2.73,.16,1.12,'stone');
+    block('#625372',1.50,.66,.61,2.43,1.00,.95,'stone');
+    block('#383749',1.50,.32,1.12,2.49,.17,.06,'metal');
+    local(BOX,'#4c455f',.88,1.22,.61,1.44,.10,1.06,0,0,.12);
+    local(BOX,'#73617f',2.13,1.25,.61,1.27,.10,1.06,0,0,-.12);
+    block('#c48cdb',1.50,1.16,1.15,2.55,.045,.04,'glass',true);
+    block('#44495e',1.50,.64,1.13,.66,.82,.045,'glass');
+    block('#d3afdb',1.50,.66,1.17,.025,.78,.02,'metal');
+    for(const x of [.64,2.36]){
+     local(CYL,'#ad85c4',x,.77,1.13,.22,.04,.22,Math.PI/2);
+     local(CYL,'#4c4b69',x,.77,1.16,.16,.045,.16,Math.PI/2);
+    }
+    badge('CLUB',1.50,1.42,1.12,.92,'#5c456e','#efccf3');
+    for(const x of [1.18,1.69]){
+     block('#d7a9e2',x,1.76,.60,.045,.45,.045,'glass',true);
+     local(BALL,'#d7a9e2',x-.075,1.54,.60,.10,.055,.055,0,0,0,true);
+    }
+    block('#d7a9e2',1.44,1.97,.60,.55,.055,.045,'glass',true);
+    for(const x of [.28,2.72])planter(x,1.12,.085);return;
+   }
+   if(t.kind==='casino'){
+    // Sci-fi casino: neon pylons, three physical playing cards and chip stacks.
+    block('#65657a',1.50,.10,.63,2.74,.14,1.12,'stone');
+    block('#282c48',1.50,.70,.61,2.43,1.07,.95,'metal');
+    block('#554b7a',1.50,1.26,.60,2.65,.14,1.04,'metal');
+    block('#65d6df',1.50,1.35,1.13,2.62,.035,.04,'glass',true);
+    for(const x of [.30,2.70]){
+     block('#9eabc0',x,.81,1.12,.13,1.19,.12,'metal');
+     block('#64dbe4',x,.82,1.19,.035,1.14,.018,'glass',true);
+    }
+    pane(1.50,.68,1.12,1.26,.69,true,'#447b91');
+    badge('CASINO',1.50,1.23,1.15,1.50,'#453c69','#f1d4ee');
+    for(let n=0;n<3;n++){
+     const x=1.02+n*.48;
+     block('#eee9db',x,1.72,.60,.34,.48,.055,'stone');
+     block('#ba97b9',x,1.72,.563,.38,.52,.022,'metal');
+     for(let pip=0;pip<=n;pip++)local(BALL,n%2?'#b36687':'#3e4d69',x+(n===2?(pip-1)*.067:0),1.72+(n===1?(pip-.5)*.13:0),.638,.042,.045,.012);
+    }
+    for(const x of [.58,2.42])for(let n=0;n<4;n++){
+     pole(n%2?'#b47bb6':'#67c4ce',x,.23+n*.075,1.08,.13,.065,'metal');
+     pole('#e8dfce',x,.269+n*.075,1.08,.08,.012,'stone');
+    }
+    return;
+   }
+   if(t.kind==='hotel'){
+    // Warm inn: twin terracotta gables, guest balconies and a central reception.
+    block('#d2c1a2',1.50,.11,.63,2.73,.16,1.12,'stone');
+    block('#e6d7bd',1.50,.88,.59,2.43,1.46,.94,'stone');
+    for(const x of [.88,2.12]){
+     gable('#b68159',x,.61,1.23,1.05,1.67,.32);
+     pane(x,1.29,1.08,.68,.43,true,'#71959a');
+     block('#cdb89a',x,1.01,1.12,.80,.06,.18,'stone');
+     block('#9b7b5c',x,1.13,1.22,.79,.025,.025,'wood');
+     for(let n=0;n<5;n++)block('#9b7b5c',x-.34+n*.17,1.08,1.22,.018,.14,.018,'wood');
+    }
+    pane(.66,.57,1.08,.49,.42,true,'#71959a');
+    pane(2.34,.57,1.08,.49,.42,true,'#71959a');
+    block('#957350',1.50,.56,1.10,.43,.78,.045,'wood');
+    block('#86a9ab',1.50,.73,1.14,.28,.28,.02,'glass');
+    block('#ad8c5e',1.50,.97,1.13,.72,.055,.25,'wood');
+    badge('INN',1.50,1.49,1.14,.49,'#8c6c49','#f9e3b7');
+    for(const x of [.29,2.71])planter(x,1.12,.09);
+    block('#f5d79b',1.50,.90,1.17,.065,.08,.035,'glass',true);return;
+   }
+  }
   // New ground-level 3x3 cottage: house at the rear, parking strictly
   // outside its footprint. No raised floor, supporting stilts or cars below it.
   if(b.key==='home_starter'){
