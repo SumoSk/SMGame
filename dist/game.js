@@ -823,21 +823,28 @@ state.gates=[id(150,0),id(299,150),id(150,299),id(0,150)];rebuildFootprint();cam
 // by save loading; saved roads, buildings, citizens and camera are restored as-is.
 function startNewCity(city='phuket'){
  reset(city);
- // Keep the four existing city gates connected, with a medium arterial cross.
- for(const road of state.roads.values())if(road.main)road.type='medium';
- roadChanged([]);
- const streets=[[[164,150],[164,132]],[[164,132],[176,132]],[[176,132],[176,144]],[[176,144],[164,144]],[[164,138],[176,138]]];
+ // Preserve the original largest roads at all four city entrances.
+ // A short medium collector steps down to the small village streets.
+ if(!buildRoad(lineCells(id(164,150),id(164,146)),'medium',true))throw Error('Starter village collector could not be placed');
+ const streets=[[[164,146],[164,132]],[[164,132],[176,132]],[[176,132],[176,144]],[[176,144],[164,144]],[[164,138],[176,138]]];
  for(const [a,b] of streets)if(!buildRoad(lineCells(id(...a),id(...b)),'small',true))throw Error('Starter village road could not be placed');
  const plots=[
-  ['home_starter',166,128],['home_starter',170,128],
-  ['home_starter',166,133],['park_starter',170,133],
-  ['restaurant_starter',166,140],['shop_starter',170,140],
-  ['mall_starter',166,145],['office_starter',170,145],
-  ['factory_starter',160,134],['hotel_starter',160,140],
-  ['pub_starter',177,134],['casino_starter',177,140]
+  ['home_starter',166,128,0],['home_starter',170,128,0],
+  ['home_starter',166,133,2],['park_starter',170,133,2],
+  ['restaurant_starter',166,140,0],['shop_starter',170,140,0],
+  ['mall_starter',166,145,2],['office_starter',170,145,2],
+  ['factory_starter',160,134,3],['hotel_starter',160,140,3],
+  ['pub_starter',177,134,1],['casino_starter',177,140,1]
  ];
  const homes=[];
- for(const [key,x,y] of plots){const building=buildBuilding(key,x,y,true);if(!building)throw Error('Starter village building could not be placed: '+key);if(key==='home_starter')homes.push(building);}
+ for(const [key,x,y,rotation] of plots){
+  const building=buildBuilding(key,x,y,true);if(!building)throw Error('Starter village building could not be placed: '+key);
+  // Keep every entrance facing an internal small street, including the two
+  // plots whose back edge also touches the large arterial's reserved verge.
+  building.rotation=rotation;building.access=accessFor(building);
+  if(building.access.length<2||building.access.some(a=>state.roads.get(a.node)?.type!=='small'))throw Error('Starter building must face the village street: '+key);
+  if(key==='home_starter')homes.push(building);
+ }
  for(const home of homes)for(let n=0;n<CATALOG[home.key].residents;n++){
   const c=newCitizen(home);c.resident=true;c.arrivedAt=state.time;c.locationId=home.id;c.location='home';c.state='อยู่บ้าน';
   home.residents.add(c.id);home.parked.add(c.id);assignJob(c);
