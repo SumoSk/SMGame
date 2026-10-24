@@ -4303,14 +4303,13 @@ function demolishRoad(i,confirmed=false,anchor=null){
  state.roads.delete(i);roadChanged([i],new Set([i]));updateUI();toast('ลบถนนแล้ว 1 ช่อง');
  return true;
 }
-// The deletion prompt is deliberately distinct from construction dialogs.
-// Anchor at the actual pointer/touch release; inspector actions use the item.
+// Demolition confirms at the center of the screen on every device.
+// Existing callers may still pass a pointer anchor; it is intentionally ignored.
 // Nothing is deleted until the user presses the red confirmation button.
 function confirmDemolition(title,details,callback,anchor=null){
  modal('<div class="demolition-card"><span class="demolition-symbol" aria-hidden="true">×</span><div class="demolition-info"><h2>'+title+'</h2><p>'+details+'</p></div></div><div class="actions demolition-actions"><button type="button" id="cancelDialog">ไม่ลบ</button><button type="button" id="confirmDialog" class="danger">ลบ</button></div>');
  const dialog=$('dialog');dialog.classList.add('demolition-confirm');
- const point=anchor&&Number.isFinite(anchor.x)&&Number.isFinite(anchor.y)?anchor:{x:innerWidth/2,y:innerHeight/2};
- positionConstructionDialog(point.x,point.y);
+ // No construction-confirm class or pointer positioning: CSS owns centering.
  $('cancelDialog').onclick=closeModal;
  $('confirmDialog').onclick=()=>{closeModal();callback();};
 }
