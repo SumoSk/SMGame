@@ -3488,3 +3488,10 @@ body>.bottom>.control-deck.tools-collapsed .builder-zone .dock-head>#toggleDock{
 
 /* Keep the proposed road visible while choosing whether to build. */
 dialog.road-preview-confirm::backdrop{background:#163d3c12;backdrop-filter:none}
+
+/* Construction confirmations sit beside the selected place, above the dock. */
+dialog.construction-confirm{position:fixed;inset:auto;zoom:1!important;transform:none!important;margin:0;width:min(300px,calc(100vw - 20px));max-height:calc(100dvh - 20px);padding:14px;border-radius:14px;font-size:13px;overflow:auto}
+dialog.construction-confirm h2{font-size:17px;margin:3px 0 8px}dialog.construction-confirm p{font-size:12px;line-height:1.6;margin:6px 0}dialog.construction-confirm .eyebrow{font-size:9px}
+dialog.construction-confirm .actions{position:sticky;bottom:-1px;background:inherit;display:flex;gap:8px;padding-top:8px;margin-top:6px}dialog.construction-confirm .actions button{font-size:13px;min-height:40px;padding:8px 14px;flex:1}
+dialog.construction-confirm::backdrop{background:#163d3c12;backdrop-filter:none}
+.cancel-building-move{position:fixed;top:calc(env(safe-area-inset-top,0px) + 104px);left:50%;transform:translateX(-50%);z-index:90;background:#fff4ec;color:#8b3427;border:2px solid #c67056;border-radius:12px;padding:10px 18px;font-size:14px;font-weight:700;box-shadow:0 5px 18px #173f3d44;white-space:nowrap;touch-action:manipulation}.cancel-building-move[hidden]{display:none!important}
