@@ -587,19 +587,26 @@ export class TrafficRenderer{
  }
 
 
- // Static low hedges and pastel flowers are instanced by colour, with no
+ // Rounded shadow-casting hedges and raised flowers are instanced by colour; no
  // per-frame animation or dynamic lights. Their full bounds clear driveways.
- const hedges=new Batch(),petals=['#e7a6bd','#c2add8','#e4c576','#eab69b'];
+ const hedges=new Batch(),petals=['#d97da2','#b28dd1','#e6bb56','#e89d78'],greens=['#477b50','#568c57','#65975d','#73a563'];
  for(const p of roadside.plants||[]){
-  hedges.add(HEDGE_LEAF,'#5d854d',p.x,.155,p.y,.45,.065,.14,0,p.angle,0,null,false,'foliage');
-  for(const side of [-1,1])hedges.add(HEDGE_LEAF,side<0?'#709b5d':'#83a96a',p.x+p.ux*side*.16,.190,p.y+p.uy*side*.16,.24,.050,.12,0,p.angle,0,null,false,'foliage');
-  if(p.flower){
-   const off=p.seed%2?.10:-.10,x=p.x+p.ux*off,z=p.y+p.uy*off,color=petals[(p.seed>>>8)%4];
-   for(let n=0;n<5;n++){const a=n*Math.PI*2/5+(p.seed%7)*.3;hedges.add(FLOWER_PETAL,color,x+Math.cos(a)*.030,.246,z+Math.sin(a)*.030,.027,.010,.020,0,-a,0,null,false,'flower');}
-   hedges.add(FLOWER_PETAL,'#d5b55e',x,.253,z,.019,.008,.019,0,0,0,null,false,'flower');
+  const acrossX=-p.uy,acrossZ=p.ux,lobes=[];
+  for(let n=0;n<4;n++){
+   const jitter=(((p.seed>>>(n*3))&7)-3)*.004,along=[-.28,-.09,.11,.29][n]+jitter;
+   const cross=(((p.seed>>>(n*3+2))&3)-1.5)*.010;
+   const x=p.x+p.ux*along+acrossX*cross,z=p.y+p.uy*along+acrossZ*cross;
+   const radius=n===0||n===3?.145:.165,height=.105+((p.seed>>>(n*2))&3)*.009,y=.245+((p.seed>>>(n+8))&3)*.009;
+   hedges.add(HEDGE_LEAF,greens[(n+(p.seed>>>6))%4],x,y,z,radius,height,.12,0,p.angle,0,null,false,'foliage');
+   lobes.push({x,z,top:y+height});
+  }
+  if(p.flower)for(const n of [1,3]){
+   const l=lobes[n],color=petals[(p.seed>>>8)%4],y=l.top+.014;
+   for(let k=0;k<5;k++){const a=k*Math.PI*2/5+(p.seed%7)*.3;hedges.add(FLOWER_PETAL,color,l.x+Math.cos(a)*.038,y,l.z+Math.sin(a)*.038,.034,.014,.027,0,-a,0,null,false,'flower');}
+   hedges.add(FLOWER_PETAL,'#d5b55e',l.x,y+.010,l.z,.022,.010,.022,0,0,0,null,false,'flower');
   }
  }
- if(roadside.plants?.length){const group=hedges.build(false);group.userData.roadsidePlants=true;this.roadGroup.add(group);}
+ if(roadside.plants?.length){const group=hedges.build(true);group.userData.roadsidePlants=true;this.roadGroup.add(group);}
  for(const [color,positions]of paint){if(!positions.length)continue;const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.computeVertexNormals();const material=new THREE.MeshStandardMaterial({color,roughness:.83,metalness:0,side:THREE.DoubleSide});const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.userData.baseColor=color;mesh.userData.nightRole='road-marking';this.roadGroup.add(mesh);}
  if(previewOnly)return;
  const gates=new Batch();for(let n=0;n<state.gates.length;n++){const i=state.gates[n],x=i%300,z=Math.floor(i/300),angle=n%2?0:Math.PI/2;gates.box('#dfddd0',x,1.9,z,4.9,.2,.45,angle);for(const sign of[-1,1]){const dx=n%2?0:sign*2.2,dz=n%2?sign*2.2:0;gates.box('#ede9d5',x+dx,.95,z+dz,.2,1.9,.2);}gates.box('#2f746c',x,2.15,z,3.7,.42,.16,angle);}this.roadGroup.add(gates.build());
