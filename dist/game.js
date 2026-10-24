@@ -4850,11 +4850,12 @@ function openReportMenu(){
  };
 }
 function openMainMenu(){
- modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b><small>เก็บเมืองไว้ แล้วกลับมาเล่นต่อ</small></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b><small>เข้าสู่ระบบ สมัคร หรือจัดการบัญชี</small></span><span class="menu-chevron">›</span></button><button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>Report</b><small>ข้อมูลเมือง · ส่ง AI · Log รายงาน</small></span><span class="menu-chevron">›</span></button><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b><small>เลือกแผนที่และเริ่มต้นเมืองของคุณ</small></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
+ modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b><small>เก็บเมืองไว้ แล้วกลับมาเล่นต่อ</small></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b><small>เข้าสู่ระบบ สมัคร หรือจัดการบัญชี</small></span><span class="menu-chevron">›</span></button><button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>Report</b><small>ข้อมูลเมือง · ส่ง AI · Log รายงาน</small></span><span class="menu-chevron">›</span></button><button type="button" id="helpMenu"><span class="menu-symbol">?</span><span><b>คู่มือเล่นเกม</b><small>วิธีสร้างเมือง การจราจร และปุ่มควบคุม</small></span><span class="menu-chevron">›</span></button><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b><small>เลือกแผนที่และเริ่มต้นเมืองของคุณ</small></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
  $('menuClose').onclick=closeModal;
  $('accountMenu').onclick=openAccountDialog;
  $('saveMenu').onclick=openCloudSaveDialog;
  $('reportMenu').onclick=openReportMenu;
+ $('helpMenu').onclick=()=>{ $('help').click(); };
  $('newCityMenu').onclick=openNewCityDialog;
 }
 $('menu').onclick=openMainMenu;
