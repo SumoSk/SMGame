@@ -659,53 +659,41 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
-  // A newly built 3x3 raised cottage: ONE residential storey, standard
-  // full-sized cars below, a narrow side stair and three front parking bays.
+  // New ground-level 3x3 cottage: house at the rear, parking strictly
+  // outside its footprint. No raised floor, supporting stilts or cars below it.
   if(b.key==='home_starter'){
    const cream='#eee4d2',wood='#977052',sage='#8ea593',roof='#697a77';
-   for(const x of [.64,2.75])for(const z of [.20,1.18]){
-    block('#b8ac98',x,.56,z,.085,1.10,.085,'stone');
-    block('#d4c7b0',x,.10,z,.15,.15,.15,'stone');
+   block('#c6baa4',1.50,.12,.59,2.52,.18,1.04,'stone');
+   block(cream,1.50,.67,.59,2.44,.96,.96,'stone');
+   block('#d1c1a8',1.50,.22,.59,2.48,.07,1.00,'stone');
+   gable(roof,1.50,.61,2.70,1.10,1.17,.40);
+   block('#82958a',1.50,1.59,.61,2.72,.045,.060,'stone');
+   // A shallow front stoop with an independent door canopy.
+   block('#d4c5af',1.50,.12,1.14,.65,.16,.17,'stone');
+   block('#c2af92',1.50,.045,1.24,.48,.06,.06,'stone');
+   block(roof,1.50,1.13,1.13,.79,.055,.25,'metal');
+   block(wood,1.50,.61,1.089,.43,.84,.045,'wood');
+   block('#729ba1',1.50,.78,1.12,.26,.27,.020,'glass');
+   block('#d6bb88',1.64,.58,1.13,.027,.045,.018,'metal');
+   pane(.77,.73,1.085,.53,.46,true,'#6e969c');
+   pane(2.24,.73,1.085,.53,.46,true,'#6e969c');
+   for(const x of [.43,1.11,1.90,2.58]){
+    block(sage,x,.73,1.12,.09,.54,.035,'wood');
+    for(let y=.5;y<.99;y+=.09)block('#6b8879',x,y,1.145,.073,.018,.014,'wood');
    }
-   block('#c9bda8',1.69,1.12,.74,2.28,.13,1.15,'stone');
-   block(cream,1.69,1.66,.69,2.16,.99,1.03,'stone');
-   block('#d2c3aa',1.69,1.23,.69,2.20,.09,1.08,'stone');
-   // Timber porch looks onto the front forecourt, clear above the cars.
-   block(wood,1.63,1.13,1.36,2.19,.09,.29,'wood');
-   for(const x of [.59,2.67])block(wood,x,1.68,1.43,.045,1.01,.045,'wood');
-   block(wood,1.63,1.51,1.49,2.13,.045,.045,'wood');
-   for(let x=.64;x<2.65;x+=.18)block('#c8b799',x,1.35,1.49,.022,.27,.028,'wood');
-   // Roof, exposed eaves and a modest matching porch awning.
-   gable(roof,1.69,.72,2.43,1.30,2.15,.43);
-   block('#86968e',1.69,2.60,.72,2.45,.055,.075,'stone');
-   block(roof,1.63,2.17,1.36,2.25,.065,.44,'metal');
-   pane(1.01,1.72,1.224,.42,.47,true,'#6e969c');
-   pane(2.35,1.72,1.224,.43,.47,true,'#6e969c');
-   block(wood,1.68,1.58,1.232,.45,.81,.055,'wood');
-   block('#739b9c',1.68,1.77,1.27,.28,.25,.023,'glass');
-   block('#d8bc8b',1.83,1.53,1.28,.035,.055,.024,'metal');
-   for(const x of [.72,1.30,2.06,2.64]){
-    block(sage,x,1.72,1.26,.095,.54,.04,'wood');
-    for(let y=1.5;y<1.99;y+=.09)block('#6a8778',x,y,1.29,.078,.018,.018,'wood');
+   pane(.79,.73,.10,.49,.40,false,'#6e969c');
+   pane(2.20,.73,.10,.49,.40,false,'#6e969c');
+   for(const x of [.269,2.731]){
+    block('#80a5a8',x,.73,.58,.024,.42,.48,'glass');
+    block('#e0d5c4',x,.49,.58,.065,.045,.56,'stone');
+    block('#e4d9c9',x,.73,.58,.045,.46,.024,'wood');
    }
-   pane(1.01,1.72,.16,.43,.42,false,'#6e969c');
-   pane(2.34,1.72,.16,.43,.42,false,'#6e969c');
-   block('#83a9ab',2.783,1.72,.67,.025,.47,.57,'glass');
-   block('#e7dbca',2.80,1.45,.67,.04,.045,.68,'stone');
-   for(const z of [.37,.67,.97])block('#e7dbca',2.81,1.72,z,.04,.51,.022,'wood');
-   // Side stair stays outside both driveway sweeps and every parking bay.
-   for(let n=0;n<8;n++){
-    block('#beac91',.135,.075+n*.14,.29+n*.14,.21,.14,.16,'stone');
+   for(const x of [.32,2.68]){
+    block('#b8a68b',x,.20,1.13,.15,.18,.15,'stone');
+    block('#628766',x,.34,1.13,.16,.16,.16,'stone');
+    block('#dda995',x,.43,1.13,.07,.045,.07,'stone');
    }
-   block(wood,.35,1.13,1.36,.47,.09,.25,'wood');
-   for(const n of [0,3,7])block(wood,.03,.32+n*.14,.29+n*.14,.025,.35,.025,'wood');
-   // Small porch planters and warm entry light replace the broad old garden.
-   for(const x of [.77,2.46]){
-    block('#bca98a',x,1.25,1.40,.16,.17,.14,'stone');
-    block('#618566',x,1.40,1.40,.17,.17,.15,'stone');
-    block('#dda995',x,1.49,1.40,.07,.055,.08,'stone');
-   }
-   block('#f2d9a4',1.69,2.03,1.28,.10,.10,.075,'glass',true);
+   block('#f3dda7',1.50,1.06,1.13,.09,.07,.045,'glass',true);
    return;
   }
   // ORBIT CASINO: faceted midnight-blue pavilions, cyan light rails, cards,
