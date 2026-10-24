@@ -4229,7 +4229,7 @@ function moveBuilding(buildingId,x,y,confirmed=false){
 }
 
 function buildBuilding(key,x,y,confirmed=false){const check=checkBuilding(key,x,y),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true));positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,starterCompact:key==='home_starter',starterFrontRowV2:key==='home_starter',starterParkingV3:key==='home_starter',starterCottageV4:key==='home_starter',starterCottage3x3:key==='home_starter',starterGroundV6:key==='home_starter',grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,queue:[],arrivals:0};state.buildings.set(b.id,b);markBuildingPlot(b,b.id);state.money-=t.cost;missionMoney('buildingCost',t.cost);missionCount('buildingsBuilt');for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
-function demolishBuilding(b,confirmed=false,anchor=null){if(!b||!state.buildings.has(b.id))return false;const t=CATALOG[b.key],fee=0;if(!confirmed){const details=t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ และการเดินทางมาที่นี่จะถูกยกเลิก';confirmDemolition('ลบ'+t.name+'?',details,()=>demolishBuilding(b,true),anchor||screen(b.x+buildingBounds(b).w/2,b.y+buildingBounds(b).h/2));return true;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);resumeCancelledLife(c,v,'อาคารต้นทางหรือปลายทางถูกรื้อ');}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
+function demolishBuilding(b,confirmed=false,anchor=null){if(!b||!state.buildings.has(b.id))return false;const t=CATALOG[b.key],fee=0;if(!confirmed){const details=t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ และการเดินทางมาที่นี่จะถูกยกเลิก';confirmDemolition('รื้อ'+t.name+'?',details,()=>demolishBuilding(b,true),anchor||screen(b.x+buildingBounds(b).w/2,b.y+buildingBounds(b).h/2));return true;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);resumeCancelledLife(c,v,'อาคารต้นทางหรือปลายทางถูกรื้อ');}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
 markBuildingPlot(b,-1);state.buildings.delete(b.id);state.money-=fee;missionCount('buildingsRemoved');for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
 // Freehand demolition follows every crossed cell, even between sparse pointer samples.
 function roadEraseSegmentCells(x0,y0,x1,y1){
@@ -4279,7 +4279,7 @@ function demolishRoadStroke(cells,confirmed=false,anchor=null){
   return false;
  }
  if(!confirmed){
-  confirmDemolition('ลบถนน '+p.roads.length+' ช่อง?',(skipped?'ข้ามถนนหลัก '+skipped+' ช่อง · ':'')+(p.cars?'รถ '+p.cars+' คันจะกลับเข้าเมืองใหม่ · ':'')+'ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoadStroke(cells,true),anchor||screen(p.roads[0]%W,Math.floor(p.roads[0]/W)));
+  confirmDemolition('รื้อถนน '+p.roads.length+' ช่อง?',(skipped?'ข้ามถนนหลัก '+skipped+' ช่อง · ':'')+(p.cars?'รถ '+p.cars+' คันจะกลับเข้าเมืองใหม่ · ':'')+'ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoadStroke(cells,true),anchor||screen(p.roads[0]%W,Math.floor(p.roads[0]/W)));
   return true;
  }
  for(const node of p.roads){
@@ -4295,7 +4295,7 @@ function demolishRoad(i,confirmed=false,anchor=null){
  const plan=roadErasePlan([i]);
  if(!plan.roads.length){toast(plan.main?'ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ':'เลือกช่องที่มีถนนค่ะ');return false;}
  if(!confirmed){
-  confirmDemolition('ลบถนน 1 ช่อง?',(plan.cars?'รถ '+plan.cars+' คันจะกลับเข้าเมืองใหม่ · ':'')+'ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoad(i,true),anchor||screen(i%W,Math.floor(i/W)));
+  confirmDemolition('รื้อถนน 1 ช่อง?',(plan.cars?'รถ '+plan.cars+' คันจะกลับเข้าเมืองใหม่ · ':'')+'ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoad(i,true),anchor||screen(i%W,Math.floor(i/W)));
   return true;
  }
  const road=state.roads.get(i);if(!road||road.main)return false;
@@ -4303,14 +4303,13 @@ function demolishRoad(i,confirmed=false,anchor=null){
  state.roads.delete(i);roadChanged([i],new Set([i]));updateUI();toast('ลบถนนแล้ว 1 ช่อง');
  return true;
 }
-// The deletion prompt is deliberately distinct from construction dialogs.
-// Anchor at the actual pointer/touch release; inspector actions use the item.
+// Demolition confirms at the center of the screen on every device.
+// Existing callers may still pass a pointer anchor; it is intentionally ignored.
 // Nothing is deleted until the user presses the red confirmation button.
 function confirmDemolition(title,details,callback,anchor=null){
  modal('<div class="demolition-card"><span class="demolition-symbol" aria-hidden="true">×</span><div class="demolition-info"><h2>'+title+'</h2><p>'+details+'</p></div></div><div class="actions demolition-actions"><button type="button" id="cancelDialog">ไม่ลบ</button><button type="button" id="confirmDialog" class="danger">ลบ</button></div>');
  const dialog=$('dialog');dialog.classList.add('demolition-confirm');
- const point=anchor&&Number.isFinite(anchor.x)&&Number.isFinite(anchor.y)?anchor:{x:innerWidth/2,y:innerHeight/2};
- positionConstructionDialog(point.x,point.y);
+ // No construction-confirm class or pointer positioning: CSS owns centering.
  $('cancelDialog').onclick=closeModal;
  $('confirmDialog').onclick=()=>{closeModal();callback();};
 }
