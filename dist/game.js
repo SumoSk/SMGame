@@ -1512,8 +1512,16 @@ function openTrafficIncident(vehicleId){
  $('incidentIgnoreBtn').onclick=closeModal;
  return true;
 }
-function manualIncidentLogs(){try{const value=JSON.parse(localStorage.getItem(INCIDENT_LOG_KEY)||'[]');return Array.isArray(value)?value:[];}catch{return [];}}
-function saveManualIncidentCache(list){try{localStorage.setItem(INCIDENT_LOG_KEY,JSON.stringify(list.slice(0,80)));return true;}catch{return false;}}
+let incidentLogMemory=null;
+function manualIncidentLogs(){
+ if(incidentLogMemory===null){try{const value=JSON.parse(localStorage.getItem(INCIDENT_LOG_KEY)||'[]');incidentLogMemory=Array.isArray(value)?value:[];}catch{incidentLogMemory=[];}}
+ return incidentLogMemory.map(e=>({...e}));
+}
+function saveManualIncidentCache(list){
+ // Keep the upload queue alive even when browser storage is full or blocked.
+ incidentLogMemory=list.slice(0,80).map(e=>({...e}));
+ try{localStorage.setItem(INCIDENT_LOG_KEY,JSON.stringify(incidentLogMemory));return true;}catch{return false;}
+}
 function normalizeManualIncidentLogs(){
  const logs=manualIncidentLogs();let changed=false;
  for(const entry of logs)if(!entry.eventId){entry.eventId=crypto.randomUUID();changed=true;}
@@ -1524,13 +1532,15 @@ function markIncidentLocal(eventId,patch){
  const logs=manualIncidentLogs(),entry=logs.find(e=>e.eventId===eventId);
  if(entry){Object.assign(entry,patch);saveManualIncidentCache(logs);}
 }
-let incidentCloudSyncing=false;
-async function syncManualIncidentLogs(){
+let incidentCloudSyncing=null;
+function syncManualIncidentLogs(){
  const account=window.SMGameAccount,user=account?.user;
- if(!user||typeof account.saveIncidentLog!=='function'||incidentCloudSyncing)return;
- incidentCloudSyncing=true;
+ if(incidentCloudSyncing)return incidentCloudSyncing;
+ if(!user||typeof account.saveIncidentLog!=='function')return Promise.resolve(false);
+ incidentCloudSyncing=Promise.resolve().then(async()=>{
  try{
   for(let i=0;i<80;i++){
+   if(account.user?.id!==user.id)break;
    const entry=normalizeManualIncidentLogs().slice().reverse().find(e=>!e.cloudSyncedFor&&(!e.userId||e.userId===user.id));
    if(!entry)break;
    markIncidentLocal(entry.eventId,{userId:user.id});
@@ -1538,7 +1548,9 @@ async function syncManualIncidentLogs(){
    markIncidentLocal(entry.eventId,{cloudSyncedFor:user.id});
   }
  }catch(error){console.warn('SMCITY incident log cloud sync:',error);}
- finally{incidentCloudSyncing=false;}
+ finally{incidentCloudSyncing=null;}
+ });
+ return incidentCloudSyncing;
 }
 function writeManualIncidentLog(entry){
  try{
@@ -1546,7 +1558,11 @@ function writeManualIncidentLog(entry){
   entry.userId=window.SMGameAccount?.user?.id||null;
   const list=normalizeManualIncidentLogs();list.unshift(entry);
   const saved=saveManualIncidentCache(list);
-  if(saved&&entry.userId)void syncManualIncidentLogs();
+  if(entry.userId)void syncManualIncidentLogs().then(()=>{
+   if(window.SMGameAccount?.user?.id!==entry.userId)return;
+   const synced=manualIncidentLogs().some(e=>e.eventId===entry.eventId&&e.cloudSyncedFor===entry.userId);
+   toast(synced?'บันทึก Log เข้า Supabase แล้ว':'ส่ง Log เข้า Supabase ไม่สำเร็จ · กดซิงก์ในดู Log เพื่อลองอีกครั้ง');
+  });
   return saved;
  }catch(error){console.warn('Local incident log:',error);return false;}
 }
@@ -1588,7 +1604,7 @@ function resolveIncident(id){
   outcomes,reservationsAfter:incidentReservations(ids)};
  const stored=writeManualIncidentLog(entry);
  selected=null;$('inspector').classList.add('hidden');updateUI();
- toast((eventType==='collision'?'รถชน':'รถเสีย')+' · ช่วยเหลือสำเร็จ '+ids.length+' คัน'+(awarded?' · ได้รับ '+money(awarded):' · ครบโควตารางวัลวันนี้แล้ว')+(stored?' · บันทึก Log แล้ว':' · ไม่สามารถเก็บ Log ในเบราว์เซอร์ได้'));
+ toast((eventType==='collision'?'รถชน':'รถเสีย')+' · ช่วยเหลือสำเร็จ '+ids.length+' คัน'+(awarded?' · ได้รับ '+money(awarded):' · ครบโควตารางวัลวันนี้แล้ว')+(entry.userId?' · กำลังส่ง Log เข้า Supabase…':stored?' · บันทึก Log ในเครื่องแล้ว':' · Log อยู่ชั่วคราวในหน้านี้ · เบราว์เซอร์ไม่อนุญาตให้บันทึก'));
  return true;
 }
 function exportManualIncidentLogs(logs=normalizeManualIncidentLogs()){
