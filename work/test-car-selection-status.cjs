@@ -26,9 +26,9 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert.equal(r.carMarkerMesh.count,6,'every visible car, including parked cars');assert.equal(r.carIndicatorHits.length,6);assert(r.carSelectionFrame.visible);assert.equal(r.carSelectionFrame.material.color.getHexString(),'ffffff');
  const hit=r.carIndicatorHits.find(h=>h.selection.id===v.id&&h.selection.kind==='vehicle');assert(hit);assert.equal(r.pickVehicleMarker(hit.x,hit.y).id,v.id,'tiny icon is clickable');
  const markerSize=()=>{const m=new THREE.Matrix4();r.carMarkerMesh.getMatrixAt(0,m);const a=new THREE.Vector3(0,-1,0).applyMatrix4(m).project(r.camera),b=new THREE.Vector3(0,1,0).applyMatrix4(m).project(r.camera);return Math.abs(a.y-b.y)*r.h/2;};
- assert(Math.abs(markerSize()-8)<1e-5,'8 CSS-pixel icon');
- r.camera.left=-20;r.camera.right=20;r.camera.top=15;r.camera.bottom=-15;r.camera.updateProjectionMatrix();r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-8)<1e-5,'zoom does not enlarge indicators');
- r.cam.z=.22;r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-4)<1e-5,'icons shrink at distant zoom');r.cam.z=2;
+ assert(Math.abs(markerSize()-16)<1e-5,'16 CSS-pixel icon');
+ r.camera.left=-20;r.camera.right=20;r.camera.top=15;r.camera.bottom=-15;r.camera.updateProjectionMatrix();r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-16)<1e-5,'zoom does not enlarge indicators');
+ r.cam.z=.22;r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-8)<1e-5,'icons shrink at distant zoom');r.cam.z=2;
  const iconColor=new THREE.Color();r.carMarkerMesh.getColorAt(0,iconColor);assert.equal(iconColor.getHexString(),'efa54d');
  // The default overlay contains only the selected trip, even with other traffic.
  const node=tag=>({tag,style:{},attrs:{},children:[],setAttribute(k,v){this.attrs[k]=String(v);},append(...nodes){for(const n of nodes)this.appendChild(n);},appendChild(n){this.children=this.children.filter(x=>x!==n);this.children.push(n);},remove(){this.removed=true;}});
@@ -39,5 +39,5 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  // Selection remains on the same citizen's car when parking completes.
  g.arrive(v,true);g.renderInspector();assert.equal(g.selected.kind,'parked');assert.equal(g.selected.id,citizen.id);assert.equal(g.selected.buildingId,office.id);
  get('closeInspector').onclick();g.updateTrackingOverlay();assert.equal(layer.style.display,'none');r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(!r.carSelectionFrame.visible);
- console.log('Car UI: all visible cars have 8px icons; deadline/30-minute/arrival boundaries; parked and moving selection; white frame; selected lane/parking route and both endpoints; zoom and cleanup.');
+ console.log('Car UI: all visible cars have 16px icons; deadline/30-minute/arrival boundaries; parked and moving selection; white frame; selected lane/parking route and both endpoints; zoom and cleanup.');
 })().catch(e=>{console.error(e);process.exitCode=1});
