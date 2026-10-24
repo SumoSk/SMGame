@@ -33,7 +33,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
+          git add index.html dist/member.js dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
           if ! git diff --cached --quiet; then
             git commit -m "build: regenerate SMGame landscaping release"
             git push origin HEAD:feature/smcity-1.4-landscaping-20261022
@@ -92,7 +92,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html dist/bootstrap.js dist/style.css dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
+          git add index.html dist/member.js dist/bootstrap.js dist/style.css dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
           if ! git diff --cached --quiet; then
             git commit -m "build: regenerate new parking model release"
             git push origin HEAD:main
@@ -101,8 +101,8 @@ jobs:
         run: |
           git fetch origin main gh-pages
           git checkout -B gh-pages origin/gh-pages
-          git checkout origin/main -- index.html dist/game.js dist/renderer3d.js dist/style.css dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
-          git add index.html dist/game.js dist/renderer3d.js dist/style.css dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
+          git checkout origin/main -- index.html dist/member.js dist/game.js dist/renderer3d.js dist/style.css dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
+          git add index.html dist/member.js dist/game.js dist/renderer3d.js dist/style.css dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
           if ! git diff --cached --quiet; then
             git commit -m "publish: verified deep-parking building redesign"
             git push origin HEAD:gh-pages
