@@ -24,8 +24,15 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
  events.get('memberBack:click')();assert(!gate.open&&!ctx.window.SMGameAuthLocked);
  get('menu').onclick();get('menuClose').onclick();assert(!get('dialog').open);
  assert.equal(g.snapshot(),initial,'opening/closing menus preserves the guest city');
- assert(!get('dialogContent').innerHTML.includes('cityReportMenu'),'reports are removed from main menu');
- assert(g.dockItems('reports').some(x=>x.key==='cityReport'),'reports are available in City Data');
+ assert(get('dialogContent').innerHTML.includes('class="smcity-report-list"')===false,'main menu must not inline report content');
+ get('menu').onclick();assert(get('dialogContent').innerHTML.includes('id="reportMenu"'),'main menu contains Report');
+ get('reportMenu').onclick();assert(get('dialogContent').innerHTML.includes('class="smcity-report-list"'),'Report has its own detail screen');
+ assert(get('dialogContent').innerHTML.includes('data-report-action="sendAi"'),'Report contains Send AI');
+ assert(get('dialogContent').innerHTML.includes('data-report-action="cityReport"'),'Report contains city diagnostics');
+ assert(get('dialogContent').innerHTML.includes('data-report-action="incidentLog"'),'Report contains incident log');
+ get('reportMenuBack').onclick();assert(get('dialogContent').innerHTML.includes('id="reportMenu"'),'Report back returns to main menu');
+ get('menuClose').onclick();assert(!get('dialog').open);
+ assert(g.dockItems('reports').some(x=>x.key==='cityReport'),'all report actions still available programmatically');
  // A guest clicking Save is prompted to sign up; successful signup auto-saves
  // the pending city and opens Save/Load with that save listed.
  ctx.window.SMGameAccount.listSaves=async()=>saved.map(s=>({id:s.slot_id,name:s.name,data:JSON.stringify(s.data),savedAt:Date.now()}));
