@@ -3462,7 +3462,7 @@ function checkDepartureRoute(v){
 }
 // Reuse the original trip and destination reservation; only its physical
 // location and route change. Route finding is throttled in advanceVehicles.
-function respawnVehicle(v){
+function respawnVehicle(v,reason='stalled'){
  if(!v||!state.vehicles.has(v.id))return false;
  const gates=(state.gates||[]).filter(gate=>state.roads.has(gate));
  if(!gates.length)return false;
@@ -3483,7 +3483,7 @@ function respawnVehicle(v){
  v.retryAt=0;v.departureRouteVersion=path?state.version:-1;v.nextDepartureRouteRetry=state.time;
  v.departureNoRoute=!path;v.routeCheckedVersion=state.version;v.noUTurnPolicy=1;v.trafficModel=2;
  setRouteMissing(v,!path);v.stopReason=path?'กลับมาเริ่มเข้าที่ประตูเมืองใหม่':'กลับมาประตูเมืองแล้ว · ยังไม่มีเส้นทางถึงจุดหมาย';
- if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+' รถติดครบ 150 นาที · กลับเข้าประตูเมืองใหม่');c.history=c.history.slice(-12);}
+ if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+(reason==='demolition'?' ถนนถูกรื้อ · กลับเข้าประตูเมืองใหม่':' รถติดครบ 150 นาที · กลับเข้าประตูเมืองใหม่'));c.history=c.history.slice(-12);}
  updateTrafficSpatial(v);return true;
 }
 function canTowVehicle(v){return !!v&&(v.phase==='stuck'||v.departureNoRoute||v.wait>=48);}
@@ -4099,7 +4099,16 @@ function getRoadPreview(){
  roadPreviewCache={source:live,key,plan};return plan;
 }
 function buildRoad(cells,type,confirmed=false){const check=checkRoad(cells,type);if(check.error){toast(check.error);return false;}if(!confirmed){pendingRoadPreview={cells:[...cells],type};$('dialog').classList.add('road-preview-confirm');confirmAction('สร้าง'+ROADS[type].name,`ความยาว ${cells.length} ช่อง · ${ROADS[type].lanes} เลน<br>ค่าก่อสร้าง ${money(check.cost)}<br>อาคารจะวางทับพื้นที่ถนนไม่ได้`,()=>buildRoad(cells,type,true));const endpoint=cells[cells.length-1];positionConstructionAtWorld(endpoint%W,Math.floor(endpoint/W));return;}const changed=[];for(const i of cells){const r=state.roads.get(i);if(!r){state.roads.set(i,{type,main:false,links:new Set(),load:0,wait:0});changed.push(i);}else if(ROADS[type].lanes>ROADS[r.type].lanes){r.type=type;changed.push(i);}}for(let k=1;k<cells.length;k++)link(cells[k-1],cells[k]);state.money-=check.cost;missionMoney('roadCost',check.cost);missionCount('roadsBuilt',changed.length);roadChanged(changed);toast('สร้างถนนแล้ว · '+money(check.cost));updateUI();return true;}
-function roadChanged(cells){state.version++;roadPreviewCache=null;renderer3d?.invalidateRoads?.();state.routeCache.clear();state.junctionCache.clear();state.junctionLayoutCache?.clear();for(const node of state.signals.keys())if(junction(node)<3)state.signals.delete(node);rebuildFootprint();for(const b of state.buildings.values())b.access=accessFor(b);let budget=2;
+function roadChanged(cells,removedRoads=null){state.version++;roadPreviewCache=null;renderer3d?.invalidateRoads?.();state.routeCache.clear();state.junctionCache.clear();state.junctionLayoutCache?.clear();for(const node of state.signals.keys())if(junction(node)<3)state.signals.delete(node);rebuildFootprint();for(const b of state.buildings.values())b.access=accessFor(b);
+ // Road removal is allowed under a car: transfer ONLY vehicles physically
+ // occupying a deleted road tile to a city gate, keeping their destination.
+ // Existing routes elsewhere retain their normal repair behaviour.
+ if(removedRoads?.size)for(const car of [...state.vehicles.values()]){
+  if(!['driving','stuck','parking_in','parking_out'].includes(car.phase))continue;
+  const current=car.path?.[car.pos],occupied=car.occKey?Number(car.occKey.split(':')[0]):null;
+  if(removedRoads.has(current)||removedRoads.has(occupied))respawnVehicle(car,'demolition');
+ }
+ let budget=2;
  for(const v of state.vehicles.values()){if(['departing','gate_waiting'].includes(v.phase)){v.retryAt=0;continue;}if(v.phase==='parking_in'||v.phase==='parking_out')continue;if(v.phase!=='stuck'&&!remainingRouteValid(v))strandVehicle(v,'เส้นทางเดิมขาด');if(v.phase==='stuck'){v.nextRouteRetry=state.time;if(budget-->0)recoverVehicle(v,true);}}
  for(const c of state.citizens.values())if(c.pending)c.pending.next=state.time+.5;
 }
@@ -4166,28 +4175,31 @@ function appendRoadEraseStroke(d,x,y){
  }
 }
 function roadErasePlan(cells){
- const p={roads:[],fee:0,main:0,busy:0,missing:0},seen=new Set(),occupiedCars=new Set();
- for(const v of state.vehicles.values()){
-  if(['driving','stuck','parking_in','parking_out'].includes(v.phase)&&Number.isInteger(v.path?.[v.pos]))occupiedCars.add(v.path[v.pos]);
- }
+ // One road per grid id. Visual widths are not additional road layers.
+ const p={roads:[],fee:0,main:0,busy:0,missing:0,cars:0},seen=new Set();
  for(const node of cells||[]){
   if(!Number.isInteger(node)||seen.has(node))continue;seen.add(node);
   const road=state.roads.get(node);
   if(!road){p.missing++;continue;}
   if(road.main){p.main++;continue;}
-  if(occupancy(node)>0||occupiedCars.has(node)){p.busy++;continue;}
   p.roads.push(node);
+ }
+ const removing=new Set(p.roads);
+ for(const car of state.vehicles.values()){
+  if(!['driving','stuck','parking_in','parking_out'].includes(car.phase))continue;
+  const occupied=car.occKey?Number(car.occKey.split(':')[0]):null;
+  if(removing.has(car.path?.[car.pos])||removing.has(occupied))p.cars++;
  }
  return p;
 }
 function demolishRoadStroke(cells,confirmed=false,anchor=null){
- const p=roadErasePlan(cells),skipped=p.main+p.busy;
+ const p=roadErasePlan(cells),skipped=p.main;
  if(!p.roads.length){
-  toast(p.main?'ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ':p.busy?'มีรถอยู่บนแนวถนน รอให้รถผ่านก่อนค่ะ':'ลากผ่านถนนที่ต้องการรื้อค่ะ');
+  toast(p.main?'ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ':'ลากผ่านถนนที่ต้องการรื้อค่ะ');
   return false;
  }
  if(!confirmed){
-  confirmDemolition('ลบถนน '+p.roads.length+' ช่อง?',(skipped?'มี '+skipped+' ช่องที่ลบไม่ได้ (ถนนหลักหรือมีรถ) · ':'')+'แนวถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoadStroke(cells,true),anchor||screen(p.roads[0]%W,Math.floor(p.roads[0]/W)));
+  confirmDemolition('ลบถนน '+p.roads.length+' ช่อง?',(skipped?'ข้ามถนนหลัก '+skipped+' ช่อง · ':'')+(p.cars?'รถ '+p.cars+' คันจะกลับเข้าเมืองใหม่ · ':'')+'ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoadStroke(cells,true),anchor||screen(p.roads[0]%W,Math.floor(p.roads[0]/W)));
   return true;
  }
  for(const node of p.roads){
@@ -4195,11 +4207,22 @@ function demolishRoadStroke(cells,confirmed=false,anchor=null){
   for(const next of road.links)state.roads.get(next)?.links.delete(node);
   state.roads.delete(node);
  }
- state.money-=p.fee;roadChanged(p.roads);updateUI();
+ state.money-=p.fee;roadChanged(p.roads,new Set(p.roads));updateUI();
  toast('รื้อถนนแล้ว '+p.roads.length+' ช่อง'+(skipped?' · ข้าม '+skipped+' ช่อง':''));
  return true;
 }
-function demolishRoad(i,confirmed=false,anchor=null){const r=state.roads.get(i);if(!r){toast('เลือกช่องที่มีถนนค่ะ');return false;}if(r.main){toast('ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ');return false;}if(occupancy(i)>0||[...state.vehicles.values()].some(v=>v.path?.[v.pos]===i&&['driving','stuck','parking_in','parking_out'].includes(v.phase))){toast('มีรถอยู่บนถนน รอให้รถผ่านก่อนค่ะ');return false;}const fee=0;if(!confirmed){confirmDemolition('ลบถนน 1 ช่อง?','ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoad(i,true),anchor||screen(i%W,Math.floor(i/W)));return true;}for(const n of r.links)state.roads.get(n)?.links.delete(i);state.roads.delete(i);state.money-=fee;roadChanged([i]);updateUI();toast('ลบถนนแล้ว 1 ช่อง');return true;}
+function demolishRoad(i,confirmed=false,anchor=null){
+ const plan=roadErasePlan([i]);
+ if(!plan.roads.length){toast(plan.main?'ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ':'เลือกช่องที่มีถนนค่ะ');return false;}
+ if(!confirmed){
+  confirmDemolition('ลบถนน 1 ช่อง?',(plan.cars?'รถ '+plan.cars+' คันจะกลับเข้าเมืองใหม่ · ':'')+'ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoad(i,true),anchor||screen(i%W,Math.floor(i/W)));
+  return true;
+ }
+ const road=state.roads.get(i);if(!road||road.main)return false;
+ for(const n of road.links)state.roads.get(n)?.links.delete(i);
+ state.roads.delete(i);roadChanged([i],new Set([i]));updateUI();toast('ลบถนนแล้ว 1 ช่อง');
+ return true;
+}
 // The deletion prompt is deliberately distinct from construction dialogs.
 // Anchor at the actual pointer/touch release; inspector actions use the item.
 // Nothing is deleted until the user presses the red confirmation button.
