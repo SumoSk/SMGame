@@ -98,7 +98,7 @@ function lotSlots(b){
 }
 function lotModel(b){const t=CATALOG[b.key],scale=t.plannedParking?Math.min(t.size,t.plotWidth-2,t.buildingZoneDepth-1.35):t.size,p=lotPoint(b,t.plotWidth/2,t.plannedParking?t.parkingZoneDepth+t.buildingZoneDepth/2:t.size/2+.1);return{...b,x:p.x-.5-scale/2,y:p.y-.5-scale/2,visualSize:scale};}
 function parkingSlotPose(b,index){const slot=lotSlots(b)[index];if(!slot)return null;const p=lotPoint(b,slot.u,slot.v),theta=(CATALOG[b.key].dualParking?Math.PI/2:(slot.row%2?Math.PI/2:-Math.PI/2))+(b.rotation||0)*Math.PI/2;return{...p,angle:Math.atan2(Math.sin(theta)*.78,Math.cos(theta))};}
-function citizenCarColor(id){if(state?.citizens.get(id)?.tourist)return '#65c8f2';return ['#f0e8c7','#e5a861','#719ca5','#afc5a2','#bc8fa5','#c8c8c0'][Math.abs(id)%6];}
+function citizenCarColor(id){if(state?.citizens.get(id)?.tourist)return '#ffd127';return ['#f0e8c7','#e5a861','#719ca5','#afc5a2','#bc8fa5','#c8c8c0'][Math.abs(id)%6];}
 function parkingSpace(b,cid,allocate=false){
  if(!b.parkingSlots)b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);
  let index=b.parkingSlots.indexOf(cid);
@@ -1126,7 +1126,7 @@ tree(x+s-.3,y+s-.3,.55);}
 
 if(selected?.kind==='building'&&selected.id===b.id||ghost){ctx.strokeStyle=ghost?'#f6dc83':'#fff6b7';ctx.lineWidth=2;const bounds=buildingBounds(plot);poly([screen(plot.x,plot.y),screen(plot.x+bounds.w,plot.y),screen(plot.x+bounds.w,plot.y+bounds.h),screen(plot.x,plot.y+bounds.h)],null,ctx.strokeStyle);}
 if(cam.z>1.1&&!ghost&&typeof document.createElement!=='function'){const p=screen(x+s*.5,y+s+.45);ctx.font=`500 ${Math.min(12,10*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.textAlign='center';ctx.fillStyle='#284a3e';ctx.fillText(t.name,p[0],p[1]);ctx.textAlign='start';}ctx.restore();}
-function drawCarShape(x,y,angle,color,z){ctx.save();if(color==='#65c8f2')z*=1.08;ctx.translate(x,y);ctx.rotate(angle);ctx.fillStyle='#173a3d40';ctx.fillRect(-5*z+2*z,-2.5*z+2*z,10*z,5*z);ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(-5*z,-2.4*z,10*z,4.8*z,1.4*z);ctx.fill();ctx.fillStyle='#466572';ctx.fillRect(0,-1.9*z,2.3*z,3.8*z);ctx.fillStyle='#dae7df';ctx.fillRect(-2.8*z,-1.9*z,2.2*z,3.8*z);ctx.fillStyle='#fff2b3';ctx.fillRect(3.5*z,-2.1*z,1*z,1*z);ctx.fillRect(3.5*z,1.1*z,1*z,1*z);ctx.restore();}
+function drawCarShape(x,y,angle,color,z){ctx.save();if(color==='#ffd127')z*=1.08;ctx.translate(x,y);ctx.rotate(angle);ctx.fillStyle='#173a3d40';ctx.fillRect(-5*z+2*z,-2.5*z+2*z,10*z,5*z);ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(-5*z,-2.4*z,10*z,4.8*z,1.4*z);ctx.fill();ctx.fillStyle='#466572';ctx.fillRect(0,-1.9*z,2.3*z,3.8*z);ctx.fillStyle='#dae7df';ctx.fillRect(-2.8*z,-1.9*z,2.2*z,3.8*z);ctx.fillStyle='#fff2b3';ctx.fillRect(3.5*z,-2.1*z,1*z,1*z);ctx.fillRect(3.5*z,1.1*z,1*z,1*z);ctx.restore();}
 function drawVehicles(){for(const v of state.vehicles.values()){if(v.phase==='gate_waiting'||v.phase==='departing'&&!v.lotPath)continue;const pos=vehiclePosition(v);if(!pos)continue;const p=screen(pos.x,pos.y);if(p[0]<-20||p[0]>view.w+20||p[1]<-20||p[1]>view.h+20)continue;drawCarShape(p[0],p[1],pos.angle,v.color,cam.z);}}
 // Lane geometry is immutable during a trip. It is rebuilt only after a route or
 // road edit, rather than being recalculated from the car's new lane each frame.
@@ -2325,7 +2325,7 @@ const journey=selectedCarVehicle();
 }
 function buildingName(i){const b=state.buildings.get(i);return b?CATALOG[b.key].name+' #'+i:'ยังไม่มี';}
 function citizenName(c){return c?['กานต์','ต้น','พลอย','มะลิ','นนท์','แพรว','ภูมิ','ฟ้า','บีม','อิง','พีท','ข้าวหอม'][c.id%12]+' #'+c.id:'ประชาชน';}
-const TRIPS={hotel:{name:'ไปพักโรงแรม',color:'#65c8f2'},touristOut:{name:'กลับนอกเมือง',color:'#65c8f2'},moveIn:{name:'ย้ายเข้า',color:'#8cdd91'},work:{name:'ไปทำงาน',color:'#70b4e8'},home:{name:'กลับบ้าน',color:'#f4f0dc'},leisure:{name:'พักผ่อน',color:'#e897bf'},moveOut:{name:'ย้ายออก',color:'#e57865'},pass:{name:'ผ่านเมือง',color:'#edc863'}};
+const TRIPS={hotel:{name:'ไปพักโรงแรม',color:'#ffd127'},touristOut:{name:'กลับนอกเมือง',color:'#ffd127'},moveIn:{name:'ย้ายเข้า',color:'#8cdd91'},work:{name:'ไปทำงาน',color:'#70b4e8'},home:{name:'กลับบ้าน',color:'#f4f0dc'},leisure:{name:'พักผ่อน',color:'#e897bf'},moveOut:{name:'ย้ายออก',color:'#e57865'},pass:{name:'ผ่านเมือง',color:'#edc863'}};
 function accessFor(b){return parkingAccess(b);}
 class Heap{constructor(){this.items=[];}push(item){let a=this.items;a.push(item);let i=a.length-1;while(i){let p=(i-1)>>1;if(a[p].f<=item.f)break;a[i]=a[p];i=p;}a[i]=item;}pop(){let a=this.items,first=a[0],last=a.pop();if(a.length){let i=0;while(true){let c=i*2+1;if(c>=a.length)break;if(c+1<a.length&&a[c+1].f<a[c].f)c++;if(a[c].f>=last.f)break;a[i]=a[c];i=c;}a[i]=last;}return first;}get length(){return this.items.length;}}
 function route(start,end,firstNext=null,finalPrev=null,previousNode=null){
