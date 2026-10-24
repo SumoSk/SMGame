@@ -2029,9 +2029,7 @@ const categories=[['roads','ถนน'],['home','บ้าน'],['work','งา�
 /* Separate WHAT to do (main dock group) from WHICH tool to use.
    category and tool retain their original keys for save/simulation compatibility. */
 const dockGroups=[
- {key:'build',icon:'🏙️',name:'สิ่งปลูกสร้าง',categories:['roads','home','work','food','leisure','casino','hotel']},
- {key:'green',icon:'🌳',name:'ตกแต่ง',categories:['landscape']},
- {key:'insights',icon:'📊',name:'ข้อมูลเมือง',categories:['reports']}
+ {key:'build',icon:'🏗️',name:'สร้างเมือง',categories:['roads','home','work','food','leisure','casino','hotel','landscape']}
 ];
 let dockGroup='build';
 function toggleTrafficHeat(){heat=!heat;renderTools();}
@@ -2156,14 +2154,13 @@ function dockItems(currentCategory){
  let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
-// Three main dock sections: Build, Landscape and City Data. Only Build has
-// subcategories; City Data exposes reports and AI diagnostics directly.
+// Construction categories are always visible, without an extra top-level dock row.
+// Reports remain available through dockItems('reports') for Main Menu > Report.
 function dockSectionFor(currentCategory){
  return dockGroups.find(group=>group.categories.includes(currentCategory))||dockGroups[0];
 }
 function dockVisibleItems(group,currentCategory){
- const visible=group.key==='insights'?group.categories.flatMap(key=>dockItems(key).map(item=>({...item,category:key}))):
-  dockItems(currentCategory).map(item=>({...item,category:currentCategory}));
+ const visible=dockItems(currentCategory).map(item=>({...item,category:currentCategory}));
  return visible;
 }
 function updateCityQuickModes(){
@@ -2179,11 +2176,9 @@ function updateCityQuickModes(){
 function renderTools(){
  const group=dockSectionFor(category),tray=$('tools'),sub=$('subcategories');
  dockGroup=group.key;
- $('categories').innerHTML=dockGroups.map(section=>
-  `<button type="button" data-dock-group="${section.key}" class="${section.key===group.key?'active':''}" aria-pressed="${section.key===group.key}" aria-label="${section.name}" title="${section.name}"><span class="dock-group-icon" aria-hidden="true">${section.icon}</span><span class="dock-group-name">${section.name}</span></button>`).join('');
- // Build retains road, housing, jobs, services, leisure and hotel subcategories.
- // City Data has no subcategory strip; dashboards and traffic controls are in the left rail.
- const hasSubcategories=group.key==='build';
+ // Keep the legacy mount empty for compatibility; do not render another tier of navigation.
+ $('categories').innerHTML='';
+ const hasSubcategories=true;
  sub.hidden=!hasSubcategories;
  sub.innerHTML=hasSubcategories?categories.filter(([key])=>group.categories.includes(key)).map(([key,name])=>
   `<button type="button" data-category="${key}" class="${category===key?'active':''}" aria-pressed="${category===key}">${name}</button>`).join(''):'';
@@ -4259,21 +4254,12 @@ function initCameraJoystick(){
 initCameraJoystick();
 function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)tick(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
 window.addEventListener('resize',resize);
-$('categories').onclick=e=>{
- const button=e.target.closest('[data-dock-group]');if(!button)return;
- const group=dockGroups.find(g=>g.key===button.dataset.dockGroup);if(!group)return;
- if(!group.categories.includes(category))category=group.categories[0];
- // Switching a category never activates a destructive or placement tool.
- // City Data keeps reports and tracking; common actions live in the right rail.
- selectTool('hand');
- setDockCollapsed(false);
-};
+$('categories').onclick=()=>{}; // Redundant group row retired; construction tabs are direct.
 $('subcategories').onclick=e=>{
  const button=e.target.closest('[data-category]');if(!button)return;
- // Building subcategories only. All other main sections are one click deep.
- if(dockSectionFor(category).key!=='build')return;
+ // Direct construction category tabs, including landscaping.
+ if(!dockGroups[0].categories.includes(button.dataset.category))return;
  const next=button.dataset.category;
- if(!dockGroups[0].categories.includes(next))return;
  category=next;
  selectTool('hand');
 };
@@ -4844,17 +4830,43 @@ window.SMGameOnAuthChanged=loggedIn=>{
   account.setAttribute('aria-label',account.title);
  }
 };
+function openReportMenu(){
+ const actions=dockItems('reports');
+ const icons={sendAi:'↗',travelLog:'◉',cityReport:'▤',incidentLog:'◷'};
+ modal('<div class="menu-heading"><span class="menu-logo">▤</span><div><span class="eyebrow">SMCITY</span><h2>Report</h2></div></div>'+
+  '<p class="report-menu-intro">ข้อมูลเมือง รายงานปัญหา และส่งแมปให้ AI วิเคราะห์</p>'+
+  '<div class="smcity-report-list" role="group" aria-label="Report">'+actions.map(t=>
+   '<button type="button" class="smcity-report-entry" data-report-action="'+t.key+'"><span class="menu-symbol">'+icons[t.key]+'</span>'+
+   '<span><b>'+t.name+'</b><small>'+t.price+'</small></span><span class="menu-chevron">›</span></button>').join('')+'</div>'+
+  '<div class="actions"><button type="button" id="reportMenuBack">เมนูหลัก</button><button type="button" id="reportMenuClose" class="primary">กลับไปเล่น</button></div>');
+ $('reportMenuBack').onclick=openMainMenu;
+ $('reportMenuClose').onclick=closeModal;
+ $('dialogContent').querySelector?.('.smcity-report-list')?.addEventListener?.('click',event=>{
+  const button=event.target.closest?.('[data-report-action]');
+  if(!button)return;
+  const handlers={sendAi:sendCurrentMapToAi,travelLog:openTravelLog,cityReport:openCityReport,incidentLog:openManualIncidentLog};
+  handlers[button.dataset.reportAction]?.();
+ });
+ // Event delegation on dialogContent also supports lightweight test DOMs.
+ $('dialogContent').onclick=event=>{
+  const button=event.target.closest?.('[data-report-action]');
+  if(!button)return;
+  const handlers={sendAi:sendCurrentMapToAi,travelLog:openTravelLog,cityReport:openCityReport,incidentLog:openManualIncidentLog};
+  handlers[button.dataset.reportAction]?.();
+ };
+}
 function openMainMenu(){
- modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b><small>เก็บเมืองไว้ แล้วกลับมาเล่นต่อ</small></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b><small>เข้าสู่ระบบ สมัคร หรือจัดการบัญชี</small></span><span class="menu-chevron">›</span></button><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b><small>เลือกแผนที่และเริ่มต้นเมืองของคุณ</small></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
+ modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b><small>เก็บเมืองไว้ แล้วกลับมาเล่นต่อ</small></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b><small>เข้าสู่ระบบ สมัคร หรือจัดการบัญชี</small></span><span class="menu-chevron">›</span></button><button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>Report</b><small>ข้อมูลเมือง · ส่ง AI · Log รายงาน</small></span><span class="menu-chevron">›</span></button><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b><small>เลือกแผนที่และเริ่มต้นเมืองของคุณ</small></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
  $('menuClose').onclick=closeModal;
  $('accountMenu').onclick=openAccountDialog;
  $('saveMenu').onclick=openCloudSaveDialog;
+ $('reportMenu').onclick=openReportMenu;
  $('newCityMenu').onclick=openNewCityDialog;
 }
 $('menu').onclick=openMainMenu;
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;missionAutoPulse();for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();startNewCity();requestAnimationFrame(frame);
 })();
