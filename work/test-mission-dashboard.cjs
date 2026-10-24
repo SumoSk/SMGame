@@ -5,7 +5,7 @@ const {game:g,get}=boot();
 const stats=()=>g.missionStatsSummary();
 assert.equal(stats().total,0);
 assert(g.dockItems('reports').some(x=>x.key==='missionDashboard'));
-const c=g.newCitizen(null);c.resident=true;c.happy=70;
+const c=g.newCitizen({id:999});c.resident=true;c.happy=70;
 const result=(id,kind,outcome,duration)=>g.journeyResult(c,{id,kind,startedAt:600,arrivedAt:duration==null?null:600+duration,travelBudget:{totalMinutes:100},congestionMinutes:15},outcome,'fixture');
 result(101,'work','ontime',60);assert.equal(stats().total,1);
 result(101,'work','ontime',60);assert.equal(stats().total,1,'duplicate result must not add counts');
