@@ -9,13 +9,13 @@ function redFor(node,dir){for(let n=0;n<200;n++){if(!game.signalAllows(node,dir,
 game.reset();
 const center=game.id(150,150),west=game.id(149,150),east=game.id(151,150),north=game.id(150,149);
 const cycle=game.signalCycle(center),slots=game.signalSlots(center),first=slots[0];
-assert.equal(cycle,128,'eight-lane four-way crossing releases all 16 inbound lanes separately');
+assert.equal(cycle,32,'four approach phases, all lanes together, six-minute green, yellow and all-red');
 const signalAt=minute=>{game.state.time=cycle*40-(center%17)*cycle/24+minute;return game.signalStatus(center);};
-for(const [minute,expected,expectedLane]of [[0,first.incoming,0],[5.9,first.incoming,0],[6,4,0],[6.9,4,0],[7,-1,-1],[7.9,-1,-1],[8,first.incoming,1],[13.9,first.incoming,1],[14,4,1],[15,-1,-1],[16,first.incoming,2],[128,first.incoming,0]]){
- const status=signalAt(minute);assert.equal(status.phase,expected,'lane signal at minute '+minute);
- assert.equal(status.lane,expectedLane,'lane sequence at minute '+minute);
+for(const [minute,expected,slot]of [[0,first.incoming,0],[5.9,first.incoming,0],[6,4,0],[6.9,4,0],[7,-1,-1],[7.9,-1,-1],[8,slots[1].incoming,1],[13.9,slots[1].incoming,1],[14,4,1],[15,-1,-1],[16,slots[2].incoming,2],[24,slots[3].incoming,3],[32,first.incoming,0]]){
+ const status=signalAt(minute);assert.equal(status.phase,expected,'phase at minute '+minute);
+ assert.equal(status.slotIndex,slot,'approach index at minute '+minute);
 }
-assert.equal(signalAt(0).phase,signalAt(cycle).phase,'signal cycle repeats exactly');
+assert.equal(signalAt(0).phase,signalAt(cycle).phase,'cycle repeats for four approaches');
 game.state.roads.get(west).type='medium';game.state.roads.get(east).type='medium';game.state.roads.get(north).type='large';game.state.junctionCache.clear();
 redFor(center,0);
 assert.equal(game.junction(center),4,'mixed road crossing must remain a four-way junction');
