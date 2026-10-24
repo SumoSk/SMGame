@@ -509,6 +509,14 @@ export class TrafficRenderer{
  }
  this.treeGroup.add(b.build());
  }
+ // Clearing all three road layers is essential after destruction:
+ // permanent meshes, ghost preview meshes, and the traffic heat overlay.
+ // Otherwise a paused game can display a stale asphalt-coloured heat tile.
+ invalidateRoads(){
+  this.roadKey='';this.previewKey='';this.heatAt=-Infinity;
+  this.disposeGroup(this.previewGroup);
+  if(this.heatGroup)this.disposeGroup(this.heatGroup);
+ }
  makeRoads(state,ROADS,junction,previewOnly=false){this.disposeGroup(this.roadGroup);this.disposeGroup(this.signalGroup);this.signals=[];const batch=new Batch(),line=new Batch();const roadWidths={small:ROADS.small.visualWidth||1.175,medium:ROADS.medium.visualWidth||2.35,large:ROADS.large.visualWidth||3.72};
  const layouts=new Map(),hidden=new Set(),nearby=new Map(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
  if(junction.details)for(const [node]of state.roads){const d=junction.details(node);for(const [a,b]of d.hiddenEdges)hidden.add(edgeKey(a,b));if(d.arms.length>=3||d.bend)layouts.set(node,d);}
