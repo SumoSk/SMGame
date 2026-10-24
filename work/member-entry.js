@@ -91,6 +91,10 @@ if (gate) {
       setNotice('');
       setLocked(false);
       window.SMGameOnCloudSaved?.();
+      // Completing guest registration/login must lead to the Save/Load page,
+      // not leave a first-time player wondering where their city went.
+      // The pending snapshot was saved successfully before opening this page.
+      if (typeof window.SMGameOpenSaveDialog === 'function') void window.SMGameOpenSaveDialog();
       return true;
     } catch (error) {
       if (view !== memberView) return false;
@@ -187,7 +191,7 @@ if (gate) {
       if (user || busy || savingPending) return false;
       if (typeof serialized !== 'string' || !serialized) throw Error('ไม่มีข้อมูลเมืองสำหรับบันทึก');
       pendingSave = { serialized, name: String(name || 'เซฟด่วน').slice(0, 80), slotId: 'quick-save' };
-      showMember('login');
+      showMember('signup');
       return true;
     },
     async saveIncidentLog(entry) {
