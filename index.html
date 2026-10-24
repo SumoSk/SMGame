@@ -266,6 +266,14 @@
 </div>
 
 
+<div id="buildingQuickActions" class="building-quick-actions" role="group" aria-label="จัดการอาคารที่เลือก" hidden>
+ <button type="button" id="buildingQuickMove" class="building-quick-action building-quick-move" aria-label="ย้ายอาคาร" title="ย้ายอาคาร">
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20M8 6l4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg><span>ย้าย</span>
+ </button>
+ <button type="button" id="buildingQuickDemolish" class="building-quick-action building-quick-demolish" aria-label="รื้อถอนอาคาร" title="รื้อถอนอาคาร">
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg><span>รื้อถอน</span>
+ </button>
+</div>
 <aside id="inspector" class="inspector hidden"><button id="closeInspector" class="close" aria-label="ปิดรายละเอียด">×</button><div id="inspectContent"></div></aside>
 <aside id="citizensDashboard" class="citizens-dashboard hidden" aria-label="แดชบอร์ดชีวิตประชาชน"><div class="citizens-top"><div><h2>ชีวิตประชาชน <span id="citizenDashDay"></span></h2></div><button id="closeCitizensDashboard" class="citizens-close" aria-label="ปิดแดชบอร์ดประชาชน">×</button></div><div class="citizens-toolbar"><label for="citizenSearch">ค้นหาประชาชน</label><input id="citizenSearch" type="search" placeholder="ชื่อหรือหมายเลขประชาชน" autocomplete="off"><div id="citizenFilters" class="citizens-filters" role="group" aria-label="กรองประชาชน"></div></div><div id="citizensDashboardBody" class="citizens-dashboard-body" aria-live="polite"></div></aside>
 <aside id="touristsDashboard" class="citizens-dashboard tourists-dashboard hidden" aria-label="นักท่องเที่ยวในเมือง"><div class="citizens-top"><div><h2>นักท่องเที่ยว</h2></div><button id="closeTouristsDashboard" class="citizens-close" aria-label="ปิดรายชื่อนักท่องเที่ยว">×</button></div><div class="citizens-toolbar"><label for="touristSearch">ค้นหานักท่องเที่ยว</label><input id="touristSearch" type="search" placeholder="ชื่อหรือหมายเลขนักท่องเที่ยว" autocomplete="off"><div id="touristFilters" class="citizens-filters" role="group" aria-label="กรองสถานะนักท่องเที่ยว"></div></div><div id="touristsDashboardBody" class="citizens-dashboard-body" aria-live="polite"></div></aside>

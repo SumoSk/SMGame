@@ -3574,3 +3574,20 @@ dialog:has(.daily-report-modal){width:min(860px,calc(100vw - 24px));max-height:c
 :root.smcity-gray-ui #dialog > .dialog-close-top{background:#29362f;color:#f1f8f0;border-color:#52695a;box-shadow:none}
 :root.smcity-gray-ui #dialog > .dialog-close-top:hover{background:#3c5143}
 @media(max-width:540px){#dialog > .dialog-close-top{width:31px;height:31px;min-width:31px;min-height:31px;top:7px;right:7px}#dialog > #dialogContent{padding-right:23px}}
+
+/* Selected-building contextual actions: anchored on the rendered building.
+   One light DOM element updates its position, never a list of 3D labels. */
+#buildingQuickActions.building-quick-actions{position:fixed;z-index:36;display:flex;align-items:center;justify-content:center;gap:6px;transform:translate(-50%,-50%);padding:6px;border:1px solid #c8e4d3;border-radius:15px;background:rgba(246,252,247,.97);color:#244538;box-shadow:0 6px 22px rgba(18,55,43,.28);pointer-events:auto;touch-action:manipulation;isolation:isolate;white-space:nowrap;animation:building-actions-pop .16s ease-out both}
+#buildingQuickActions[hidden]{display:none!important}
+#buildingQuickActions .building-quick-action{display:flex;align-items:center;justify-content:center;gap:5px;min-width:63px;min-height:37px;padding:7px 10px;border-radius:10px;border:1px solid transparent;background:transparent;color:inherit;font:700 12px/1.2 'Noto Sans Thai',Tahoma,Arial,sans-serif;cursor:pointer;touch-action:manipulation}
+#buildingQuickActions .building-quick-move{background:#e0f0e7;color:#235c43}
+#buildingQuickActions .building-quick-demolish{background:#fae9e6;color:#a74031}
+#buildingQuickActions .building-quick-action:focus-visible{outline:2px solid #538e77;outline-offset:2px}
+#buildingQuickActions .building-quick-action:active{transform:scale(.96)}
+#buildingQuickActions .building-quick-action svg{flex:none}
+@keyframes building-actions-pop{from{opacity:0;scale:.88}to{opacity:1;scale:1}}
+:root.smcity-gray-ui #buildingQuickActions{background:#19211e;color:#f7faf6;border-color:#4c6b58;box-shadow:0 6px 22px #0008}
+:root.smcity-gray-ui #buildingQuickActions .building-quick-move{background:#294737;color:#d3f6d9}
+:root.smcity-gray-ui #buildingQuickActions .building-quick-demolish{background:#4b2827;color:#ffd6d0}
+@media(max-width:600px){#buildingQuickActions.building-quick-actions{gap:4px;padding:4px;border-radius:12px}#buildingQuickActions .building-quick-action{min-height:39px;min-width:58px;padding:7px 8px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){#buildingQuickActions.building-quick-actions{animation:none}}
