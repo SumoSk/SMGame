@@ -13,14 +13,21 @@ const active=game.signalStatus(center).incoming;
 assert.equal(active,slots[0].incoming);
 const pathOf=d=>{
  const dir=[[1,0],[0,1],[-1,0],[0,-1]][d],node=(n)=>game.id(150+dir[0]*n,150+dir[1]*n);
- return [node(-2),node(-1),center,node(1),node(2)];
+ return Array.from({length:25},(_,k)=>node(k-12));
 };
 function car(id,d,seed=0){
  const path=pathOf(d),v={id,path,pathSet:new Set(path),phase:'driving',kind:'pass',pos:0,progress:0,speed:0,laneSeed:seed,motionSeedLane:seed,lane:seed,trafficModel:2,turnLanes:{},junctionPasses:[],junctionQueueSince:{},wait:0,stopReason:'',lastMovedAt:game.state.time,noUTurnPolicy:1};
  game.state.vehicles.set(id,v);
  const p=game.motionPlan(v);
  assert.equal(p.junctions.length,1);
- return v;
+ const guard=p.junctions[0],approaches=[];
+ for(let pos=0;pos<guard.pos;pos++){
+  v.pos=pos;v.progress=0;
+  const dist=game.motionDistance(v,p);
+  if(dist<guard.entry&&guard.stop-dist<=2.5)approaches.push(pos);
+ }
+ assert(approaches.length,'fixture needs a car queued before a real approach stop line');
+ v.pos=approaches[0];v.progress=0;return v;
 }
 const green=car(901,active,0),red=car(902,slots[1].incoming,0);
 const greenPlan=game.motionPlan(green),redPlan=game.motionPlan(red);
@@ -32,11 +39,11 @@ assert(current&&current.some(q=>q.id===green.id),'green approach has active queu
 assert(!current.some(q=>q.id===red.id),'red approach skips intersection conflict sampling');
 assert(greenPlan.junctions[0].connector,'green approach connector computed');
 assert.equal(redPlan.junctions[0].connector,undefined,'red approach does not sample connector geometry');
-const key='2:'+center,waitingSince=red.junctionQueueSince[key];
+const pos=greenPlan.junctions[0].pos,key=pos+':'+center,waitingSince=red.junctionQueueSince[key];
 assert.equal(waitingSince,game.state.time,'red vehicle still receives its original arrival timestamp');
-assert(!game.intersectionAllowed(red,2),'red car remains behind stop line');
-const originalGreen=game.junctionConnector(green,2);
-assert.equal(game.junctionConnector(green,2),originalGreen,'connector geometry is reused by motion plan');
+assert(!game.intersectionAllowed(red,pos),'red car remains behind stop line');
+const originalGreen=game.junctionConnector(green,pos);
+assert.equal(game.junctionConnector(green,pos),originalGreen,'connector geometry is reused by motion plan');
 game.state.time+=8; // Next approach green; former green is now red.
 assert.equal(game.signalStatus(center).incoming,slots[1].incoming);
 game.prepareJunctionQueues();
@@ -44,14 +51,14 @@ const switched=game.state.junctionQueues.get(center);
 assert(switched&&switched.some(q=>q.id===red.id),'former red joins queue as soon as it becomes green');
 assert(!switched.some(q=>q.id===green.id),'former green stops competing');
 assert.equal(red.junctionQueueSince[key],waitingSince,'waiting priority survives the red phase');
-assert.equal(game.junctionConnector(red,2),redPlan.junctions[0].connector);
-assert(!game.intersectionAllowed(green,2),'previous approach now red');
-assert(game.intersectionAllowed(red,2),'previously red approach proceeds when allowed and clear');
-game.reserveIntersection(red,2);
+assert.equal(game.junctionConnector(red,pos),redPlan.junctions[0].connector);
+assert(!game.intersectionAllowed(green,pos),'previous approach now red');
+assert(game.intersectionAllowed(red,pos),'previously red approach proceeds when allowed and clear');
+game.reserveIntersection(red,pos);
 game.state.time+=8; // Signal switches again while the car holds a valid pass.
-assert(game.intersectionAllowed(red,2),'a granted junction pass survives signal changes');
+assert(game.intersectionAllowed(red,pos),'a granted junction pass survives signal changes');
 game.release(red);
-assert(!game.intersectionAllowed(red,2),'after relinquishing pass, new red blocks entry');
+assert(!game.intersectionAllowed(red,pos),'after relinquishing pass, new red blocks entry');
 game.roadChanged([center]);
-assert.notEqual(game.junctionConnector(green,2),originalGreen,'geometry must rebuild after road layout changes');
+assert.notEqual(game.junctionConnector(green,pos),originalGreen,'geometry must rebuild after road layout changes');
 console.log(JSON.stringify({passed:true,redQueueSkipped:true,waitTimestampPreserved:true,liveExitChecked:true,insidePassKept:true,geometryInvalidated:true}));
