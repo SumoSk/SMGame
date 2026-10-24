@@ -3531,3 +3531,35 @@ dialog:has(.mission-dashboard){width:min(780px,calc(100vw - 28px));}
 :root.smcity-gray-ui .mission-card,:root.smcity-gray-ui .mission-chart{background:#1b1d23;border-color:#353b45;}
 :root.smcity-gray-ui .mission-outcomes{border-color:#353b45}
 @media(max-width:600px){.mission-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.mission-columns{grid-template-columns:1fr}.mission-card strong{font-size:20px}.mission-day-bars{height:68px;}}
+
+/* Daily city report — a single 24-hour aggregate and the previous morning's statement. */
+dialog:has(.daily-report-modal){width:min(860px,calc(100vw - 24px));max-height:calc(100dvh - 28px);overflow:auto}
+.daily-report-body{font-size:13px;color:var(--text,#25463d);line-height:1.55}
+.daily-report-body h2{font-size:22px;margin:5px 0 2px}
+.daily-report-body .mission-sub{margin:6px 0;color:var(--muted,#6b8275)}
+.daily-report-highlights{gap:8px;margin:12px 0}
+.daily-report-highlights .mission-card{padding:10px 12px}
+.daily-report-highlights .mission-card strong{font-size:18px;line-height:1.35}
+.daily-report-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.daily-report-section{border:1px solid var(--line,#dce5db);border-radius:14px;padding:10px 12px;min-width:0;background:var(--paper,#f9fbf8)}
+.daily-report-section h3{margin:4px 0 8px;font-size:14px;line-height:1.4}
+.daily-report-rows>div{display:flex;align-items:baseline;justify-content:space-between;gap:10px;border-top:1px solid var(--line,#dce5db);padding:6px 0;font-size:12px;line-height:1.45}
+.daily-report-rows>div:first-child{border-top:0}
+.daily-report-rows span{min-width:0;color:var(--muted,#748477);overflow-wrap:anywhere}
+.daily-report-rows strong{flex-shrink:0;color:inherit;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.daily-report-body .mission-footnote{font-size:11px;line-height:1.6;color:var(--muted,#748477);margin:13px 0}
+.daily-report-auto{position:fixed;top:calc(env(safe-area-inset-top,0px) + 58px);right:12px;z-index:110;width:min(455px,calc(100vw - 24px));max-height:min(77dvh,790px);overflow:auto;overscroll-behavior:contain;background:#fcfefa;color:#233f35;border:1px solid #b9cfc0;border-radius:18px;padding:14px;box-sizing:border-box;box-shadow:0 12px 54px #143b3966;font-size:12px}
+.daily-report-auto .daily-report-topbar{position:sticky;top:-14px;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-14px -14px 9px;padding:10px 14px;background:#27614b;color:white;border-radius:17px 17px 0 0;font-size:12px}
+.daily-report-topbar button{flex:none;min-height:30px;min-width:32px;border-radius:8px;border:1px solid #ffffff66;background:#ffffff26;color:white;cursor:pointer}
+.daily-report-auto .daily-report-highlights{grid-template-columns:repeat(2,minmax(0,1fr))}
+.daily-report-auto .daily-report-highlights .mission-card strong{font-size:17px}
+.daily-report-auto .daily-report-sections{grid-template-columns:1fr}
+.daily-report-auto .daily-report-body h2{font-size:18px}
+.daily-report-auto .daily-report-section{background:#f7faf5;border-color:#e0e8dc}
+.daily-report-auto .daily-report-rows>div{font-size:12px}
+.daily-report-auto>.actions{position:sticky;bottom:-14px;padding:10px 0;background:#fcfefa;justify-content:flex-end}
+:root.smcity-gray-ui .daily-report-auto{background:#171d1a;color:#f0f6f0;border-color:#42574a;box-shadow:0 12px 52px #0009}
+:root.smcity-gray-ui .daily-report-auto .daily-report-section,:root.smcity-gray-ui .daily-report-section{background:#1c2420;color:#eff7ef;border-color:#35473b}
+:root.smcity-gray-ui .daily-report-auto .mission-card{background:#1c2420;color:#eff7ef;border-color:#35473b}
+:root.smcity-gray-ui .daily-report-auto>.actions{background:#171d1a}
+@media(max-width:680px){.daily-report-sections{grid-template-columns:1fr}.daily-report-auto{top:calc(env(safe-area-inset-top,0px) + 48px);right:6px;width:min(400px,calc(100vw - 12px));max-height:72dvh;padding:10px}.daily-report-auto .daily-report-topbar{top:-10px;margin:-10px -10px 8px;padding:8px 10px}.daily-report-highlights .mission-card strong{font-size:16px}}
