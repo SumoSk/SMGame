@@ -72,6 +72,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check dist/game.js
+      - run: node work/test-travel-happiness.cjs
       - run: node work/test-lane-change-safety.cjs
       - run: node work/test-traffic-fixes.cjs
   publish:
