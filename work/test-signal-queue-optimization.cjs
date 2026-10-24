@@ -16,7 +16,7 @@ const pathOf=d=>{
  return [node(-2),node(-1),center,node(1),node(2)];
 };
 function car(id,d,seed=0){
- const path=pathOf(d),v={id,path,pathSet:new Set(path),phase:'driving',kind:'pass',pos:1,progress:0,speed:0,laneSeed:seed,motionSeedLane:seed,lane:seed,trafficModel:2,turnLanes:{},junctionPasses:[],junctionQueueSince:{},wait:0,stopReason:'',lastMovedAt:game.state.time,noUTurnPolicy:1};
+ const path=pathOf(d),v={id,path,pathSet:new Set(path),phase:'driving',kind:'pass',pos:0,progress:0,speed:0,laneSeed:seed,motionSeedLane:seed,lane:seed,trafficModel:2,turnLanes:{},junctionPasses:[],junctionQueueSince:{},wait:0,stopReason:'',lastMovedAt:game.state.time,noUTurnPolicy:1};
  game.state.vehicles.set(id,v);
  const p=game.motionPlan(v);
  assert.equal(p.junctions.length,1);
