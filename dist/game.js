@@ -986,7 +986,7 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
    if(garden){
     emit(quad(lo,hi,t=>inner(t)+.025,outer),'#b2b5aa',.115,.035,'sidewalk');
     emit(quad(lo,hi,inner,t=>inner(t)+.025),'#929b87',.13,.035,'curb');
-    // One low rounded hedge per metre, set back from junction corners.
+    // Rounded hedge groups are set back from junction corners.
     if(.5-.46/len>=lo&&.5+.46/len<=hi){
      const [cx,cy]=p(.5,sign*(inner(.5)+(outer(.5)-inner(.5))*.56)),ux=dx/len,uy=dy/len;
      const hx=Math.abs(ux)*.47+Math.abs(px)*.16,hy=Math.abs(uy)*.47+Math.abs(py)*.16;
@@ -995,7 +995,8 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
       {const pad=r.gate?.08:.005;if(cx+hx>r.x0-pad&&cx-hx<r.x1+pad&&cy+hy>r.y0-pad&&cy-hy<r.y1+pad){clear=false;break;}}
      if(clear){
       const seed=(Math.imul(i+1,1664525)^Math.imul(j+17,1013904223)^(sign<0?0x51a3:0x1297))>>>0;faces.plants.push({x:cx,y:cy,ux,uy,angle:-Math.atan2(dy,dx),seed,flower:seed%3!==0});
-      emit([[-.46,-.135],[.46,-.135],[.46,.135],[-.46,.135]].map(([a,b])=>[cx+ux*a+px*b,cy+uy*a+py*b]),'#7b7e5a',.13,.030,'planting-bed');
+      // Rounded mulch is tucked under the foliage, not a repeated rectangular tray.
+      emit(Array.from({length:10},(_,n)=>{const a=n*Math.PI/5;return [cx+ux*Math.cos(a)*.39+px*Math.sin(a)*.12,cy+uy*Math.cos(a)*.39+py*Math.sin(a)*.12];}),'#687b58',.118,.008,'planting-bed');
      }
     }
    }else{
@@ -1030,8 +1031,12 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
  const roadside=roadsideVisuals(roadState,roadDetails);
  for(const face of roadside)poly(face.points.map(([x,y])=>screen(x+.5,y+.5)),face.color);
  for(const plant of roadside.plants||[]){
-  const q=screen(plant.x+.5,plant.y+.5,.16);ctx.fillStyle='#6c975b';ctx.beginPath();ctx.ellipse(q[0],q[1],.45*T*cam.z,.14*T*cam.z,Math.atan2(plant.uy*.78,plant.ux),0,Math.PI*2);ctx.fill();
-  if(plant.flower){ctx.fillStyle=['#e7a6bd','#c2add8','#e4c576','#eab69b'][(plant.seed>>>8)%4];for(let n=0;n<5;n++){const a=n*Math.PI*2/5;ctx.beginPath();ctx.arc(q[0]+Math.cos(a)*.027*T*cam.z,q[1]+Math.sin(a)*.021*T*cam.z,Math.max(.65,.021*T*cam.z),0,Math.PI*2);ctx.fill();}}
+  const green=['#477b50','#568c57','#65975d','#73a563'];
+  for(let n=0;n<4;n++){
+   const along=[-.28,-.09,.11,.29][n],q=screen(plant.x+.5+plant.ux*along,plant.y+.5+plant.uy*along,.28+(n%2)*.025);
+   ctx.fillStyle=green[(n+(plant.seed>>>6))%4];ctx.beginPath();ctx.ellipse(q[0],q[1],.15*T*cam.z,.125*T*cam.z,0,0,Math.PI*2);ctx.fill();
+   if(plant.flower&&(n===1||n===3)){ctx.fillStyle=['#d97da2','#b28dd1','#e6bb56','#e89d78'][(plant.seed>>>8)%4];for(let k=0;k<5;k++){const a=k*Math.PI*2/5;ctx.beginPath();ctx.arc(q[0]+Math.cos(a)*.035*T*cam.z,q[1]+Math.sin(a)*.027*T*cam.z,Math.max(.8,.027*T*cam.z),0,Math.PI*2);ctx.fill();}}
+  }
  }
  const stroke=(points,color,width=.025,dashed=false)=>{if(points.length<2)return;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(...screen(x+.5,y+.5)):ctx.moveTo(...screen(x+.5,y+.5)));ctx.strokeStyle=color;ctx.lineWidth=Math.max(.55,width*T*cam.z);ctx.lineJoin='round';ctx.lineCap='butt';ctx.setLineDash(dashed?[.45*T*cam.z,.55*T*cam.z]:[]);ctx.stroke();ctx.setLineDash([]);};
  const capacity=width=>Math.max(1,(Object.values(ROADS).find(t=>Math.abs(t.visualWidth-width)<.01)?.lanes||2)/2);

@@ -18,7 +18,10 @@ const boot=()=>new Function('require',fixture+'return boot();')(require).game;
   for(const f of faces){colors.add(f.color);for(const [x,y] of f.points){assert(Number.isFinite(x)&&Number.isFinite(y));assert(Math.abs(y-100)>=half-1e-6,'keep every traffic lane clear');assert(Math.abs(y-100)<=outer+1e-6,'stay inside existing arterial edge or small-road reserved verge');}}
   const receiver={parking:{roadsideVisuals:g.roadsideVisuals},roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),disposeGroup:TrafficRenderer.prototype.disposeGroup};
   TrafficRenderer.prototype.makeRoads.call(receiver,g.state,g.ROADS,g.junction,true);
-  if(type==='small'){const planted=receiver.roadGroup.children.find(o=>o.userData.roadsidePlants);assert(planted);assert(planted.children.length<=8,'shared instancing for foliage and flowers');assert(planted.children.reduce((n,m)=>n+m.count,0)<=faces.plants.length*9);}
+  if(type==='small'){const planted=receiver.roadGroup.children.find(o=>o.userData.roadsidePlants);assert(planted);assert(planted.children.length<=9,'shared instancing for foliage and flowers');assert(planted.children.reduce((n,m)=>n+m.count,0)<=faces.plants.length*16);
+   let top=0;const matrix=new THREE.Matrix4(),box=new THREE.Box3();
+   for(const mesh of planted.children){assert(mesh.castShadow,'rounded bushes cast real shadows');mesh.geometry.computeBoundingBox();for(let n=0;n<mesh.count;n++){mesh.getMatrixAt(n,matrix);box.copy(mesh.geometry.boundingBox).applyMatrix4(matrix);top=Math.max(top,box.max.y);}}
+   assert(top>.35&&top<.45,'foliage and flowers have real vertical volume');}
   const newMeshes=receiver.roadGroup.children.filter(m=>['night-lot-base','night-asphalt'].includes(m.userData.nightRole));
   assert(newMeshes.length>=2&&newMeshes.length<=4,'merged paving meshes, not one mesh per slab');
  }
