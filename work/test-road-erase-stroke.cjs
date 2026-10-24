@@ -25,7 +25,7 @@ const plan=game.roadErasePlan(drag.cells);
 assert.equal(plan.roads.length,9,'nine roads can be removed');
 assert.equal(plan.main,1,'never remove fixed initial road');
 assert.equal(plan.busy,1,'never remove occupied road');
-assert.equal(plan.fee,90,'fees sum to 20% of each small road cost');
+assert.equal(plan.fee,0,'road demolition is free');
 assert.equal(game.demolishRoadStroke(drag.cells),true);
 assert.equal(state.roads.size,12,'confirmation must precede writes');
 const confirmation=dom('confirmDialog');
@@ -33,7 +33,7 @@ assert.equal(typeof confirmation.onclick,'function','only one confirmation is cr
 confirmation.onclick();
 assert.equal(state.roads.size,3,'removes the nine allowed cells in one batch');
 for(const node of [game.id(15,y),busy,unrelated])assert(state.roads.has(node),'keeps protected and unselected cells');
-assert.equal(state.money,500000-90,'charges once for removed roads');
+assert.equal(state.money,500000,'free demolition preserves money');
 assert([...state.roads.values()].every(r=>[...r.links].every(node=>state.roads.has(node))),'no dangling road links');
 assert.equal(game.snapshot().includes('"format":2'),true,'does not change save format');
 
@@ -53,4 +53,4 @@ assert(css.includes('body>.bottom>.control-deck.tools-collapsed>.city-dashboard'
 assert(css.includes('body>.bottom>.control-deck.tools-collapsed>.city-control-mini'),'collapsed mode hides demands');
 assert(css.includes('.build-dock .dock-body,'),'collapsed mode hides all construction controls');
 assert(css.includes('.dock-display-actions,'),'collapsed mode hides optional display buttons');
-console.log('SMCITY v2.4.3: drag road demolition and full deck collapse passed');
+console.log('SMCITY v2.5: drag road demolition and full deck collapse passed');
