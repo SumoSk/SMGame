@@ -1052,29 +1052,35 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
 }
 
 function roadColor(r){return r.wait>4?'#363b38':r.wait>1?'#e36351':r.load>.75?'#edaa51':r.load>.4?'#dbce68':'#67ab76';}
-// Exclusive per-approach, per-lane signaling: ONE incoming lane green at a time.
-// Keep historic eastWest/northSouth minute settings (now per lane) and old saves.
+// Split phasing: one approach is green at a time, every lane from that approach.
 const SIGNAL_YELLOW_MINUTES=1,SIGNAL_CLEAR_MINUTES=1,SIGNAL_MIN_GREEN=5,SIGNAL_MAX_GREEN=240;
 const RECOMMENDED_SIGNAL_GREEN_MINUTES=6;
-const SIGNAL_DIRECTION_NAMES=['ตะวันออก','ใต้','ตะวันตก','เหนือ'];
+// 'incoming' describes travel heading, so its source approach is opposite.
+const SIGNAL_DIRECTION_NAMES=['จากทิศตะวันตก','จากทิศเหนือ','จากทิศตะวันออก','จากทิศใต้'];
 const signalDefaults=()=>({...state.signalDefaults,mode:'auto',axis:0,holdUntil:0});
 function signalSettings(i){return state.signals.get(i)||signalDefaults();}
 function signalSlots(i){
  if(!state.roads.has(i)||junction(i)<3)return[];
  const cache=state.signalSlotCache??(state.signalSlotCache=new Map()),cached=cache.get(i);
  if(cached)return cached;
- const slots=[];
- for(const arm of [...junctionDetails(i).arms].sort((a,b)=>a.dir-b.dir)){
-  const incoming=(arm.dir+2)%4; // arm points OUT of the junction
-  for(let lane=0,cap=laneCapacity(arm.node,incoming);lane<cap;lane++)slots.push({incoming,lane,axis:incoming%2});
- }
+ const slots=[...junctionDetails(i).arms].sort((a,b)=>a.dir-b.dir).map(arm=>{
+  const incoming=(arm.dir+2)%4;
+  return{incoming,axis:incoming%2,lanes:laneCapacity(arm.node,incoming),node:arm.node};
+ });
  cache.set(i,slots);return slots;
 }
 function signalDuration(setting,slot){return slot.axis===0?setting.eastWest:setting.northSouth;}
 function signalCycle(i){const setting=signalSettings(i);return signalSlots(i).reduce((n,slot)=>n+signalDuration(setting,slot)+SIGNAL_YELLOW_MINUTES+SIGNAL_CLEAR_MINUTES,0);}
 function signalProgress(i){const cycle=signalCycle(i);return cycle?(state.time+(i%17)*cycle/24)%cycle:0;}
 function signalManualSlot(i,setting,slots=signalSlots(i)){
- if(Number.isInteger(setting.slot)&&setting.slot>=0&&setting.slot<slots.length)return setting.slot;
+ if(!slots.length)return 0;
+ if(setting.phaseModel==='approach'&&Number.isInteger(setting.slot)&&setting.slot>=0&&setting.slot<slots.length)return setting.slot;
+ // v2.6.1's 'slot' was an individual lane. Convert its position using the
+ // original sorted arm order and that arm's actual number of incoming lanes.
+ if(Number.isInteger(setting.slot)&&setting.slot>=0){
+  let total=0;
+  for(let n=0;n<slots.length;n++){total+=slots[n].lanes;if(setting.slot<total)return n;}
+ }
  return Math.max(0,slots.findIndex(slot=>slot.axis===setting.axis));
 }
 function signalStatus(i){
@@ -1083,14 +1089,14 @@ function signalStatus(i){
  if(setting.holdUntil>state.time)return red(setting.holdUntil-state.time);
  if(setting.mode==='manual'){
   const slotIndex=signalManualSlot(i,setting,slots),slot=slots[slotIndex];
-  return{phase:slot.incoming,slotIndex,incoming:slot.incoming,lane:slot.lane,yellow:false,remaining:null};
+  return{phase:slot.incoming,slotIndex,incoming:slot.incoming,lane:-1,yellow:false,remaining:null};
  }
  let elapsed=signalProgress(i);
  for(let n=0;n<slots.length;n++){
   const slot=slots[n],green=signalDuration(setting,slot);
-  if(elapsed<green)return{phase:slot.incoming,slotIndex:n,incoming:slot.incoming,lane:slot.lane,yellow:false,remaining:green-elapsed};
+  if(elapsed<green)return{phase:slot.incoming,slotIndex:n,incoming:slot.incoming,lane:-1,yellow:false,remaining:green-elapsed};
   elapsed-=green;
-  if(elapsed<SIGNAL_YELLOW_MINUTES)return{phase:4,slotIndex:n,incoming:slot.incoming,lane:slot.lane,yellow:true,remaining:SIGNAL_YELLOW_MINUTES-elapsed};
+  if(elapsed<SIGNAL_YELLOW_MINUTES)return{phase:4,slotIndex:n,incoming:slot.incoming,lane:-1,yellow:true,remaining:SIGNAL_YELLOW_MINUTES-elapsed};
   elapsed-=SIGNAL_YELLOW_MINUTES;
   if(elapsed<SIGNAL_CLEAR_MINUTES)return red(SIGNAL_CLEAR_MINUTES-elapsed);
   elapsed-=SIGNAL_CLEAR_MINUTES;
@@ -1098,17 +1104,19 @@ function signalStatus(i){
  return red(0);
 }
 function signalPhase(i){return signalStatus(i).phase;}
-function signalColor(i,incoming,lane=0){const st=signalStatus(i);return st.incoming!==incoming||st.lane!==lane?'red':st.yellow?'yellow':st.phase>=0?'green':'red';}
+function signalColor(i,incoming,lane=0){const st=signalStatus(i);return st.incoming!==incoming?'red':st.yellow?'yellow':st.phase>=0?'green':'red';}
 function signalAllows(i,incoming,lane=0){return signalColor(i,incoming,lane)==='green';}
 function editSignal(i,changes){
  if(!state.roads.has(i)||junction(i)<3)return false;
- const current=signalSettings(i),next={...current,...changes},slots=signalSlots(i);
+ const current=signalSettings(i),slots=signalSlots(i),oldSlot=signalManualSlot(i,current,slots),next={...current,...changes};
+ if(changes.slot===undefined)next.slot=oldSlot;
+ next.phaseModel='approach';
  if(!Number.isInteger(next.eastWest)||next.eastWest<SIGNAL_MIN_GREEN||next.eastWest>SIGNAL_MAX_GREEN||
  !Number.isInteger(next.northSouth)||next.northSouth<SIGNAL_MIN_GREEN||next.northSouth>SIGNAL_MAX_GREEN||
  !['auto','manual'].includes(next.mode)||![0,1].includes(next.axis)||
- (next.slot!==undefined&&(!Number.isInteger(next.slot)||next.slot<0||next.slot>=slots.length)))return false;
- next.holdUntil=next.mode!==current.mode||signalManualSlot(i,next,slots)!==signalManualSlot(i,current,slots)||
- next.axis!==current.axis?state.time+SIGNAL_CLEAR_MINUTES:current.holdUntil;
+ !Number.isInteger(next.slot)||next.slot<0||next.slot>=slots.length)return false;
+ next.holdUntil=next.mode!==current.mode||next.slot!==oldSlot||next.axis!==current.axis?
+  state.time+SIGNAL_CLEAR_MINUTES:current.holdUntil;
  state.signals.set(i,next);return true;
 }
 function controlSignal(i,action){
@@ -2289,37 +2297,37 @@ $('dialog').addEventListener('close',clearRoadPreview);
 $('dialog').addEventListener('cancel',()=>{dialogRevision++;clearRoadPreview();});
 const row=(a,b)=>`<div class="detail-row"><span>${a}</span><strong>${b}</strong></div>`;
 const action=(name,key,value)=>`<button class="action" data-action="${key}" data-value="${value??''}">${name}</button>`;
-function signalSlotName(slot){return slot?SIGNAL_DIRECTION_NAMES[slot.incoming]+' · เลน '+(slot.lane+1):'แดงทุกเลน';}
+function signalSlotName(slot){return slot?SIGNAL_DIRECTION_NAMES[slot.incoming]+' · '+slot.lanes+' เลน':'แดงทุกทิศ';}
 function globalSignalInspector(){
  const s=state.signalDefaults,count=[...state.roads.keys()].filter(i=>junction(i)>=3).length;
  return `<span class="tag">ระบบไฟจราจรทั้งเมือง</span><h2>🚦 ตั้งค่าไฟทุกแยก</h2>${row('แยกที่มีไฟจราจร',count+' แยก')}`+
- `<section class="signal-control"><h3>เวลาเขียวต่อเลน · ปล่อยทีละเลน</h3><div class="signal-times">`+
- `<label for="signalDefaultEW">เลนแนวนอน <span><input class="signal-minutes" id="signalDefaultEW" type="number" inputmode="numeric" min="5" max="240" step="1" value="${s.eastWest}"> นาที</span></label>`+
- `<label for="signalDefaultNS">เลนแนวตั้ง <span><input class="signal-minutes" id="signalDefaultNS" type="number" inputmode="numeric" min="5" max="240" step="1" value="${s.northSouth}"> นาที</span></label></div>`+
- `<p class="signal-note">ทีละทิศและทีละเลน · เหลือง ${SIGNAL_YELLOW_MINUTES} นาที และแดงเคลียร์แยก ${SIGNAL_CLEAR_MINUTES} นาทีต่อเลน · แยกใหญ่มีรอบไฟยาวขึ้น</p>`+
+ `<section class="signal-control"><h3>เวลาเขียวต่อทิศ · ทุกเลนออกพร้อมกัน</h3><div class="signal-times">`+
+ `<label for="signalDefaultEW">ทิศแนวนอน <span><input class="signal-minutes" id="signalDefaultEW" type="number" inputmode="numeric" min="5" max="240" step="1" value="${s.eastWest}"> นาที</span></label>`+
+ `<label for="signalDefaultNS">ทิศแนวตั้ง <span><input class="signal-minutes" id="signalDefaultNS" type="number" inputmode="numeric" min="5" max="240" step="1" value="${s.northSouth}"> นาที</span></label></div>`+
+ `<p class="signal-note">ทีละทิศและทุกเลนพร้อมกัน · เหลือง ${SIGNAL_YELLOW_MINUTES} นาที และแดงเคลียร์แยก ${SIGNAL_CLEAR_MINUTES} นาทีต่อทิศ · ไม่ปล่อยรถจากฝั่งตรงข้ามสวนกัน</p>`+
  action('บันทึกเป็นค่าเริ่มต้นสำหรับแยกใหม่','signal-defaults-save')+
  action('ใช้เวลานี้กับทุกแยกในเมือง','signal-defaults-apply')+
- action('คืนค่าแนะนำทุกแยก (เลนละ 6 นาที)','signal-defaults-reset')+
- `<p class="signal-note">ใช้เวลานี้กับทุกแยกจะคงโหมดควบคุมเองไว้ · คืนค่าแนะนำจะเปลี่ยนทุกแยกกลับเป็นอัตโนมัติ ไฟเขียวเลนละ 6 นาที พร้อมช่วงไฟเหลืองและแดงเคลียร์แยก · คลิกแยกบนแผนที่เพื่อปรับทีละจุด</p></section>`;
+ action('คืนค่าแนะนำทุกแยก (ทิศละ 6 นาที)','signal-defaults-reset')+
+ `<p class="signal-note">ใช้เวลานี้กับทุกแยกจะคงโหมดควบคุมเองไว้ · คืนค่าแนะนำจะเปลี่ยนทุกแยกกลับเป็นอัตโนมัติ ไฟเขียวทิศละ 6 นาที พร้อมช่วงไฟเหลืองและแดงเคลียร์แยก · คลิกแยกบนแผนที่เพื่อปรับทีละจุด</p></section>`;
 }
 
 function signalInspector(i){
  const setting=signalSettings(i),status=signalStatus(i),manual=setting.mode==='manual',slots=signalSlots(i);
  const active=slots[status.slotIndex],current=status.yellow?'ไฟเหลือง · '+signalSlotName(active):
-  status.phase>=0?signalSlotName(active):'แดงทุกเลน';
+  status.phase>=0?signalSlotName(active):'แดงทุกทิศ';
  const remaining=status.remaining==null?'รอสั่งสลับไฟ':Math.ceil(status.remaining)+' นาทีในเกม';
  const rows=slots.map((slot,n)=>{
-  const color=signalColor(i,slot.incoming,slot.lane);
+  const color=signalColor(i,slot.incoming);
   return `<div class="signal-direction" data-slot="${n}"><span class="signal-lamp ${color}"></span>
   <span>${signalSlotName(slot)}</span><b>${color==='green'?'เขียว':color==='yellow'?'เหลือง':'แดง'}</b></div>`;
  }).join('');
  const next=slots.length?slots[(signalManualSlot(i,setting,slots)+1)%slots.length]:null;
  return `<section class="signal-control" data-node="${i}"><h3>🚦 ควบคุมไฟแยกนี้</h3>
   <div class="signal-current"><span class="signal-mode">${manual?'ควบคุมเอง':'อัตโนมัติ'}</span><strong>${current}</strong><small>${remaining}</small></div>${rows}
-  <h3>ตั้งเวลาเขียวต่อเลน</h3><div class="signal-times">
-  <label for="signalEW">เลนแนวนอน <span><input class="signal-minutes" id="signalEW" type="number" min="5" max="240" value="${setting.eastWest}"> นาที</span></label>
-  <label for="signalNS">เลนแนวตั้ง <span><input class="signal-minutes" id="signalNS" type="number" min="5" max="240" value="${setting.northSouth}"> นาที</span></label></div>
-  <p class="signal-note">เปิดเขียวทีละเลน · เหลือง ${SIGNAL_YELLOW_MINUTES} นาที · แดงเคลียร์ ${SIGNAL_CLEAR_MINUTES} นาที · รอบ ${signalCycle(i)} นาทีเกม</p>`+
+  <h3>ตั้งเวลาเขียวต่อทิศ</h3><div class="signal-times">
+  <label for="signalEW">ทิศแนวนอน <span><input class="signal-minutes" id="signalEW" type="number" min="5" max="240" value="${setting.eastWest}"> นาที</span></label>
+  <label for="signalNS">ทิศแนวตั้ง <span><input class="signal-minutes" id="signalNS" type="number" min="5" max="240" value="${setting.northSouth}"> นาที</span></label></div>
+  <p class="signal-note">เปิดเขียวทีละทิศ ทุกเลนออกพร้อมกัน · เหลือง ${SIGNAL_YELLOW_MINUTES} นาที · แดงเคลียร์ ${SIGNAL_CLEAR_MINUTES} นาที · รอบ ${signalCycle(i)} นาทีเกม</p>`+
   action('บันทึกเวลาไฟแยกนี้','signal-save',i)+
   (manual?`<div class="signal-manual">${action('สลับไป '+signalSlotName(next),'signal-switch',i)}${action('กลับสู่ระบบอัตโนมัติ','signal-auto',i)}</div>`:
    action('ควบคุมไฟเอง','signal-manual',i))+
@@ -2331,11 +2339,11 @@ function refreshSignalInspector(i){
  const status=signalStatus(i),setting=signalSettings(i),slots=signalSlots(i),active=slots[status.slotIndex];
  root.querySelector('.signal-mode').textContent=setting.mode==='manual'?'ควบคุมเอง':'อัตโนมัติ';
  root.querySelector('.signal-current strong').textContent=status.yellow?'ไฟเหลือง · '+signalSlotName(active):
-  status.phase>=0?signalSlotName(active):'แดงทุกเลน';
+  status.phase>=0?signalSlotName(active):'แดงทุกทิศ';
  root.querySelector('.signal-current small').textContent=status.remaining==null?'รอสั่งสลับไฟ':Math.ceil(status.remaining)+' นาทีในเกม';
  for(let n=0;n<slots.length;n++){
   const slot=slots[n],line=root.querySelector(`.signal-direction[data-slot="${n}"]`);if(!line)continue;
-  const color=signalColor(i,slot.incoming,slot.lane);
+  const color=signalColor(i,slot.incoming);
   line.querySelector('.signal-lamp').className='signal-lamp '+color;
   line.querySelector('b').textContent=color==='green'?'เขียว':color==='yellow'?'เหลือง':'แดง';
  }
@@ -4523,9 +4531,9 @@ $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)
   toast(a==='signal-defaults-apply'?'ปรับเวลาไฟเขียวทุกแยกแล้วค่ะ':'บันทึกค่าเริ่มต้นสำหรับแยกใหม่แล้วค่ะ');renderInspector(true);return;
  }
  if(a==='signal-global'){selected={kind:'signals'};renderInspector(true);return;}
- if(a.startsWith('signal-')){if(selected?.kind!=='road'||selected.id!==v)return;if(a==='signal-save'){const rawEW=String($('signalEW').value).trim(),rawNS=String($('signalNS').value).trim(),eastWest=Number(rawEW),northSouth=Number(rawNS);if(!rawEW||!rawNS||!editSignal(v,{eastWest,northSouth})){toast('ตั้งเวลาไฟเขียวต่อเลน 5–240 นาที (จำนวนเต็ม) ค่ะ');return;}toast('บันทึกเวลาไฟแยกนี้แล้วค่ะ');}else{const key=a==='signal-manual'?'manual':a==='signal-switch'?'switch':a==='signal-auto'?'auto':'';if(!controlSignal(v,key))return;toast(key==='manual'?'เปิดโหมดควบคุมไฟเองแล้วค่ะ':key==='switch'?'สลับไฟแล้ว · รอแดงทุกทิศ '+SIGNAL_CLEAR_MINUTES+' นาที':'กลับสู่ไฟอัตโนมัติแล้วค่ะ');}renderInspector(true);return;}
+ if(a.startsWith('signal-')){if(selected?.kind!=='road'||selected.id!==v)return;if(a==='signal-save'){const rawEW=String($('signalEW').value).trim(),rawNS=String($('signalNS').value).trim(),eastWest=Number(rawEW),northSouth=Number(rawNS);if(!rawEW||!rawNS||!editSignal(v,{eastWest,northSouth})){toast('ตั้งเวลาไฟเขียวต่อทิศ 5–240 นาที (จำนวนเต็ม) ค่ะ');return;}toast('บันทึกเวลาไฟแยกนี้แล้วค่ะ');}else{const key=a==='signal-manual'?'manual':a==='signal-switch'?'switch':a==='signal-auto'?'auto':'';if(!controlSignal(v,key))return;toast(key==='manual'?'เปิดโหมดควบคุมไฟเองแล้วค่ะ':key==='switch'?'สลับไฟแล้ว · รอแดงทุกทิศ '+SIGNAL_CLEAR_MINUTES+' นาที':'กลับสู่ไฟอัตโนมัติแล้วค่ะ');}renderInspector(true);return;}
  if(a==='incident-resolve'){openTrafficIncident(v);return;}if(a==='tow'){if(towVehicle(v)){selected=null;$('inspector').classList.add('hidden');toast('ลากรถออกแล้ว · ยกเลิกเที่ยวเดินทาง');updateUI();}}if(a==='reroute'){const car=state.vehicles.get(v),ok=car?.phase==='stuck'?recoverVehicle(car,true):car?checkDepartureRoute(car):false;toast(ok?'พบเส้นทางแล้ว จะออกเดินทางเมื่อถนนว่าง':'ยังไม่มีเส้นทางที่ไปต่อได้ค่ะ');renderInspector();}if(a==='citizen'){selected={kind:'citizen',id:v};renderInspector();}if(a==='tourist-dashboard'){category='tourists';selectTool('touristDashboard');return;}if(a==='follow'){follow=follow===v?null:v;renderInspector();}if(a==='move-building'){beginMoveBuilding(v);return;}if(a==='demolish')demolishBuilding(state.buildings.get(v));if(a==='heat')toggleTrafficHeat();};
-$('help').onclick=()=>{modal('<span class="eyebrow">WELCOME, CITY MAKER</span><h2>ทุกคันมีชีวิต<br>ทุกถนนมีความหมาย</h2><p>เริ่มด้วยงบ 500,000 บาท และถนนหลัก 8 เลนที่ไม่เสียค่าดูแล เมืองจะเติบโตจากการเดินทางที่คุณออกแบบ</p><ol><li>เลือก <b>ถนนเล็ก</b> แล้วลากจากถนนหลักออกไป</li><li>เลือก <b>บ้าน</b> วางชิดขอบถนน คนจะขับรถจากประตูเมืองเข้ามา</li><li>สร้าง <b>สำนักงานหรือโรงงาน</b> ให้คนมีงาน ก่อนเพิ่มร้านค้าและสวน</li><li>คลิกรถเพื่อดูต้นทาง ปลายทาง และปัญหา เปิดแผนที่รถติดเพื่อหาจุดคอขวด</li><li>คลิก <b>ทางแยกไฟแดง</b> เพื่อตั้งเวลาของแยกนั้น หรือเลือกควบคุมไฟเองและกดสลับเลนที่ได้ไฟเขียว</li></ol><p>ลากเพื่อเลื่อน · เลื่อนล้อหรือใช้สองนิ้วเพื่อซูม<br>Space หยุดเวลา · B สร้างถนน · Esc สำรวจเมือง<br>รถขับชิดซ้าย อาคารฝั่งตรงข้ามต้องมีทางวนกลับ</p><div class="actions"><button class="primary" id="helpDone">เริ่มสร้างเมือง</button></div>');$('helpDone').onclick=closeModal;};
+$('help').onclick=()=>{modal('<span class="eyebrow">WELCOME, CITY MAKER</span><h2>ทุกคันมีชีวิต<br>ทุกถนนมีความหมาย</h2><p>เริ่มด้วยงบ 500,000 บาท และถนนหลัก 8 เลนที่ไม่เสียค่าดูแล เมืองจะเติบโตจากการเดินทางที่คุณออกแบบ</p><ol><li>เลือก <b>ถนนเล็ก</b> แล้วลากจากถนนหลักออกไป</li><li>เลือก <b>บ้าน</b> วางชิดขอบถนน คนจะขับรถจากประตูเมืองเข้ามา</li><li>สร้าง <b>สำนักงานหรือโรงงาน</b> ให้คนมีงาน ก่อนเพิ่มร้านค้าและสวน</li><li>คลิกรถเพื่อดูต้นทาง ปลายทาง และปัญหา เปิดแผนที่รถติดเพื่อหาจุดคอขวด</li><li>คลิก <b>ทางแยกไฟแดง</b> เพื่อตั้งเวลาของแยกนั้น หรือเลือกควบคุมไฟเองและกดสลับทิศที่ได้ไฟเขียว</li></ol><p>ลากเพื่อเลื่อน · เลื่อนล้อหรือใช้สองนิ้วเพื่อซูม<br>Space หยุดเวลา · B สร้างถนน · Esc สำรวจเมือง<br>รถขับชิดซ้าย อาคารฝั่งตรงข้ามต้องมีทางวนกลับ</p><div class="actions"><button class="primary" id="helpDone">เริ่มสร้างเมือง</button></div>');$('helpDone').onclick=closeModal;};
 function snapshot(){return JSON.stringify({format:2,morningPlanningDay:state.morningPlanningDay,parkingVersion:PARKING_VERSION,missionStats:state.missionStats,city:state.city,money:state.money,incidentRewards:state.incidentRewards,time:state.time,nextId:state.nextId,profileSeq:state.profileSeq,tourism:state.tourism,plantedTrees:state.plantedTrees,hiddenAutoTrees:state.hiddenAutoTrees,nextTouristAt:state.nextTouristAt,roads:[...state.roads].map(([i,r])=>[i,{...r,links:[...r.links]}]),buildings:[...state.buildings].map(([i,b])=>[i,{...b,residents:[...b.residents],workers:[...b.workers],visitors:[...b.visitors],parked:[...b.parked],guests:[...(b.guests||[])]}]),citizens:[...state.citizens].map(([i,c])=>[i,{...c,scheduled:[...c.scheduled],failKinds:[...c.failKinds]}]),vehicles:[...state.vehicles].map(([i,v])=>[i,{...v,pathSet:[...v.pathSet]}]),signals:[...state.signals],signalDefaults:state.signalDefaults,events:state.events,cam,news});}
 const SAVE_KEY='traffic-fixer-thailand-saves-v2',LEGACY_SAVE_KEY='traffic-fixer-thailand-v1';
 const escapeSaveText=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4565,7 +4573,7 @@ function validateSave(s){
  if(s.hiddenAutoTrees!==undefined&&(!Array.isArray(s.hiddenAutoTrees)||s.hiddenAutoTrees.length>6000||s.hiddenAutoTrees.some(i=>!Number.isInteger(i)||i<0||i>=W*H)))throw Error('Invalid tree clearings');
  for(const key of ['roads','buildings','citizens','vehicles'])if(!Array.isArray(s[key])||s[key].some(e=>!Array.isArray(e)||e.length!==2||!Number.isInteger(e[0])||!e[1])||new Set(s[key].map(e=>e[0])).size!==s[key].length)throw Error('Invalid '+key);
  for(const [i,r]of s.roads)if(i<0||i>=W*H||!ROADS[r.type]||!Array.isArray(r.links)||r.links.some(n=>!Number.isInteger(n)||n<0||n>=W*H))throw Error('Invalid road');
- if(s.signals!==undefined){if(!Array.isArray(s.signals)||s.signals.length>s.roads.length||new Set(s.signals.map(e=>e?.[0])).size!==s.signals.length)throw Error('Invalid signals');const roads=new Set(s.roads.map(e=>e[0]));for(const e of s.signals){if(!Array.isArray(e)||e.length!==2||!Number.isInteger(e[0])||!roads.has(e[0]))throw Error('Invalid signal node');const c=e[1];if(!c||!Number.isInteger(c.eastWest)||c.eastWest<SIGNAL_MIN_GREEN||c.eastWest>SIGNAL_MAX_GREEN||!Number.isInteger(c.northSouth)||c.northSouth<SIGNAL_MIN_GREEN||c.northSouth>SIGNAL_MAX_GREEN||!['auto','manual'].includes(c.mode)||![0,1].includes(c.axis)||!Number.isFinite(c.holdUntil)||(c.slot!==undefined&&(!Number.isInteger(c.slot)||c.slot<0||c.slot>15)))throw Error('Invalid signal setting');}}
+ if(s.signals!==undefined){if(!Array.isArray(s.signals)||s.signals.length>s.roads.length||new Set(s.signals.map(e=>e?.[0])).size!==s.signals.length)throw Error('Invalid signals');const roads=new Set(s.roads.map(e=>e[0]));for(const e of s.signals){if(!Array.isArray(e)||e.length!==2||!Number.isInteger(e[0])||!roads.has(e[0]))throw Error('Invalid signal node');const c=e[1];if(!c||!Number.isInteger(c.eastWest)||c.eastWest<SIGNAL_MIN_GREEN||c.eastWest>SIGNAL_MAX_GREEN||!Number.isInteger(c.northSouth)||c.northSouth<SIGNAL_MIN_GREEN||c.northSouth>SIGNAL_MAX_GREEN||!['auto','manual'].includes(c.mode)||![0,1].includes(c.axis)||!Number.isFinite(c.holdUntil)||(c.slot!==undefined&&(!Number.isInteger(c.slot)||c.slot<0||c.slot>15))||(c.phaseModel!==undefined&&c.phaseModel!=='approach'))throw Error('Invalid signal setting');}}
  for(const [,b]of s.buildings)if(!CATALOG[b.key]||!Number.isInteger(b.x)||!Number.isInteger(b.y)||!valid(b.x,b.y)||!valid(b.x+buildingBounds(b).w-1,b.y+buildingBounds(b).h-1)||!Number.isInteger(b.rotation)||b.rotation<0||b.rotation>3||!Array.isArray(b.parkingSlots)||b.parkingSlots.length!==CATALOG[b.key].parkingCapacity||['residents','workers','visitors','parked','access'].some(k=>!Array.isArray(b[k])))throw Error('Invalid building');
  for(const [,c]of s.citizens)if(!Array.isArray(c.scheduled)||!Array.isArray(c.failKinds))throw Error('Invalid citizen');
  for(const [,v]of s.vehicles)if(!Array.isArray(v.pathSet)||!Array.isArray(v.path))throw Error('Invalid vehicle');
