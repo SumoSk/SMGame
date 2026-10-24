@@ -919,6 +919,7 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
  const stamp=[roadState.version,roadState.roads.size,...[...roadState.buildings.values()].map(b=>[b.id,b.x,b.y,b.rotation].join(','))].join(':');
  const cached=roadsideVisualCache.get(roadState);if(cached?.stamp===stamp&&cached.details===roadDetails)return cached.faces;
  const faces=[],layouts=new Map(),nearby=new Map(),hidden=new Set(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
+ faces.plants=[];
  const margin=w=>Math.abs(w-ROADS.small.visualWidth)<.01?(roadClearanceWidth(ROADS.small)-w)/2:.14;
  const blockers=new Map(),gates=[];
  const indexRect=rect=>{for(let x=Math.floor(rect.x0/8);x<=Math.floor(rect.x1/8);x++)for(let y=Math.floor(rect.y0/8);y<=Math.floor(rect.y1/8);y++){const key=x+':'+y;if(!blockers.has(key))blockers.set(key,[]);blockers.get(key).push(rect);}};
@@ -981,15 +982,35 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
   for(const [lo,hi] of intervals)for(const sign of [-1,1]){
    const inner=t=>(wa+(wb-wa)*t)/2,outer=t=>inner(t)+margin(wa)+(margin(wb)-margin(wa))*t;
    const quad=(a,b,from,to)=>[p(a,sign*from(a)),p(b,sign*from(b)),p(b,sign*to(b)),p(a,sign*to(a))];
-   emit(quad(lo,hi,t=>inner(t)+.055,outer),'#c6c9c4',.135,.045,'sidewalk');
-   emit(quad(lo,hi,inner,t=>inner(t)+.055),'#e1dfd5',.16,.065,'curb');
-   for(const t of [.25,.75])if(t>lo&&t<hi&&outer(t)-inner(t)>.20){const dt=Math.min(.006/len,(hi-lo)/5);emit(quad(t-dt,t+dt,t=>inner(t)+.06,outer),'#a4aca5',.138,.004,'sidewalk-joint');}
+   const garden=r.type==='small'&&roadState.roads.get(j)?.type==='small'&&Math.abs(wa-ROADS.small.visualWidth)<.01&&Math.abs(wb-wa)<.01;
+   if(garden){
+    emit(quad(lo,hi,t=>inner(t)+.025,outer),'#b2b5aa',.115,.035,'sidewalk');
+    emit(quad(lo,hi,inner,t=>inner(t)+.025),'#929b87',.13,.035,'curb');
+    // One low rounded hedge per metre, set back from junction corners.
+    if(.5-.46/len>=lo&&.5+.46/len<=hi){
+     const [cx,cy]=p(.5,sign*(inner(.5)+(outer(.5)-inner(.5))*.56)),ux=dx/len,uy=dy/len;
+     const hx=Math.abs(ux)*.47+Math.abs(px)*.16,hy=Math.abs(uy)*.47+Math.abs(py)*.16;
+     let clear=true;
+     for(let bx=Math.floor((cx-hx)/8);bx<=Math.floor((cx+hx)/8)&&clear;bx++)for(let by=Math.floor((cy-hy)/8);by<=Math.floor((cy+hy)/8)&&clear;by++)for(const r of blockers.get(bx+':'+by)||[])
+      {const pad=r.gate?.08:.005;if(cx+hx>r.x0-pad&&cx-hx<r.x1+pad&&cy+hy>r.y0-pad&&cy-hy<r.y1+pad){clear=false;break;}}
+     if(clear){
+      const seed=(Math.imul(i+1,1664525)^Math.imul(j+17,1013904223)^(sign<0?0x51a3:0x1297))>>>0;faces.plants.push({x:cx,y:cy,ux,uy,angle:-Math.atan2(dy,dx),seed,flower:seed%3!==0});
+      emit([[-.46,-.135],[.46,-.135],[.46,.135],[-.46,.135]].map(([a,b])=>[cx+ux*a+px*b,cy+uy*a+py*b]),'#7b7e5a',.13,.030,'planting-bed');
+     }
+    }
+   }else{
+    emit(quad(lo,hi,t=>inner(t)+.055,outer),'#c6c9c4',.135,.045,'sidewalk');
+    emit(quad(lo,hi,inner,t=>inner(t)+.055),'#e1dfd5',.16,.065,'curb');
+    for(const t of [.25,.75])if(t>lo&&t<hi&&outer(t)-inner(t)>.20){const dt=Math.min(.006/len,(hi-lo)/5);emit(quad(t-dt,t+dt,t=>inner(t)+.06,outer),'#a4aca5',.138,.004,'sidewalk-joint');}
+   }
   }
  }
  for(const l of layouts.values()){
   const w=Math.min(...l.arms.map(a=>margin(a.width)));
   for(const border of l.borders||[]){const points=border.map(([x,y])=>[l.x+x,l.y+y]);
-   strip(points,.055,w,'#c6c9c4',.135,.045,'sidewalk');strip(points,0,.055,'#e1dfd5',.16,.065,'curb');
+   if(l.arms.every(a=>Math.abs(a.width-ROADS.small.visualWidth)<.01)){
+    strip(points,.025,w,'#b2b5aa',.115,.035,'sidewalk');strip(points,0,.025,'#929b87',.13,.035,'curb');
+   }else{strip(points,.055,w,'#c6c9c4',.135,.045,'sidewalk');strip(points,0,.055,'#e1dfd5',.16,.065,'curb');}
   }
  }
  for(const gate of gates)emit(gate.corners,'#58666a',.104,.025,'driveway',gate.building,true);
@@ -1006,7 +1027,12 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
  const px=-dy/length,py=dx/length,point=(t,off)=>[x+dx*t+px*off,y+dy*t+py*off];segments.push({r,other,x,y,dx,dy,length,wa,wb,intervals,point});
  for(const [lo,hi]of intervals)for(const border of [.14,0]){const a=wa+(wb-wa)*lo,b=wa+(wb-wa)*hi;poly([point(lo,-a/2-border),point(hi,-b/2-border),point(hi,b/2+border),point(lo,a/2+border)].map(([x,y])=>screen(x+.5,y+.5)),border?'#c9c8b5':heat?roadColor(r):'#47565c');}}
  for(const l of layouts.values())poly(l.polygon.map(([x,y])=>screen(l.x+.5+x,l.y+.5+y)),'#47565c');
- for(const face of roadsideVisuals(roadState,roadDetails))poly(face.points.map(([x,y])=>screen(x+.5,y+.5)),face.color);
+ const roadside=roadsideVisuals(roadState,roadDetails);
+ for(const face of roadside)poly(face.points.map(([x,y])=>screen(x+.5,y+.5)),face.color);
+ for(const plant of roadside.plants||[]){
+  const q=screen(plant.x+.5,plant.y+.5,.16);ctx.fillStyle='#6c975b';ctx.beginPath();ctx.ellipse(q[0],q[1],.45*T*cam.z,.14*T*cam.z,Math.atan2(plant.uy*.78,plant.ux),0,Math.PI*2);ctx.fill();
+  if(plant.flower){ctx.fillStyle=['#e7a6bd','#c2add8','#e4c576','#eab69b'][(plant.seed>>>8)%4];for(let n=0;n<5;n++){const a=n*Math.PI*2/5;ctx.beginPath();ctx.arc(q[0]+Math.cos(a)*.027*T*cam.z,q[1]+Math.sin(a)*.021*T*cam.z,Math.max(.65,.021*T*cam.z),0,Math.PI*2);ctx.fill();}}
+ }
  const stroke=(points,color,width=.025,dashed=false)=>{if(points.length<2)return;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(...screen(x+.5,y+.5)):ctx.moveTo(...screen(x+.5,y+.5)));ctx.strokeStyle=color;ctx.lineWidth=Math.max(.55,width*T*cam.z);ctx.lineJoin='round';ctx.lineCap='butt';ctx.setLineDash(dashed?[.45*T*cam.z,.55*T*cam.z]:[]);ctx.stroke();ctx.setLineDash([]);};
  const capacity=width=>Math.max(1,(Object.values(ROADS).find(t=>Math.abs(t.visualWidth-width)<.01)?.lanes||2)/2);
  for(const s of segments){const ca=capacity(s.wa),cb=capacity(s.wb);for(const [lo,hi]of s.intervals){const guide=(oa,ob,color,dashed=false)=>stroke([s.point(lo,oa+(ob-oa)*lo),s.point(hi,oa+(ob-oa)*hi)],color,color==='#ead78c'?.018:.025,dashed);for(const sign of [-1,1]){guide(.035*sign,.035*sign,'#ead78c');guide(s.wa/2*sign,s.wb/2*sign,'#dce3d8');for(let k=1;k<Math.max(ca,cb);k++)guide(Math.min(s.wa/2-.1,k*s.wa/(ca*2))*sign,Math.min(s.wb/2-.1,k*s.wb/(cb*2))*sign,'#dce3d8',true);}}}
