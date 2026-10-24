@@ -2025,14 +2025,13 @@ function plantLandscapeStroke(d,x,y,spacing=2){
 function drawPlantedTrees2D(){
  for(const t of state.plantedTrees||[]){if(!landscapeClear(t.x,t.y))continue;const a=screen(t.x,t.y);if(a[0]<-60||a[0]>view.w+60||a[1]<-60||a[1]>view.h+60)continue;tree(t.x,t.y,t.kind==='shrub'?.44:t.kind==='banyan'?1.4:t.kind==='palm'?1.15:1);}
 }
-const categories=[['roads','ถนน'],['home','บ้าน'],['work','งานและโรงงาน'],['food','ร้านค้าและอาหาร'],['leisure','พักผ่อน'],['casino','คาสิโน'],['landscape','ต้นไม้และตกแต่ง'],['hotel','โรงแรม'],['tracking','ติดตามรถ'],['manage','รื้อถอน']];
+const categories=[['roads','ถนน'],['home','บ้าน'],['work','งานและโรงงาน'],['food','ร้านค้าและอาหาร'],['leisure','พักผ่อน'],['casino','คาสิโน'],['landscape','ต้นไม้และตกแต่ง'],['hotel','โรงแรม']];
 /* Separate WHAT to do (main dock group) from WHICH tool to use.
    category and tool retain their original keys for save/simulation compatibility. */
 const dockGroups=[
  {key:'build',icon:'🏙️',name:'สิ่งปลูกสร้าง',categories:['roads','home','work','food','leisure','casino','hotel']},
  {key:'green',icon:'🌳',name:'ตกแต่ง',categories:['landscape']},
- {key:'insights',icon:'📊',name:'ข้อมูลเมือง',categories:['tracking','reports']},
- {key:'manage',icon:'🛠️',name:'จัดการ',categories:['manage']}
+ {key:'insights',icon:'📊',name:'ข้อมูลเมือง',categories:['reports']}
 ];
 let dockGroup='build';
 function toggleTrafficHeat(){heat=!heat;renderTools();}
@@ -2154,11 +2153,11 @@ window.addEventListener('pagehide',()=>{if(travelRecording)travelLogStop('ปิ
 
 function dockItems(currentCategory){
  if(currentCategory==='reports')return[{key:'sendAi',name:'ส่ง AI',icon:'↗',price:'ส่งแมปและสถานะรถเพื่อวิเคราะห์บัค'},...(travelLogAdmin()?[{key:'travelLog',name:'Log การเดินทาง',icon:'◉',price:travelRecording?'กำลังบันทึก':'เฉพาะแอดมิน · เก็บในเครื่อง'}]:[]),{key:'cityReport',name:'รายงานเมือง',icon:'▤',price:'ตรวจการจราจรและเส้นทาง'},{key:'incidentLog',name:'Log เหตุจราจร',icon:'◷',price:'ประวัติการช่วยเหลือรถ'}];
- let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(currentCategory==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(currentCategory==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ลากลบถนนต่อเนื่อง · ถนนหลักรื้อไม่ได้',price:'รื้อฟรี'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'รื้อฟรี'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
+ let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
-// New two-level dock: four main sections stay visible. Only Buildings has
-// subcategories; City Data exposes its three actions directly.
+// Three main dock sections: Build, Landscape and City Data. Only Build has
+// subcategories; City Data exposes reports and AI diagnostics directly.
 function dockSectionFor(currentCategory){
  return dockGroups.find(group=>group.categories.includes(currentCategory))||dockGroups[0];
 }
@@ -2183,7 +2182,7 @@ function renderTools(){
  $('categories').innerHTML=dockGroups.map(section=>
   `<button type="button" data-dock-group="${section.key}" class="${section.key===group.key?'active':''}" aria-pressed="${section.key===group.key}" aria-label="${section.name}" title="${section.name}"><span class="dock-group-icon" aria-hidden="true">${section.icon}</span><span class="dock-group-name">${section.name}</span></button>`).join('');
  // Build retains road, housing, jobs, services, leisure and hotel subcategories.
- // City Data has no subcategory strip; dashboards and traffic controls are in the right rail.
+ // City Data has no subcategory strip; dashboards and traffic controls are in the left rail.
  const hasSubcategories=group.key==='build';
  sub.hidden=!hasSubcategories;
  sub.innerHTML=hasSubcategories?categories.filter(([key])=>group.categories.includes(key)).map(([key,name])=>
