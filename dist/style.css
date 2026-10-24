@@ -4866,6 +4866,7 @@ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tool .tool-price
  }
 }
 
+
 /* SMCITY 2026-10-25 — equal-size construction cards and clean labels */
 /* Keep the budget amount and accessible name, hide its redundant caption. */
 body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money .metric-text>small{
