@@ -3567,8 +3567,12 @@ function queueAllows(v,pos,connector){
 }
 function signalRequired(node){return junction(node)>=3;}
 function junctionExitAvailable(v,pos){
- for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionLookahead);k++)
+ for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionLookahead);k++){
+  // The next signalized junction controls its own red light and exit queue.
+  // Do not make entry into this junction depend on a downstream green light.
+  if(k>pos&&signalRequired(v.path[k]))break;
   if(!roadTraversalAvailable(v,k))return false;
+ }
  // A free *logical* lane is not enough if a car is physically sitting at the
  // downstream side of the junction (for example during a lane change).
  if(trafficSpatial){
@@ -3600,6 +3604,8 @@ function reserveIntersection(v,pos){
  if(!ownsJunctionPass(v,pos))v.junctionPasses.push({pos,node:i});
  const key='junction:'+i,lock=state.reservations.get(key)||{passes:[]};if(!lock.passes)lock.passes=[];const pass=lock.passes.find(p=>p.id===v.id);if(pass){pass.until=state.time+30;pass.pos=pos;}else lock.passes.push({id:v.id,pos,until:state.time+30});lock.id=lock.passes[0].id;lock.until=state.time+30;state.reservations.set(key,lock);
  for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionReservation);k++){
+  // Reserve this connector only, never an independent downstream junction.
+  if(k>pos&&signalRequired(v.path[k]))break;
   const next=k+1<v.path.length?v.path[k+1]:v.path[Math.max(0,k-1)],d=k+1<v.path.length?dir(v.path[k],next):dir(next,v.path[k]);
   state.reservations.set(occKey(v.path[k],d,plannedLane(v,k)),{id:v.id,until:state.time+30});
  }
