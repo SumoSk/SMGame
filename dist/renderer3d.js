@@ -1968,10 +1968,11 @@ export class TrafficRenderer{
     const chars=str.replace(/[^A-Z]/g,''),cell=Math.min(.075,w/(chars.length*4+2));
     block('#4f5a60',x,y,z,w,.41,.085,'metal');
     block(orange,x,y+.22,z+.052,w+.05,.042,.063,'metal');
+    block('#ffe1a1',x,y+.17,z+.052,w*.92,.025,.022,'glass',true);
     for(let i=0;i<chars.length;i++)for(let row=0;row<5;row++)
      for(let c=0;c<3;c++)if(signChars[chars[i]]?.[row]?.[c]==='1'){
       const xx=x-(chars.length*4-1)*cell/2+(i*4+c)*cell;
-      block(cream,xx,y+(2-row)*cell,z+.060,cell*.72,cell*.77,.018,'glass',true);
+      block(cream,xx,y+(2-row)*cell,z+.060,cell*.72,cell*.77,.018,'metal');
      }
    };
    // Industrial concrete with striped OSHA-like pedestrian safety markings.
@@ -2087,7 +2088,7 @@ export class TrafficRenderer{
       F-.47-p*1.85,.52,.075,.20,'metal');
     }
     // Front receiving dock & pallet staging with warning marking.
-    for(const xx of[2.12,4.14,6.24]){
+    for(const xx of[2.12,6.24]){
      pallet(xx,F-.54);
      block('#efba66',xx,.23,F-.21,.90,.035,.08,'stone');
     }
@@ -2161,7 +2162,7 @@ export class TrafficRenderer{
       beacon(x+dx,F-.42,1.72,cyan);
      }
     }
-    for(const xx of[3.28,5.51,7.74]){
+    for(const xx of[3.28,7.74]){
      pallet(xx,F-.50);
      block(amber,xx,.23,F-.17,.84,.043,.09,'stone');
     }
@@ -2179,6 +2180,132 @@ export class TrafficRenderer{
      block(i%2?amber:orange,x,4.54,F-.22,.10,.046,.17,'glass',true);
     }
    }
+   // Enclosed production halls replace the yard-like silhouette. Broad,
+   // open loading portals retain a view of the machines at street level.
+   const shellL=1.08,shellR=W-1.08,shellW=shellR-shellL;
+   const shellBack=B+.10,shellFront=F-.12,shellD=shellFront-shellBack,shellZ=(shellBack+shellFront)/2;
+   const eave=tier===1?2.16:tier===2?3.48:4.32,rise=tier===1?.48:.46;
+   const bays=tier===1?1:tier===2?2:3,bayW=shellW/bays;
+   const record=(kind,u,y,v,extra={})=>{
+    const p=point(u,v);(batch.factoryEffects??=[]).push({kind,id,x:p.x-.5,y,z:p.y-.5,turn,tier,...extra});
+   };
+   // Rear insulated wall, orange plinth, upright seams and clerestory band.
+   block('#a4b1ae',cx,(eave+.25)/2,shellBack,shellW,eave-.25,.12,'metal');
+   block(burnt,cx,.51,shellBack-.075,shellW,.48,.075,'metal');
+   block('#577d86',cx,eave-.46,shellBack-.073,shellW-.28,.44,.035,'glass');
+   for(let k=0;k<Math.floor(shellW/.28);k++){
+    const x=shellL+.13+k*.28;
+    block('#d5dcd7',x,(eave+.25)/2,shellBack-.074,.020,eave-.25,.022,'metal');
+   }
+   for(const side of[-1,1]){
+    const x=side<0?shellL:shellR;
+    block('#8d9fa2',x,(eave+.25)/2,shellZ,.12,eave-.25,shellD,'metal');
+    block(burnt,x+side*.07,.51,shellZ,.065,.48,shellD,'metal');
+    block('#6f9da5',x+side*.074,eave-.46,shellZ,.036,.44,shellD-.23,'glass');
+    block('#d1e4df',x+side*.095,eave-.35,shellZ,.015,.035,shellD-.38,'glass');
+    const n=Math.max(5,Math.ceil(shellD/.36));
+    for(let k=0;k<n;k++){
+     const z=shellBack+.14+k*(shellD-.28)/(n-1);
+     block('#c2cecb',x+side*.074,(eave+.25)/2,z,.032,eave-.25,.027,'metal');
+    }
+    block(orange,x+side*.09,eave-.025,shellZ,.16,.17,shellD+.12,'metal');
+    // External distribution pipes, clamps and service cabinet.
+    block('#718d95',x+side*.12,1.02,shellZ,.065,.065,shellD*.80,'metal');
+    block('#d7ddcf',x+side*.13,1.03,shellBack+.54,.13,.15,.07,'metal');
+    block('#465d66',x+side*.12,.68,shellFront-.44,.16,.52,.40,'metal');
+   }
+   // Standing-seam gabled roofs, rooflights and ridge vent caps. Roof panels
+   // are attached to the halls rather than hovering above an open courtyard.
+   for(let bay=0;bay<bays;bay++){
+    const x=shellL+(bay+.5)*bayW,half=bayW/2,angle=Math.atan2(rise,half),length=Math.hypot(half,rise);
+    for(const side of[-1,1]){
+     const p=point(x+side*half/2,shellZ),slope=-side*angle;
+     batch.add(BOX,bay%2?'#637b84':'#61717a',p.x-.5,eave+rise/2,p.y-.5,length+.055,.075,shellD+.18,0,turn,slope,id,false,'metal');
+     const strips=Math.max(5,Math.round(shellD/.34));
+     for(let k=0;k<strips;k++){
+      const z=shellBack-.01+k*(shellD+.02)/(strips-1),q=point(x+side*half/2,z);
+      batch.add(BOX,'#97a9ab',q.x-.5,eave+rise/2+.046,q.y-.5,length+.04,.018,.022,0,turn,slope,id,false,'metal');
+     }
+     const rooflightX=x+side*half*.47,rooflightZ=shellZ+.05,rooflightY=eave+rise*.53+.065;
+     const q=point(rooflightX,rooflightZ);
+     batch.add(BOX,'#89b8c0',q.x-.5,rooflightY,q.y-.5,length*.51,.035,shellD*.50,0,turn,slope,id,false,'glass');
+     for(const end of[-1,1]){
+      const z=rooflightZ+end*shellD*.25,v=point(rooflightX,z);
+      batch.add(BOX,'#cbdad7',v.x-.5,rooflightY+.026,v.y-.5,length*.55,.025,.035,0,turn,slope,id,false,'metal');
+     }
+     // Orange gable outline ties each ridge visually to its loading bay.
+     const q2=point(x+side*half/2,shellFront+.10);
+     batch.add(BOX,orange,q2.x-.5,eave+rise/2,q2.y-.5,length+.09,.12,.10,0,turn,slope,id,false,'metal');
+    }
+    block('#c5d1cd',x,eave+rise+.075,shellZ,.15,.13,shellD+.20,'metal');
+    block('#465e67',x,eave+rise+.16,shellZ,.27,.065,shellD*.44,'metal');
+    for(let k=0;k<5;k++)block('#81999e',x,eave+rise+.16,shellZ-shellD*.18+k*shellD*.09,.28,.07,.025,'metal');
+    // Raised roof ventilator with rotating three-blade impeller.
+    const ventX=x,ventZ=shellBack+shellD*.30,ventY=eave+rise+.24;
+    cyl('#aebebb',ventX,ventY,ventZ,.23,.15);
+    cyl('#3c5059',ventX,ventY+.09,ventZ,.18,.04);
+    record('fan',ventX,ventY+.13,ventZ,{radius:.17});
+    // Front portal is a rolled-up shutter, not a painted door on a solid box.
+    const doorW=Math.min(tier===1?2.35:2.30,bayW-.35),portalX=tier===1?cx:x;
+    const doorTop=tier===1?1.76:2.17,headerH=eave-doorTop;
+    block('#aebcba',portalX,doorTop+headerH/2,shellFront,bayW-.11,headerH,.12,'metal');
+    block('#455c65',portalX,doorTop-.12,shellFront+.075,doorW,.25,.16,'metal');
+    for(let k=0;k<4;k++)block('#a6b6b5',portalX,doorTop-.22+k*.055,shellFront+.16,doorW,.025,.025,'metal');
+    for(const sign of[-1,1]){
+     const postX=portalX+sign*(doorW/2+.075);
+     block('#c8d1ca',postX,(doorTop+.25)/2,shellFront+.02,.12,doorTop-.25,.17,'metal');
+     for(let k=0;k<7;k++)block(k%2?'#343e43':'#f3bd58',postX,.38+k*.16,shellFront+.115,.13,.12,.025,'metal');
+    }
+    block('#ffe4b2',portalX,doorTop+.04,shellFront+.09,doorW*.88,.025,.035,'glass',true);
+    record('beacon',portalX+doorW*.42,doorTop+.17,shellFront+.115);
+   }
+   // A pair of open fabrication doorways under the small single-span roof.
+   // The half-height glazing makes the workshop enclosed without hiding work.
+   if(tier===1){
+    for(const side of[-1,1]){
+     const x=cx+side*2.05;
+     block('#adbcba',x,1.13,shellFront,.86,1.74,.12,'metal');
+     block('#65949e',x,1.26,shellFront+.076,.64,.67,.025,'glass');
+     block('#d4e5dd',x,1.39,shellFront+.095,.54,.035,.013,'glass');
+    }
+   }
+   // Process stacks emerge from the rear service roof. Pale steam is an
+   // animated visual cue only; it does not add pollution or alter gameplay.
+   const stacks=tier===1?[1.72]:[1.72,W-1.72];
+   const stackTop=tier===1?3.10:tier===2?4.39:5.35;
+   for(const x of stacks){
+    const z=shellBack+.42;
+    cyl('#8ca3a8',x,(stackTop+.24)/2,z,.12,stackTop-.24);
+    for(const y of[stackTop-.49,stackTop-.27])cyl(orange,x,y,z,.135,.08);
+    cyl('#425b65',x,stackTop,z,.17,.10);cyl('#d1dad0',x,stackTop+.07,z,.14,.035);
+    record('steam',x,stackTop+.10,z);
+   }
+   // Blue process pipe links, a boiler module and a safety/inspection board.
+   if(tier>=2){
+    const x=W-1.63,z=shellBack+.78;
+    block('#527e91',x,1.19,z,.41,1.66,.46,'metal');
+    block('#bccdce',x,1.19,z+.25,.23,.38,.025,'glass');
+    block('#46798c',cx,eave-.73,shellBack+.24,shellW-.51,.10,.10,'metal');
+    for(const xx of[cx-shellW*.37,cx+shellW*.37])block('#c8d3cc',xx,eave-.73,shellBack+.24,.08,.18,.16,'metal');
+   }
+   // Visible loading equipment and genuine work effects at the open portal.
+   const weldX=tier===1?2.56:tier===2?2.46:2.48,weldZ=tier===1?F-.49:tier===2?F-.97:F-.60;
+   record('weld',weldX,tier===3?1.17:.80,weldZ);
+   if(tier>=2){
+    record('weld',tier===2?5.47:8.50,tier===3?1.17:.80,weldZ);
+    record('cargo',tier===2?5.47:5.49,.69,tier===2?F-1.30:F-.89,{distance:.50});
+   }
+   if(tier>=2){
+    const x=tier===2?4.14:5.51,z=F-.57;
+    block('#384f5b',x,.39,z,.53,.29,.47,'metal');
+    block(orange,x,.60,z-.13,.56,.29,.24,'metal');
+    block('#283d47',x,.89,z-.12,.065,.37,.065,'metal');
+    block('#b4c7c8',x,.97,z-.10,.49,.055,.40,'metal');
+    for(const side of[-1,1])for(const end of[-1,1])block('#2d383e',x+side*.27,.27,z+end*.14,.11,.18,.13,'metal');
+    for(const side of[-1,1])block('#aabcc0',x+side*.13,.25,z+.31,.06,.045,.33,'metal');
+    record('beacon',x,1.05,z-.10);
+   }
+
    // Factory is strictly visual. Parked cars, driveways and employee jobs
    // remain managed by the original traffic/game logic.
    return;
@@ -4723,11 +4850,78 @@ export class TrafficRenderer{
    lantern(x,s*.94,kind==='pub'?'#e6a4e6':'#ffe5b0',.80+tier*.11);
   }
  }
+ createFactoryEffects(records){
+  this.factoryFxSources=records;this.factoryFxSelectionKey='';this.factoryFxSelected=[];
+  if(!records.length){this.factoryFx=null;return;}
+  if(!this.factorySteamTexture){
+   const n=32,bytes=new Uint8Array(n*n*4);
+   for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const k=(y*n+x)*4,r=Math.hypot((x+.5)/n*2-1,(y+.5)/n*2-1);
+    bytes[k]=bytes[k+1]=bytes[k+2]=255;bytes[k+3]=Math.round(Math.max(0,1-r)**2*220);
+   }
+   this.factorySteamTexture=new THREE.DataTexture(bytes,n,n,THREE.RGBAFormat);
+   this.factorySteamTexture.needsUpdate=true;
+  }
+  const group=new THREE.Group();group.name='factory-production-effects';this.buildingGroup.add(group);
+  const steam=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:this.factorySteamTexture,color:'#d8e3dd',transparent:true,opacity:.30,depthWrite:false,side:THREE.DoubleSide}),96);
+  const sparks=new THREE.InstancedMesh(BOX,new THREE.MeshBasicMaterial({color:'#ffffff',toneMapped:false,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}),160);
+  const parts=new THREE.InstancedMesh(BOX,new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.49,metalness:.28}),112);
+  for(const mesh of[steam,sparks,parts]){mesh.count=0;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);group.add(mesh);}
+  this.factoryFx={steam,sparks,parts,dummy:new THREE.Object3D(),color:new THREE.Color()};
+ }
+ updateFactoryEffects(state,cam,now){
+  const fx=this.factoryFx;if(!fx)return;
+  const elapsed=this.factoryFxLast==null?0:Math.max(0,Math.min(.08,now-this.factoryFxLast));this.factoryFxLast=now;
+  this.factoryFxTime=(this.factoryFxTime||0)+(state.speed===0?0:elapsed*Math.min(state.speed||1,2));
+  const time=this.factoryFxTime,span=Math.max(25,Math.min(85,48/(cam.z||1)));
+  const key=[Math.floor(cam.x/10),Math.floor(cam.y/10),Math.round(span/8)].join(':');
+  if(key!==this.factoryFxSelectionKey){
+   this.factoryFxSelectionKey=key;
+   this.factoryFxSelected=this.factoryFxSources.filter(p=>Math.abs(p.x-cam.x)<span&&Math.abs(p.z-cam.y)<span)
+    .sort((a,b)=>Math.hypot(a.x-cam.x,a.z-cam.y)-Math.hypot(b.x-cam.x,b.z-cam.y)).slice(0,120);
+  }
+  let smoke=0,light=0,part=0;const d=fx.dummy;
+  const box=(mesh,i,x,y,z,sx,sy,sz,yaw,color)=>{
+   d.position.set(x,y,z);d.rotation.set(0,yaw,0);d.scale.set(sx,sy,sz);d.updateMatrix();mesh.setMatrixAt(i,d.matrix);
+   mesh.setColorAt(i,fx.color.set(color));
+  };
+  for(const p of this.factoryFxSelected){
+   if(!state.buildings.has(p.id))continue;
+   const seed=hash(p.id,p.x),cycle=time+seed*7;
+   if(p.kind==='steam')for(let k=0;k<6&&smoke<96;k++){
+    const phase=(cycle*.20+k/6)%1,fade=Math.sin(phase*Math.PI),size=(.17+phase*.61)*fade;
+    d.position.set(p.x+Math.sin(phase*3.1+seed)*.12,p.y+phase*1.30,p.z+phase*.17);
+    d.quaternion.copy(this.camera.quaternion);d.scale.set(size,size*1.19,1);d.updateMatrix();fx.steam.setMatrixAt(smoke++,d.matrix);
+   }
+   if(p.kind==='fan')for(let k=0;k<3&&part<112;k++){
+    const a=cycle*4.3+k*TAU/3;box(fx.parts,part++,p.x+Math.cos(a)*.08,p.y,p.z+Math.sin(a)*.08,.18,.023,.05,-a,'#b2c5c4');
+   }
+   if(p.kind==='cargo'&&part<112){
+    const phase=(cycle*.17)%1,distance=(phase-.5)*p.distance;
+    box(fx.parts,part++,p.x-Math.sin(p.turn)*distance,p.y,p.z+Math.cos(p.turn)*distance,.30,.23,.25,p.turn,'#d4a265');
+   }
+   if(p.kind==='beacon'&&light<160){
+    const pulse=.035+.045*(.5+.5*Math.sin(cycle*4));box(fx.sparks,light++,p.x,p.y,p.z,pulse,.07,pulse,p.turn,'#ffc777');
+   }
+   if(p.kind==='weld'){
+    const gate=(cycle%3.7)<.90;
+    if(gate&&light<160)box(fx.sparks,light++,p.x,p.y,p.z,.07,.05,.065,p.turn,'#d6faff');
+    if(gate)for(let k=0;k<7&&light<160;k++){
+     const phase=(cycle*2.6+k/7)%1,a=k*2.399+seed;
+     box(fx.sparks,light++,p.x+Math.cos(a)*phase*.19,p.y+.19*phase-.25*phase*phase,p.z+Math.sin(a)*phase*.17,.012,.025*(1-phase)+.005,.012,0,k%3?'#ffcc71':'#e7faff');
+    }
+   }
+  }
+  fx.steam.count=smoke;fx.sparks.count=light;fx.parts.count=part;
+  for(const mesh of[fx.steam,fx.sparks,fx.parts]){mesh.visible=mesh.count>0;mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;}
+ }
+
  makeBuildings(state,CATALOG,KINDS){
   this.disposeGroup(this.buildingGroup);
   const batch=new Batch();this.grandSignalLights=[];
   for(const building of state.buildings.values())this.building(batch,building,CATALOG,KINDS);
   this.buildingGroup.add(batch.build());
+  this.createFactoryEffects(batch.factoryEffects||[]);
   this.lastNightVisibility=-1;
  }
  updateGrandSignals(){}
@@ -4813,7 +5007,9 @@ export class TrafficRenderer{
  render({state,cam,hover,drag,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,signalColor,checkBuilding,parking}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}
  const roadKey=[state.version,state.roads.size,heat].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}const buildKey=[state.buildings.size,...state.buildings.keys()].join(':');if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}this.trees(state,cam);this.cars(state,vehiclePosition,CATALOG);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding);
  this.updateSignals(signalColor);this.updateGrandSignals();this.updateWeatherLight(state);
- if(this.landscapeClock)this.landscapeClock.value=performance.now()*.001;
+ const visualNow=performance.now()*.001;
+ if(this.landscapeClock)this.landscapeClock.value=visualNow;
+ this.updateFactoryEffects(state,cam,visualNow);
  if(heat){if(!this.heatGroup){this.heatGroup=new THREE.Group();this.scene.add(this.heatGroup);}if(!this.heatAt||state.time-this.heatAt>1){this.heatAt=state.time;this.disposeGroup(this.heatGroup);const b=new Batch();for(const[i,r]of state.roads){if(r.load<.1&&r.wait<.1)continue;const color=r.wait>3?'#ce6156':r.wait>.5?'#eda858':'#92c77b';b.box(color,i%300,.13,Math.floor(i/300),ROADS[r.type].width*.92,.018,.9);}this.heatGroup.add(b.build(false));}this.heatGroup.visible=true;}else if(this.heatGroup)this.heatGroup.visible=false;
  const v=state.vehicles.get(follow);this.routeLine.visible=!!v;if(v){const points=v.path.slice(v.pos).map(i=>new THREE.Vector3(i%300,.2,Math.floor(i/300)));this.routeLine.geometry.dispose();this.routeLine.geometry=new THREE.BufferGeometry().setFromPoints(points);}
  if(debug||ROADS[tool]||CATALOG[tool]||tool.startsWith('tree:')||tool==='treeRow'||tool==='treeBrush'||tool==='eraseTree'){if(!this.grid){this.grid=new THREE.GridHelper(80,80,'#dfefba','#d0e0a0');this.grid.material.transparent=true;this.grid.material.opacity=.2;this.grid.position.y=.125;this.scene.add(this.grid);}this.grid.visible=true;this.grid.position.x=Math.round(cam.x);this.grid.position.z=Math.round(cam.y);}else if(this.grid)this.grid.visible=false;
