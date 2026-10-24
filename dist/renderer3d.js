@@ -173,76 +173,210 @@ function mountainHeight(x,z){
  return h;
 }
 
-const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van'];
+// SMCITY premium car visuals 2026-10-25.
+// Eight original citizen vehicle classes + one dedicated VISUAL taxi variant.
+// Citizen trait weights are intentionally untouched; tourist taxi is not a
+// ninth random citizen class.
+const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van','touristTaxi'];
 const VEHICLE_WEIGHTS=[[26,36,20,10,4,1,1,2],[11,16,42,20,5,1,1,4],[7,12,11,24,33,6,5,2],[2,4,5,10,25,24,28,2]];
 const VEHICLE_STYLES=[
- [.49,.235,.12,-.03,.30,.11],[.58,.255,.13,-.04,.32,.13],
- [.65,.273,.15,.13,.26,.14],[.615,.278,.15,-.02,.39,.17],
- [.63,.275,.13,-.04,.35,.13],[.59,.28,.10,-.07,.26,.08],
- [.66,.29,.14,-.04,.36,.14],[.64,.295,.15,-.035,.50,.20]
+ [.49,.238,.125,-.028,.303,.118], // compact hatchback
+ [.59,.258,.133,-.042,.336,.136], // family sedan
+ [.67,.281,.164,.130,.274,.153], // pickup and open rear tray
+ [.635,.283,.161,-.025,.385,.179], // high SUV
+ [.65,.286,.135,-.046,.353,.148], // executive premium sedan
+ [.615,.285,.104,-.077,.272,.089], // low sport coupe
+ [.735,.308,.164,-.080,.408,.186], // long luxury limousine
+ [.690,.300,.162,-.019,.478,.218], // ordinary minivan
+ [.690,.300,.162,-.019,.478,.218]  // tourist taxi minivan
 ];
 const VEHICLE_PALETTES=[
- ['#f2f2ea','#becad0','#94b7c3','#e0d9ce'],
- ['#e9e8e4','#82939c','#b7b6ac','#516775'],
- ['#edece6','#86979e','#434d53','#b3bbaf'],
- ['#eaeae5','#5b7280','#a6aca6','#404b57'],
- ['#ece8e1','#243447','#667e91','#abb7bf'],
- ['#ed323c','#f6c53c','#f5f3e8','#1b242d'],
- ['#f2e7d5','#242734','#647275','#c3b9ad'],
- ['#e8ebe6','#8594a1','#bdb6a9','#5d686a']
+ ['#ffa52e','#27b8e5','#ff6470','#9bdc4e','#f7f8f5','#9774f0'],
+ ['#f3f7fa','#2475d4','#e64651','#314a67','#e6b76a','#26a6a6'],
+ ['#f26c3f','#2188c4','#fcf7ef','#304963','#e3b13c','#28a76c'],
+ ['#f28d33','#2c85ce','#edf7fa','#485d89','#46b77b','#b45cc9'],
+ ['#164576','#f3f5f6','#303c53','#89b6d1','#922d4a','#bdccd9'],
+ ['#ff303f','#ffd02b','#176fdc','#ffffff','#ff702c','#8246f4'],
+ ['#172137','#f6f1e7','#273a5b','#b99b6d','#651f39','#c4dbe7'],
+ ['#f4f5ee','#387fc0','#f2e1d0','#d95846','#6eafbb','#304867'],
+ ['#ffd127'] // Bangkok-style yellow taxi van: tourists only.
 ];
 function carClassFor(c,id){
- if(c?.tourist)return 7;
+ if(c?.tourist)return 8;
  const group=Math.max(0,Math.min(3,c?.profile?.trait??0)),weights=VEHICLE_WEIGHTS[group];
  let n=hash((c?.id??id)*1.013+37,59)*100;
  for(let i=0;i<weights.length;i++){n-=weights[i];if(n<0)return i;}
  return 0;
 }
 function carPaintFor(c,id,kind,fallback){
- if(c?.tourist)return '#65c8f2';
+ if(c?.tourist)return '#ffd127';
  if(!c)return fallback||'#c5d4d9';
- const p=VEHICLE_PALETTES[kind];return p[Math.floor(hash(c.id*1.117+71,43)*p.length)%p.length];
+ const p=VEHICLE_PALETTES[kind]||VEHICLE_PALETTES[0];
+ return p[Math.floor(hash(c.id*1.117+71,43)*p.length)%p.length];
 }
+// Shared detailed low-poly geometry is built ONCE per type and rendered via
+// instancing. Geometric details are fixed-color vertex trims; only the body
+// tint varies per citizen. No thousands of independent wheel/light meshes.
 function carGeometries(style){
  const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[style],paint=[],detail=[];
- const box=(parts,color,x,y,z,l,h,w)=>parts.push({color,geo:new THREE.BoxGeometry(l,h,w).translate(x,y,z)});
- const top=.16+height/2,roofY=top+cabinH*.49,front=length*.5,rear=-front;
- box(paint,'#ffffff',0,.16,0,length,height,width);
- box(paint,'#ffffff',front*.66,.18,0,length*.29,height*.72,width*.95);
- box(paint,'#ffffff',cabinX,roofY,0,cabinL,cabinH,width*.84);
- box(paint,'#ffffff',cabinX,roofY+cabinH*.48,0,cabinL*.86,.019,width*.80);
- for(const z of [-1,1]){
-  box(detail,'#456778',cabinX,roofY-.017,z*width*.426,cabinL*.76,cabinH*.6,.012);
-  box(detail,'#b7c5ca',front,top-.06,z*width*.36,.008,.031,width*.23);
-  box(detail,'#ed5a53',rear,top-.06,z*width*.36,.008,.036,width*.20);
-  box(detail,'#99a9ae',front*.52,top-.02,z*width*.56,.06,.048,.026);
-  for(const x of [length*.28,-length*.30]){
-   const tyre=new THREE.CylinderGeometry(style===2?.087:.076,style===2?.087:.076,.038,10);
-   tyre.rotateX(Math.PI/2);tyre.translate(x,.105,z*width*.52);
-   detail.push({color:'#21292f',geo:tyre});
-   const hub=new THREE.CylinderGeometry(.041,.041,.042,10);
-   hub.rotateX(Math.PI/2);hub.translate(x,.105,z*width*.53);
-   detail.push({color:'#abb9bc',geo:hub});
+ const compact=style===0,sedan=style===1,pickup=style===2,suv=style===3,
+  premium=style===4,sport=style===5,luxury=style===6,
+  van=style===7||style===8,taxi=style===8;
+ const chromed=premium||luxury,front=length*.5,rear=-front;
+ const top=.165+height*.5,roofY=top+cabinH*.49,roofTop=roofY+cabinH*.5;
+ const glass=taxi?'#264653':'#263e54',windshield='#739aa9';
+ const metal=luxury?'#eadbb9':chromed?'#c7dbe2':'#9aaab4';
+ const wheelR=(pickup||suv||van)?.083:sport?.069:.076;
+ const box=(parts,color,x,y,z,l,h,w,rot=0)=>{
+  const geo=new THREE.BoxGeometry(l,h,w);
+  if(rot)geo.rotateZ(rot);geo.translate(x,y,z);
+  parts.push({color,geo});
+ };
+ // Layered, slightly tapered body with rocker, hood, rear boot and bumpers.
+ box(paint,'#ffffff',0,.163,0,length,height*.82,width*.955);
+ box(paint,'#ffffff',0,top-.038,0,length*.94,.055,width*.93);
+ box(paint,'#ffffff',front*.71,top-.035,0,length*.28,.034,width*.84);
+ if(!van&&!pickup){
+  box(paint,'#ffffff',rear*.78,top-.026,0,length*.22,.033,width*.84);
+ }
+ box(detail,'#1d2b35',0,.108,0,length*.86,.022,width*.965);
+ for(const x of [front-.015,rear+.015]){
+  box(detail,x>0?'#a4b0b9':'#33404c',x,.126,0,.018,.06,width*.96);
+  box(detail,'#52616b',x,.093,0,.032,.015,width*.93);
+ }
+ // All cars have separate cabin, bright roof highlight and four real windows.
+ box(paint,'#ffffff',cabinX,roofY,0,cabinL,cabinH,width*.85);
+ box(paint,'#ffffff',cabinX,roofTop-.005,0,cabinL*.91,.014,width*.82);
+ box(detail,glass,cabinX+cabinL*.51,roofY-.012,0,.015,cabinH*.75,width*.71,-.32);
+ box(detail,'#39566a',cabinX-cabinL*.51,roofY-.011,0,.015,cabinH*.71,width*.69,.26);
+ box(detail,windshield,cabinX+cabinL*.51,roofY+cabinH*.25,0,.006,.018,width*.64,-.32);
+ // Side windows, door frames, window surrounds, body creases and door handles.
+ for(const sign of [-1,1]){
+  const side=sign*width*.431;
+  box(detail,glass,cabinX,roofY-.005,side,cabinL*.80,cabinH*.66,.010);
+  box(detail,'#bcd0d5',cabinX,roofY+cabinH*.32,side+sign*.004,cabinL*.82,.010,.009);
+  box(detail,'#243b4a',cabinX,roofY-cabinH*.34,side+sign*.004,cabinL*.82,.012,.009);
+  for(const x of [cabinX-cabinL*.18,cabinX+cabinL*.23]){
+   box(detail,'#aec2ca',x,roofY-.013,side+sign*.006,.010,cabinH*.68,.013);
+  }
+  box(detail,metal,cabinX+.04,top-.052,sign*width*.485,.047,.008,.008);
+  box(detail,'#d2dbdd',cabinX-.17,top-.052,sign*width*.483,.033,.007,.007);
+  box(detail,chromed?'#cfdee0':'#455968',0,.157,sign*width*.481,length*.74,.006,.009);
+  box(detail,'#aec3c8',cabinX+cabinL*.32,top+.012,sign*width*.57,.071,.025,.047);
+  box(detail,'#203a48',cabinX+cabinL*.35,top+.025,sign*width*.595,.047,.012,.018);
+ }
+ // Distinct front end: daytime running lights, rear clusters, intake and grille.
+ box(detail,'#233543',front+.011,.177,0,.019,.058,width*.70);
+ const grilleW=luxury?width*.43:premium?width*.45:sport?width*.72:pickup?width*.60:width*.52;
+ box(detail,chromed?'#d6dce0':'#596c76',front+.018,.185,0,.012,.053,grilleW);
+ for(const sign of [-1,1]){
+  box(detail,'#fbf7e7',front+.018,top-.025,sign*width*.355,.021,.033,width*.235);
+  box(detail,'#d3eafa',front+.030,top-.020,sign*width*.34,.007,.011,width*.18);
+  box(detail,'#e6444b',rear-.019,top-.026,sign*width*.345,.019,.040,width*.245);
+  box(detail,'#ffa39a',rear-.027,top-.007,sign*width*.357,.008,.014,width*.17);
+  box(detail,'#1d2a30',front*.57,.145,sign*width*.51,length*.23,.023,.019);
+ }
+ // Four wheels with rubber, silver alloys, axle hubs and visible spoke detail.
+ for(const sign of [-1,1])for(const axle of [length*.29,-length*.29]){
+  const z=sign*width*.51,y=.105;
+  const tyre=new THREE.CylinderGeometry(wheelR,wheelR,.041,12);
+  tyre.rotateX(Math.PI/2);tyre.translate(axle,y,z);
+  detail.push({color:'#161e25',geo:tyre});
+  const rim=new THREE.CylinderGeometry(wheelR*.64,wheelR*.64,.043,12);
+  rim.rotateX(Math.PI/2);rim.translate(axle,y,z+sign*.013);
+  detail.push({color:chromed?'#d5d9da':'#91a9b4',geo:rim});
+  const hub=new THREE.CylinderGeometry(wheelR*.23,wheelR*.23,.046,10);
+  hub.rotateX(Math.PI/2);hub.translate(axle,y,z+sign*.017);
+  detail.push({color:'#374955',geo:hub});
+  // Fine alloy-spoke cross, clear at zoom without per-frame animations.
+  for(const angle of [0,Math.PI/3,2*Math.PI/3]){
+   const spoke=new THREE.BoxGeometry(wheelR*1.08,.009,.006);
+   spoke.rotateZ(angle);spoke.translate(axle,y,z+sign*.037);
+   detail.push({color:luxury?'#eee0be':'#dee9ec',geo:spoke});
   }
  }
- box(detail,'#466777',cabinX+cabinL*.49,roofY-.018,0,.015,cabinH*.6,width*.72);
- box(detail,'#4b6571',cabinX-cabinL*.49,roofY-.018,0,.015,cabinH*.62,width*.7);
- box(detail,'#25333c',front+.005,.145,0,.01,.037,width*.43);
- if(style===2){
-  box(detail,'#394b4e',-.19,top+.004,0,.24,.011,width*.76);
-  for(const z of [-1,1])box(paint,'#ffffff',-.18,top+.035,z*width*.44,.25,.067,.022);
+ // Model-specific silhouette and trim; premium and luxury are intentionally
+ // two different families (executive vs chauffeur-driven limousine).
+ if(compact){
+  box(detail,'#2c444f',rear-.012,top+.014,0,.018,.068,width*.74);
+  box(detail,'#9babb0',rear+.034,roofTop+.006,0,.055,.009,width*.67);
+  box(detail,'#dcebf1',front*.76,top+.004,0,.095,.008,width*.33);
  }
- if(style===3||style===7)for(const z of [-1,1])box(detail,'#9aa5a8',cabinX,roofY+cabinH*.56,z*width*.3,cabinL*.84,.018,.016);
- if(style===4||style===6){
-  box(detail,'#c4c9c8',front+.009,.17,0,.011,.07,width*.33);
-  for(const z of [-1,1])box(detail,'#a9bbc0',0,.17,z*width*.51,length*.7,.012,.009);
+ if(sedan){
+  box(detail,'#c9dbe0',rear+.025,top+.006,0,.11,.008,width*.47);
+  box(detail,'#475f70',cabinX,roofTop+.006,0,cabinL*.55,.008,width*.53);
  }
- if(style===5){
-  box(paint,'#ffffff',rear+.04,.26,0,.07,.023,width*1.08);
-  for(const z of [-1,1])box(detail,'#343940',rear+.04,.226,z*width*.3,.013,.06,.014);
-  box(detail,'#25292d',rear-.009,.155,0,.013,.04,width*.78);
+ if(pickup){
+  // Bed floor is dark and visibly recessed, with painted bed rails and tailgate.
+  box(detail,'#2b343b',rear*.56,top+.018,0,length*.37,.009,width*.69);
+  for(const sign of [-1,1]){
+   box(paint,'#ffffff',rear*.55,top+.052,sign*width*.40,length*.42,.085,.030);
+   box(detail,'#bac7c9',rear*.55,top+.096,sign*width*.40,length*.42,.010,.032);
+  }
+  box(paint,'#ffffff',rear+.024,top+.054,0,.034,.084,width*.87);
+  box(detail,'#3b494c',front+.025,.147,0,.025,.066,width*.57);
  }
- if(style===6)box(detail,'#e0cea5',front+.018,.223,0,.022,.025,.024);
+ if(suv){
+  for(const sign of [-1,1]){
+   box(detail,'#cdd8db',cabinX,roofTop+.015,sign*width*.30,cabinL*.83,.017,.017);
+   box(detail,'#26353c',0,.115,sign*width*.47,length*.71,.022,.018);
+  }
+  box(detail,'#ccd6d8',rear-.023,.144,0,.028,.030,width*.78);
+ }
+ if(premium){
+  // Executive sedan: twin horizontal chrome kidneys and quiet window chrome.
+  for(const sign of [-1,1]){
+   box(detail,'#25323b',front+.034,.188,sign*width*.14,.009,.055,width*.21);
+   for(let k=0;k<3;k++)box(detail,'#bed2d8',front+.040,.167+k*.018,sign*width*.14,.006,.005,width*.20);
+   box(detail,'#d6e7ed',0,top+.010,sign*width*.437,cabinL*.81,.010,.010);
+  }
+  box(detail,'#ecf0ed',rear-.027,.153,0,.008,.026,width*.19);
+ }
+ if(sport){
+  // Low wedge nose, broad intakes, aero sills, rear diffuser and twin exhausts.
+  box(paint,'#ffffff',front*.77,top+.007,0,length*.22,.025,width*.92);
+  box(detail,'#1a232d',front+.020,.139,0,.024,.047,width*.81);
+  for(const sign of [-1,1]){
+   box(detail,'#1b2930',front*.43,top+.006,sign*width*.28,.10,.009,.043);
+   box(detail,'#27333c',rear-.026,.126,sign*width*.32,.022,.035,.045);
+   box(detail,'#c7d5dc',rear-.037,.13,sign*width*.32,.009,.012,.016);
+   box(detail,'#26313a',0,.120,sign*width*.51,length*.78,.022,.015);
+  }
+  box(paint,'#ffffff',rear+.039,roofTop+.035,0,.066,.019,width*1.12);
+  for(const sign of [-1,1])box(detail,'#282d33',rear+.036,roofTop+.015,sign*width*.37,.017,.050,.017);
+ }
+ if(luxury){
+  // Chauffeur limousine: tall upright waterfall grille, long formal roof,
+  // polished window surround, strong shoulder line and hood ornament.
+  box(detail,'#28323a',front+.039,.188,0,.015,.083,width*.49);
+  for(let k=-3;k<=3;k++)box(detail,'#e5d4ad',front+.052,.187,k*width*.056,.009,.079,.009);
+  for(const sign of [-1,1]){
+   box(detail,'#eddeb9',cabinX,roofTop+.011,sign*width*.36,cabinL*.90,.012,.016);
+   box(detail,'#c9b38d',0,top-.038,sign*width*.493,length*.84,.011,.010);
+   box(detail,'#dfd7bf',rear+.021,top+.009,sign*width*.36,.082,.013,.017);
+  }
+  box(detail,'#e8d6a9',front*.80,top+.042,0,.012,.059,.012);
+  box(detail,'#e8d6a9',front*.80,top+.072,0,.036,.007,.009);
+  box(detail,'#eddab3',rear-.027,.145,0,.012,.020,width*.23);
+ }
+ if(van){
+  // Tall multi-row glass cabin with a visible slider-door seam.
+  for(const sign of [-1,1]){
+   box(detail,'#1e3441',cabinX-.12,roofY-.011,sign*width*.437,.014,cabinH*.73,.013);
+   box(detail,'#c0d0d5',cabinX+.065,top-.034,sign*width*.490,.012,.11,.008);
+   box(detail,'#273b43',cabinX-.095,.160,sign*width*.492,.125,.009,.010);
+  }
+  box(detail,'#1b303b',rear-.029,roofY-.017,0,.014,cabinH*.73,width*.69);
+  box(detail,'#b9cbd0',rear-.033,.136,0,.015,.022,width*.54);
+ }
+ if(taxi){
+  // Tourist-only taxi roof sign and black/yellow side chequers.
+  box(detail,'#f9fcf9',cabinX+.04,roofTop+.047,0,.108,.052,.139);
+  box(detail,'#1d2a31',cabinX+.04,roofTop+.075,0,.089,.017,.134);
+  box(detail,'#f6eabc',cabinX+.04,roofTop+.087,0,.050,.010,.075);
+  for(const sign of [-1,1])for(let k=0;k<5;k++)
+   box(detail,k%2?'#1b3035':'#fbf7e6',cabinX-.045+k*.033,.160,sign*width*.493,.026,.025,.011);
+ }
  const merge=parts=>{
   const positions=[],normals=[],colors=[];
   for(const {color,geo:original} of parts){
@@ -327,6 +461,8 @@ export class TrafficRenderer{
     mesh.visible=night>.04&&mesh.count>0;
     mesh.material.opacity=night*.94;
    }
+   set.lightSpill.visible=night>.20&&set.lightSpill.count>0;
+   set.lightSpill.material.opacity=night*.13;
   }
  }
  updateWeatherLight(state){
@@ -5544,17 +5680,31 @@ export class TrafficRenderer{
  }
  ensureCarSet(kind,needed){
   const old=this.carSets.get(kind);if(old&&old.capacity>=needed)return old;
-  if(old){for(const mesh of [old.body,old.trim,old.headlights,old.taillights]){this.scene.remove(mesh);mesh.material.dispose();}}
+  if(old)for(const mesh of [old.body,old.trim,old.headlights,old.taillights,old.lightSpill]){
+   this.scene.remove(mesh);mesh.material.dispose();mesh.dispose();
+  }
   const capacity=Math.max(32,2**Math.ceil(Math.log2(Math.max(1,needed)))),geometry=this.carModels[kind];
-  const body=new THREE.InstancedMesh(geometry.body,new THREE.MeshStandardMaterial({color:'#ffffff',roughness:kind===5||kind===6?.25:.4,metalness:.15}),capacity);
-  const trim=new THREE.InstancedMesh(geometry.trim,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.45,metalness:.13}),capacity);
-  // Two very small instanced light surfaces per car. No dynamic point lights:
-  // works on iPad and remains readable from an isometric camera.
-  const lightMesh=color=>new THREE.InstancedMesh(BOX,new THREE.MeshBasicMaterial({color,transparent:true,opacity:0,depthWrite:false,toneMapped:false}),capacity*2);
-  const headlights=lightMesh('#ffeac0'),taillights=lightMesh('#ff6059');
-  for(const mesh of [headlights,taillights]){mesh.frustumCulled=false;mesh.renderOrder=3;mesh.count=0;mesh.visible=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(mesh);}
-  for(const mesh of [body,trim]){mesh.castShadow=true;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.count=0;this.scene.add(mesh);}
-  const created={capacity,body,trim,headlights,taillights};this.carSets.set(kind,created);this.lastNightVisibility=-1;return created;
+  const body=new THREE.InstancedMesh(geometry.body,new THREE.MeshStandardMaterial({
+   color:'#ffffff',roughness:kind===5?.23:kind===6?.27:.35,metalness:kind===4||kind===6?.23:.15
+  }),capacity);
+  const trim=new THREE.InstancedMesh(geometry.trim,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.34,metalness:.20}),capacity);
+  // Only instanced emissive lenses: NEVER a point light for every vehicle.
+  const lightMesh=color=>new THREE.InstancedMesh(BOX,new THREE.MeshBasicMaterial({
+   color,transparent:true,opacity:0,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending
+  }),capacity*2);
+  const headlights=lightMesh('#fff3d6'),taillights=lightMesh('#ff3d35');
+  const lightSpill=new THREE.InstancedMesh(BOX,new THREE.MeshBasicMaterial({
+   color:'#ffeac2',transparent:true,opacity:0,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending
+  }),capacity);
+  for(const mesh of [headlights,taillights,lightSpill]){
+   mesh.frustumCulled=false;mesh.renderOrder=3;mesh.count=0;mesh.visible=false;
+   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(mesh);
+  }
+  for(const mesh of [body,trim]){
+   mesh.castShadow=true;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.count=0;this.scene.add(mesh);
+  }
+  const created={capacity,body,trim,headlights,taillights,lightSpill};
+  this.carSets.set(kind,created);this.lastNightVisibility=-1;return created;
  }
  cars(state,vehiclePosition,CATALOG,vehicleTimeliness=null,selected=null){
   const groups=VEHICLE_TYPES.map(()=>[]),indicators=[];
@@ -5575,7 +5725,7 @@ export class TrafficRenderer{
   this.updateCarIndicators(indicators);
   for(let kind=0;kind<groups.length;kind++){
    const items=groups[kind],old=this.carSets.get(kind);
-   if(!items.length){if(old){old.body.count=0;old.trim.count=0;old.headlights.count=0;old.taillights.count=0;}continue;}
+   if(!items.length){if(old){old.body.count=0;old.trim.count=0;old.headlights.count=0;old.taillights.count=0;old.lightSpill.count=0;}continue;}
    const set=this.ensureCarSet(kind,items.length);
    for(let i=0;i<items.length;i++){
     const car=items[i];this.carDummy.position.set(car.x,0,car.z);this.carDummy.rotation.set(0,-car.angle,0);
@@ -5586,17 +5736,26 @@ export class TrafficRenderer{
     for(const sign of [-1,1]){
      // Car model faces +X in local space; side offsets rotate with the body.
      const side=sign*width*.33;
-     for(const [mesh,localX,height] of [[set.headlights,length*.5+.015,.184],[set.taillights,-length*.5-.015,.165]]){
+     for(const [mesh,localX,height] of [[set.headlights,length*.5+.024,.185],[set.taillights,-length*.5-.024,.170]]){
       this.carLightDummy.position.set(car.x+cos*localX-sin*side,height,car.z+sin*localX+cos*side);
       this.carLightDummy.rotation.set(0,-car.angle,0);
-      this.carLightDummy.scale.set(.020,.040,.045);
+      this.carLightDummy.scale.set(mesh===set.headlights?.024:.018,.037,.050);
       this.carLightDummy.updateMatrix();
       mesh.setMatrixAt(i*2+(sign+1)/2,this.carLightDummy.matrix);
      }
     }
+    // A very faint forward pool of light on the pavement at night.
+    // One transparent instanced box per car; no shadows or dynamic lights.
+    const spillX=length*.5+.17;
+    this.carLightDummy.position.set(car.x+cos*spillX,.026,car.z+sin*spillX);
+    this.carLightDummy.rotation.set(0,-car.angle,0);
+    this.carLightDummy.scale.set(.31,.008,.21);
+    this.carLightDummy.updateMatrix();
+    set.lightSpill.setMatrixAt(i,this.carLightDummy.matrix);
    }
    for(const mesh of [set.body,set.trim]){mesh.count=items.length;mesh.instanceMatrix.needsUpdate=true;}
    for(const mesh of [set.headlights,set.taillights]){mesh.count=items.length*2;mesh.instanceMatrix.needsUpdate=true;}
+   set.lightSpill.count=items.length;set.lightSpill.instanceMatrix.needsUpdate=true;
    if(set.body.instanceColor)set.body.instanceColor.needsUpdate=true;
   }
  }
