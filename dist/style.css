@@ -4902,6 +4902,7 @@ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools:not(:has(>
  }
 }
 
+
 /* SMCITY 2026-10-25 — mobile / iPad dock visibility and readable demand */
 /* Desktop remains unchanged. Respect bottom safe areas on touch layouts. */
 @media (max-width:920px), (max-width:1240px) and (hover:none) and (pointer:coarse){
