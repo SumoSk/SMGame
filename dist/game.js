@@ -816,7 +816,7 @@ function reset(city='phuket'){
 if(travelRecording)travelLogStop('เปลี่ยนหรือโหลดเมือง');
 parkingMerges=[];incidentCases.clear();incidentForVehicle.clear();incidentScanAt=-Infinity;incidentRenderAt=0;
 state={city,money:500000,time:360,incidentRewards:{day:0,count:0},speed:1,roads:new Map(),buildings:new Map(),citizens:new Map(),vehicles:new Map(),signals:new Map(),signalDefaults:{eastWest:6,northSouth:6},footprint:new Int32Array(W*H).fill(-1),buildGrid:new Int32Array(W*H).fill(-1),nextId:1,profileSeq:0,version:0,routeCache:new Map(),occ:new Map(),reservations:new Map(),events:[],lastMinute:359,lastDay:0,lastImmigration:0,lastPass:0,stats:{},alerts:[],roadChanges:[],activeTraffic:new Set(),junctionCache:new Map(),skip:false};
-state.plantedTrees=[];state.hiddenAutoTrees=[];state.landscapeVersion=0;state.missionStats=newMissionStats();missionAutoOpenDay=-1;
+state.plantedTrees=[];state.hiddenAutoTrees=[];state.landscapeVersion=0;missionAutoClose();state.missionStats=newMissionStats();
 for(let n=0;n<300;n++){state.roads.set(id(150,n),{type:'large',main:true,links:new Set(),load:0,wait:0});state.roads.set(id(n,150),{type:'large',main:true,links:new Set(),load:0,wait:0});}
 for(let n=0;n<299;n++){link(id(150,n),id(150,n+1));link(id(n,150),id(n+1,150));}
 state.gates=[id(150,0),id(299,150),id(150,299),id(0,150)];rebuildFootprint();cam={x:149,y:149,z:innerWidth<700?.94:1.24,angle:Math.PI*.2,elevation:Math.atan2(86,90)};selected=null;follow=null;news=[];tool='hand';movingBuildingId=null;$('cancelMoveBuilding').hidden=true;hideCitizenDashboard();hideTouristDashboard();touristSearch='';touristPage=0;touristDashboardAt=0;touristFilter='all';citizenFilter='all';citizenSearch='';citizenPage=0;if($('citizenSearch'))$('citizenSearch').value='';$('inspector').classList.add('hidden');$('cityName').textContent=CITIES[city].name;$('citySub').textContent=CITIES[city].sub;$('mapLabel').innerHTML=CITIES[city].en+'<small>THAILAND · สร้างเมืองในแบบคุณ</small>';addNews('เริ่มเมืองใหม่ เชื่อมถนน สร้างบ้าน และสร้างงาน');updateUI();renderTools();}
@@ -1814,7 +1814,7 @@ function updateCityAdvisor(){
  set('advisorNext',advice.next.map((a,i)=>'<li><span>'+e(a.text)+'</span>'+(a.report?'<button data-advice-report>ตรวจเมือง</button>':a.category?'<button data-advice-category="'+a.category+'">เปิดหมวดสร้าง</button>':'')+'</li>').join(''));
 }
 
-function updateUI(){travelLogPulse();missionAutoPulse();const s=computeStats();$('money').textContent=money(state.money);$('population').innerHTML=fmt(s.pop)+' <em>คน</em>';if($('tourists'))$('tourists').innerHTML=fmt(touristPeople().filter(c=>c.enteredAt!=null).length)+' <em>คน</em>';$('happy').innerHTML=Math.round(s.happy)+'<em>%</em>';$('flow').innerHTML=Math.round(s.flow)+'<em>%</em>';$('clock').textContent=timeText(state.time);$('day').textContent=(innerWidth<=500?['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.']:['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์','วันอาทิตย์'])[Math.floor(state.time/1440)%7]+(innerWidth<=500?' · ':' · วันที่ ')+(Math.floor(state.time/1440)+1);$('sun').style.left=(state.time%1440)/1440*100+'%';$('net').textContent=(s.net>=0?'+':'')+money(s.net);$('net').classList.toggle('warning',s.net<0);const steps=[{done:[...state.roads.values()].some(r=>!r.main),text:'ต่อถนนเล็กจากถนนหลัก'},{done:s.homes>0,text:'สร้างบ้านติดถนน รอคนย้ายเข้า'},{done:s.jobs>0,text:'สร้างงานให้ประชาชน'}];$('steps').textContent=steps.filter(s=>s.done).length+' / 3';$('guide').innerHTML=steps.map((s,i)=>`<div class="guide-item ${s.done?'done':'current'}"><b>${s.done?'✓':i+1}</b><span>${s.text}</span></div>`).join('');updateCityAdvisor();$('news').innerHTML=news.slice(0,3).map(n=>`<div class="news-item"><time>${timeText(n.time)}</time>${n.text}</div>`).join('');const stranded=[...state.vehicles.values()].filter(v=>v.phase==='stuck'||v.departureNoRoute).length;$('status').textContent=stranded?'รถรอเส้นทาง '+stranded+' คัน · ข้อมูลเมือง → รายงานเมือง':s.pop?`รถเดินทาง ${state.vehicles.size} คัน · รอคิว ${s.waiting} คัน · คลิกที่รถเพื่อดูชีวิตประชาชน`:'ลากเพื่อเลื่อนแผนที่ · เลื่อนล้อเพื่อซูม';document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',+b.dataset.speed===state.speed));$('pause').textContent=state.speed?'Ⅱ':'▶';if(selected&&!document.activeElement?.classList?.contains?.('signal-minutes'))renderInspector();renderCitizenDashboard();renderTouristDashboard();}
+function updateUI(){travelLogPulse();missionAutoPulse();const s=computeStats();missionPeakSample(s);$('money').textContent=money(state.money);$('population').innerHTML=fmt(s.pop)+' <em>คน</em>';if($('tourists'))$('tourists').innerHTML=fmt(touristPeople().filter(c=>c.enteredAt!=null).length)+' <em>คน</em>';$('happy').innerHTML=Math.round(s.happy)+'<em>%</em>';$('flow').innerHTML=Math.round(s.flow)+'<em>%</em>';$('clock').textContent=timeText(state.time);$('day').textContent=(innerWidth<=500?['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.']:['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์','วันอาทิตย์'])[Math.floor(state.time/1440)%7]+(innerWidth<=500?' · ':' · วันที่ ')+(Math.floor(state.time/1440)+1);$('sun').style.left=(state.time%1440)/1440*100+'%';$('net').textContent=(s.net>=0?'+':'')+money(s.net);$('net').classList.toggle('warning',s.net<0);const steps=[{done:[...state.roads.values()].some(r=>!r.main),text:'ต่อถนนเล็กจากถนนหลัก'},{done:s.homes>0,text:'สร้างบ้านติดถนน รอคนย้ายเข้า'},{done:s.jobs>0,text:'สร้างงานให้ประชาชน'}];$('steps').textContent=steps.filter(s=>s.done).length+' / 3';$('guide').innerHTML=steps.map((s,i)=>`<div class="guide-item ${s.done?'done':'current'}"><b>${s.done?'✓':i+1}</b><span>${s.text}</span></div>`).join('');updateCityAdvisor();$('news').innerHTML=news.slice(0,3).map(n=>`<div class="news-item"><time>${timeText(n.time)}</time>${n.text}</div>`).join('');const stranded=[...state.vehicles.values()].filter(v=>v.phase==='stuck'||v.departureNoRoute).length;$('status').textContent=stranded?'รถรอเส้นทาง '+stranded+' คัน · ข้อมูลเมือง → รายงานเมือง':s.pop?`รถเดินทาง ${state.vehicles.size} คัน · รอคิว ${s.waiting} คัน · คลิกที่รถเพื่อดูชีวิตประชาชน`:'ลากเพื่อเลื่อนแผนที่ · เลื่อนล้อเพื่อซูม';document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',+b.dataset.speed===state.speed));$('pause').textContent=state.speed?'Ⅱ':'▶';if(selected&&!document.activeElement?.classList?.contains?.('signal-minutes'))renderInspector();renderCitizenDashboard();renderTouristDashboard();}
 function timeText(t){t=Math.floor(t%1440);return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
 function computeStats(taxDay=Math.floor(state.time/1440)){let pop=0,happy=0,homes=0,freeHomes=0,jobs=0,unemployed=0,serviceNeed=0,tax=0,business=0,maint=0,waiting=0;for(const b of state.buildings.values()){const t=CATALOG[b.key];homes+=t.residents;freeHomes+=Math.max(0,t.residents-(b.residents?.size||0)-(b.reservedResidents||0));jobs+=t.jobs;maint+=t.maint;business+=(b.workers?.size||0)*50;}for(const c of state.citizens.values()){if(!c.resident||c.removed)continue;pop++;happy+=c.happy;if(c.profile.trait!==3&&!c.workId&&!c.movingOut)unemployed++;if(c.pending&&['shop','restaurant','mall','park','pub','casino'].includes(c.pending.kind))serviceNeed++;if(!c.movingOut)tax+=workTax(c,taxDay);}for(const r of state.roads.values())if(!r.main)maint+=ROADS[r.type].maint;for(const v of state.vehicles.values())if(v.wait>1||v.phase!=='driving')waiting++;const flow=state.vehicles.size?100*(1-waiting/state.vehicles.size):100;return state.stats={pop,happy:pop?happy/pop:100,homes,freeHomes,jobs,unemployed,serviceNeed,tax,business,maint,net:tax+business-maint,waiting,flow};}
 
@@ -2766,7 +2766,7 @@ function touristEnter(c,v){
 }
 function touristActivityResult(c,step,outcome){
  if(!c||!step||step.outcomeScored)return;step.outcomeScored=outcome;
- recordMissionResult('tourist',outcome,state.vehicles.get(c.vehicleId));
+ recordMissionResult('tourist',outcome,state.vehicles.get(c.vehicleId),step.kind);
  if(outcome!=='ontime'){const loss=outcome==='missed'?5:outcome==='late'?2:3;pain(c,loss,outcome==='missed'?'ไปไม่ทันใช้บริการ':outcome==='cancelled'?'เที่ยวเดินทางถูกยกเลิก':'ใช้บริการไม่ได้');}
 }
 function touristTrafficFailure(c,v,step){
@@ -3039,7 +3039,7 @@ const MISSION_TRIP_NAMES={moveIn:'ย้ายเข้า',moveOut:'ย้า�
 function newMissionCounters(){return{total:0,ontime:0,late:0,missed:0,unavailable:0,cancelled:0,durationSum:0,durationCount:0,congestionSum:0,congestionCount:0,roadBlocks:0,blockDurationSum:0};}
 function newMissionDay(day=Math.floor(state.time/1440),since=state.time){
  return{day,since,...newMissionCounters(),byKind:Object.fromEntries(MISSION_KINDS.map(k=>[k,newMissionCounters()])),
- tripsStarted:0,tripsArrived:0,tripsByKind:{},arrivalsByKind:{},populationIn:0,populationOut:0,touristsIn:0,touristsOut:0,
+ tripsStarted:0,tripsArrived:0,tripsByKind:{},arrivalsByKind:{},serviceResults:{},peakCars:0,peakWaiting:0,peakPopulation:0,happyMin:100,happyMax:0,populationIn:0,populationOut:0,touristsIn:0,touristsOut:0,
  touristsRevenue:0,touristsDiscount:0,incidentReward:0,roadCost:0,buildingCost:0,buildingsBuilt:0,buildingsRemoved:0,roadsBuilt:0,
  taxRevenue:0,businessRevenue:0,maintenanceCost:0,dailySettlement:0,taxAdjustments:0,openingMoney:state.money,endingMoney:state.money};
 }
@@ -3051,7 +3051,7 @@ function restoreMissionStats(saved){
   if(!value||typeof value!=='object'||value.day!==day)return null;
   const result=newMissionDay(day,Number.isFinite(value.since)?Math.max(0,Math.min(value.since,state.time)):state.time);
   for(const key of Object.keys(result)){
-   if(key==='byKind'||key==='tripsByKind'||key==='arrivalsByKind'||key==='day'||key==='since'||key==='cityEnd')continue;
+   if(key==='byKind'||key==='tripsByKind'||key==='arrivalsByKind'||key==='serviceResults'||key==='day'||key==='since'||key==='cityEnd')continue;
    if(typeof result[key]==='number')result[key]=key==='openingMoney'||key==='endingMoney'||key==='dailySettlement'||key==='taxAdjustments'?Number.isFinite(value[key])?Math.max(-1e12,Math.min(1e12,value[key])):result[key]:safe(value[key]);
   }
   const readCounter=(dst,src)=>{if(!src||typeof src!=='object')return;for(const key of ['total',...MISSION_OUTCOMES,'durationSum','durationCount','congestionSum','congestionCount','roadBlocks','blockDurationSum'])dst[key]=safe(src[key]);};
@@ -3059,6 +3059,9 @@ function restoreMissionStats(saved){
   for(const kind of MISSION_KINDS)readCounter(result.byKind[kind],value.byKind?.[kind]);
   for(const name of ['tripsByKind','arrivalsByKind'])if(value[name]&&typeof value[name]==='object'){
    for(const [kind,count] of Object.entries(value[name]))if(Object.hasOwn(MISSION_TRIP_NAMES,kind))result[name][kind]=safe(count);
+  }
+  if(value.serviceResults&&typeof value.serviceResults==='object')for(const [kind,row] of Object.entries(value.serviceResults))if(Object.hasOwn(KINDS,kind)&&row&&typeof row==='object'){
+   const entry=result.serviceResults[kind]=newMissionCounters();readCounter(entry,row);
   }
   if(value.cityEnd&&typeof value.cityEnd==='object'){
    result.cityEnd={};for(const k of ['population','tourists','happy','unemployed','jobs','homes','serviceNeed','vehicles','waiting','flow','roads','buildings','hotels','trees','money','stranded','incidents'])result.cityEnd[k]=safe(value.cityEnd[k]);
@@ -3073,12 +3076,17 @@ function restoreMissionStats(saved){
 function missionDay(){return state.missionStats.current;}
 function missionCount(key,value=1){const d=missionDay();if(d&&Number.isFinite(value))d[key]=(d[key]||0)+value;}
 function missionMoney(key,value){if(Number.isFinite(value))missionCount(key,value);}
+function missionPeakSample(s){const d=missionDay();if(!d)return;d.peakCars=Math.max(d.peakCars,state.vehicles.size);d.peakWaiting=Math.max(d.peakWaiting,s.waiting);d.peakPopulation=Math.max(d.peakPopulation,s.pop);d.happyMin=Math.min(d.happyMin,s.happy);d.happyMax=Math.max(d.happyMax,s.happy);}
 function missionTripStart(kind){const d=missionDay();if(!d)return;d.tripsStarted++;d.tripsByKind[kind]=(d.tripsByKind[kind]||0)+1;}
 function missionTripEnd(kind){const d=missionDay();if(!d)return;d.tripsArrived++;d.arrivalsByKind[kind]=(d.arrivalsByKind[kind]||0)+1;}
-function recordMissionResult(kind,outcome,trip){
+function recordMissionResult(kind,outcome,trip,serviceKind=null){
  if(!MISSION_KINDS.includes(kind)||!MISSION_OUTCOMES.includes(outcome))return;
  const stats=missionDay(),group=stats.byKind[kind];
  for(const target of [stats,group]){target.total++;target[outcome]++;}
+ if(kind==='tourist'||kind==='leisure'){
+  const target=state.buildings.get(trip?.toId),key=serviceKind||trip?.serviceKind||(target?CATALOG[target.key]?.kind:null);
+  if(key&&Object.hasOwn(KINDS,key)){const item=stats.serviceResults[key]||(stats.serviceResults[key]=newMissionCounters());item.total++;item[outcome]++;}
+ }
  if(trip&&Number.isFinite(trip.startedAt)&&Number.isFinite(trip.arrivedAt)&&trip.arrivedAt>=trip.startedAt){
   const duration=Math.min(1e6,trip.arrivedAt-trip.startedAt);
   for(const target of [stats,group]){target.durationSum+=duration;target.durationCount++;}
@@ -3129,6 +3137,7 @@ function missionReportMarkup(which='current'){
  const types=[['work','ทำงาน'],['leisure','ใช้บริการ / เที่ยว'],['home','กลับบ้าน'],['tourist','กิจกรรมนักท่องเที่ยว']];
  const typeRows=types.flatMap(([key,name])=>{const c=s.byKind[key];return [[name+' · สำเร็จ',int(c.ontime+c.late)+' / '+int(c.total)],[name+' · ไม่สำเร็จ',int(c.missed+c.unavailable+c.cancelled)]];});
  const tripRows=Object.entries(MISSION_TRIP_NAMES).map(([key,name])=>[name+' · เริ่ม / ถึง',int(s.tripsByKind[key]||0)+' / '+int(s.arrivalsByKind[key]||0)]);
+ const serviceRows=Object.entries(s.serviceResults||{}).map(([key,c])=>[(KINDS[key]?.name||key)+' · สำเร็จ / ทั้งหมด',int(c.ontime+c.late)+' / '+int(c.total)]);
  const snapshotRows=summary?[
  ['ประชากรปลายวัน',int(summary.population)+' คน'],['นักท่องเที่ยวในเมือง',int(summary.tourists)+' คน'],
  ['ความสุขเฉลี่ย',fraction(summary.happy)+'%'],['ว่างงาน',int(summary.unemployed)+' คน'],['ตำแหน่งงานรองรับ',int(summary.jobs)],
@@ -3144,9 +3153,9 @@ function missionReportMarkup(which='current'){
  ['เฉลี่ยต่อบล็อก',fraction(s.secondsPerBlock)+' วินาที'],['รายรับที่บันทึกได้',money(revenue)],['เงินเปลี่ยนสุทธิ',moneySigned(financeDelta)]
  ].map(([a,b])=>'<div class="mission-card"><small>'+a+'</small><strong>'+b+'</strong></div>').join('')+'</div>'+
  '<div class="daily-report-sections">'+
- panel('👥 ประชากรและนักท่องเที่ยว',[['ย้ายเข้าใหม่',int(s.populationIn)+' คน'],['ย้ายออก / ถูกนำออก',int(s.populationOut)+' คน'],['นักท่องเที่ยวเข้าเมือง',int(s.touristsIn)+' คน'],['นักท่องเที่ยวออกเมือง',int(s.touristsOut)+' คน'],...snapshotRows.slice(0,7)])+
- panel('🎯 ผลภารกิจทั้งหมด',[['ภารกิจตัดสินผลแล้ว',int(s.total)],['สำเร็จตามเป้าหมาย',int(s.success)],['ตรงเวลา',int(s.ontime)],['สำเร็จแต่สาย',int(s.late)],['ไปไม่ทัน',int(s.missed)],['ไม่มีเส้นทาง / ใช้บริการไม่ได้',int(s.unavailable)],['ยกเลิกภารกิจ',int(s.cancelled)],['ยังเดินทางอยู่ ณ ตอนนี้',isPrevious?'—':int(s.active)],...typeRows])+
- panel('🚗 รายงานการเดินทาง',[['เริ่มเดินทางรวม',int(s.tripsStarted)+' เที่ยว'],['ถึงจุดหมายจริง',int(s.tripsArrived)+' เที่ยว'],['เวลาเฉลี่ยเมื่อถึง',fraction(s.average)+' นาทีในเกม'],['ความเร็วเฉลี่ย',fraction(s.secondsPerBlock)+' วินาทีในเกม/บล็อก'],['ระยะทางทริปที่มีผลและวัดได้',int(s.roadBlocks)+' บล็อก'],['เฉลี่ยเวลารถติด',fraction(s.congestionAverage)+' นาทีในเกม'],...tripRows,...snapshotRows.slice(7,12)])+
+ panel('👥 ประชากรและนักท่องเที่ยว',[['ย้ายเข้าใหม่',int(s.populationIn)+' คน'],['ย้ายออก / ถูกนำออก',int(s.populationOut)+' คน'],['นักท่องเที่ยวเข้าเมือง',int(s.touristsIn)+' คน'],['นักท่องเที่ยวออกเมือง',int(s.touristsOut)+' คน'],...snapshotRows.slice(0,7),['จำนวนประชากรสูงสุด',int(s.peakPopulation)+' คน'],['ความสุขต่ำสุดระหว่างวัน',fraction(s.happyMin)+'%'],['ความสุขสูงสุดระหว่างวัน',fraction(s.happyMax)+'%']])+
+ panel('🎯 ผลภารกิจทั้งหมด',[['ภารกิจตัดสินผลแล้ว',int(s.total)],['สำเร็จตามเป้าหมาย',int(s.success)],['ตรงเวลา',int(s.ontime)],['สำเร็จแต่สาย',int(s.late)],['ไปไม่ทัน',int(s.missed)],['ไม่มีเส้นทาง / ใช้บริการไม่ได้',int(s.unavailable)],['ยกเลิกภารกิจ',int(s.cancelled)],['ยังเดินทางอยู่ ณ ตอนนี้',isPrevious?'—':int(s.active)],...typeRows,...serviceRows])+
+ panel('🚗 รายงานการเดินทาง',[['เริ่มเดินทางรวม',int(s.tripsStarted)+' เที่ยว'],['ถึงจุดหมายจริง',int(s.tripsArrived)+' เที่ยว'],['เวลาเฉลี่ยเมื่อถึง',fraction(s.average)+' นาทีในเกม'],['ความเร็วเฉลี่ย',fraction(s.secondsPerBlock)+' วินาทีในเกม/บล็อก'],['ระยะทางทริปที่มีผลและวัดได้',int(s.roadBlocks)+' บล็อก'],['เฉลี่ยเวลารถติด',fraction(s.congestionAverage)+' นาทีในเกม'],...tripRows,['รถที่มากที่สุดระหว่างวัน',int(s.peakCars)+' คัน'],['รถรอคิวสูงสุด',int(s.peakWaiting)+' คัน'],...snapshotRows.slice(7,12)])+
  panel('💰 การเงินและการก่อสร้าง',[['เงินต้นวัน',money(s.openingMoney)],['รายได้ภาษีที่ปิดบัญชี',isPrevious?money(s.taxRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้ธุรกิจที่ปิดบัญชี',isPrevious?money(s.businessRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้จากนักท่องเที่ยว',money(s.touristsRevenue)],['เงินคืน / ส่วนลดนักท่องเที่ยว',money(s.touristsDiscount)],['เงินรางวัลแก้จราจร',money(s.incidentReward)],['ปรับภาษีหลังปิดบัญชี',moneySigned(s.taxAdjustments)],['ค่าดูแลเมือง',isPrevious?money(s.maintenanceCost):'สรุปเมื่อสิ้นวัน'],['ก่อสร้างถนน',money(s.roadCost)],['สร้างอาคาร',money(s.buildingCost)],['ถนนเพิ่ม / ปรับปรุง',int(s.roadsBuilt)+' บล็อก'],['อาคารสร้างใหม่',int(s.buildingsBuilt)+' แห่ง'],['อาคารรื้อถอน',int(s.buildingsRemoved)+' แห่ง'],['ยอดเงินสุทธิเปลี่ยน',moneySigned(financeDelta)],['เงินคงเหลือ',money(isPrevious?s.endingMoney:state.money)]])+
  panel('🏙️ โครงสร้างเมืองและสภาพการจราจร',snapshotRows.slice(12))+
  '</div><p class="mission-footnote">เก็บเฉพาะตัวเลขรวมของวันนี้และรายงานวันล่าสุด ไม่เก็บย้อนหลัง 7 วันหรือเส้นทางรายคัน · วินาที/บล็อก = เวลารวมของเที่ยวที่ถึง (นาทีในเกม × 60) ÷ บล็อกถนนรวมที่เดินทาง · ไม่รวมทริปที่ไม่มีเวลาถึงหรือไม่มีเส้นทางวัดได้ · รายได้ภาษี/ธุรกิจจะลงบัญชีตอนเปลี่ยนวัน · Log รายเที่ยวปิดจนกว่าจะกดเปิดเอง</p></div>';
