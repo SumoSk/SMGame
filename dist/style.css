@@ -5517,3 +5517,82 @@ body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .dashboard-memb
   aspect-ratio:1/1!important;
  }
 }
+
+
+/* SMCITY — anchored demolition confirmation card */
+/* This is the ONLY destructive-action dialog. All other dialogs keep
+   their current size/position, including the centered main menu. */
+#dialog.demolition-confirm{
+ position:fixed!important;inset:auto!important;transform:none!important;zoom:1!important;
+ box-sizing:border-box!important;width:min(270px,calc(100vw - 20px))!important;
+ min-width:0!important;max-width:calc(100vw - 20px)!important;
+ max-height:min(220px,calc(100dvh - 20px))!important;
+ margin:0!important;padding:13px!important;
+ background:var(--sm-panel-bg,#fafdf9)!important;
+ color:var(--sm-panel-ink,#23483a)!important;
+ border:1px solid var(--sm-panel-line,#c9ded1)!important;
+ border-radius:13px!important;
+ box-shadow:0 12px 36px rgba(6,32,25,.26)!important;
+ overflow:auto!important;
+}
+#dialog.demolition-confirm::backdrop{
+ background:rgba(13,25,22,.12)!important;backdrop-filter:none!important;
+}
+#dialog.demolition-confirm>.dialog-close-top{display:none!important}
+#dialog.demolition-confirm>#dialogContent{
+ padding:0!important;margin:0!important;overflow:visible!important;
+}
+#dialog.demolition-confirm .demolition-card{
+ display:flex!important;align-items:flex-start!important;
+ gap:9px!important;margin:0!important;
+}
+#dialog.demolition-confirm .demolition-symbol{
+ display:grid!important;place-items:center!important;
+ flex:0 0 28px!important;width:28px!important;height:28px!important;
+ border-radius:9px!important;
+ color:#a73b39!important;background:#ffeded!important;
+ border:1px solid #f0b6ad!important;
+ font:800 22px/1 system-ui,sans-serif!important;
+}
+#dialog.demolition-confirm .demolition-info{
+ flex:1 1 auto!important;min-width:0!important;
+}
+#dialog.demolition-confirm .demolition-info h2{
+ margin:1px 0 4px!important;padding:0!important;
+ font:800 15px/1.35 "Noto Sans Thai",Tahoma,sans-serif!important;
+ color:var(--sm-panel-ink,#23483a)!important;
+}
+#dialog.demolition-confirm .demolition-info p{
+ margin:0!important;padding:0!important;
+ font:400 11px/1.5 "Noto Sans Thai",Tahoma,sans-serif!important;
+ color:var(--sm-panel-muted,#6b7f71)!important;
+}
+#dialog.demolition-confirm .demolition-actions{
+ display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important;
+ margin:12px 0 0!important;padding:0!important;
+ position:static!important;background:transparent!important;
+}
+#dialog.demolition-confirm .demolition-actions>button{
+ width:100%!important;min-height:34px!important;
+ margin:0!important;padding:6px 9px!important;
+ font:700 12px/1.3 "Noto Sans Thai",Tahoma,sans-serif!important;
+ border-radius:8px!important;box-shadow:none!important;
+}
+#dialog.demolition-confirm .demolition-actions>#cancelDialog{
+ background:var(--sm-panel-card,#edf5ef)!important;
+ border:1px solid var(--sm-panel-line,#c8d9ca)!important;
+ color:var(--sm-panel-ink,#244e3c)!important;
+}
+#dialog.demolition-confirm .demolition-actions>#confirmDialog{
+ background:#b94139!important;border:1px solid #b94139!important;
+ color:#fff!important;
+}
+#dialog.demolition-confirm .demolition-actions>#confirmDialog:hover{
+ background:#9b302d!important;border-color:#9b302d!important;
+}
+:root.smcity-gray-ui #dialog.demolition-confirm .demolition-symbol{
+ background:#4a292a!important;border-color:#8e4b4f!important;color:#ffc3bc!important;
+}
+:root.smcity-gray-ui #dialog.demolition-confirm .demolition-actions>#confirmDialog{
+ background:#c54642!important;border-color:#e55c53!important;color:#fff!important;
+}
