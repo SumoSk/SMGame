@@ -659,6 +659,66 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
+  // STARTER COTTAGE: one modest storey, garden porch and six FRONT bays.
+  // Uses the standard front aisle (v=5.13), never the rear parking banks.
+  if(b.key==='home_starter'){
+   const cream='#eee4d2',sage='#91a798',wood='#977052',roof='#6d7775';
+   block('#c8bba5',3.08,.16,1.88,3.48,.24,2.52,'stone');
+   block(cream,3.08,.91,1.88,3.30,1.28,2.32,'stone');
+   block('#c1b49d',3.08,.34,1.88,3.36,.13,2.38,'stone');
+   // A pitched main roof with deep eaves, capped ridge and slim tile seams.
+   gable(roof,3.08,1.88,3.72,2.72,1.61,.66);
+   block('#84928b',3.08,2.30,1.88,3.76,.065,.11,'stone');
+   const angle=Math.atan2(.66,1.36),slope=Math.hypot(.66,1.36);
+   for(let n=0;n<17;n++)for(const sign of[-1,1]){
+    const p=point(1.31+n*.22,1.88+sign*.68);
+    batch.add(BOX,'#89958e',p.x-.5,1.96,p.y-.5,.018,.022,slope,sign*angle,turn,0,id,false,'stone');
+   }
+   // Recessed timber entry, glazed windows, frames and individual shutters.
+   pane(2.02,1.02,3.057,.68,.69,true,'#688e94');
+   pane(4.17,1.02,3.057,.70,.69,true,'#688e94');
+   for(const x of [1.58,2.46,3.72,4.62]){
+    block(sage,x,1.03,3.11,.14,.79,.055,'wood');
+    for(let y=.72;y<1.4;y+=.11)block('#718d7e',x,y,3.15,.12,.025,.018,'wood');
+   }
+   block(wood,3.08,.84,3.075,.63,1.03,.09,'wood');
+   block('#739397',3.08,1.08,3.132,.36,.35,.025,'glass');
+   pole('#dfc394',3.29,.79,3.16,.033,.07,'metal');
+   for(const x of [1.405,4.755]){
+    block('#adc6c3',x,.99,1.73,.035,.66,.76,'glass');
+    for(const z of [1.32,1.73,2.14])block('#f4ecdd',x,.99,z,.065,.72,.034,'wood');
+    block(cream,x,.61,1.73,.09,.06,.88,'stone');
+   }
+   pane(2.14,1.0,.69,.65,.58,false,'#688e94');
+   pane(4.03,1.0,.69,.65,.58,false,'#688e94');
+   // Low covered porch and steps remain clear of the rear edge of front bays.
+   block('#d9cbb7',3.08,.21,3.22,1.31,.21,.45,'stone');
+   block('#bfa98a',3.08,.11,3.48,.88,.09,.14,'stone');
+   block(roof,3.08,1.56,3.20,1.49,.085,.59,'metal');
+   for(const x of [2.44,3.72])block(wood,x,.90,3.38,.065,1.22,.065,'wood');
+   for(const x of [2.61,3.54]){
+    block('#beaa8a',x,.34,3.33,.18,.19,.17,'stone');
+    block('#668b65',x,.50,3.33,.21,.20,.20,'stone');
+    block('#d9a68c',x,.62,3.33,.09,.06,.10,'stone');
+   }
+   block('#ead7a7',3.08,1.40,3.15,.13,.12,.10,'glass',true);
+   // Small lawn, flower beds, stepping stones and a domestic garden bench.
+   for(const z of [1.0,1.55,2.1,2.65,3.18]){
+    block('#d6c9b3',5.01,.055,z,.26,.035,.32,'stone');
+   }
+   for(const z of [1.04,1.64,2.24,2.84]){
+    block('#b6a78c',1.06,.15,z,.23,.16,.38,'stone');
+    block('#6b956a',1.06,.30,z,.24,.21,.33,'stone');
+    for(const dx of [-.065,.065])block('#dfb4a4',1.06+dx,.43,z,.075,.08,.09,'stone');
+   }
+   block(wood,4.54,.37,.39,.69,.065,.25,'wood');
+   block(wood,4.54,.54,.30,.69,.30,.055,'wood');
+   for(const x of [4.29,4.79])block('#5f6b64',x,.22,.39,.055,.28,.22,'metal');
+   // Rear boundary only; the street-facing parking and both drives stay open.
+   block('#c9baa0',3.08,.30,.14,3.62,.43,.075,'stone');
+   for(const x of [1.35,4.81])block('#ddd3c0',x,.39,.14,.15,.63,.16,'stone');
+   return;
+  }
   // ORBIT CASINO: faceted midnight-blue pavilions, cyan light rails, cards,
   // chip sculptures and visible gaming tables. Every part stays off the lanes.
   if(t.kind==='casino'){
