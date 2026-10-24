@@ -817,31 +817,23 @@ export class TrafficRenderer{
  for(let stripe=-across+.09;stripe<across;stripe+=.23){
   line.box('#f1eddb',x+vx*crossAt+px*stripe,.12,z+vz*crossAt+pz*stripe,.38,.01,.12,-Math.atan2(vz,vx));
  }
- // One head per incoming lane: traffic from adjacent or opposing lanes stays red.
- // The shared roadside post and gantry are only graphical (no routing edits).
- const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3);
- const yaw=Math.atan2(vx,vz),incoming=(port.dir+2)%4;
- const cap=Math.max(1,Math.floor(ROADS[state.roads.get(port.node)?.type||'small'].lanes/2));
+ // One shared signal head for every lane from this incoming approach.
+ const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3),yaw=Math.atan2(vx,vz);
  batch.box('#c9c8b5',sx,.115,sz,.26,.12,.26);
- batch.add(CYL,'#3e5356',sx,1.10,sz,.038,2.05,.038);
- // Crossbar reaches the centres of all inbound lanes.
- const mid=ww*.25,barX=sx-px*(mid+.3),barZ=sz-pz*(mid+.3);
- batch.box('#7c8b86',barX,2.15,barZ,.06,.055,ww*.5+.3,yaw+Math.PI/2);
- for(let lane=0;lane<cap;lane++){
-  const laneWidth=ww/(cap*2),side=ww*.25+(lane+.5-cap/2)*laneWidth;
-  const lx=x+vx*offset+px*side,lz=z+vz*offset+pz*side;
-  batch.box('#d0ae64',lx,1.77,lz,.25,.62,.105,yaw);
-  batch.box('#203337',lx+vx*.018,1.77,lz+vz*.018,.22,.60,.14,yaw);
-  const lenses={};
-  for(const [name,yy]of [['red',1.96],['yellow',1.77],['green',1.58]]){
-   batch.box('#17292e',lx+vx*.1,yy+.057,lz+vz*.1,.14,.03,.14,yaw);
-   const bulb=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({color:'#33413c'}));
-   bulb.scale.set(.055,.055,.027);bulb.rotation.y=yaw;
-   bulb.position.set(lx+vx*.099,yy,lz+vz*.099);this.signalGroup.add(bulb);lenses[name]=bulb;
-  }
-  this.signals.push({lenses,node:i,incoming,lane});
+ batch.add(CYL,'#3e5356',sx,.85,sz,.038,1.5,.038);
+ batch.add(CYL,'#a8b8ae',sx,.23,sz,.053,.16,.053);
+ batch.add(CYL,'#e5dfc9',sx,.49,sz,.042,.085,.042);
+ batch.box('#d0ae64',sx,1.57,sz,.29,.69,.105,yaw);
+ batch.box('#203337',sx+vx*.018,1.57,sz+vz*.018,.245,.64,.14,yaw);
+ const lenses={};
+ for(const [name,yy]of [['red',1.76],['yellow',1.57],['green',1.38]]){
+  // Hoods and lens wells face their own approach, rather than all facing south.
+  batch.box('#17292e',sx+vx*.1,yy+.067,sz+vz*.1,.16,.035,.14,yaw);
+  const bulb=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({color:'#33413c'}));
+  bulb.scale.set(.057,.057,.026);bulb.rotation.y=yaw;
+  bulb.position.set(sx+vx*.099,yy,sz+vz*.099);this.signalGroup.add(bulb);lenses[name]=bulb;
  }
-
+ this.signals.push({lenses,node:i,incoming:(port.dir+2)%4});
  }
  }else{const junctionWidth=Math.max(w,...[...r.links].map(n=>roadWidths[state.roads.get(n)?.type]||w));batch.box('#47565c',x,.081,z,junctionWidth,.055,junctionWidth);}}
 
@@ -928,7 +920,7 @@ export class TrafficRenderer{
  }
  this.lastGlow=-1;this.lastWet=-1;this.lastNightVisibility=-1;
 }
- updateSignals(signalColor){const lit={red:'#ff6855',yellow:'#ffd56b',green:'#9eeb96'},dim={red:'#4d302e',yellow:'#494230',green:'#2b473f'};for(const s of this.signals||[]){const active=signalColor(s.node,s.incoming,s.lane);for(const [name,lens]of Object.entries(s.lenses))lens.material.color.set(name===active?lit[name]:dim[name]);}}
+ updateSignals(signalColor){const lit={red:'#ff6855',yellow:'#ffd56b',green:'#9eeb96'},dim={red:'#4d302e',yellow:'#494230',green:'#2b473f'};for(const s of this.signals||[]){const active=signalColor(s.node,s.incoming);for(const [name,lens]of Object.entries(s.lenses))lens.material.color.set(name===active?lit[name]:dim[name]);}}
  roof(batch,x,z,w,d,base,color,id){const angle=Math.atan2(.55,d/2),length=Math.hypot(d/2,.55);for(const sign of[-1,1])batch.add(BOX,color,x,base+.275,z+sign*d/4,w+.18,.10,length+.11,sign*angle,0,0,id);for(let k=-w/2+.12;k<w/2;k+=.22){for(const sign of[-1,1])batch.add(BOX,'#b86d48',x+k,base+.3,z+sign*d/4,.023,.035,length+.12,sign*angle,0,0,id);}batch.box('#ce8054',x,base+.57,z,w+.19,.07,.08,0,id);}
  window(batch,x,y,z,w,h,side,id){if(side==='front'){batch.box('#385d69',x,y,z,w,h,.025,0,id);if(hash(x+id,y+z)>.36)batch.box('#ffdf9d',x,y,z+.034,w*.76,h*.78,.012,0,id,true);batch.box('#dddac4',x,y,z+.02,.026,h+.04,.022,0,id);batch.box('#e9e6d4',x,y-h/2-.035,z+.04,w+.1,.06,.075,0,id);}else{batch.box('#456d75',x,y,z,.025,h,w,0,id);if(hash(z+id,x+y)>.40)batch.box('#ffe2ad',x+.035,y,z,.012,h*.77,w*.73,0,id,true);batch.box('#ede7d3',x+.02,y-h/2-.035,z,.075,.06,w+.08,0,id);}}
  parkingLot(batch,b){for(const rect of this.parking.parkingVisuals(b)){const p=this.parking.lotPoint(b,rect.u,rect.v),asphalt=['#515f62','#58666a','#465e65'].includes(rect.color),marking=['#e9e6cc','#c5d2c2','#bbc9b9','#94d9aa','#f3ca88','#e5e6d0','#f1ca85','#86d1dc'].includes(rect.color),ground=['#bdc6ae','#9baaa0','#96af8f'].includes(rect.color);const y=ground?.025:asphalt?.065:marking?.102:.085;batch.box(rect.color,p.x-.5,y,p.y-.5,rect.w,.012,rect.h,-(b.rotation||0)*Math.PI/2,b.id,false,asphalt?'night-asphalt':marking?'night-marking':'night-lot-base');}}
