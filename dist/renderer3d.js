@@ -125,7 +125,7 @@ function landscapeMaterial(city,kind,noise){
    // Fractal soil, clover and slender close-up blades without extra meshes.
     float micro=landNoise(p/.16+vec2(19.0,71.0));
     vec2 bladeUV=fract(p*9.0+vec2(landNoise(floor(p*9.0)),grain));
-    float blade=smoothstep(.12,.04,abs(bladeUV.x-.5))*(1.0-smoothstep(.55,.95,bladeUV.y));
+    float blade=(1.0-smoothstep(.04,.12,abs(bladeUV.x-.5)))*(1.0-smoothstep(.55,.95,bladeUV.y));
     float clover=smoothstep(.79,.90,landNoise(p/.85+vec2(3.0,31.0)))*.10;
     turf*=.89+speckle*.13+fine*.07+micro*.065+(grain-.5)*.06+blade*.045;
     turf=mix(turf,turf*1.13,clover);
@@ -643,6 +643,32 @@ export class TrafficRenderer{
    batch.add(high?LEAF_FINE:LEAF,color,x+dx*scale,dy*scale,z+dz*scale,sx*scale,sy*scale,sz*scale,
     0,rotation,0,null,false,'foliage');
   };
+  // Building-plot landscaping remains cardinally symmetric: rotating an
+  // existing lot must not change its collision-free decorative silhouette.
+  if(detail==='standard'){
+   if(kind==='palm'){
+    twig(0,.04,0,0,1.40,0,.084,'#96734c');
+    for(let n=0;n<8;n++)batch.add(PALM_FROND,n%2?mid:light,x,1.43*scale,z,.85*scale,scale,scale,
+     0,n*TAU/8,0,null,false,'foliage');
+    foliage('#98b368',0,1.43,0,.13,.10,.13);
+   }else if(kind==='pine'){
+    twig(0,.03,0,0,1.6,0,.08);
+    for(let i=0;i<4;i++)batch.add(PINE_FINE,i%2?dark:mid,x,(.62+i*.27)*scale,z,
+     (.49-i*.095)*scale,.66*scale,(.49-i*.095)*scale,0,0,0,null,false,'foliage');
+   }else{
+    if(kind!=='shrub')twig(0,.03,0,0,.88,0,kind==='banyan'?.14:.09);
+    const height=kind==='shrub'?.23:kind==='banyan'?1.11:1.13;
+    const radius=kind==='shrub'?.19:kind==='banyan'?.43:.31;
+    const top=kind==='flower'?'#e99fb8':mid;
+    foliage(kind==='flower'?'#cf859f':dark,0,height,0,radius*1.6,.34,radius*1.6,0,true);
+    for(let n=0;n<4;n++){
+     const a=n*Math.PI/2;
+     foliage(n%2?top:light,Math.cos(a)*radius,height+.06,Math.sin(a)*radius,
+      radius*.93,.25,radius*.93,0,true);
+    }
+   }
+   return;
+  }
   if(kind==='palm'){
    twig(0,.04,0,.055,1.40,-.035,.084,'#96734c');
    if(near)for(let n=0;n<5;n++)batch.add(CYL,'#b79a68',x+.02*scale,(.27+n*.20)*scale,z-.014*scale,
