@@ -5519,11 +5519,13 @@ body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .dashboard-memb
 }
 
 
-/* SMCITY — anchored demolition confirmation card */
+/* SMCITY — centered demolition confirmation card */
 /* This is the ONLY destructive-action dialog. All other dialogs keep
    their current size/position, including the centered main menu. */
 #dialog.demolition-confirm{
- position:fixed!important;inset:auto!important;transform:none!important;zoom:1!important;
+ position:fixed!important;inset:auto!important;
+ left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+ transform:translate(-50%,-50%)!important;zoom:1!important;
  box-sizing:border-box!important;width:min(270px,calc(100vw - 20px))!important;
  min-width:0!important;max-width:calc(100vw - 20px)!important;
  max-height:min(220px,calc(100dvh - 20px))!important;
