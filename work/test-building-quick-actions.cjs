@@ -3,6 +3,8 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
 const prefix=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
 const {city}=new Function('require',prefix+'return {city};')(require);
 const {game:g,get,restaurant:b}=city();
+// Center this fixture's restaurant in view; it is otherwise off the 2D test canvas.
+g.cam.x=b.x;g.cam.y=b.y;
 const toolbar=get('buildingQuickActions');
 toolbar.dataset={};
 const move=get('buildingQuickMove'),demolish=get('buildingQuickDemolish');
