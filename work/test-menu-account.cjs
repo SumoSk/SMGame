@@ -18,6 +18,9 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
  // The exact reported sequence: Save -> Account -> Return must release both dialogs.
  get('menu').onclick();assert(get('dialog').open);get('saveMenu').onclick();assert(!get('dialog').open&&gate.open);
  get('accountQuick').onclick();assert(gate.open&&!get('dialog').open);
+ events.get('memberGate:click')({target:get('memberPassword')});assert(gate.open,'click in login form must not dismiss');
+ events.get('memberGate:click')({target:gate});assert(!gate.open&&!ctx.window.SMGameAuthLocked,'click outside login card dismisses');
+ get('accountQuick').onclick();assert(gate.open);
  events.get('memberBack:click')();assert(!gate.open&&!ctx.window.SMGameAuthLocked);
  get('menu').onclick();get('menuClose').onclick();assert(!get('dialog').open);
  assert.equal(g.snapshot(),initial,'opening/closing menus preserves the guest city');
