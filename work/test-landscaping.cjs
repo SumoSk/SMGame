@@ -2,6 +2,8 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
 (async()=>{
  const base=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
  const {game:g,get}=new Function('require',base+';return boot();')(require);
+ // This DOM API exists in browsers but not in the lightweight test harness.
+ get('buildDock').closest=()=>null;
  assert.equal(g.state.plantedTrees.length,0);
  assert.equal(g.plantLandscape(150,150,'shade'),false,'trees must not occupy roads');
  assert.equal(g.plantLandscape(190,190,'flower'),true);

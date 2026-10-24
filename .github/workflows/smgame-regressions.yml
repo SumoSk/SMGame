@@ -20,6 +20,7 @@ jobs:
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
       - run: node work/test-landscaping.cjs
+      - run: node work/test-menu-account.cjs
       - run: node work/test-grand-home.cjs
       - run: node work/test-grand-front-signals.cjs
       - run: node work/test-grand-parking-stress.cjs
