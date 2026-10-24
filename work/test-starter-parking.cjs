@@ -3,9 +3,10 @@ const fixture=fs.readFileSync('work/test-tourism.cjs','utf8').split('const resul
 const {game:g}=new Function('require',fixture+'return boot();')(require);
 g.state.money=1e7;g.state.time=720;g.state.speed=1;
 const type=g.CATALOG.home_starter;
-assert.equal(type.plotWidth*type.plotHeight,20);
+assert.equal(type.plotWidth*type.plotHeight,9);
 assert.equal(type.residents,6);
-assert.equal(new Set(g.lotSlots({key:type.key}).map(s=>s.v)).size,1);
+assert.equal(type.parkingPitch,g.CATALOG.home_large.parkingPitch);
+assert.equal(new Set(g.lotSlots({key:type.key}).map(s=>s.v)).size,2);
 const home=g.buildBuilding(type.key,160,148-type.plotHeight,true);
 assert(home);
 function waitForSix(destination){
@@ -34,4 +35,4 @@ for(const c of residents)assert(g.createTrip(c,'home',office.id,home.id,null,nul
 waitForSix(home);
 assert.equal(new Set(home.parkingSlots).size,6);
 assert(g.parkingVisuals(home).some(r=>r.color==='#515f62'),'match existing asphalt');
-console.log('Starter cottage: 4x5 plot, six single-row bays, six arrivals/departures/returns without recovery.');
+console.log('Starter cottage: 3x3 plot, six standard-sized bays, six arrivals/departures/returns without recovery.');
