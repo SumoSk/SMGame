@@ -24,6 +24,7 @@ jobs:
       - run: node work/test-landscaping.cjs
       - run: node work/test-menu-account.cjs
       - run: node work/test-window-dismiss.cjs
+      - run: node work/test-building-quick-actions.cjs
       - run: node work/test-grand-home.cjs
       - run: node work/test-grand-front-signals.cjs
       - run: node work/test-grand-parking-stress.cjs
