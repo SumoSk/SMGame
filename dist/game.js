@@ -2302,26 +2302,43 @@ function globalSignalInspector(){
  action('คืนค่าแนะนำทุกแยก (เลนละ 6 นาที)','signal-defaults-reset')+
  `<p class="signal-note">ใช้เวลานี้กับทุกแยกจะคงโหมดควบคุมเองไว้ · คืนค่าแนะนำจะเปลี่ยนทุกแยกกลับเป็นอัตโนมัติ ไฟเขียวเลนละ 6 นาที พร้อมช่วงไฟเหลืองและแดงเคลียร์แยก · คลิกแยกบนแผนที่เพื่อปรับทีละจุด</p></section>`;
 }
+
 function signalInspector(i){
- const setting=signalSettings(i),status=signalStatus(i),manual=setting.mode==='manual',direction=status.phase===0?'ตะวันออก–ตะวันตก':status.phase===1?'เหนือ–ใต้':status.phase===2?'ไฟเหลือง':'แดงทุกทิศ';
- const color=axis=>signalColor(i,axis),remaining=status.remaining==null?'รอสั่งสลับไฟ':Math.ceil(status.remaining)+' นาทีในเกม';
- return `<section class="signal-control" data-node="${i}"><h3>🚦 ควบคุมไฟแยกนี้</h3><div class="signal-current"><span class="signal-mode">${manual?'ควบคุมเอง':'อัตโนมัติ'}</span><strong>${direction}</strong><small>${remaining}</small></div>`+
- `<div class="signal-direction" data-axis="0"><span class="signal-lamp ${color(0)}"></span><span>↔ ตะวันออก–ตะวันตก</span><b>${color(0)==='green'?'เขียว':color(0)==='yellow'?'เหลือง':'แดง'}</b></div>`+
- `<div class="signal-direction" data-axis="1"><span class="signal-lamp ${color(1)}"></span><span>↕ เหนือ–ใต้</span><b>${color(1)==='green'?'เขียว':color(1)==='yellow'?'เหลือง':'แดง'}</b></div>`+
- `<h3>ตั้งเวลาไฟเขียวอัตโนมัติ</h3><div class="signal-times"><label for="signalEW">แนวนอน <span><input class="signal-minutes" id="signalEW" type="number" inputmode="numeric" min="5" max="240" step="1" value="${setting.eastWest}"> นาที</span></label>`+
- `<label for="signalNS">แนวตั้ง <span><input class="signal-minutes" id="signalNS" type="number" inputmode="numeric" min="5" max="240" step="1" value="${setting.northSouth}"> นาที</span></label></div>`+
- `<p class="signal-note">ไฟเหลือง ${SIGNAL_YELLOW_MINUTES} นาที และแดงทุกทิศ ${SIGNAL_CLEAR_MINUTES} นาทีต่อครั้ง</p>${action('บันทึกเวลาไฟแยกนี้','signal-save',i)}`+
- (manual?`<div class="signal-manual">${action('สลับไฟ → '+(setting.axis===0?'เหนือ–ใต้':'ตะวันออก–ตะวันตก'),'signal-switch',i)}${action('กลับสู่ระบบอัตโนมัติ','signal-auto',i)}</div>`:action('ควบคุมไฟเอง','signal-manual',i))+
- (category==='signals'?action('ตั้งค่าไฟจราจรทั้งเมือง','signal-global',i):'')+`</section>`;
+ const setting=signalSettings(i),status=signalStatus(i),manual=setting.mode==='manual',slots=signalSlots(i);
+ const active=slots[status.slotIndex],current=status.yellow?'ไฟเหลือง · '+signalSlotName(active):
+  status.phase>=0?signalSlotName(active):'แดงทุกเลน';
+ const remaining=status.remaining==null?'รอสั่งสลับไฟ':Math.ceil(status.remaining)+' นาทีในเกม';
+ const rows=slots.map((slot,n)=>{
+  const color=signalColor(i,slot.incoming,slot.lane);
+  return `<div class="signal-direction" data-slot="${n}"><span class="signal-lamp ${color}"></span>
+  <span>${signalSlotName(slot)}</span><b>${color==='green'?'เขียว':color==='yellow'?'เหลือง':'แดง'}</b></div>`;
+ }).join('');
+ const next=slots.length?slots[(signalManualSlot(i,setting,slots)+1)%slots.length]:null;
+ return `<section class="signal-control" data-node="${i}"><h3>🚦 ควบคุมไฟแยกนี้</h3>
+  <div class="signal-current"><span class="signal-mode">${manual?'ควบคุมเอง':'อัตโนมัติ'}</span><strong>${current}</strong><small>${remaining}</small></div>${rows}
+  <h3>ตั้งเวลาเขียวต่อเลน</h3><div class="signal-times">
+  <label for="signalEW">เลนแนวนอน <span><input class="signal-minutes" id="signalEW" type="number" min="5" max="240" value="${setting.eastWest}"> นาที</span></label>
+  <label for="signalNS">เลนแนวตั้ง <span><input class="signal-minutes" id="signalNS" type="number" min="5" max="240" value="${setting.northSouth}"> นาที</span></label></div>
+  <p class="signal-note">เปิดเขียวทีละเลน · เหลือง ${SIGNAL_YELLOW_MINUTES} นาที · แดงเคลียร์ ${SIGNAL_CLEAR_MINUTES} นาที · รอบ ${signalCycle(i)} นาทีเกม</p>`+
+  action('บันทึกเวลาไฟแยกนี้','signal-save',i)+
+  (manual?`<div class="signal-manual">${action('สลับไป '+signalSlotName(next),'signal-switch',i)}${action('กลับสู่ระบบอัตโนมัติ','signal-auto',i)}</div>`:
+   action('ควบคุมไฟเอง','signal-manual',i))+
+  (category==='signals'?action('ตั้งค่าไฟจราจรทั้งเมือง','signal-global',i):'')+`</section>`;
 }
 function refreshSignalInspector(i){
  const root=$('inspectContent').querySelector?.(`.signal-control[data-node="${i}"]`);
  if(!root)return false;
- const status=signalStatus(i),mode=signalSettings(i).mode;
- root.querySelector('.signal-mode').textContent=mode==='manual'?'ควบคุมเอง':'อัตโนมัติ';
- root.querySelector('.signal-current strong').textContent=status.phase===0?'ตะวันออก–ตะวันตก':status.phase===1?'เหนือ–ใต้':status.phase===2?'ไฟเหลือง':'แดงทุกทิศ';
+ const status=signalStatus(i),setting=signalSettings(i),slots=signalSlots(i),active=slots[status.slotIndex];
+ root.querySelector('.signal-mode').textContent=setting.mode==='manual'?'ควบคุมเอง':'อัตโนมัติ';
+ root.querySelector('.signal-current strong').textContent=status.yellow?'ไฟเหลือง · '+signalSlotName(active):
+  status.phase>=0?signalSlotName(active):'แดงทุกเลน';
  root.querySelector('.signal-current small').textContent=status.remaining==null?'รอสั่งสลับไฟ':Math.ceil(status.remaining)+' นาทีในเกม';
- for(const axis of [0,1]){const line=root.querySelector(`.signal-direction[data-axis="${axis}"]`),color=signalColor(i,axis);line.querySelector('.signal-lamp').className='signal-lamp '+color;line.querySelector('b').textContent=color==='green'?'เขียว':color==='yellow'?'เหลือง':'แดง';}
+ for(let n=0;n<slots.length;n++){
+  const slot=slots[n],line=root.querySelector(`.signal-direction[data-slot="${n}"]`);if(!line)continue;
+  const color=signalColor(i,slot.incoming,slot.lane);
+  line.querySelector('.signal-lamp').className='signal-lamp '+color;
+  line.querySelector('b').textContent=color==='green'?'เขียว':color==='yellow'?'เหลือง':'แดง';
+ }
  return true;
 }
 function renderInspector(force=false){
