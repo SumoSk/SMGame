@@ -27,6 +27,7 @@ jobs:
       - run: node work/test-building-quick-actions.cjs
       - run: node work/test-right-side-city-rail.cjs
       - run: node work/test-unified-panels.cjs
+      - run: node work/test-build-report-menu.cjs
       - run: node work/test-unified-demolition.cjs
       - run: node work/test-send-ai-map.cjs
       - run: node work/test-grand-home.cjs
