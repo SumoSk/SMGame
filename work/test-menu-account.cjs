@@ -26,9 +26,20 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
  assert.equal(g.snapshot(),initial,'opening/closing menus preserves the guest city');
  assert(!get('dialogContent').innerHTML.includes('cityReportMenu'),'reports are removed from main menu');
  assert(g.dockItems('reports').some(x=>x.key==='cityReport'),'reports are available in City Data');
- // Arbitrary Unicode names authenticate deterministically and preserve a pending save.
- ctx.window.SMGameAccount.requestSaveLogin(initial,'เมืองทดสอบ');events.get('signup:click')();get('memberEmail').value='ซูโม่ น่ารัก 💜';get('memberPassword').value='example-password';
- await events.get('memberForm:submit')({preventDefault(){}});assert.equal(saved.length,1);assert.equal(saved[0].data.city,g.state.city);assert(!gate.open&&!ctx.window.SMGameAuthLocked);assert(signin[0].email.endsWith('@names.smcity.invalid'));
+ // A guest clicking Save is prompted to sign up; successful signup auto-saves
+ // the pending city and opens Save/Load with that save listed.
+ ctx.window.SMGameAccount.listSaves=async()=>saved.map(s=>({id:s.slot_id,name:s.name,data:JSON.stringify(s.data),savedAt:Date.now()}));
+ ctx.window.SMGameAccount.requestSaveLogin(initial,'เมืองทดสอบ');
+ assert(gate.open&&!get('dialog').open);
+ assert.equal(get('memberSubmit').textContent,'สมัครและบันทึกเกม');
+ get('memberEmail').value='ซูโม่ น่ารัก 💜';get('memberPassword').value='example-password';
+ await events.get('memberForm:submit')({preventDefault(){}});await settle();
+ assert.equal(saved.length,1);assert.equal(saved[0].data.city,g.state.city);
+ assert(!gate.open&&!ctx.window.SMGameAuthLocked);assert(signin[0].email.endsWith('@names.smcity.invalid'));
+ assert(get('dialog').open,'after signup, Save/Load must open automatically');
+ assert(get('dialogContent').innerHTML.includes('เซป/โหลด'),'post-registration screen is Save/Load');
+ assert(get('dialogContent').innerHTML.includes('เมืองทดสอบ'),'just-created save is shown');
+ assert.equal(g.snapshot(),initial,'registration and navigating to saved games must not change the city');
  // A delayed save list must not reopen after returning to play.
  let complete;ctx.window.SMGameAccount.listSaves=()=>new Promise(resolve=>complete=resolve);
  get('saveGameQuick').onclick();assert(get('dialog').open);get('saveLoadingClose').onclick();complete([]);await settle();assert(!get('dialog').open);
