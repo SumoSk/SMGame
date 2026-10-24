@@ -3,7 +3,7 @@ const fixture=fs.readFileSync('work/test-motion.cjs','utf8').split('let combinat
 (async()=>{
  const THREE=await import('../dist/vendor/three.module.js'),{TrafficRenderer}=await import('../dist/renderer3d.js');
  const {game,install,turnPath}=new Function('require',fixture+'return {game,install,turnPath};')(require);
- const receiver={roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),disposeGroup:TrafficRenderer.prototype.disposeGroup};
+ const receiver={roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),lampGroup:new THREE.Group(),disposeGroup:TrafficRenderer.prototype.disposeGroup};
  const render=()=>{TrafficRenderer.prototype.makeRoads.call(receiver,game.state,game.ROADS,game.junction);receiver.roadGroup.updateMatrixWorld(true);};
  const meshes=color=>{const out=[];receiver.roadGroup.traverse(o=>{if(o.isMesh&&o.material.color.getHex()===color)out.push(o);});return out;};
  const hit=(objects,x,z)=>new THREE.Raycaster(new THREE.Vector3(x,10,z),new THREE.Vector3(0,-1,0)).intersectObjects(objects).length>0;
