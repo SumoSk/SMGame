@@ -3592,12 +3592,13 @@ dialog:has(.daily-report-modal){width:min(860px,calc(100vw - 24px));max-height:c
 @media(max-width:600px){#buildingQuickActions.building-quick-actions{gap:4px;padding:4px;border-radius:12px}#buildingQuickActions .building-quick-action{min-height:39px;min-width:58px;padding:7px 8px;font-size:11px}}
 @media(prefers-reduced-motion:reduce){#buildingQuickActions.building-quick-actions{animation:none}}
 
-/* SMCITY right-side quick-access rail: camera first, then five frequently used city modes.
+/* SMCITY left-side quick-access rail: camera first, then five frequently used city modes.
    It sits outside the build dock and is still accessible with the dock folded. */
-#cityRightRail.city-right-rail{
+#cityLeftRail.city-left-rail{
  position:fixed!important;
  top:clamp(83px,14vh,142px)!important;
- right:calc(11px + env(safe-area-inset-right,0px))!important;
+ left:calc(11px + env(safe-area-inset-left,0px))!important;
+ right:auto!important;
  width:76px!important;
  max-height:calc(100dvh - clamp(180px,30vh,260px))!important;
  display:flex!important;flex-direction:column!important;align-items:center!important;
@@ -3609,13 +3610,13 @@ dialog:has(.daily-report-modal){width:min(860px,calc(100vw - 24px));max-height:c
  touch-action:pan-y!important;
  -webkit-overflow-scrolling:touch!important;
 }
-#cityRightRail::-webkit-scrollbar{display:none}
-#cityRightRail #cameraJoystick{
+#cityLeftRail::-webkit-scrollbar{display:none}
+#cityLeftRail #cameraJoystick{
  position:relative!important;inset:auto!important;top:auto!important;right:auto!important;
  width:72px!important;height:72px!important;min-width:72px!important;min-height:72px!important;
  flex:0 0 72px!important;margin:0 auto!important;
 }
-#cityRightRail #cameraJoystick[hidden]{display:none!important}
+#cityLeftRail #cameraJoystick[hidden]{display:none!important}
 #cityQuickModes.city-quick-modes{
  display:flex!important;flex:0 0 auto!important;flex-direction:column!important;
  align-items:center!important;gap:5px!important;width:100%!important;
@@ -3653,24 +3654,25 @@ dialog:has(.daily-report-modal){width:min(860px,calc(100vw - 24px));max-height:c
 :root.smcity-gray-ui #cityQuickModes [data-city-shortcut][aria-pressed="true"]{
  background:#345a46!important;color:#f5fff7!important;border-color:#75b992!important;
 }
-/* Floating details sit beside, never underneath, the right-hand shortcut rail. */
+/* Keep details on the right, away from the camera and action rail at left. */
 #inspector:not(.hidden){
- right:99px!important;
- width:min(356px,calc(100vw - 116px))!important;
+ right:12px!important;
+ width:min(356px,calc(100vw - 112px))!important;
 }
 .citizens-dashboard:not(.hidden){
- right:99px!important;
- width:min(440px,calc(100vw - 116px))!important;
+ right:12px!important;
  left:auto!important;
+ width:min(440px,calc(100vw - 112px))!important;
 }
 @media(max-width:720px){
- #cityRightRail.city-right-rail{
+ #cityLeftRail.city-left-rail{
   top:calc(clamp(63px,11vh,90px) + env(safe-area-inset-top,0px))!important;
-  right:calc(6px + env(safe-area-inset-right,0px))!important;
+  left:calc(6px + env(safe-area-inset-left,0px))!important;
+  right:auto!important;
   width:66px!important;gap:5px!important;
   max-height:calc(100dvh - clamp(171px,31vh,242px))!important;
  }
- #cityRightRail #cameraJoystick{
+ #cityLeftRail #cameraJoystick{
   width:64px!important;height:64px!important;min-width:64px!important;min-height:64px!important;
   flex-basis:64px!important;
  }
@@ -3682,11 +3684,11 @@ dialog:has(.daily-report-modal){width:min(860px,calc(100vw - 24px));max-height:c
  #cityQuickModes [data-city-shortcut] .quick-mode-icon{font-size:18px!important}
  #cityQuickModes.city-quick-modes{gap:4px!important}
  #inspector:not(.hidden){
-  right:78px!important;width:calc(100vw - 94px)!important;
+  right:7px!important;width:calc(100vw - 96px)!important;
   max-height:calc(100dvh - 240px)!important;
  }
  .citizens-dashboard:not(.hidden){
-  right:78px!important;left:6px!important;width:auto!important;
+  left:78px!important;right:7px!important;width:auto!important;
  }
 }
 @media(prefers-reduced-motion:reduce){
