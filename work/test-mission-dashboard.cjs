@@ -59,4 +59,29 @@ const source=fs.readFileSync('dist/game.js','utf8');
 assert(source.includes("function travelLogResult(c,v,record){\n if(!travelRecording)return;"),'off mode must not build per-trip log records');
 assert(source.includes("let travelLog=null,travelRecording=false"),'event log defaults to disabled');
 assert(source.includes("state.money=500000;state.missionStats=newMissionStats()"),'free starter village must not appear as paid daily construction');
+
+assert.equal(stats().serviceResults.shop?.total||0,0,'stats reset after loading old save');
+// Autopopup is nonmodal, and its dismissal lasts for that game morning.
+const bootText=prelude.replace('return{game,get};','return{game,get,context};');
+const {boot}=new Function('require',bootText+'return {boot};')(require);
+const {game:popup,context:ui}=boot();
+assert.equal(popup.missionStatsSummary().roadCost,0,'starter roads are free, not daily spending');
+assert.equal(popup.missionStatsSummary().buildingCost,0,'starter buildings are free');
+const getter=ui.document.getElementById;
+let attached=null;
+ui.document.body={appendChild(el){attached=el;el.parentNode={removeChild(x){assert.equal(x,attached);attached=null;}};}};
+ui.document.getElementById=id=>id==='missionDailyAuto'?attached:getter(id);
+ui.document.createElement=()=>({id:'',className:'',innerHTML:'',querySelector(sel){const button={onclick:null};this.buttons??={};return(this.buttons[sel]??=button);}});
+popup.state.time=1440;popup.daily();
+popup.state.time=1800;popup.missionAutoPulse();
+assert(attached?.innerHTML.includes('เปิดถึง 10:00'),'auto panel visible at 06:00');
+assert.equal(getter('dialog').open,undefined,'daily popup does not pause game through modal');
+attached.querySelector('#missionAutoDismiss').onclick();
+assert.equal(attached,null);
+assert.equal(popup.state.missionStats.dismissedDay,0);
+popup.missionAutoPulse();assert.equal(attached,null,'dismissed popup stays closed');
+popup.state.missionStats.dismissedDay=-1;
+popup.missionAutoPulse();assert(attached,'new visible when not dismissed');
+popup.state.time=2040;popup.missionAutoPulse();assert.equal(attached,null,'auto closes at 10:00 game time');
+
 console.log('Daily city report passed: counts, route seconds/block, one-day rollover, finance snapshot, preserved last report, legacy saves, opt-in logs.');
