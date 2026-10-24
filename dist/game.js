@@ -3618,6 +3618,10 @@ function prepareJunctionQueues(){
   const plan=motionPlan(v),s=motionDistance(v,plan);if(!v.junctionQueueSince)v.junctionQueueSince={};
   const activeKeys=new Set();
   for(const g of plan.junctions){if(ownsJunctionPass(v,g.pos)||s>=g.entry||g.stop-s>2.5)continue;const key=g.pos+':'+g.node;activeKeys.add(key);if(v.junctionQueueSince[key]==null)v.junctionQueueSince[key]=state.time;
+   // Red approaches retain their original queue arrival time, but cannot
+   // compete for entry. Defer expensive connector sampling and intersection
+   // competition until the approach turns green; all its lanes turn green together.
+   if(!signalAllows(g.node,motionDirection(v.path,g.pos-1)))continue;
    const connector=junctionConnector(v,g.pos),request={id:v.id,pos:g.pos,at:v.junctionQueueSince[key],distance:g.stop-s,connector};let queue=state.junctionQueues.get(g.node);if(!queue)state.junctionQueues.set(g.node,queue=[]);queue.push(request);
   }
   for(const key of Object.keys(v.junctionQueueSince))if(!activeKeys.has(key))delete v.junctionQueueSince[key];
@@ -3629,10 +3633,10 @@ function junctionPriority(request,node){
  // Long waits become first-come-first-served, but never override a red light.
   return state.time-request.at>=Math.min(signalCycle(node),18)?-1:priority;
 }
-function queueAllows(v,pos,connector){
+function queueAllows(v,pos,connector,precheckedExit=null){
  const node=v.path[pos],queue=state.junctionQueues?.get(node);if(!queue)return true;
  const own=queue.find(q=>q.id===v.id&&q.pos===pos);if(!own)return true;
- const eligible=q=>{const car=state.vehicles.get(q.id);return car&&junctionExitAvailable(car,q.pos)&&(!signalRequired(node)||signalAllows(node,q.connector.incoming,q.connector.laneIn))&&!queue.some(front=>front.id!==q.id&&front.connector.incoming===q.connector.incoming&&front.connector.laneIn===q.connector.laneIn&&front.distance<q.distance-.01);};
+ const eligible=q=>{const car=state.vehicles.get(q.id);return car&&(!signalRequired(node)||signalAllows(node,q.connector.incoming,q.connector.laneIn))&&(q.id===v.id&&precheckedExit!==null?precheckedExit:junctionExitAvailable(car,q.pos))&&!queue.some(front=>front.id!==q.id&&front.connector.incoming===q.connector.incoming&&front.connector.laneIn===q.connector.laneIn&&front.distance<q.distance-.01);};
  if(!eligible(own))return false;const priority=junctionPriority(own,node);
  for(const other of queue){if(other.id===v.id||!eligible(other)||!connectorsConflict(connector,other.connector))continue;const p=junctionPriority(other,node);if(p<priority||p===priority&&(other.at<own.at||other.at===own.at&&(other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id)))return false;}
  return true;
@@ -3666,8 +3670,12 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
  const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return false;
  const connector=junctionConnector(v,pos),lock=state.reservations.get('junction:'+i);
  for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos)))return false;}}
- if(!ignoreSignal&&!queueAllows(v,pos,connector))return false;
- return junctionExitAvailable(v,pos);
+ // Exit clearance is dynamic: check on EVERY admission attempt, never cache
+ // across simulation steps. Reuse this read-only result within this attempt.
+ const exitAvailable=junctionExitAvailable(v,pos);
+ if(!exitAvailable)return false;
+ if(!ignoreSignal&&!queueAllows(v,pos,connector,true))return false;
+ return true;
 }
 function ownsJunctionPass(v,pos){return v.junctionPasses?.some(p=>p.pos===pos&&p.node===v.path[pos]);}
 function reserveIntersection(v,pos){
