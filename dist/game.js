@@ -1813,7 +1813,7 @@ function updateCityAdvisor(){
  set('advisorNext',advice.next.map((a,i)=>'<li><span>'+e(a.text)+'</span>'+(a.report?'<button data-advice-report>ตรวจเมือง</button>':a.category?'<button data-advice-category="'+a.category+'">เปิดหมวดสร้าง</button>':'')+'</li>').join(''));
 }
 
-function updateUI(){const s=computeStats();$('money').textContent=money(state.money);$('population').innerHTML=fmt(s.pop)+' <em>คน</em>';if($('tourists'))$('tourists').innerHTML=fmt(touristPeople().filter(c=>c.enteredAt!=null).length)+' <em>คน</em>';$('happy').innerHTML=Math.round(s.happy)+'<em>%</em>';$('flow').innerHTML=Math.round(s.flow)+'<em>%</em>';$('clock').textContent=timeText(state.time);$('day').textContent=(innerWidth<=500?['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.']:['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์','วันอาทิตย์'])[Math.floor(state.time/1440)%7]+(innerWidth<=500?' · ':' · วันที่ ')+(Math.floor(state.time/1440)+1);$('sun').style.left=(state.time%1440)/1440*100+'%';$('net').textContent=(s.net>=0?'+':'')+money(s.net);$('net').classList.toggle('warning',s.net<0);const steps=[{done:[...state.roads.values()].some(r=>!r.main),text:'ต่อถนนเล็กจากถนนหลัก'},{done:s.homes>0,text:'สร้างบ้านติดถนน รอคนย้ายเข้า'},{done:s.jobs>0,text:'สร้างงานให้ประชาชน'}];$('steps').textContent=steps.filter(s=>s.done).length+' / 3';$('guide').innerHTML=steps.map((s,i)=>`<div class="guide-item ${s.done?'done':'current'}"><b>${s.done?'✓':i+1}</b><span>${s.text}</span></div>`).join('');updateCityAdvisor();$('news').innerHTML=news.slice(0,3).map(n=>`<div class="news-item"><time>${timeText(n.time)}</time>${n.text}</div>`).join('');const stranded=[...state.vehicles.values()].filter(v=>v.phase==='stuck'||v.departureNoRoute).length;$('status').textContent=stranded?'รถรอเส้นทาง '+stranded+' คัน · เมนู ☰ → ตรวจเมือง / รายงานบัค':s.pop?`รถเดินทาง ${state.vehicles.size} คัน · รอคิว ${s.waiting} คัน · คลิกที่รถเพื่อดูชีวิตประชาชน`:'ลากเพื่อเลื่อนแผนที่ · เลื่อนล้อเพื่อซูม';document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',+b.dataset.speed===state.speed));$('pause').textContent=state.speed?'Ⅱ':'▶';if(selected&&!document.activeElement?.classList?.contains?.('signal-minutes'))renderInspector();renderCitizenDashboard();renderTouristDashboard();}
+function updateUI(){const s=computeStats();$('money').textContent=money(state.money);$('population').innerHTML=fmt(s.pop)+' <em>คน</em>';if($('tourists'))$('tourists').innerHTML=fmt(touristPeople().filter(c=>c.enteredAt!=null).length)+' <em>คน</em>';$('happy').innerHTML=Math.round(s.happy)+'<em>%</em>';$('flow').innerHTML=Math.round(s.flow)+'<em>%</em>';$('clock').textContent=timeText(state.time);$('day').textContent=(innerWidth<=500?['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.']:['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์','วันอาทิตย์'])[Math.floor(state.time/1440)%7]+(innerWidth<=500?' · ':' · วันที่ ')+(Math.floor(state.time/1440)+1);$('sun').style.left=(state.time%1440)/1440*100+'%';$('net').textContent=(s.net>=0?'+':'')+money(s.net);$('net').classList.toggle('warning',s.net<0);const steps=[{done:[...state.roads.values()].some(r=>!r.main),text:'ต่อถนนเล็กจากถนนหลัก'},{done:s.homes>0,text:'สร้างบ้านติดถนน รอคนย้ายเข้า'},{done:s.jobs>0,text:'สร้างงานให้ประชาชน'}];$('steps').textContent=steps.filter(s=>s.done).length+' / 3';$('guide').innerHTML=steps.map((s,i)=>`<div class="guide-item ${s.done?'done':'current'}"><b>${s.done?'✓':i+1}</b><span>${s.text}</span></div>`).join('');updateCityAdvisor();$('news').innerHTML=news.slice(0,3).map(n=>`<div class="news-item"><time>${timeText(n.time)}</time>${n.text}</div>`).join('');const stranded=[...state.vehicles.values()].filter(v=>v.phase==='stuck'||v.departureNoRoute).length;$('status').textContent=stranded?'รถรอเส้นทาง '+stranded+' คัน · ข้อมูลเมือง → รายงานเมือง':s.pop?`รถเดินทาง ${state.vehicles.size} คัน · รอคิว ${s.waiting} คัน · คลิกที่รถเพื่อดูชีวิตประชาชน`:'ลากเพื่อเลื่อนแผนที่ · เลื่อนล้อเพื่อซูม';document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',+b.dataset.speed===state.speed));$('pause').textContent=state.speed?'Ⅱ':'▶';if(selected&&!document.activeElement?.classList?.contains?.('signal-minutes'))renderInspector();renderCitizenDashboard();renderTouristDashboard();}
 function timeText(t){t=Math.floor(t%1440);return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
 function computeStats(taxDay=Math.floor(state.time/1440)){let pop=0,happy=0,homes=0,freeHomes=0,jobs=0,unemployed=0,serviceNeed=0,tax=0,business=0,maint=0,waiting=0;for(const b of state.buildings.values()){const t=CATALOG[b.key];homes+=t.residents;freeHomes+=Math.max(0,t.residents-(b.residents?.size||0)-(b.reservedResidents||0));jobs+=t.jobs;maint+=t.maint;business+=(b.workers?.size||0)*50;}for(const c of state.citizens.values()){if(!c.resident||c.removed)continue;pop++;happy+=c.happy;if(c.profile.trait!==3&&!c.workId&&!c.movingOut)unemployed++;if(c.pending&&['shop','restaurant','mall','park','pub','casino'].includes(c.pending.kind))serviceNeed++;if(!c.movingOut)tax+=workTax(c,taxDay);}for(const r of state.roads.values())if(!r.main)maint+=ROADS[r.type].maint;for(const v of state.vehicles.values())if(v.wait>1||v.phase!=='driving')waiting++;const flow=state.vehicles.size?100*(1-waiting/state.vehicles.size):100;return state.stats={pop,happy:pop?happy/pop:100,homes,freeHomes,jobs,unemployed,serviceNeed,tax,business,maint,net:tax+business-maint,waiting,flow};}
 
@@ -2000,13 +2000,14 @@ const categories=[['roads','ถนน'],['home','บ้าน'],['work','งา�
 const dockGroups=[
  {key:'build',icon:'🏙️',name:'สิ่งปลูกสร้าง',categories:['roads','home','work','food','leisure','casino','hotel']},
  {key:'green',icon:'🌳',name:'ตกแต่ง',categories:['landscape']},
- {key:'insights',icon:'📊',name:'ข้อมูลเมือง',categories:['citizens','tourists','tracking']},
+ {key:'insights',icon:'📊',name:'ข้อมูลเมือง',categories:['citizens','tourists','tracking','reports']},
  {key:'traffic',icon:'🚦',name:'การจราจร',categories:['signals']},
  {key:'manage',icon:'🛠️',name:'จัดการ',categories:['manage']}
 ];
 let dockGroup='build';
 function toggleTrafficHeat(){heat=!heat;renderTools();}
 function dockItems(currentCategory){
+ if(currentCategory==='reports')return[{key:'cityReport',name:'รายงานเมือง',icon:'▤',price:'ตรวจการจราจรและเส้นทาง'},{key:'incidentLog',name:'Log เหตุจราจร',icon:'◷',price:'ประวัติการช่วยเหลือรถ'}];
  let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else if(currentCategory==='signals'){items=[{key:'signalManage',name:'ควบคุมไฟจราจร',icon:'🚦',sub:'คลิกแยกเพื่อตั้งค่าเฉพาะจุด',price:'ตั้งค่าเริ่มต้นได้ทั้งเมือง'},{key:'trafficHeat',name:'ความหนาแน่นจราจร',icon:'🌡️',sub:'เปิดหรือปิดแผนที่แสดงความหนาแน่น',price:'แตะเพื่อสลับการแสดงผล'}];}else if(currentCategory==='citizens'){items=[{key:'citizenDashboard',name:'แดชบอร์ดประชาชน',icon:'👥',sub:'ความสุข นิสัย ปัญหา และชีวิตประจำวัน',price:'ข้อมูลประชาชนทั้งเมือง'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'กดคนในแดชบอร์ดเพื่อดูข้อมูล',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tourists'){items=[{key:'touristDashboard',name:'นักท่องเที่ยว',icon:'🚐',sub:'รายชื่อ แผนเที่ยว ที่พัก และรายได้',price:'เที่ยวเมืองด้วยรถตู้สีฟ้า'},{key:'hand',name:'สำรวจแผนที่',icon:'↖',sub:'เลือกคนเพื่อดูจุดหมาย',price:'กลับสู่แผนที่'}];}else if(currentCategory==='tracking'){items=[{key:'tracking',name:'โหมดติดตาม',icon:'⌁',sub:'เส้นทางรถตามเลนถึงปลายทาง',price:'แตะรถเพื่อดูเหตุผลที่หยุด'},{key:'hand',name:'ปิดโหมดติดตาม',icon:'↖',sub:'กลับไปสำรวจเมือง',price:'ซ่อนเส้นทางรถ'}];}else if(currentCategory==='manage'){items=[{key:'hand',name:'สำรวจเมือง',icon:'↖',sub:'ติดตามชีวิต',price:'คลิกอาคารหรือรถ'},{key:'eraseRoad',name:'รื้อถนน',icon:'╳',sub:'ลากลบถนนต่อเนื่อง · ถนนหลักรื้อไม่ได้',price:'รื้อฟรี'},{key:'eraseBuilding',name:'รื้ออาคาร',icon:'⌫',sub:'คลิกอาคาร',price:'รื้อฟรี'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
@@ -2053,7 +2054,8 @@ function setDockCollapsed(collapsed){
  if(label)label.textContent=collapsed?'กางเครื่องมือ':'หุบเครื่องมือ';
 }
 function selectTool(t){movingBuildingId=null;$('cancelMoveBuilding').hidden=true;if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · วางชิดขอบถนน`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'เลือกพื้นที่โล่งเพื่อปลูกต้นไม้ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลักและถนนที่มีรถ':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูความสุข ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
-function modal(html){$('dialogContent').innerHTML=html;$('dialog').showModal();}
+let dialogRevision=0;
+function modal(html){window.SMGameAccount?.closePanel?.();dialogRevision++;clearRoadPreview();$('dialogContent').innerHTML=html;if(!$('dialog').open)$('dialog').showModal();return dialogRevision;}
 function clearRoadPreview(){$('dialog').classList.remove('road-preview-confirm');pendingRoadPreview=null;roadPreviewCache=null;constructionAnchor=null;$('dialog').classList.remove('construction-confirm');for(const key of ['margin','top','left','right','bottom','maxHeight'])$('dialog').style[key]='';}
 // CSS zoom is explicitly disabled on the anchored construction dialog, so
 // all measured positions are in the same viewport pixels as the pointer.
@@ -2075,9 +2077,10 @@ function positionConstructionDialog(x,y){
 }
 function positionConstructionAtWorld(x,y){const point=screen(x+(renderer3d?0:.5),y+(renderer3d?0:.5),.15);positionConstructionDialog(point[0],point[1]);}
 window.addEventListener('resize',()=>{if(constructionAnchor&&$('dialog').open)positionConstructionDialog(constructionAnchor.x,constructionAnchor.y);});
-function closeModal(){$('dialog').close();clearRoadPreview();}
+function closeModal(){dialogRevision++;$('dialog').close();clearRoadPreview();}
+window.SMGameCloseDialog=closeModal;
 $('dialog').addEventListener('close',clearRoadPreview);
-$('dialog').addEventListener('cancel',clearRoadPreview);
+$('dialog').addEventListener('cancel',()=>{dialogRevision++;clearRoadPreview();});
 const row=(a,b)=>`<div class="detail-row"><span>${a}</span><strong>${b}</strong></div>`;
 const action=(name,key,value)=>`<button class="action" data-action="${key}" data-value="${value??''}">${name}</button>`;
 function globalSignalInspector(){
@@ -3852,6 +3855,8 @@ $('subcategories').onclick=e=>{
 };
 $('tools').onclick=e=>{
  const b=e.target.closest('[data-tool]');if(!b)return;
+ if(b.dataset.tool==='cityReport'){openCityReport();return;}
+ if(b.dataset.tool==='incidentLog'){openManualIncidentLog();return;}
  if(b.dataset.category)category=b.dataset.category;
  if(b.dataset.tool==='trafficHeat'){
   // Heatmap is a view toggle; it must not replace a construction tool in hand.
@@ -4164,14 +4169,17 @@ window.SMGameOnCloudSaved=()=>toast('บันทึกเกมออนไล�
 async function openCloudSaveDialog(){
  const api=window.SMGameAccount;
  if(!api?.user){quickSaveCloud();return;}
+ const accountId=api.user.id;
+ const revision=modal('<h2>เซป/โหลด</h2><p>กำลังอ่านเซฟของคุณ…</p><div class="actions"><button id="saveLoadingClose">กลับไปเล่น</button></div>');
+ $('saveLoadingClose').onclick=closeModal;
  let slots;
- try{slots=await api.listSaves();}
- catch(e){console.error('Online saves:',e);toast('อ่านเซฟออนไลน์ไม่ได้ กรุณาลองอีกครั้งค่ะ');return;}
+ try{slots=await api.listSaves();if(dialogRevision!==revision||api.user?.id!==accountId)return;}
+ catch(e){console.error('Online saves:',e);if(dialogRevision===revision){$('dialogContent').innerHTML='<h2>เซป/โหลด</h2><p>อ่านรายการเซฟไม่สำเร็จ กรุณาลองอีกครั้งค่ะ</p><div class="actions"><button id="saveListRetry" class="primary">ลองอีกครั้ง</button><button id="saveListClose">กลับไปเล่น</button></div>';$('saveListRetry').onclick=openCloudSaveDialog;$('saveListClose').onclick=closeModal;}return;}
  const rows=slots.map((slot,i)=>{
   const when=Number.isFinite(slot.savedAt)?new Date(slot.savedAt).toLocaleString('th-TH'):'';
   return '<div style="padding:11px 0;border-bottom:1px solid #dce4de"><strong style="overflow-wrap:anywhere">'+escapeSaveText(slot.name)+'</strong><p style="margin:3px 0;color:#648074;font-size:12px">'+escapeSaveText(when)+'</p><div class="actions"><button id="onlineLoad'+i+'">โหลด</button><button id="onlineOverwrite'+i+'">เขียนทับ</button><button id="onlineDelete'+i+'">ลบเซฟ</button></div></div>';
  }).join('');
- modal(`<span class="eyebrow">ONLINE SAVES</span><h2>เซฟเกม</h2>
+ modal(`<span class="eyebrow">SAVE & LOAD</span><h2>เซป/โหลด</h2>
   <p>บันทึกออนไลน์ในบัญชีของคุณ และเล่นต่อบนอุปกรณ์อื่นได้ค่ะ</p>
   <label for="onlineSaveName">ชื่อเซฟ</label>
   <input id="onlineSaveName" maxlength="80" autocomplete="off" style="display:block;box-sizing:border-box;width:100%;margin:8px 0" value="${escapeSaveText(CITIES[state.city].name+' วันที่ '+(Math.floor(state.time/1440)+1))}">
@@ -4184,8 +4192,8 @@ async function openCloudSaveDialog(){
  $('onlineCreate').onclick=async()=>{
   const button=$('onlineCreate'),error=$('onlineSaveError'),name=$('onlineSaveName').value.trim().slice(0,80);
   if(!name){error.textContent='กรุณาตั้งชื่อเซฟค่ะ';return;}
-  button.disabled=true;error.textContent='กำลังบันทึกออนไลน์…';
-  try{await api.save(name,'cloud-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10),snapshot());toast('บันทึกเซฟออนไลน์แล้วค่ะ');await openCloudSaveDialog();}
+  const revision=dialogRevision;button.disabled=true;error.textContent='กำลังบันทึกออนไลน์…';
+  try{await api.save(name,'cloud-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10),snapshot());toast('บันทึกเซฟออนไลน์แล้วค่ะ');if(dialogRevision===revision)await openCloudSaveDialog();}
   catch(e){console.error('Online save failed:',e);error.textContent='บันทึกไม่สำเร็จ: '+(e.message||'กรุณาลองใหม่');}
   finally{button.disabled=false;}
  };
@@ -4197,13 +4205,13 @@ async function openCloudSaveDialog(){
   };
   $('onlineOverwrite'+i).onclick=()=>{
    confirmAction('เขียนทับ “'+escapeSaveText(slot.name)+'”','เซฟออนไลน์เดิมจะถูกแทนที่ด้วยเมืองที่กำลังเล่น',async()=>{
-    try{await api.save(slot.name,slot.id,snapshot());toast('เขียนทับเซฟออนไลน์แล้วค่ะ');await openCloudSaveDialog();}
+    const revision=dialogRevision;try{await api.save(slot.name,slot.id,snapshot());toast('เขียนทับเซฟออนไลน์แล้วค่ะ');if(dialogRevision===revision)await openCloudSaveDialog();}
     catch(e){console.error('Cloud overwrite failed:',e);toast('เขียนทับเซฟออนไลน์ไม่สำเร็จค่ะ');}
    });
   };
   $('onlineDelete'+i).onclick=()=>{
    confirmAction('ลบเซฟ “'+escapeSaveText(slot.name)+'”','ลบเซฟนี้ออกจากบัญชีออนไลน์ถาวร และไม่สามารถกู้คืนจากเกมได้',async()=>{
-    try{await api.deleteSave(slot.id);toast('ลบเซฟออนไลน์แล้วค่ะ');await openCloudSaveDialog();}
+    const revision=dialogRevision;try{await api.deleteSave(slot.id);toast('ลบเซฟออนไลน์แล้วค่ะ');if(dialogRevision===revision)await openCloudSaveDialog();}
     catch(e){console.error('Cloud delete failed:',e);toast('ลบเซฟไม่สำเร็จ กรุณาลองใหม่ค่ะ');}
    });
   };
@@ -4225,8 +4233,8 @@ function openAccountDialog(){
  const api=window.SMGameAccount;
  if(!api?.user){api?.openSignIn?.();return;}
  modal(`<span class="eyebrow">MY ACCOUNT</span><h2>บัญชีผู้ใช้</h2>
- <p>อีเมล: <strong>${escapeSaveText(api.user.email||'')}</strong></p>
- <h3>เปลี่ยนรหัสผ่าน</h3>
+ <p class="account-identity"><span class="account-avatar">◉</span><strong>${escapeSaveText(api.displayName||api.user.email||'ผู้เล่น')}</strong><small>เชื่อมต่อบัญชีแล้ว</small></p>
+ <details class="account-password"><summary>เปลี่ยนรหัสผ่าน</summary>
  <label for="accountOldPassword">รหัสผ่านปัจจุบัน</label>
  <input id="accountOldPassword" type="password" autocomplete="current-password" style="display:block;width:100%;box-sizing:border-box;margin:7px 0 12px;padding:9px" required>
  <label for="accountNewPassword">รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษร)</label>
@@ -4234,16 +4242,16 @@ function openAccountDialog(){
  <label for="accountConfirmPassword">ยืนยันรหัสผ่านใหม่</label>
  <input id="accountConfirmPassword" type="password" autocomplete="new-password" minlength="8" style="display:block;width:100%;box-sizing:border-box;margin:7px 0 12px;padding:9px" required>
  <p id="accountChangeNotice" role="status" aria-live="polite"></p>
- <div class="actions"><button id="accountChangePassword" class="primary">บันทึกรหัสผ่านใหม่</button><button id="accountSignOut">ออกจากระบบ</button><button id="accountClose">กลับไปเล่น</button></div>`);
+ <div class="actions"><button id="accountChangePassword" class="primary">บันทึกรหัสผ่านใหม่</button></div></details><div class="actions account-footer"><button id="accountSignOut">ออกจากระบบ</button><button id="accountClose" class="primary">กลับไปเล่น</button></div>`);
  $('accountClose').onclick=closeModal;
  $('accountChangePassword').onclick=async()=>{
   const oldPw=$('accountOldPassword').value,newPw=$('accountNewPassword').value,confirm=$('accountConfirmPassword').value;
-  const error=$('accountChangeNotice'),button=$('accountChangePassword');
+  const error=$('accountChangeNotice'),button=$('accountChangePassword'),revision=dialogRevision;
   if(newPw.length<8){error.textContent='รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษรค่ะ';return;}
   if(newPw!==confirm){error.textContent='ยืนยันรหัสผ่านใหม่ไม่ตรงกันค่ะ';return;}
   if(newPw===oldPw){error.textContent='กรุณาตั้งรหัสผ่านใหม่ที่ต่างจากเดิมค่ะ';return;}
   button.disabled=true;error.textContent='กำลังเปลี่ยนรหัสผ่าน…';
-  try{await api.changePassword(oldPw,newPw);$('accountOldPassword').value='';$('accountNewPassword').value='';$('accountConfirmPassword').value='';error.textContent='เปลี่ยนรหัสผ่านสำเร็จแล้วค่ะ';}
+  try{await api.changePassword(oldPw,newPw);if(dialogRevision!==revision)return;$('accountOldPassword').value='';$('accountNewPassword').value='';$('accountConfirmPassword').value='';error.textContent='เปลี่ยนรหัสผ่านสำเร็จแล้วค่ะ';}
   catch(e){error.textContent='เปลี่ยนรหัสผ่านไม่สำเร็จ: '+(e.message||'กรุณาตรวจสอบรหัสผ่านเดิม');}
   finally{button.disabled=false;}
  };
@@ -4302,15 +4310,14 @@ window.SMGameOnAuthChanged=loggedIn=>{
   account.setAttribute('aria-label',account.title);
  }
 };
-$('menu').onclick=()=>{
- modal('<span class="eyebrow">GAME MENU</span><h2>เมนูหลัก</h2><div class="smcity-menu-list" role="group" aria-label="ตัวเลือกเมนูหลัก"><button type="button" id="accountMenu">บัญชีผู้ใช้</button><button type="button" id="saveMenu">เซฟเกม</button><button type="button" id="newCityMenu">เริ่มเมืองใหม่</button><button type="button" id="cityReportMenu">ตรวจเมือง / รายงานเมือง</button><button type="button" id="incidentLogMenu">ดู Log รายงาน<small>ประวัติการระงับเหตุด้วยมือ</small></button></div><div class="actions"><button type="button" id="menuClose">กลับไปเล่น</button></div>');
+function openMainMenu(){
+ modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b><small>เก็บเมืองไว้ แล้วกลับมาเล่นต่อ</small></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b><small>เข้าสู่ระบบ สมัคร หรือจัดการบัญชี</small></span><span class="menu-chevron">›</span></button><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b><small>เลือกแผนที่และเริ่มต้นเมืองของคุณ</small></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
  $('menuClose').onclick=closeModal;
  $('accountMenu').onclick=openAccountDialog;
  $('saveMenu').onclick=openCloudSaveDialog;
  $('newCityMenu').onclick=openNewCityDialog;
- $('cityReportMenu').onclick=openCityReport;
- $('incidentLogMenu').onclick=openManualIncidentLog;
-};
+}
+$('menu').onclick=openMainMenu;
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
