@@ -36,6 +36,7 @@ if (gate) {
   function setLocked(locked) {
     window.SMGameAuthLocked = locked;
     gate.hidden = !locked;
+    gate.setAttribute('aria-hidden', String(!locked));
     if (locked && !gate.open) gate.showModal();
     else if (!locked && gate.open) gate.close();
   }
