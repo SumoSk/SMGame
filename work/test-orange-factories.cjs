@@ -48,6 +48,8 @@ const fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('n
    // Floor bays should remain open; never use a giant opaque solid.
    assert.equal(local.filter(p=>p.sy>1.65&&p.sx*p.sz>4.0).length,0,
     spec.key+' reverted to solid cuboid');
+   assert(batch.factoryEffects?.some(p=>p.kind==='steam')&&batch.factoryEffects.some(p=>p.kind==='fan')&&batch.factoryEffects.some(p=>p.kind==='weld'),'operating effects missing');
+   assert(local.some(p=>Math.abs(p.rz)>.05&&p.sx>1&&p.sz>1),'pitched production-hall roof missing');
    const count=c=>local.filter(p=>p.color===c).length;
    const colors=new Set(local.map(p=>p.color));
    assert(colors.size>=23,spec.key+' missing material variation');
@@ -69,7 +71,7 @@ const fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('n
     assert(count('#87b8be')>=2,'paint booth glass absent');
     assert(local.some(p=>p.color==='#9de5d8'&&p.y>1.05),'illuminated machine controls missing');
    }else{
-    assert(high>4.6&&high<5.3,'large plant should have two floors and roof trusses');
+    assert(high>4.6&&high<5.8,'large production hall, roof trusses and process stacks');
     assert(count('#98a4a5')>=3,'three production conveyors missing');
     assert(count('#f2b562')>=6,'industrial robots missing');
     assert(count('#bac7c5')>=1,'real elevated control mezzanine missing');
@@ -84,6 +86,18 @@ const fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('n
   }
   results.push({...spec,...baseline});
  }
+ // Exercise the actual bounded effects pool once: motion, pause and removal.
+ renderer.buildingGroup=new THREE.Group();renderer.camera=new THREE.PerspectiveCamera();
+ const sample=new Batch(),b={key:'factory_large',id:700,x:23,y:44,rotation:1,parked:new Set(),parkingSlots:Array(60).fill(null)};
+ renderer.building(sample,b,g.CATALOG,{});renderer.createFactoryEffects(sample.factoryEffects);
+ const state={speed:1,buildings:new Map([[700,b]])},cam={x:30,y:50,z:1};
+ renderer.updateFactoryEffects(state,cam,1);renderer.updateFactoryEffects(state,cam,1.08);
+ assert(renderer.factoryFx.steam.count>0&&renderer.factoryFx.parts.count>0&&renderer.factoryFx.sparks.count>0,'working effects absent');
+ const first=renderer.factoryFx.parts.instanceMatrix.array.slice();renderer.updateFactoryEffects(state,cam,1.16);
+ assert(first.some((v,i)=>v!==renderer.factoryFx.parts.instanceMatrix.array[i]),'factory effects do not animate');
+ state.speed=0;const paused=renderer.factoryFxTime;renderer.updateFactoryEffects(state,cam,2);assert.equal(renderer.factoryFxTime,paused);
+ state.buildings.clear();renderer.updateFactoryEffects(state,cam,2.08);
+ assert.equal(renderer.factoryFx.steam.count+renderer.factoryFx.parts.count+renderer.factoryFx.sparks.count,0,'demolished factory leaves effects');
  const grand=g.CATALOG.home_grand;
  assert.deepEqual([grand.plotWidth,grand.plotHeight,grand.parkingCapacity],[11,13,60]);
  const pub=g.CATALOG.pub_small;
