@@ -4398,6 +4398,147 @@ dialog:has(.daily-report-modal){width:min(860px,calc(100vw - 24px));max-height:c
   left:calc(63px + env(safe-area-inset-left,0px))!important;right:auto!important;
  }
 }
+
+/* Direct construction navigation: no redundant Buildings/Landscape/City Data row.
+   The category tabs (including Landscape) are the primary construction navigation. */
+body>.bottom .builder-zone .build-dock #categories{
+ display:none!important;visibility:hidden!important;
+ flex:0 0 0!important;order:unset!important;
+ height:0!important;max-height:0!important;min-height:0!important;
+ width:0!important;max-width:0!important;
+ overflow:hidden!important;padding:0!important;margin:0!important;border:0!important;
+}
+body>.bottom .builder-zone .build-dock .dock-body{
+ display:flex!important;flex-direction:column!important;
+ justify-content:flex-start!important;min-height:0!important;
+}
+body>.bottom .builder-zone .build-dock .dock-context{
+ display:flex!important;flex-direction:column!important;
+ order:0!important;flex:1 1 auto!important;min-height:70px!important;
+ margin:3px 0 2px!important;
+ background:#edf5ed!important;border:1px solid #c4d9c8!important;
+ border-radius:11px!important;overflow:hidden!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories{
+ display:flex!important;align-items:center!important;justify-content:flex-start!important;
+ flex:0 0 34px!important;
+ width:100%!important;min-width:0!important;
+ height:34px!important;max-height:34px!important;min-height:34px!important;
+ padding:3px 8px!important;gap:6px!important;margin:0!important;
+ overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:thin!important;
+ border-bottom:1px solid #bed7c3!important;background:#e1eee3!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories[hidden]{display:none!important}
+body>.bottom .builder-zone .dock-context #subcategories::before{
+ content:"สร้าง";flex:0 0 auto;
+ font:800 10px/1.4 "Noto Sans Thai",Tahoma,sans-serif!important;
+ color:#35614b!important;margin-right:2px!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories button{
+ box-sizing:border-box!important;flex:0 0 auto!important;
+ min-height:27px!important;height:27px!important;
+ padding:4px 10px!important;margin:0!important;
+ color:#4a6955!important;border:1px solid #c4d8c8!important;
+ border-radius:8px!important;background:rgba(255,255,255,.73)!important;
+ font:700 11px/1.3 "Noto Sans Thai",Tahoma,sans-serif!important;
+ white-space:nowrap!important;cursor:pointer!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories button.active{
+ background:#317853!important;color:#fff!important;
+ border-color:#317853!important;box-shadow:0 2px 5px #145b3730!important;
+}
+body>.bottom .builder-zone .dock-context #subcategories button:hover:not(.active){
+ background:#d6e9d9!important;border-color:#7faf91!important;
+}
+body>.bottom .builder-zone .dock-context .tools{
+ display:flex!important;align-items:stretch!important;justify-content:flex-start!important;
+ flex:1 1 auto!important;min-height:49px!important;
+ padding:5px 7px!important;gap:5px!important;
+ background:#f5faf4!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-context{
+ background:#242c27!important;border-color:#465d4c!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories{
+ background:#252f29!important;border-color:#455849!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories::before{
+ color:#c8dfcf!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories button{
+ background:#303b33!important;color:#e4eee7!important;
+ border-color:#4c6553!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context #subcategories button.active{
+ background:#347c55!important;border-color:#75bb8e!important;color:#fff!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .dock-context .tools{
+ background:#222b26!important;
+}
+/* Only the actual Main Menu is centered. Report is a regular left-hand
+   information window, as are save, diagnostics and all other city panels. */
+#dialog:not(.construction-confirm):has(.smcity-menu-list){
+ position:fixed!important;left:50%!important;right:auto!important;
+ top:50%!important;bottom:auto!important;
+ transform:translate(-50%,-50%)!important;
+ width:min(475px,calc(100vw - 28px))!important;
+ max-width:calc(100vw - 28px)!important;
+ max-height:calc(100dvh - 30px)!important;
+ margin:0!important;
+}
+#dialog:has(.smcity-report-list) .menu-heading{margin-bottom:10px!important}
+#dialog .smcity-report-list{
+ display:grid!important;grid-template-columns:1fr!important;gap:7px!important;
+ margin:12px 0!important;max-height:min(55dvh,490px)!important;
+ overflow-y:auto!important;overscroll-behavior:contain!important;
+}
+#dialog .smcity-report-entry{
+ display:flex!important;align-items:center!important;text-align:left!important;
+ gap:11px!important;width:100%!important;min-height:56px!important;
+ padding:9px 12px!important;
+ border:1px solid var(--sm-panel-line,#d6e5d8)!important;
+ border-radius:12px!important;
+ background:var(--sm-panel-card,#fff)!important;
+ color:var(--sm-panel-ink,#244637)!important;
+ cursor:pointer!important;
+}
+#dialog .smcity-report-entry .menu-symbol{
+ flex:0 0 36px!important;width:36px!important;height:36px!important;
+ display:grid!important;place-items:center!important;
+ background:var(--sm-panel-accent-soft,#d8efdf)!important;
+ color:var(--sm-panel-accent,#347953)!important;
+ border-radius:10px!important;font-size:19px!important;
+}
+#dialog .smcity-report-entry>span:nth-child(2){flex:1!important;min-width:0!important}
+#dialog .smcity-report-entry b{
+ display:block!important;font-size:13px!important;color:var(--sm-panel-ink,#244637)!important;
+}
+#dialog .smcity-report-entry small{
+ display:block!important;font-size:10px!important;
+ color:var(--sm-panel-muted,#667c6e)!important;
+ margin-top:3px!important;line-height:1.5!important;
+}
+#dialog .smcity-report-entry .menu-chevron{color:var(--sm-panel-muted,#667c6e)!important}
+#dialog .smcity-report-entry:hover,#dialog .smcity-report-entry:focus-visible{
+ border-color:var(--sm-panel-accent,#347953)!important;
+ background:var(--sm-panel-accent-soft,#d8efdf)!important;
+}
+#dialog .report-menu-intro{font-size:11px!important;color:var(--sm-panel-muted,#667c6e)!important}
+@media(max-width:720px){
+ body>.bottom .builder-zone .dock-context #subcategories{
+  height:30px!important;min-height:30px!important;max-height:30px!important;
+  flex-basis:30px!important;padding:2px 5px!important;gap:4px!important;
+ }
+ body>.bottom .builder-zone .dock-context #subcategories button{
+  height:25px!important;min-height:25px!important;
+  padding:3px 7px!important;font-size:10px!important;
+ }
+ body>.bottom .builder-zone .dock-context #subcategories::before{font-size:9px!important}
+ #dialog:not(.construction-confirm):has(.smcity-menu-list){
+  left:50%!important;top:50%!important;
+  width:calc(100vw - 26px)!important;max-width:min(475px,calc(100vw - 26px))!important;
+ }
+}
 </style><style id="smcity-dark-mode-v242">
 /* SMCITY v2.5.2 — high-contrast BLACK interface mode.
    Keep the current theme class and localStorage key so existing choices survive.
