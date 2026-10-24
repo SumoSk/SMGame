@@ -1126,7 +1126,7 @@ tree(x+s-.3,y+s-.3,.55);}
 if(selected?.kind==='building'&&selected.id===b.id||ghost){ctx.strokeStyle=ghost?'#f6dc83':'#fff6b7';ctx.lineWidth=2;const bounds=buildingBounds(plot);poly([screen(plot.x,plot.y),screen(plot.x+bounds.w,plot.y),screen(plot.x+bounds.w,plot.y+bounds.h),screen(plot.x,plot.y+bounds.h)],null,ctx.strokeStyle);}
 if(cam.z>1.1&&!ghost&&typeof document.createElement!=='function'){const p=screen(x+s*.5,y+s+.45);ctx.font=`500 ${Math.min(12,10*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.textAlign='center';ctx.fillStyle='#284a3e';ctx.fillText(t.name,p[0],p[1]);ctx.textAlign='start';}ctx.restore();}
 function drawCarShape(x,y,angle,color,z){ctx.save();if(color==='#65c8f2')z*=1.08;ctx.translate(x,y);ctx.rotate(angle);ctx.fillStyle='#173a3d40';ctx.fillRect(-5*z+2*z,-2.5*z+2*z,10*z,5*z);ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(-5*z,-2.4*z,10*z,4.8*z,1.4*z);ctx.fill();ctx.fillStyle='#466572';ctx.fillRect(0,-1.9*z,2.3*z,3.8*z);ctx.fillStyle='#dae7df';ctx.fillRect(-2.8*z,-1.9*z,2.2*z,3.8*z);ctx.fillStyle='#fff2b3';ctx.fillRect(3.5*z,-2.1*z,1*z,1*z);ctx.fillRect(3.5*z,1.1*z,1*z,1*z);ctx.restore();}
-function drawVehicles(){for(const v of state.vehicles.values()){if(v.phase==='gate_waiting'||v.phase==='departing'&&!v.lotPath)continue;const pos=vehiclePosition(v);if(!pos)continue;const p=screen(pos.x,pos.y);if(p[0]<-20||p[0]>view.w+20||p[1]<-20||p[1]>view.h+20)continue;drawCarShape(p[0],p[1],pos.angle,v.color,cam.z);if(follow===v.id){ctx.strokeStyle='#fff6a2';ctx.lineWidth=2;ctx.beginPath();ctx.arc(...p,12*cam.z,0,7);ctx.stroke();}}}
+function drawVehicles(){for(const v of state.vehicles.values()){if(v.phase==='gate_waiting'||v.phase==='departing'&&!v.lotPath)continue;const pos=vehiclePosition(v);if(!pos)continue;const p=screen(pos.x,pos.y);if(p[0]<-20||p[0]>view.w+20||p[1]<-20||p[1]>view.h+20)continue;drawCarShape(p[0],p[1],pos.angle,v.color,cam.z);}}
 // Lane geometry is immutable during a trip. It is rebuilt only after a route or
 // road edit, rather than being recalculated from the car's new lane each frame.
 const motionPlans=new WeakMap();
@@ -1297,40 +1297,96 @@ function positionOnMotion(plan,s){
  const length=Math.hypot(tangent.x,tangent.y)||1;return{x:point.x,y:point.y,angle:Math.atan2(tangent.y*.78,tangent.x),dx:tangent.x/length,dy:tangent.y/length};
 }
 function vehiclePosition(v){if(v.lotPath)return parkingPose(v);if(v.phase==='departing'){const b=state.buildings.get(v.fromId);return b?parkingSlotPose(b,parkingSpace(b,v.citizenId)):null;}if(v.phase==='stuck'&&v.heldPose)return v.heldPose;return v.path?.length?positionOnMotion(motionPlan(v),motionDistance(v)):null;}
+// Visual trip status only: never changes deadlines, happiness or vehicle motion.
+const CAR_STATUS_COLORS={green:'#64c887',orange:'#efa54d',red:'#e36b6b'};
+function vehicleTimeliness(v,at=state.time){
+ if(!v||!Number.isFinite(v.deadline))return 'green';
+ const remaining=v.deadline-(v.arrivedAt??at);
+ return remaining<0?'red':v.arrivedAt!=null?'green':remaining<=30?'orange':'green';
+}
+function normalizeSelectedCar(){
+ if(selected?.kind==='vehicle'){
+  const v=state.vehicles.get(selected.id);if(v){if(v.citizenId)selected.citizenId=v.citizenId;return;}
+  const c=state.citizens.get(selected.citizenId),b=state.buildings.get(c?.locationId);
+  if(c&&b?.parked.has(c.id))selected={kind:'parked',id:c.id,buildingId:b.id};
+ }else if(selected?.kind==='parked'){
+  const c=state.citizens.get(selected.id),v=state.vehicles.get(c?.vehicleId);
+  if(v)selected={kind:'vehicle',id:v.id,citizenId:c.id};
+ }
+}
+function selectedCarVehicle(){
+ if(selected?.kind==='vehicle')return state.vehicles.get(selected.id)||null;
+ if(selected?.kind==='parked')return state.vehicles.get(state.citizens.get(selected.id)?.vehicleId)||null;
+ return null;
+}
+function trackingOrigin(v){const b=state.buildings.get(v.fromId);if(b)return `${CATALOG[b.key].name} #${b.id}`;const gate=state.gates.indexOf(v.fromGate);return gate>=0?'ประตูเมืองทิศ'+['เหนือ','ตะวันออก','ใต้','ตะวันตก'][gate]:'จุดเริ่มเส้นทาง';}
+function trackingEndpoint(v,origin=false){
+ const b=state.buildings.get(origin?v.fromId:v.toId);
+ if(b){const t=CATALOG[b.key];return {point:lotPoint(b,t.plotWidth/2,t.plotHeight/2),name:origin?trackingOrigin(v):trackingDestination(v)};}
+ const node=(origin?v.fromGate:v.toGate)??v.path?.[origin?0:v.path.length-1];if(node==null)return null;
+ const [x,y]=xy(node);return {point:{x:x+.5,y:y+.5},name:origin?trackingOrigin(v):trackingDestination(v)};
+}
+let canvasCarMarkerHits=[];
+function drawCarIndicators2D(){
+ canvasCarMarkerHits=[];
+ const add=(pose,v,cid,buildingId=null)=>{
+  if(!pose)return;const p=screen(pose.x,pose.y);if(p[0]<-15||p[0]>view.w+15||p[1]<-20||p[1]>view.h+20)return;
+  const focus=v?selected?.kind==='vehicle'&&selected.id===v.id:selected?.kind==='parked'&&selected.id===cid;
+  if(focus){ctx.save();ctx.translate(...p);ctx.rotate(pose.angle);ctx.strokeStyle='#ffffff';ctx.lineWidth=1.2;ctx.strokeRect(-6*cam.z,-3.5*cam.z,12*cam.z,7*cam.z);ctx.restore();}
+  const x=p[0],y=p[1]-5*cam.z-7,size=Math.min(8,Math.max(4,cam.z*5));ctx.beginPath();ctx.moveTo(x,y-size*.5);ctx.lineTo(x+size*.3125,y);ctx.lineTo(x,y+size*.5);ctx.lineTo(x-size*.3125,y);ctx.closePath();ctx.fillStyle=CAR_STATUS_COLORS[vehicleTimeliness(v)];ctx.fill();
+  canvasCarMarkerHits.push({x,y,selection:v?{kind:'vehicle',id:v.id,citizenId:v.citizenId}:{kind:'parked',id:cid,buildingId}});
+ };
+ for(const v of state.vehicles.values())if(['driving','stuck','parking_in','parking_out'].includes(v.phase)||v.phase==='departing'&&v.lotPath)add(vehiclePosition(v),v,v.citizenId);
+ for(const b of state.buildings.values())for(const cid of b.parked)if(!parkingIsMoving(cid)){const index=b.parkingSlots.indexOf(cid);if(index>=0)add(parkingSlotPose(b,index),state.vehicles.get(state.citizens.get(cid)?.vehicleId),cid,b.id);}
+}
 // Read-only overlay: sample the same lane plan used by vehicle movement.
 const trackingSamples=new WeakMap();
 function trackingRoute(v){
- if(!v?.path?.length||missingRoute(v))return [];if(v.lotPath){const p=parkingPose(v);return [p,...v.lotPath.filter((_,i)=>i>0)];}
- const plan=motionPlan(v),start=motionDistance(v,plan),pose=vehiclePosition(v);
- if(!pose)return [];
+ if(!v?.path?.length||missingRoute(v))return [];
+ const lot=[];
+ if(v.lotPath){
+  const total=lotPathLength(v.lotPath),start=v.lotDistance||0;
+  for(let d=start;d<total;d+=.14)lot.push(lotPathPose(v.lotPath,d));lot.push(lotPathPose(v.lotPath,total));
+  if(v.phase==='parking_in')return lot;
+ }
+ const plan=motionPlan(v),start=motionDistance(v,plan),pose=vehiclePosition(v);if(!pose)return lot;
  let samples=trackingSamples.get(plan);
  if(!samples){samples=[];for(let s=0;s<plan.total;s+=.4)samples.push({s,...positionOnMotion(plan,s)});samples.push({s:plan.total,...positionOnMotion(plan,plan.total)});trackingSamples.set(plan,samples);}
- // A held pose off its planned lane must not invent a straight connector.
- const planned=positionOnMotion(plan,start);
- if(v.phase==='stuck'&&Math.hypot(pose.x-planned.x,pose.y-planned.y)>.25)return [];
+ if(lot.length)return [...lot,positionOnMotion(plan,0),...samples.filter(p=>p.s>0)];
+ if(v.phase==='departing')return samples;
+ const planned=positionOnMotion(plan,start);if(v.phase==='stuck'&&Math.hypot(pose.x-planned.x,pose.y-planned.y)>.25)return [];
  return [pose,...samples.filter(p=>p.s>start+1e-6)];
 }
 function trackingDestination(v){const b=state.buildings.get(v.toId);return b?`${CATALOG[b.key].name} #${b.id}`:v.kind==='pass'?'ทางออกเมือง':'ปลายทาง';}
 let trackingLayer=null,trackingNodes=new Map(),trackingAt=-Infinity;
 function updateTrackingOverlay(){
- const enabled=tool==='tracking';
+ const focusedVehicle=selectedCarVehicle()||state.vehicles.get(follow),enabled=tool==='tracking'||!!focusedVehicle;
  if(trackingLayer)trackingLayer.style.display=enabled?'block':'none';
  if(!enabled){trackingAt=-Infinity;return;}
  const now=performance.now();if(now-trackingAt<100)return;trackingAt=now;
  const ns='http://www.w3.org/2000/svg';
  if(!trackingLayer){trackingLayer=document.createElementNS(ns,'svg');trackingLayer.setAttribute('aria-hidden','true');Object.assign(trackingLayer.style,{position:'fixed',inset:'0',width:'100%',height:'100%',pointerEvents:'none',zIndex:'0',overflow:'hidden'});canvas.insertAdjacentElement('afterend',trackingLayer);}
- const visible=new Set();
+ const visible=new Set(),project=p=>screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0));
  for(const v of state.vehicles.values()){
-  if(!['driving','stuck'].includes(v.phase))continue;
-  const pose=vehiclePosition(v);if(!pose)continue;
+  const focused=focusedVehicle?.id===v.id;
+  if(!focused&&tool!=='tracking'||!focused&&!['driving','stuck'].includes(v.phase))continue;
   visible.add(v.id);let item=trackingNodes.get(v.id);
-  if(!item){const group=document.createElementNS(ns,'g'),path=document.createElementNS(ns,'polyline');path.setAttribute('fill','none');path.setAttribute('stroke-linejoin','round');path.setAttribute('stroke-linecap','round');group.append(path);trackingLayer.appendChild(group);item={group,path};trackingNodes.set(v.id,item);}
-  const focused=selected?.kind==='vehicle'&&selected.id===v.id,color=focused?'#ffffff':`hsl(${(v.id*137.508)%360} 95% 72%)`,project=p=>screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0));
-  const points=trackingRoute(v).map(project);
-  item.path.setAttribute('points',points.map(p=>p.join(',')).join(' '));item.path.setAttribute('stroke',color);item.path.setAttribute('stroke-width',focused?'3':'1.5');item.path.setAttribute('opacity',focused?'1':'.65');
+  if(!item){
+   const group=document.createElementNS(ns,'g'),path=document.createElementNS(ns,'polyline');path.setAttribute('fill','none');path.setAttribute('stroke-linejoin','round');path.setAttribute('stroke-linecap','round');group.append(path);trackingLayer.appendChild(group);item={group,path,ends:[]};trackingNodes.set(v.id,item);
+   for(let n=0;n<2;n++){
+    const circle=document.createElementNS(ns,'circle'),label=document.createElementNS(ns,'text');circle.setAttribute('r','3');circle.setAttribute('stroke','#ffffff');circle.setAttribute('stroke-width','1');
+    Object.assign(label.style,{fontSize:'10px',fontFamily:'Noto Sans Thai, Tahoma, sans-serif',paintOrder:'stroke',stroke:'#29443a',strokeWidth:'2.5px',fill:'#ffffff'});group.append(circle,label);item.ends.push({circle,label});
+   }
+  }
+  const points=trackingRoute(v).map(project);item.path.setAttribute('points',points.map(p=>p.join(',')).join(' '));item.path.setAttribute('stroke',focused?'#ffffff':`hsl(${(v.id*137.508)%360} 95% 72%)`);item.path.setAttribute('stroke-width',focused?'2':'1.5');item.path.setAttribute('opacity',focused?'.92':'.55');
+  for(let n=0;n<2;n++){
+   const endpoint=focused?trackingEndpoint(v,n===0):null,parts=item.ends[n];parts.circle.style.display=parts.label.style.display=endpoint?'':'none';if(!endpoint)continue;
+   const p=project(endpoint.point),right=p[0]>view.w*.72;parts.circle.setAttribute('cx',p[0]);parts.circle.setAttribute('cy',p[1]);parts.circle.setAttribute('fill',n?'#75cfa5':'#bac8c2');
+   parts.label.setAttribute('x',p[0]+(right?-7:7));parts.label.setAttribute('y',p[1]-7);parts.label.setAttribute('text-anchor',right?'end':'start');parts.label.textContent=(n?'ปลายทาง · ':'ต้นทาง · ')+endpoint.name;
+  }
   if(focused)trackingLayer.appendChild(item.group);
  }
- for(const [id,item] of trackingNodes)if(!visible.has(id)){item.group.remove();trackingNodes.delete(id);}
+ for(const [id,item]of trackingNodes)if(!visible.has(id)){item.group.remove();trackingNodes.delete(id);}
 }
 
 function buildingTraffic(b,incoming=null){
@@ -1652,7 +1708,7 @@ function updatePlaceLabels(){
   }
  }
 }
-function draw(){const roadPreview=getRoadPreview();if(renderer3d){renderer3d.render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor}});updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);drawVehicles();updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();if(tool!=='tracking'&&follow&&state.vehicles.has(follow)){const v=state.vehicles.get(follow);ctx.strokeStyle='#ffe98d';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.beginPath();v.path.slice(v.pos).forEach((i,n)=>{const p=xy(i),s=screen(p[0]+.5,p[1]+.5);n?ctx.lineTo(...s):ctx.moveTo(...s);});ctx.stroke();ctx.setLineDash([]);}
+function draw(){normalizeSelectedCar();const roadPreview=getRoadPreview();if(renderer3d){renderer3d.render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor}});updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);drawVehicles();drawCarIndicators2D();updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();
 if(hover&&tool!=='hand'&&!ROADS[tool]){if(CATALOG[tool])drawBuilding({key:tool,x:hover.x,y:hover.y,rotation:checkBuilding(tool,hover.x,hover.y).rotation||0},true);else{const cells=drag?.cells||[owner(id(hover.x,hover.y))];for(const i of cells){const [x,y]=xy(i),s=screen(x,y);ctx.fillStyle=tool.startsWith('erase')?'#df7e6c99':'#fbe3989c';ctx.fillRect(s[0],s[1],T*cam.z,T*cam.z*.78);}}}
 if(state.buildings.size===0){const p=screen(154,143);ctx.fillStyle='#214c3ac9';ctx.font=`500 ${Math.max(12,14*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillText('เมืองใหม่ เริ่มจากถนนเส้นแรก',p[0],p[1]);ctx.font=`${Math.max(10,11*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillStyle='#3f6148';ctx.fillText('ถนนหลัก 8 เลนพร้อมแล้ว · เลือกถนนเล็ก แล้วลากต่อออกมา',p[0],p[1]+22*cam.z);}
 }
@@ -2043,7 +2099,7 @@ function refreshSignalInspector(i){
  return true;
 }
 function renderInspector(force=false){
-if(!selected)return;const s=computeStats();let html='';
+normalizeSelectedCar();if(!selected)return;const s=computeStats();let html='';
 if(!force&&selected.kind==='road'&&state.roads.has(selected.id)&&junction(selected.id)>=3&&refreshSignalInspector(selected.id))return;
 if(selected.kind==='signals')html=globalSignalInspector();
 else if(selected.kind==='parked'){
@@ -2064,6 +2120,11 @@ $('inspector').classList.remove('hidden');
  html=html.replace(/<span class="tag">[^<]*<\/span>/g,'');
  for(const note of ['การเข้าออกจากขอบทางฝั่งซ้ายตามทิศรถ หากอยู่คนละฝั่ง รถต้องวนกลับตามเส้นทาง','เวลาโดยประมาณ ปรับตามการเดินทางและเวลาถึงจริง','ถนนหลักเริ่มต้นของเมือง รื้อไม่ได้','รถขับชิดซ้ายและใช้เลนตามเส้นทาง เมื่อเต็มจะรอคิว','ภาษีปกติ 500 บาท ทำงานสาย 400 บาท พลาดงาน 250 บาท กิจกรรมอื่นไม่ลดภาษี ถนนหลักไม่มีค่าดูแล','มีบ้านว่าง เส้นทางจากประตูเมือง และความสุขตั้งแต่ 70% จึงจะมีคนย้ายเข้า คนจะนับเป็นประชากรเมื่อเดินทางถึงบ้านจริง','ไปทำงานและใช้บริการทันเวลาช่วยให้มีความสุข รถติด ไปสาย ไม่มีงาน และขาดบริการทำให้ความสุขลดลง','ต่ำกว่า 25% หรือว่างงาน 2 วัน ประชาชนจะเตรียมย้ายออก','คลิกที่รถเพื่อดูว่าของใคร กำลังไปไหน และติดอยู่เพราะอะไร เพิ่มเลนหรือกระจายงานและบริการให้ใกล้บ้านช่วยลดการเดินทาง'])html=html.replace('<p>'+note+'</p>','');
  if(selected.kind==='vehicle'&&state.vehicles.has(selected.id)&&state.citizens.get(state.vehicles.get(selected.id).citizenId)?.tourist)html+=vehicleRecoveryActions(state.vehicles.get(selected.id));
+const journey=selectedCarVehicle();
+ if(journey){const status=vehicleTimeliness(journey),remaining=Number.isFinite(journey.deadline)?journey.deadline-(journey.arrivedAt??state.time):null;
+  const label=remaining==null?'ไม่มีเวลานัด':status==='red'?'สายแล้ว '+Math.ceil(-remaining)+' นาที':journey.arrivedAt!=null?'ถึงอาคารแล้ว':status==='orange'?'เหลือ '+Math.ceil(remaining)+' นาที ก่อนสาย':'ยังไม่สาย';
+  html='<section class="selected-car-journey">'+row('ต้นทาง',escapeSaveText(trackingOrigin(journey)))+row('ปลายทาง',escapeSaveText(trackingDestination(journey)))+row('สถานะเวลา','<span style="color:'+CAR_STATUS_COLORS[status]+'">◆</span> '+label)+'</section>'+html;
+ }
 $('inspectContent').innerHTML=html;
 }
 function buildingName(i){const b=state.buildings.get(i);return b?CATALOG[b.key].name+' #'+i:'ยังไม่มี';}
@@ -3673,7 +3734,7 @@ function demolishRoadStroke(cells,confirmed=false){
 function demolishRoad(i,confirmed=false){const r=state.roads.get(i);if(!r){toast('เลือกช่องที่มีถนนค่ะ');return;}if(r.main){toast('ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ');return;}if(occupancy(i)>0||[...state.vehicles.values()].some(v=>v.path?.[v.pos]===i&&['driving','stuck','parking_in','parking_out'].includes(v.phase))){toast('มีรถอยู่บนถนน รอให้รถผ่านก่อนค่ะ');return;}const fee=0;if(!confirmed){confirmAction('รื้อถนน',`ค่ารื้อ ${money(fee)} · ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้`,()=>demolishRoad(i,true));return;}for(const n of r.links)state.roads.get(n)?.links.delete(i);state.roads.delete(i);state.money-=fee;roadChanged([i]);updateUI();}
 function confirmAction(title,body,callback){modal(`<span class="eyebrow">CITY PLANNING</span><h2>${title}</h2><p>${body}</p><div class="actions"><button id="cancelDialog">ยกเลิก</button><button id="confirmDialog" class="primary">ยืนยัน</button></div>`);$('cancelDialog').onclick=closeModal;$('confirmDialog').onclick=()=>{closeModal();callback();};}
 function signalHitAt(x,y){const p=world(x,y),centerX=Math.round(p[0]-(renderer3d?0:.5)),centerY=Math.round(p[1]-(renderer3d?0:.5));let best=22,result=null;for(let yy=centerY-3;yy<=centerY+3;yy++)for(let xx=centerX-3;xx<=centerX+3;xx++){if(!valid(xx,yy))continue;const node=id(xx,yy);if(junction(node)<3)continue;const v=screen(xx+(renderer3d?0:.5),yy+(renderer3d?0:.5),renderer3d?.2:0),dist=Math.hypot(v[0]-x,v[1]-y);if(dist<best){best=dist;result=node;}}return result;}
-function inspectAt(x,y){const signal=tool==='tracking'?null:signalHitAt(x,y);if(signal!=null){selected={kind:'road',id:signal};renderInspector();return;}let closest=null,best=15;for(const v of state.vehicles.values()){if(!['driving','stuck','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;const p=vehiclePosition(v);if(!p)continue;const a=screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0)),dist=Math.hypot(a[0]-x,a[1]-y);if(dist<best){best=dist;closest=v;}}if(closest){selected={kind:'vehicle',id:closest.id};renderInspector();return;}
+function inspectAt(x,y){const marker=renderer3d?.pickVehicleMarker?.(x,y)||canvasCarMarkerHits.find(p=>Math.hypot(p.x-x,p.y-y)<7)?.selection;if(marker){selected={...marker};renderInspector();return;}const signal=tool==='tracking'?null:signalHitAt(x,y);if(signal!=null){selected={kind:'road',id:signal};renderInspector();return;}let closest=null,best=15;for(const v of state.vehicles.values()){if(!['driving','stuck','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;const p=vehiclePosition(v);if(!p)continue;const a=screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0)),dist=Math.hypot(a[0]-x,a[1]-y);if(dist<best){best=dist;closest=v;}}if(closest){selected={kind:'vehicle',id:closest.id,citizenId:closest.citizenId};renderInspector();return;}
  // Pick truly parked cars by their actual parking slot instead of selecting their building.
  let parked=null,parkedBest=15;
  for(const b of state.buildings.values())for(const cid of b.parked){
@@ -4213,6 +4274,6 @@ $('menu').onclick=()=>{
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,renderTools,dockItems,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,renderInspector,renderTools,dockItems,inspectAt,signalHitAt,signalSettings,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();startNewCity();requestAnimationFrame(frame);
 })();
