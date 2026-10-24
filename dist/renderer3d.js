@@ -5606,12 +5606,12 @@ export class TrafficRenderer{
    this.carSelectionFrame.renderOrder=5;this.carSelectionFrame.frustumCulled=false;this.scene.add(this.carSelectionFrame);
    this.carMarkerDummy=new THREE.Object3D();this.carMarkerTint=new THREE.Color();this.carMarkerPoint=new THREE.Vector3();
   }
-  const mesh=this.carMarkerMesh,d=this.carMarkerDummy,unit=(this.camera.top-this.camera.bottom)/this.h,up=new THREE.Vector3(0,1,0).applyQuaternion(this.camera.quaternion),pixels=Math.min(8,Math.max(4,this.cam.z*5)),colors={green:'#64c887',orange:'#efa54d',red:'#e36b6b'};
+  const mesh=this.carMarkerMesh,d=this.carMarkerDummy,unit=(this.camera.top-this.camera.bottom)/this.h,up=new THREE.Vector3(0,1,0).applyQuaternion(this.camera.quaternion),pixels=Math.min(16,Math.max(8,this.cam.z*10)),colors={green:'#64c887',orange:'#efa54d',red:'#e36b6b'};
   this.carIndicatorHits=[];this.carSelectionFrame.visible=false;let count=0;
   for(const record of records){
    const style=VEHICLE_STYLES[record.kind],roof=.18+style[2]/2+style[5]*1.08;
    if(record.focused){const frame=this.carSelectionFrame;frame.visible=true;frame.position.set(record.x,roof/2+.035,record.z);frame.rotation.set(0,-record.angle,0);frame.scale.set(style[0]+.09,roof+.04,style[1]+.08);}
-   d.position.set(record.x,roof+.025,record.z).addScaledVector(up,6*unit);this.carMarkerPoint.copy(d.position).project(this.camera);
+   d.position.set(record.x,roof+.025,record.z).addScaledVector(up,(pixels*.5+2)*unit);this.carMarkerPoint.copy(d.position).project(this.camera);
    const p=this.carMarkerPoint;if(p.x< -1.03||p.x>1.03||p.y< -1.03||p.y>1.03||p.z< -1||p.z>1)continue;
    d.quaternion.copy(this.camera.quaternion);d.scale.set(pixels*.3125*unit,pixels*.5*unit,pixels*.1*unit);d.updateMatrix();mesh.setMatrixAt(count,d.matrix);mesh.setColorAt(count,this.carMarkerTint.set(colors[record.status]||colors.green));count++;
    this.carIndicatorHits.push({x:(p.x+1)*this.w/2,y:(1-p.y)*this.h/2,selection:record.selection});
@@ -5619,7 +5619,7 @@ export class TrafficRenderer{
   mesh.count=count;mesh.visible=count>0;mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
  }
  pickVehicleMarker(x,y){
-  let selected=null,best=7;for(const hit of this.carIndicatorHits||[]){const d=Math.hypot(x-hit.x,y-hit.y);if(d<best){best=d;selected=hit.selection;}}return selected;
+  let selected=null,best=10;for(const hit of this.carIndicatorHits||[]){const d=Math.hypot(x-hit.x,y-hit.y);if(d<best){best=d;selected=hit.selection;}}return selected;
  }
  createRoute(){this.routeLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:'#fff1a0',transparent:true,opacity:.95}));this.routeLine.renderOrder=4;this.scene.add(this.routeLine);}
  preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview=null){const key=[roadPreview?.key,tool,hover?.x,hover?.y,drag?.cells?.join(','),selected?.kind,selected?.id,state.version,state.buildings.size].join(':');if(key===this.previewKey)return;this.previewKey=key;this.disposeGroup(this.previewGroup);const boxes=[];if(hover&&CATALOG[tool]){const t=CATALOG[tool],check=checkBuilding(tool,hover.x,hover.y),ok=!check.error,ghost={key:tool,id:-1,x:hover.x,y:hover.y,rotation:check.rotation||0},bounds=this.parking.buildingBounds(ghost);boxes.push([hover.x+bounds.w/2,hover.y+bounds.h/2,bounds.w,bounds.h,ok?'#d9f788':'#ff947f']);const b=new Batch();this.building(b,ghost,CATALOG);const model=b.build(false);model.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.52;}});this.previewGroup.add(model);}else if(roadPreview){
