@@ -603,10 +603,18 @@ function syncParkingSlots(){for(const b of state.buildings.values()){if(!b.parki
 function parkingVisuals(b){
  const t=CATALOG[b.key],rects=[];
  const rect=(u,v,w,h,color)=>rects.push({u,v,w,h,color});
+ // Stop the underlay at the true outer edge of the rear parking bank.
+ // The previous full-plot backing exposed a pale ~0.6-cell strip behind
+ // every current model. This crops only that backing, never stalls or lanes.
+ const rearEdge=t.stackedParking?Math.max(.025,t.parkingRearAisle-t.parkingRowOffset-.64):.025;
  if(t.plannedParking){
-  rect(t.plotWidth/2,t.parkingZoneDepth/2,t.plotWidth-.05,t.parkingZoneDepth-.05,'#9baaa0');
+  const end=t.parkingZoneDepth-.025;
+  rect(t.plotWidth/2,(rearEdge+end)/2,t.plotWidth-.05,end-rearEdge,'#9baaa0');
   rect(t.plotWidth/2,t.parkingZoneDepth+t.buildingZoneDepth/2,t.plotWidth-.05,t.buildingZoneDepth-.05,'#96af8f');
- }else rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.05,t.plotHeight-.05,'#bdc6ae');
+ }else{
+  const end=t.plotHeight-.025;
+  rect(t.plotWidth/2,(rearEdge+end)/2,t.plotWidth-.05,end-rearEdge,'#bdc6ae');
+ }
  if(t.stackedParking){
   // Shared grand-house banks, one for compact or two for large lots.
   const rear=t.parkingRearAisle,front=t.parkingRows>1?t.parkingAisle:t.parkingRearAisle;
