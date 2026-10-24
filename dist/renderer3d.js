@@ -658,263 +658,248 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
-  // BLUE DINING COLLECTION — game-native, open-plan restaurant sculpture.
-  // PARKING-FIRST parcels: 7x8 / 10x8 / 10x13, with the rear HALF
-  // completely reserved for 13 / 26 / 50 genuine parking spaces.
-  // All kitchens, tables, furniture and lights are true 3D, never a billboard.
+  // BLUE RESTAURANT COLLECTION: a neighbourhood bistro, a family restaurant,
+  // and a two-storey dining house. Roofs, real place settings and a welcoming
+  // menu/host entrance replace the former exposed counter-and-stool layout.
   if(t.kind==='restaurant'){
-   const level=t.modelTier||1;
-   const blue='#123b72',royal='#205998',navy='#142f53',lightBlue='#4b9abd';
-   const midnight='#18304c',cream='#e7dbc7',slate='#71808a',gold='#e4b67d';
-   const cx=t.plotWidth/2,siteBack=t.parkingZoneDepth;
-   const rear=siteBack+.31,front=Math.min(t.plotHeight-1.13,siteBack+t.buildingZoneDepth-.98);
-   const space=front-rear,mid=(front+rear)/2;
-   const kitchenX=level===1?2.23:level===2?3.08:3.02;
-   const kitchenW=level===1?2.19:level===2?2.95:3.47;
-   const kitchenZ=rear+(level===3?.90:.70);
-   const diningX=level===1?4.85:level===2?6.95:7.00;
-   const long=level===3;
-   // Open-plan tiled land. Use a meandering terracotta-blue border so the
-   // restaurant NEVER looks like a large cuboid when viewed from the air.
-   block('#d4cabc',cx,.145,mid,t.plotWidth-1.77,.09,space+.40,'stone');
-   block('#b6cbd0',kitchenX,.204,kitchenZ,kitchenW+.30,.045,level===3?2.25:1.66,'stone');
-   block('#e5d8bf',diningX,.203,mid,level===1?2.28:level===2?3.43:3.48,.050,space-.18,'stone');
-   // The kitchen has a LOW back wall and two SHORT side splashes only.
-   // No filled-in storey or roof across the dining area.
-   const kitchenRear=kitchenZ-(long?1.01:.76);
-   block('#d5dfdf',kitchenX,.89,kitchenRear,kitchenW,1.30,.13,'stone');
-   block(blue,kitchenX,1.45,kitchenRear+.08,kitchenW,.14,.20,'metal');
+   const level=t.modelTier||1,W=t.plotWidth,H=t.plotHeight,P=t.parkingZoneDepth;
+   const L=1.06,R=W-1.06,cx=W/2,rear=P+.34,front=H-.88,D=front-rear,mid=(rear+front)/2;
+   const blue='#123b72',royal='#205998',navy='#142f53',sky='#709eb5';
+   const ivory='#eee9dd',linen='#f3eee2',gold='#bba77f',oak='#ae8862',metal='#71858b';
+   const floor=(x,y,z,w,d,color=ivory)=>block(color,x,y,z,w,.10,d,'stone');
+   const trim=(x,y,z,w,d,color=blue)=>block(color,x,y,z,w,.065,d,'wood');
+   const post=(x,z,height,y=.25)=>block(ivory,x,y+height/2,z,.105,height,.11,'stone');
+   const decorBox=(color,x,y,z,w,h,d,a=0,finish='wood',glow=false)=>{
+    const p=point(x,z);batch.add(BOX,color,p.x-.5,y,p.y-.5,w,h,d,0,turn+a,0,id,glow,finish);
+   };
+   const flower=(x,z,y=.25,w=.32)=>{
+    block('#d2c4ac',x,y+.13,z,w,.26,w*.84,'stone');
+    block('#527b53',x,y+.34,z,w*.92,.25,w*.75,'stone');
+    for(const dx of[-.08,.07]){
+     block('#84a36c',x+dx,y+.48,z+.02,w*.39,.15,w*.49,'stone');
+     block('#d7adad',x+dx,y+.57,z+.02,.075,.065,.075,'stone');
+    }
+   };
+   const table=(x,z,y=.25,scale=1)=>{
+    const s=scale,top=y+.49;
+    pole('#617880',x,y+.24,z,.034*s,.48,'metal');
+    pole(oak,x,top-.025,z,.285*s,.065,'wood');
+    pole(linen,x,top+.018,z,.295*s,.028,'stone');
+    // Four dining chairs have upholstered backs and paired structural legs.
+    for(let seat=0;seat<4;seat++){
+     const a=seat*Math.PI/2,dx=Math.sin(a),dz=Math.cos(a),xx=x+dx*.43*s,zz=z+dz*.43*s;
+     decorBox(royal,xx,y+.20,zz,.23*s,.065,.24*s,a);
+     decorBox(blue,xx+dx*.12*s,y+.39,zz+dz*.12*s,.25*s,.33,.045,a);
+     for(const side of[-1,1])decorBox(oak,xx+Math.cos(a)*side*.085*s,y+.10,zz-Math.sin(a)*side*.085*s,.030,.20,.035,a);
+     const px=x+dx*.155*s,pz=z+dz*.155*s;
+     pole('#e4e6d9',px,top+.042,pz,.060*s,.012,'stone');
+     pole(seat%2?'#bb8b55':'#78985a',px,top+.057,pz,.034*s,.015,'stone');
+     decorBox('#b9c7c7',px+Math.cos(a)*.085*s,top+.047,pz-Math.sin(a)*.085*s,.013,.012,.10*s,a,'metal');
+     decorBox('#c6d2d0',px-Math.cos(a)*.085*s,top+.047,pz+Math.sin(a)*.085*s,.013,.012,.10*s,a,'metal');
+     pole('#a7c2cb',x+dx*.20*s+Math.cos(a)*.085*s,top+.092,z+dz*.20*s-Math.sin(a)*.085*s,.023,.09,'glass');
+    }
+    pole('#c8d1c7',x,top+.11,z,.030,.14,'stone');
+    block('#cba6a2',x,top+.20,z,.075,.065,.065,'stone');
+   };
+   const pendant=(x,z,y)=>{
+    pole(gold,x,y+.15,z,.012,.36,'metal');
+    pole(navy,x,y-.075,z,.13,.10,'metal');
+    pole('#e6d6b5',x,y-.14,z,.10,.060,'stone');
+    pole('#ffe1a7',x,y-.175,z,.075,.035,'glass',true);
+   };
+   const rail=(x,y,z,w)=>{
+    block('#8ac8d0',x,y+.25,z,w,.45,.035,'glass');
+    block(ivory,x,y+.49,z,w+.04,.040,.065,'wood');
+    for(let i=0;i<Math.ceil(w/.65)+1;i++)block(gold,x-w/2+i*w/Math.ceil(w/.65),y+.24,z,.025,.48,.04,'metal');
+   };
+   const arch=(x,z,y,w,h)=>{
+    const stem=h-.23;
+    for(const side of[-1,1])block(ivory,x+side*w/2,y+stem/2,z,.06,stem,.08,'wood');
+    for(let i=0;i<8;i++){
+     const a=Math.PI-i*Math.PI/8,b=a-Math.PI/8;
+     const x1=x+Math.cos(a)*w/2,y1=y+stem+Math.sin(a)*.23;
+     const x2=x+Math.cos(b)*w/2,y2=y+stem+Math.sin(b)*.23;
+     const p=point((x1+x2)/2,z);
+     batch.add(BOX,ivory,p.x-.5,(y1+y2)/2,p.y-.5,Math.hypot(x2-x1,y2-y1)+.01,.055,.07,0,turn,Math.atan2(y2-y1,x2-x1),id,false,'wood');
+    }
+   };
+   const glyph={A:['010','101','111','101','101'],B:['110','101','110','101','110'],C:['111','100','100','100','111'],
+    D:['110','101','101','101','110'],E:['111','100','110','100','111'],F:['111','100','110','100','100'],
+    G:['111','100','101','101','111'],H:['101','101','111','101','101'],I:['111','010','010','010','111'],
+    K:['101','101','110','101','101'],L:['100','100','100','100','111'],M:['101','111','111','101','101'],
+    N:['101','111','111','111','101'],O:['111','101','101','101','111'],P:['110','101','110','100','100'],
+    R:['110','101','110','101','101'],S:['111','100','111','001','111'],T:['111','010','010','010','010'],
+    U:['101','101','101','101','111']};
+   const sign=(text,x,y,z,w,h=.33)=>{
+    text=text.replace(/[^A-Z]/g,'');const unit=Math.min(h/6,w/(text.length*4+1));
+    block(navy,x,y,z,w,h,.055,'wood');
+    block(gold,x,y-h/2,z+.034,w,.018,.016,'metal');
+    for(let i=0;i<text.length;i++)for(let row=0;row<5;row++)for(let col=0;col<3;col++)if(glyph[text[i]]?.[row]?.[col]==='1')
+     block('#f1ddaf',x-(text.length*4-1)*unit/2+(i*4+col)*unit,y+(2-row)*unit,z+.037,unit*.75,unit*.80,.012,'stone');
+    block('#ffe1a7',x,y+h/2-.015,z+.034,w*.92,.016,.012,'glass',true);
+   };
+   const roof=(x,z,w,d,eave,rise)=>{
+    const half=w/2,angle=Math.atan2(rise,half),length=Math.hypot(half,rise);
+    for(const side of[-1,1]){
+     const p=point(x+side*half/2,z);
+     batch.add(BOX,blue,p.x-.5,eave+rise/2,p.y-.5,length+.05,.09,d,0,turn,-side*angle,id,false,'metal');
+     for(let k=0;k<Math.ceil(d/.20);k++){
+      const zz=z-d*.47+k*d*.94/(Math.ceil(d/.20)-1),q=point(x+side*half/2,zz);
+      batch.add(BOX,royal,q.x-.5,eave+rise/2+.052,q.y-.5,length+.05,.023,.035,0,turn,-side*angle,id,false,'metal');
+     }
+     block(ivory,x+side*half,eave-.025,z,.10,.14,d+.06,'wood');
+    }
+    block('#335e89',x,eave+rise+.06,z,.12,.10,d+.09,'metal');
+   };
+   const roomFront=level===3?front-.58:front-.72,roomRear=rear+.12;
+   const eave=level===3?4.57:level===2?2.64:2.35;
+   const kitchenW=level===1?1.36:level===2?1.80:2.05,kx=L+kitchenW/2,kz=rear+.75;
+   // Connected terrace, tiled entrance and the actual restaurant foundation.
+   floor(cx,.15,mid,R-L+.16,D+.20,'#c8beac');
+   floor(cx,.25,mid,R-L-.10,D+.08,ivory);
+   floor(cx,.12,front+.14,R-L,.28,'#d3c4ac');
+   for(let i=0;i<5;i++)block(i%2?sky:ivory,cx-.40+i*.20,.31,front+.14,.15,.015,.19,'stone');
+   // Closed rear and short side walls give the venue a proper dining-house
+   // silhouette. Front arches and low windows leave the place settings visible.
    for(const side of[-1,1]){
-    const x=kitchenX+side*kitchenW*.49;
-    block('#d6e1df',x,.65,kitchenZ-.35,.095,.87,.81,'stone');
-    block(royal,x,1.15,kitchenZ-.48,.13,.10,.67,'metal');
-   }
-   // Slender blue cantilever roof covers only the back third of the kitchen:
-   // from the isometric camera, burners and preparation stations stay exposed.
-   const shadeZ=kitchenRear+.10;
-   block(navy,kitchenX,2.21,shadeZ,kitchenW+.41,.13,.55,'metal');
-   block(royal,kitchenX,2.30,shadeZ+.23,kitchenW+.49,.075,.15,'metal');
-   for(let i=0;i<Math.max(5,level*4+3);i++){
-    const x=kitchenX-kitchenW*.46+i*kitchenW*.92/(Math.max(5,level*4+3)-1);
-    block('#91bfd1',x,2.31,shadeZ+.12,.026,.030,.47,'metal');
-   }
-   for(const x of[kitchenX-kitchenW*.45,kitchenX+kitchenW*.45]){
-    pole('#516d80',x,1.13,kitchenRear+.29,.034,2.22,'metal');
-    block('#ffe1a7',x,2.30,kitchenRear+.45,.12,.09,.12,'glass',true);
-   }
-   // Three pendant lamps over the service pass: legible at dusk while
-   // keeping the open kitchen and rear parking court visible from above.
-   for(const dx of[-kitchenW*.26,0,kitchenW*.26]){
-    pole('#8497a3',kitchenX+dx,1.92,kitchenRear+.76,.019,.39,'metal');
-    block('#b7c7cd',kitchenX+dx,1.69,kitchenRear+.76,.19,.095,.19,'metal');
-    block('#ffe1a7',kitchenX+dx,1.62,kitchenRear+.76,.135,.12,.14,'glass',true);
-   }
-   // Back preparation line: stainless bench, range hobs, hood, tiled
-   // splashback, dishwasher, sink with faucet and visible ingredients.
-   block('#8ca0a7',kitchenX,.70,kitchenRear+.24,kitchenW*.85,.16,.37,'metal');
-   block('#c5d4d4',kitchenX,.84,kitchenRear+.24,kitchenW*.90,.055,.41,'metal');
-   for(let i=0;i<4;i++){
-    const x=kitchenX-kitchenW*.37+i*kitchenW*.24;
-    block('#637c87',x,.88,kitchenRear+.28,.25,.035,.28,'metal');
-    for(const side of[-1,1]){
-     const p=point(x+side*.062,kitchenRear+.28);
-     batch.add(CYL,'#242d35',p.x-.5,.919,p.y-.5,.065,.026,.065,0,0,0,id,false,'metal');
-     pole('#f6aa68',x+side*.062,.938,kitchenRear+.28,.031,.025,'glass',true);
+    const x=side<0?L:R;
+    block(blue,x,1.25,mid,.13,1.90,D-.10,'wood');
+    block(ivory,x+side*.075,.59,mid,.027,.15,D-.13,'wood');
+    for(let k=0;k<(level===3?4:2);k++){
+     const z=rear+.55+k*(D-1.0)/(level===3?3:1);
+     block('#7da6b7',x+side*.080,1.39,z,.035,.85,.55,'glass');
+     block(ivory,x+side*.104,1.39,z,.022,.87,.023,'wood');
+     block('#d5e5de',x+side*.105,1.60,z,.020,.025,.49,'glass');
     }
+    block(ivory,x,eave-.06,mid,.16,.14,D-.09,'wood');
    }
-   block('#526b7b',kitchenX,1.59,kitchenRear+.13,kitchenW*.50,.22,.37,'metal');
-   block('#82939b',kitchenX,1.77,kitchenRear+.13,kitchenW*.54,.072,.41,'metal');
-   for(const x of[kitchenX-kitchenW*.25,kitchenX+kitchenW*.25]){
-    block('#75868c',x,1.23,kitchenRear+.05,.055,.52,.15,'metal');
-    block('#aab9ba',x,1.51,kitchenRear+.11,.20,.065,.25,'metal');
+   block(blue,cx,1.26,roomRear,R-L,1.93,.12,'wood');
+   block(ivory,cx,.54,roomRear-.075,R-L,.20,.035,'wood');
+   for(let k=0;k<(level===1?3:5);k++){
+    const x=L+.45+k*(R-L-.90)/(level===1?2:4);
+    block('#81a9b8',x,1.40,roomRear-.075,.60,.70,.028,'glass');
+    block(ivory,x,1.40,roomRear-.10,.023,.76,.025,'wood');
+    block(ivory,x,1.77,roomRear-.09,.67,.06,.05,'wood');
    }
-   // The serving side is a glazed, OPEN counter, deliberately not a wall.
-   const serviceZ=kitchenZ+.49;
-   block('#2d5c84',kitchenX,.55,serviceZ,kitchenW*.90,.56,.39,'wood');
-   block('#b5c7ca',kitchenX,.89,serviceZ,kitchenW*.96,.090,.52,'metal');
-   block('#4d91a8',kitchenX,.51,serviceZ+.226,kitchenW*.84,.27,.030,'glass');
-   for(let i=0;i<Math.max(3,level+2);i++){
-    const x=kitchenX-kitchenW*.36+i*kitchenW*.72/Math.max(2,level+1);
-    pole('#e6d2aa',x,.995,serviceZ,.060,.075,'stone');
-    pole(i%2?'#76ab77':'#bd6849',x,1.051,serviceZ,.038,.046,'stone');
+   // Stainless show kitchen: range, pots, hood, prep bench, sink and plated
+   // meals at a serving pass. It is a kitchen with no surrounding stool row.
+   block('#d5dfdf',kx,.96,kz-.52,kitchenW,1.30,.10,'stone');
+   block('#8ca0a7',kx,.65,kz-.24,kitchenW*.85,.62,.38,'metal');
+   block('#cad6d3',kx,.99,kz-.24,kitchenW*.90,.06,.43,'metal');
+   const hobs=level===1?4:6;
+   for(let i=0;i<hobs;i++){
+    const x=kx-kitchenW*.33+(i%3)*kitchenW*.33,z=kz-.30+Math.floor(i/3)*.18;
+    pole('#242d35',x,1.04,z,.060,.020,'metal');
+    if(i%2===0){pole('#97a9aa',x,1.10,z,.052,.11,'metal');pole('#ccd4cb',x,1.165,z,.060,.020,'metal');}
    }
-   const sinkX=kitchenX+kitchenW*.34;
-   block('#d9e7e6',sinkX,.91,kitchenRear+.13,.32,.045,.30,'metal');
-   block('#648b99',sinkX,.945,kitchenRear+.13,.20,.023,.19,'water');
-   pole('#acbec2',sinkX,1.06,kitchenRear+.16,.017,.25,'metal');
-   block('#c4d2d1',sinkX,1.19,kitchenRear+.24,.12,.024,.025,'metal');
-   for(let i=0;i<Math.min(3,level+1);i++){
-    const x=kitchenX-kitchenW*.42+i*.31;
-    block('#74835e',x,1.13,kitchenRear+.06,.19,.20,.18,'stone');
-    block('#76a15f',x,1.27,kitchenRear+.06,.15,.09,.15,'stone');
+   block('#6f858d',kx,1.65,kz-.34,kitchenW*.72,.16,.43,'metal');
+   block('#a0b2b6',kx,1.79,kz-.38,kitchenW*.76,.065,.45,'metal');
+   block(metal,kx,2.05,kz-.43,.16,.49,.17,'metal');
+   block(royal,kx,.57,kz+.30,kitchenW*.86,.58,.34,'wood');
+   block('#dec7a6',kx,.91,kz+.30,kitchenW*.95,.10,.45,'stone');
+   for(const side of[-1,0,1]){
+    pole(linen,kx+side*kitchenW*.25,.985,kz+.30,.07,.016,'stone');
+    pole(side?'#9e7449':'#7e9859',kx+side*kitchenW*.25,1.01,kz+.30,.045,.035,'stone');
    }
-   // Seating kit: ground and rooftop tables have proper chairs, plates,
-   // glassware, table lamps and thin structural legs.
-   const placeTable=(x,z,elevation=0,formal=false,scale=1)=>{
-    const rr=(formal?.29:.255)*scale;
-    pole(formal?'#5d7181':'#5b7380',x,elevation+.46,z,.042*scale,.47*scale,'metal');
-    const p=point(x,z);
-    batch.add(CYL,formal?'#e9e2d4':'#b78e69',
-     p.x-.5,elevation+.70*scale,p.y-.5,rr,.078*scale,rr,0,0,0,id,false,formal?'stone':'wood');
-    const chairs=formal?4:4;
-    for(let j=0;j<chairs;j++){
-     const a=j*Math.PI*2/chairs,xx=x+Math.sin(a)*.41*scale,zz=z+Math.cos(a)*.41*scale;
-     block(formal?'#355b80':'#56768b',xx,elevation+.37*scale,zz,.21*scale,.075*scale,.23*scale,'wood');
-     block(formal?'#23466c':'#557fa0',xx+Math.sin(a)*.095*scale,elevation+.57*scale,
-      zz+Math.cos(a)*.095*scale,.075*scale,.36*scale,.23*scale,'wood');
-     block('#8a8076',xx,elevation+.19*scale,zz,.032*scale,.29*scale,.033*scale,'metal');
-    }
-    for(const i of[-1,0,1]){
-     const px=x+i*.12*scale;
-     const plate=point(px,z+.042*scale);
-     batch.add(CYL,formal?'#f3eee2':'#e9ebdc',
-      plate.x-.5,elevation+.751*scale,plate.y-.5,.050*scale,.011*scale,.050*scale,0,0,0,id,false,'stone');
-    }
-    pole('#ffe3af',x,elevation+.84*scale,z,.024*scale,.095*scale,'glass',true);
-    pole('#b6c6c8',x+.12*scale,elevation+.84*scale,z-.08*scale,.018*scale,.16*scale,'glass');
-   };
-   // Side-hung pergola, not a second rectangular building.
-   const pergola=(x,z,w,d,height=1.82)=>{
-    for(const dx of[-w*.46,w*.46])for(const dz of[-d*.43,d*.43]){
-     pole('#466c91',x+dx,height*.53,z+dz,.038,height,'metal');
-     block('#ffe0a4',x+dx,height+.01,z+dz,.10,.085,.10,'glass',true);
-    }
-    for(const dz of[-d*.45,d*.45])
-     block(navy,x,height,z+dz,w+.16,.085,.07,'metal');
-    for(let i=0;i<Math.max(3,Math.floor(w/.22));i++){
-     const xx=x-w*.42+(i+.5)*w*.84/Math.max(3,Math.floor(w/.22));
-     block(royal,xx,height+.046,z,.042,.065,d*.97,'metal');
-    }
-   };
-   const plant=(x,z,r=.26)=>{
-    block('#b7b19c',x,.34,z,r*1.22,.22,r*1.03,'stone');
-    block('#4e8663',x,.56,z,r*.98,.26,r*.91,'stone');
-    block('#89b97d',x,.76,z,r*.64,.16,r*.63,'stone');
-    if(level===3)block('#d7bca3',x,.82,z,.10,.07,.13,'stone');
-   };
-   const pixel={
-    A:['010','101','111','101','101'],B:['110','101','110','101','110'],
-    C:['111','100','100','100','111'],D:['110','101','101','101','110'],E:['111','100','110','100','111'],
-    F:['111','100','110','100','100'],G:['111','100','101','101','111'],I:['111','010','010','010','111'],
-    L:['100','100','100','100','111'],N:['101','111','111','111','101'],
-    O:['111','101','101','101','111'],P:['110','101','110','100','100'],
-    R:['110','101','110','101','101'],S:['111','100','111','001','111'],
-    T:['111','010','010','010','010'],U:['101','101','101','101','111']};
-   const sign=(word,x,y,z,width)=>{
-    const text=word.replace(/[^A-Z]/g,''),px=Math.min(.075,width/(text.length*4+2));
-    block(navy,x,y,z,width,.52,.095,'metal');
-    block('#d5ad77',x,y+.26,z+.052,width+.08,.034,.065,'metal');
-    for(let i=0;i<text.length;i++)for(let row=0;row<5;row++)for(let col=0;col<3;col++){
-     if(pixel[text[i]]?.[row]?.[col]==='1'){
-      const xx=x-(text.length*4-1)*px/2+(i*4+col)*px;
-      block('#f9ddb1',xx,y+(2-row)*px,z+.055,px*.78,px*.83,.020,'glass',true);
-     }
-    }
-   };
-   const name=level===1?'BLUE CAFE':level===2?'BLUE BISTRO':'FINE DINING';
-   // Steel uprights hold a sign above the kitchen without closing its view.
-   const signY=level===1?2.65:2.78;
-   for(const dx of[-kitchenW*.40,kitchenW*.40])
-    pole(blue,kitchenX+dx,signY-.30,kitchenRear+.26,.032,.64,'metal');
-   sign(name,kitchenX,signY,kitchenRear+.56,Math.min(kitchenW+.28,level===3?3.42:kitchenW+.20));
-   // Floor tile accents and distinctive blue aisle to the dining area.
-   block('#2d729a',cx,.239,front+.05,Math.min(1.06,t.plotWidth*.16),.029,.23,'stone');
-   for(let i=0;i<5;i++){
-    const x=cx-.43+i*.215;
-    block(i%2?'#d8dfd9':'#4a90b0',x,.257,front+.04,.12,.015,.12,'stone');
-   }
-   // Outdoor seats are naturally laid out in the remaining 50% footprint.
+   block('#d4ded6',kx+kitchenW*.28,1.02,kz-.20,.22,.04,.20,'metal');
+   pole(metal,kx+kitchenW*.28,1.16,kz-.30,.014,.27,'metal');
+   block(metal,kx+kitchenW*.28,1.30,kz-.24,.025,.025,.13,'metal');
+   for(const dx of[-kitchenW*.30,0,kitchenW*.30])pendant(kx+dx,kz+.20,2.05);
+
+   // Distinct dining plans: small three-table bistro; medium six-table
+   // family restaurant; large six ground tables plus four upstairs tables.
    if(level===1){
-    for(const [x,z] of[[4.17,rear+.84],[5.48,rear+.90],[4.81,front-.32]])
-     placeTable(x,z,0,false,.82);
-    pergola(4.84,mid,2.14,space-.42,1.90);
-    plant(1.14,front-.15,.18);plant(5.96,rear+.10,.18);
-    // The café has a narrow public pickup shelf and sheltered stools.
-    block('#3a6f95',kitchenX,.45,serviceZ+.36,kitchenW*.64,.09,.16,'wood');
-    for(const dx of[-.45,.0,.45])pole('#b1bdbe',kitchenX+dx,.28,serviceZ+.64,.095,.37,'metal');
+    for(const [x,z]of[[3.53,rear+.87],[5.12,rear+.87],[4.35,front-.38]])table(x,z,.25,.84);
    }else if(level===2){
-    for(const [x,z] of[[5.55,rear+.72],[7.65,rear+.72],[5.55,front-.42],[7.65,front-.42]])
-     placeTable(x,z,0,false,.91);
-    pergola(6.72,mid,3.61,space-.25,2.04);
-    // Open bar with stools to distinguish the medium terrace.
-    block('#214e7c',kitchenX,1.22,serviceZ+.18,kitchenW*.79,.085,.23,'stone');
-    for(const dx of[-.70,-.25,.24,.69])pole('#cdd5cb',kitchenX+dx,.44,serviceZ+.73,.096,.41,'metal');
-    for(const x of[1.12,8.92])plant(x,front-.23,.20);
+    for(const x of[4.00,5.89,7.78])for(const z of[rear+.80,front-.48])table(x,z,.25,.87);
    }else{
-    // Large five-star is a stepped *open-air* restaurant, not a skyscraper.
-    // Ground floor: visible show kitchen left, dining on the right, water wall.
-    for(const [x,z] of[[5.66,rear+2.96],[7.54,rear+3.02],
-     [5.66,front-.40],[7.55,front-.40],[5.55,rear+1.49]])
-     placeTable(x,z,0,true,.85);
-    // A dedicated fine-dining step-up deck sits at the FRONT of the 50% site.
-    block('#d8e3df',6.86,.21,front-.14,3.52,.12,1.06,'stone');
-    for(const x of[5.18,8.55])plant(x,front-.27,.28);
-    // Rooftop is a raised, narrower open terrace above RIGHT rear only.
-    // The left-side demonstration kitchen remains visible from above.
-    const roofX=6.89,roofZ=rear+1.46,roofW=3.60,roofD=2.40,roofY=2.41;
-    for(const sx of[-1,1])for(const sz of[-1,1])
-     block('#557da0',roofX+sx*roofW*.46,1.29,roofZ+sz*roofD*.44,.095,2.34,.095,'metal');
-    block('#e5ded1',roofX,roofY,roofZ,roofW,.15,roofD,'stone');
-    block('#356b9d',roofX,roofY+.095,roofZ,roofW-.22,.048,roofD-.20,'stone');
-    for(const dz of[-1,1]){
-     block('#8ac8d0',roofX,roofY+.38,roofZ+dz*roofD*.47,roofW-.12,.54,.043,'glass');
-     for(let i=0;i<7;i++){
-      const xx=roofX-roofW*.43+i*roofW*.86/6;
-      block('#d4e5e5',xx,roofY+.38,roofZ+dz*roofD*.47,.027,.55,.050,'metal');
-     }
-    }
-    for(const side of[-1,1]){
-     block('#8ac8d0',roofX+side*roofW*.48,roofY+.38,roofZ,.044,.54,roofD-.06,'glass');
-     for(let i=0;i<5;i++)block('#d2e5e9',roofX+side*roofW*.48,roofY+.37,
-      roofZ-roofD*.38+i*roofD*.19,.049,.51,.027,'metal');
-    }
-    // Rooftop tables are actually 2.4 units ABOVE ground, never on grade.
-    for(const [x,z] of[[5.91,roofZ-.47],[7.58,roofZ-.48],[6.79,roofZ+.54]])
-     placeTable(x,z,roofY+.10,true,.83);
-    // Roof garden and open bar with stools and drink bottles.
-    block(navy,roofX,roofY+.55,roofZ-roofD*.30,1.40,.66,.31,'wood');
-    block('#dcb58d',roofX,roofY+.94,roofZ-roofD*.30,1.55,.080,.43,'wood');
-    for(let i=0;i<6;i++){
-     const x=roofX-.60+i*.24;
-     pole(i%2?'#9ecdbd':'#d9b48a',x,roofY+1.14,roofZ-roofD*.33,.055,.27,'glass');
-    }
-    for(const x of[roofX-roofW*.40,roofX+roofW*.40]){
-     block('#c7c6b6',x,roofY+.27,roofZ+roofD*.28,.25,.25,.28,'stone');
-     block('#547a58',x,roofY+.46,roofZ+roofD*.28,.24,.17,.24,'stone');
-     block('#9bbd88',x,roofY+.57,roofZ+roofD*.28,.16,.09,.18,'stone');
-    }
-    // Open lightweight rooftop canopy is confined to the BAR, not all tables.
-    const canopyZ=roofZ-roofD*.28;
-    for(const x of[roofX-.69,roofX+.69])pole(blue,x,roofY+1.65,canopyZ,.033,2.19,'metal');
-    block(navy,roofX,roofY+2.78,canopyZ,1.60,.095,.72,'metal');
-    for(let i=0;i<9;i++){
-     const x=roofX-.68+i*.17;
-     block(lightBlue,x,roofY+2.85,canopyZ,.037,.04,.74,'metal');
-    }
-    // Real water feature, kept OUTSIDE any parking aisle.
-    const waterX=8.84,waterZ=rear+3.22;
-    block('#d9e4de',waterX,.44,waterZ,.19,.62,1.14,'stone');
-    block('#4d9fc1',waterX,.46,waterZ+.060,.025,.46,.99,'water');
-    block('#94ddeb',waterX,.28,waterZ+.16,.045,.09,.90,'glass',true);
-    block('#538e9e',waterX,.17,waterZ+.20,.30,.12,1.18,'water');
-    // Five-star navigation: staff kitchen, terrace and side service walk.
-    for(let i=0;i<6;i++)block('#f0d8a9',1.09,.29,rear+.54+i*.72,.17,.11,.39,'stone');
-    for(const x of[1.14,8.91])for(const z of[rear+.22,front-.33])plant(x,z,.17);
+    for(const x of[4.12,6.07,8.02])for(const z of[rear+1.18,front-.80])table(x,z,.25,.88);
    }
-   // Every elevation is intentional: rear has kitchen / exhaust, front is
-   // open tables / welcoming path, sides are landscaping or roof support.
-   for(const x of[kitchenX-kitchenW*.40,kitchenX+kitchenW*.40]){
-    pole('#7a8b90',x,1.68,kitchenRear-.12,.045,.54,'metal');
-    block('#a1afb1',x,1.98,kitchenRear-.12,.19,.17,.19,'metal');
-   }
-   // Kitchen rear storage shelving, window and colored bottles.
-   for(const y of[1.09,1.36]){
-    block('#7293a0',kitchenX,y,kitchenRear+.105,kitchenW*.60,.055,.22,'metal');
-    for(let i=0;i<Math.min(7,level*2+3);i++){
-     const x=kitchenX-kitchenW*.28+i*kitchenW*.56/Math.max(1,Math.min(7,level*2+3)-1);
-     pole(i%2?'#79a976':'#d19b6e',x,y+.12,kitchenRear+.13,.035,.17,'glass');
+   // Framed arched restaurant windows and doors, not full-height opaque
+   // glazing. Customers' dining tables are visible through the open arches.
+   const windows=level===1?[L+.52,R-.68]:[L+.58,cx-1.65,cx+1.65,R-.58];
+   for(const x of windows){
+    post(x,roomFront,level===3?2.10:2.02);
+    if(x>kx+kitchenW*.5+.10){
+     arch(x-.45,roomFront,.87,.74,1.12);
+     block('#8db5bd',x-.45,1.03,roomFront-.01,.66,.31,.025,'glass');
+     flower(x-.45,roomFront+.075,.28,.27);
     }
    }
+   const entryX=level===1?L+.82:level===2?cx:cx-.10;
+   post(entryX-.52,roomFront,2.08);post(entryX+.52,roomFront,2.08);
+   arch(entryX,roomFront,.28,.93,1.85);
+   // A blue/ivory striped awning shades the dining porch; low valance and
+   // concealed warm light are attached to the facade and entrance posts.
+   const awningY=level===1?2.13:2.32,awningZ=roomFront+.28,awningW=R-L-.05;
+   block(blue,cx,awningY,awningZ,awningW,.08,.65,'wood');
+   const stripes=Math.ceil(awningW/.25);
+   for(let i=0;i<stripes;i++){
+    const x=cx-awningW/2+(i+.5)*awningW/stripes;
+    block(i%2?ivory:royal,x,awningY+.055,awningZ,awningW/stripes*.91,.025,.64,'wood');
+    block(i%2?ivory:blue,x,awningY-.08,awningZ+.31,awningW/stripes*.91,.18,.035,'wood');
+   }
+   block('#ffe1a7',cx,awningY-.06,awningZ,awningW*.92,.018,.025,'glass',true);
+   for(const x of[L+.10,R-.10]){post(x,front+.08,awningY-.25);flower(x,front+.13,.25,.30);}
+
+   if(level===3){
+    const upper=2.47,upperRear=rear+.16,upperFront=front-.50,upperMid=(upperRear+upperFront)/2;
+    floor(cx,upper,upperMid,R-L-.15,upperFront-upperRear,'#dfd8c9');
+    for(const x of[L+.10,cx,R-.10])for(const z of[upperRear+.10,upperFront-.10])post(x,z,upper-.30);
+    // Two glazed upper dining rooms share a formal balcony. No tall counter
+    // or bottle display competes with the dining setting.
+    block(blue,cx,upper+1.08,upperRear,R-L-.15,1.98,.12,'wood');
+    for(const x of[L+.10,R-.10]){
+     block(blue,x,upper+1.03,upperMid,.13,1.90,upperFront-upperRear,'wood');
+     for(let k=0;k<3;k++)block('#8eafbd',x+(x<cx?-.08:.08),upper+1.12,upperRear+.65+k*1.24,.025,.80,.69,'glass');
+    }
+    for(const x of[4.33,7.20])for(const z of[rear+1.35,front-1.00])table(x,z,upper+.07,.90);
+    rail(cx,upper+.07,upperFront+.03,R-L-.23);
+    for(const x of[L+.18,cx,R-.18])post(x,upperFront-.58,2.02,upper+.06);
+    for(const x of[cx-1.65,cx+1.65]){arch(x,upperFront-.58,upper+.63,1.28,1.18);pendant(x,upperFront-1.14,upper+1.81);}
+    // A supported twelve-step staircase connects the two real dining floors.
+    for(let i=0;i<12;i++){
+     const q=i/11,z=front-.75-q*2.78,y=.31+q*(upper-.31);
+     block(i%2?ivory:'#cfc7b8',L+.66,y,z,.72,.13,.26,'stone');
+     block(blue,L+.22,y+.22,z,.033,.43,.20,'wood');
+    }
+    // Blue upper dining roof, balcony awnings and warm chandeliers.
+    roof(cx,rear+1.62,R-L+.12,3.12,eave,.56);
+    for(const x of[4.33,7.20])pendant(x,rear+1.35,eave-.36);
+    trim(cx,upper+.08,upperFront-.02,R-L-.16,.16,royal);
+    block(blue,cx,upper+1.88,upperFront-.58,R-L-.14,.25,.15,'wood');
+    for(const x of[L+.38,R-.38])flower(x,upperFront-.16,upper+.07,.35);
+   }else{
+    roof(cx,rear+.98,R-L+.13,2.05,eave,level===1?.54:.63);
+    for(const x of[level===1?4.35:4.5,level===1?5.12:7.55])pendant(x,rear+.92,eave-.25);
+   }
+   for(const x of[L+.10,R-.10]){
+    block(navy,x,1.57,front+.08,.17,.30,.18,'metal');
+    block('#e6d4b1',x,1.57,front+.16,.12,.23,.035,'stone');
+    block('#ffe1a7',x,1.57,front+.183,.105,.20,.018,'glass',true);
+    block(gold,x,1.73,front+.08,.20,.05,.19,'metal');
+   }
+   // A clear restaurant identity at both the street entrance and the kitchen
+   // edge: raised cream letters are visible in daytime, warm light at night.
+   sign(level===1?'BLUE BISTRO':level===2?'BLUE RESTAURANT':'BLUE DINING',cx,level===3?4.25:awningY+.08,level===3?front-1.00:roomFront+.66,level===1?2.83:3.80,.35);
+   // Menu easel, host desk and a three-dimensional fork-and-spoon emblem.
+   const mx=entryX+(level===1?.59:.72),mz=front+.06;
+   block(oak,mx,.54,mz,.29,.64,.075,'wood');
+   block('#334a55',mx,.72,mz+.048,.26,.34,.022,'wood');
+   for(let i=0;i<3;i++)block(ivory,mx,.80-i*.07,mz+.063,.18-i*.025,.014,.012,'stone');
+   block(gold,mx,.34,mz+.09,.36,.055,.24,'metal');
+   block(blue,entryX-.74,.56,roomFront-.12,.37,.57,.35,'wood');
+   block(oak,entryX-.74,.87,roomFront-.12,.43,.055,.39,'wood');
+   for(const side of[-1,1]){
+    const x=entryX+side*.15;
+    pole(gold,x,1.73,roomFront+.09,.018,.33,'metal');
+    if(side<0)for(let k=0;k<3;k++)block(gold,x-.045+k*.045,1.94,roomFront+.09,.017,.15,.028,'metal');
+    else pole(gold,x,1.94,roomFront+.09,.065,.13,'metal');
+   }
+   for(const x of[L+.18,R-.18]){flower(x,rear+.27,.25,.28);flower(x,front-.13,.25,.28);}
+   // Rooftop exhaust and duct belong to the kitchen, kept below the roof ridge.
+   block('#889b9e',kx,eave+.04,rear+.54,.21,.22,.24,'metal');
+   block('#cad3ce',kx,eave+.17,rear+.54,.31,.055,.30,'metal');
    return;
   }
 
