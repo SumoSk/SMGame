@@ -24,7 +24,7 @@ const {game:g,context:ctx,get}=new Function('require',prefix+'return {game,conte
  assert(shared&&shared.files.length===1,'native share sheet should receive JSON File');
  assert.equal(shared.files[0].type,'application/json');
  assert(shared.files[0].name.startsWith('SMCITY-send-AI-'));
- assert.equal(get('dialog').open,false,'native share does not open a redundant modal');
+ assert(!get('dialog').open,'native share does not open a redundant modal');
 
  // Desktop/browser fallback must download the same JSON and explain how to attach it.
  ctx.navigator={};
