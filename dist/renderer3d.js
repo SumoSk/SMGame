@@ -817,8 +817,7 @@ export class TrafficRenderer{
  for(let stripe=-across+.09;stripe<across;stripe+=.23){
   line.box('#f1eddb',x+vx*crossAt+px*stripe,.12,z+vz*crossAt+pz*stripe,.38,.01,.12,-Math.atan2(vz,vx));
  }
- // One head per incoming lane: traffic from adjacent or opposing lanes stays red.
- // The shared roadside post and gantry are only graphical (no routing edits).
+ // One shared signal head for every lane from this incoming approach.
  const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3),yaw=Math.atan2(vx,vz);
  batch.box('#c9c8b5',sx,.115,sz,.26,.12,.26);
  batch.add(CYL,'#3e5356',sx,.85,sz,.038,1.5,.038);
@@ -835,8 +834,6 @@ export class TrafficRenderer{
   bulb.position.set(sx+vx*.099,yy,sz+vz*.099);this.signalGroup.add(bulb);lenses[name]=bulb;
  }
  this.signals.push({lenses,node:i,incoming:(port.dir+2)%4});
- }
-
  }
  }else{const junctionWidth=Math.max(w,...[...r.links].map(n=>roadWidths[state.roads.get(n)?.type]||w));batch.box('#47565c',x,.081,z,junctionWidth,.055,junctionWidth);}}
 
