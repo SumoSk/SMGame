@@ -621,7 +621,7 @@ export class TrafficRenderer{
   const t=CATALOG[b.key],id=b.id,s=t.size,W=t.plotWidth||s+2,isHotel=t.kind==='hotel',kind=isHotel?'home':t.kind;
   const tier=b.key==='home_dual'?2:b.key.endsWith('_large')?3:b.key.endsWith('_medium')?2:1;
   const turn=-(b.rotation||0)*Math.PI/2;
-  const point=(u,v)=>this.parking?.lotPoint(b,u,v)||{x:b.x+u+.5,y:b.y+v+.5};
+  const point=(u,v)=>{if(b.key==='home_starter')u-=.58;return this.parking?.lotPoint(b,u,v)||{x:b.x+u+.5,y:b.y+v+.5};};
   const block=(color,u,y,v,w,h,d,finish='matte',glow=false)=>{
    const p=point(u,v);batch.box(color,p.x-.5,y,p.y-.5,w,h,d,turn,id,glow,finish);
   };
@@ -659,8 +659,8 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
-  // STARTER COTTAGE: one modest storey, garden porch and six FRONT bays.
-  // Uses the standard front aisle (v=5.13), never the rear parking banks.
+  // STARTER COTTAGE: one modest storey, garden porch and ONE row of six FRONT bays.
+  // Uses the compact front aisle (v=5.05), never the rear parking banks.
   if(b.key==='home_starter'){
    const cream='#eee4d2',sage='#91a798',wood='#977052',roof='#6d7775';
    block('#c8bba5',3.08,.16,1.88,3.48,.24,2.52,'stone');
