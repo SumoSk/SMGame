@@ -257,14 +257,22 @@
 </style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
-<div id="cameraJoystick" class="camera-joystick" role="group" aria-label="จอยควบคุมมุมกล้อง 3D">
- <button type="button" class="cam-dir cam-up" data-camera-direction="up" aria-label="เงยกล้อง มองจากมุมสูงขึ้น" title="มุมสูงขึ้น">▲</button>
- <button type="button" class="cam-dir cam-left" data-camera-direction="left" aria-label="หมุนกล้องซ้าย" title="หมุนซ้าย">◀</button>
- <button type="button" class="cam-dir cam-right" data-camera-direction="right" aria-label="หมุนกล้องขวา" title="หมุนขวา">▶</button>
- <button type="button" class="cam-dir cam-down" data-camera-direction="down" aria-label="ก้มกล้อง มองจากมุมต่ำลง" title="มุมต่ำลง">▼</button>
- <button type="button" id="resetCameraAngle" class="cam-reset" aria-label="คืนค่ามุมกล้องเริ่มต้น" title="รีเซ็ตมุมกล้อง">⌂</button>
-</div>
-
+<aside id="cityRightRail" class="city-right-rail" aria-label="เครื่องมือด่วนด้านขวา">
+ <div id="cameraJoystick" class="camera-joystick" role="group" aria-label="จอยควบคุมมุมกล้อง 3D">
+  <button type="button" class="cam-dir cam-up" data-camera-direction="up" aria-label="เงยกล้อง มองจากมุมสูงขึ้น" title="มุมสูงขึ้น">▲</button>
+  <button type="button" class="cam-dir cam-left" data-camera-direction="left" aria-label="หมุนกล้องซ้าย" title="หมุนซ้าย">◀</button>
+  <button type="button" class="cam-dir cam-right" data-camera-direction="right" aria-label="หมุนกล้องขวา" title="หมุนขวา">▶</button>
+  <button type="button" class="cam-dir cam-down" data-camera-direction="down" aria-label="ก้มกล้อง มองจากมุมต่ำลง" title="มุมต่ำลง">▼</button>
+  <button type="button" id="resetCameraAngle" class="cam-reset" aria-label="คืนค่ามุมกล้องเริ่มต้น" title="รีเซ็ตมุมกล้อง">⌂</button>
+ </div>
+ <nav id="cityQuickModes" class="city-quick-modes" aria-label="โหมดด่วนของเมือง">
+  <button type="button" data-city-shortcut="citizenDashboard" title="แดชบอร์ดประชาชน" aria-label="แดชบอร์ดประชาชน" aria-pressed="false"><span class="quick-mode-icon" aria-hidden="true">👥</span><span class="quick-mode-name">ประชาชน</span></button>
+  <button type="button" data-city-shortcut="touristDashboard" title="นักท่องเที่ยว" aria-label="นักท่องเที่ยว" aria-pressed="false"><span class="quick-mode-icon" aria-hidden="true">🚐</span><span class="quick-mode-name">นักท่องเที่ยว</span></button>
+  <button type="button" data-city-shortcut="signalManage" title="ควบคุมไฟจราจร" aria-label="ควบคุมไฟจราจร" aria-pressed="false"><span class="quick-mode-icon" aria-hidden="true">🚦</span><span class="quick-mode-name">ไฟจราจร</span></button>
+  <button type="button" data-city-shortcut="trafficHeat" title="ความหนาแน่นจราจร" aria-label="ความหนาแน่นจราจร" aria-pressed="false"><span class="quick-mode-icon" aria-hidden="true">🌡️</span><span class="quick-mode-name">รถติด</span></button>
+  <button type="button" data-city-shortcut="missionDashboard" title="สรุปเมืองรายวัน" aria-label="สรุปเมืองรายวัน" aria-pressed="false"><span class="quick-mode-icon" aria-hidden="true">▥</span><span class="quick-mode-name">รายวัน</span></button>
+ </nav>
+</aside>
 
 <div id="buildingQuickActions" class="building-quick-actions" role="group" aria-label="จัดการอาคารที่เลือก" hidden>
  <button type="button" id="buildingQuickMove" class="building-quick-action building-quick-move" aria-label="ย้ายอาคาร" title="ย้ายอาคาร">
