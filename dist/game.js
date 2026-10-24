@@ -853,7 +853,7 @@ function startNewCity(city='phuket'){
  for(const c of state.citizens.values()){scheduleDay(c,0);scheduleDay(c,1);}
  syncParkingSlots();
  // Roads and buildings are an included starting package, not a hidden charge.
- state.money=500000;state.lastImmigration=state.time;state.lastPass=state.time;
+ state.money=500000;state.missionStats=newMissionStats();state.lastImmigration=state.time;state.lastPass=state.time;
  cam={x:169.5,y:138.5,z:innerWidth<700?1.25:innerWidth<1100?1.65:2.05,angle:Math.PI*.2,elevation:Math.atan2(86,90)};
  // Frame the village above the bottom controls rather than behind them.
  if(renderer3d)renderer3d.updateCamera(cam);
@@ -3036,7 +3036,7 @@ const OUTCOME_NAMES={ontime:'สำเร็จตรงเวลา',late:'ส�
 const MISSION_KINDS=['work','leisure','home','tourist'];
 const MISSION_OUTCOMES=['ontime','late','missed','unavailable','cancelled'];
 const MISSION_TRIP_NAMES={moveIn:'ย้ายเข้า',moveOut:'ย้ายออก',work:'ไปทำงาน',leisure:'ใช้บริการ / เที่ยว',home:'กลับบ้าน',touristOut:'นักท่องเที่ยวออก',hotel:'โรงแรม',pass:'รถผ่านเมือง'};
-function newMissionCounters(){return{total:0,ontime:0,late:0,missed:0,unavailable:0,cancelled:0,durationSum:0,durationCount:0,congestionSum:0,congestionCount:0,roadBlocks:0};}
+function newMissionCounters(){return{total:0,ontime:0,late:0,missed:0,unavailable:0,cancelled:0,durationSum:0,durationCount:0,congestionSum:0,congestionCount:0,roadBlocks:0,blockDurationSum:0};}
 function newMissionDay(day=Math.floor(state.time/1440),since=state.time){
  return{day,since,...newMissionCounters(),byKind:Object.fromEntries(MISSION_KINDS.map(k=>[k,newMissionCounters()])),
  tripsStarted:0,tripsArrived:0,tripsByKind:{},arrivalsByKind:{},populationIn:0,populationOut:0,touristsIn:0,touristsOut:0,
@@ -3054,7 +3054,7 @@ function restoreMissionStats(saved){
    if(key==='byKind'||key==='tripsByKind'||key==='arrivalsByKind'||key==='day'||key==='since'||key==='cityEnd')continue;
    if(typeof result[key]==='number')result[key]=key==='openingMoney'||key==='endingMoney'||key==='dailySettlement'||key==='taxAdjustments'?Number.isFinite(value[key])?Math.max(-1e12,Math.min(1e12,value[key])):result[key]:safe(value[key]);
   }
-  const readCounter=(dst,src)=>{if(!src||typeof src!=='object')return;for(const key of ['total',...MISSION_OUTCOMES,'durationSum','durationCount','congestionSum','congestionCount','roadBlocks'])dst[key]=safe(src[key]);};
+  const readCounter=(dst,src)=>{if(!src||typeof src!=='object')return;for(const key of ['total',...MISSION_OUTCOMES,'durationSum','durationCount','congestionSum','congestionCount','roadBlocks','blockDurationSum'])dst[key]=safe(src[key]);};
   readCounter(result,value);
   for(const kind of MISSION_KINDS)readCounter(result.byKind[kind],value.byKind?.[kind]);
   for(const name of ['tripsByKind','arrivalsByKind'])if(value[name]&&typeof value[name]==='object'){
@@ -3083,7 +3083,7 @@ function recordMissionResult(kind,outcome,trip){
   const duration=Math.min(1e6,trip.arrivedAt-trip.startedAt);
   for(const target of [stats,group]){target.durationSum+=duration;target.durationCount++;}
   const blocks=Array.isArray(trip.path)?Math.max(0,trip.path.length-1):0;
-  if(blocks>0)for(const target of [stats,group])target.roadBlocks+=Math.min(100000,blocks);
+  if(blocks>0)for(const target of [stats,group]){target.roadBlocks+=Math.min(100000,blocks);target.blockDurationSum+=duration;}
  }
  if(trip&&Number.isFinite(trip.congestionMinutes)&&trip.congestionMinutes>=0){
   for(const target of [stats,group]){target.congestionSum+=Math.min(1e6,trip.congestionMinutes);target.congestionCount++;}
@@ -3114,7 +3114,7 @@ function missionStatsSummary(which='current'){
  const success=report.ontime+report.late,failed=report.missed+report.unavailable+report.cancelled;
  let active=0;if(which!=='previous')for(const v of state.vehicles.values())if(['work','leisure','home'].includes(v.kind)&&v.citizenId!=null)active++;
  return{...report,success,failed,rate:report.total?success/report.total*100:null,average:report.durationCount?report.durationSum/report.durationCount:null,
-  secondsPerBlock:report.roadBlocks?report.durationSum*60/report.roadBlocks:null,
+  secondsPerBlock:report.roadBlocks?report.blockDurationSum*60/report.roadBlocks:null,
   congestionAverage:report.congestionCount?report.congestionSum/report.congestionCount:null,active};
 }
 function missionReportMarkup(which='current'){
@@ -3152,6 +3152,7 @@ function missionReportMarkup(which='current'){
  '</div><p class="mission-footnote">เก็บเฉพาะตัวเลขรวมของวันนี้และรายงานวันล่าสุด ไม่เก็บย้อนหลัง 7 วันหรือเส้นทางรายคัน · วินาที/บล็อก = เวลารวมของเที่ยวที่ถึง (นาทีในเกม × 60) ÷ บล็อกถนนรวมที่เดินทาง · ไม่รวมทริปที่ไม่มีเวลาถึงหรือไม่มีเส้นทางวัดได้ · รายได้ภาษี/ธุรกิจจะลงบัญชีตอนเปลี่ยนวัน · Log รายเที่ยวปิดจนกว่าจะกดเปิดเอง</p></div>';
 }
 function openMissionDashboard(which='current'){
+ if(missionAutoOpenDay>=0)missionAutoClose(true);
  const active=which==='previous'&&state.missionStats.previous?'previous':'current';
  modal('<div class="mission-dashboard daily-report-modal">'+missionReportMarkup(active)+
  '<div class="actions">'+(state.missionStats.previous?'<button id="missionPrevious">'+(active==='previous'?'ดูวันนี้':'ดูรายงานเมื่อวาน')+'</button>':'')+
