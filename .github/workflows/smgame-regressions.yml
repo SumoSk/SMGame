@@ -28,6 +28,7 @@ jobs:
       - run: node work/test-signal-design.cjs
       - run: node work/test-menu-account.cjs
       - run: node work/test-window-dismiss.cjs
+      - run: node work/test-centered-demolition.cjs
       - run: node work/test-building-quick-actions.cjs
       - run: node work/test-right-side-city-rail.cjs
       - run: node work/test-unified-panels.cjs
