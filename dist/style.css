@@ -4538,6 +4538,7 @@ body>.bottom .builder-zone .dock-context .tools{
  }
 }
 
+
 /* SMCITY 2026-10-25 — responsive compact control deck */
 /* This layer changes only layout. All game controls retain their existing IDs,
    events, labels, dark-mode styling and collapsed-dock behaviour. */
