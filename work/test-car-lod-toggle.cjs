@@ -60,22 +60,21 @@ const {pathToFileURL}=require('node:url');
  const fixture=fs.readFileSync('work/test-tourism.cjs','utf8')
   .split('const results=[]')[0].replace('return{game,get};','return{game,get,context};');
  const {game,get,context}=new Function('require',fixture+'return boot();')(require);
- const vm=require('node:vm');
  const switchButton=get('toggleCarDiamonds'),caption=get('toggleCarDiamondsText');
  assert.equal(typeof switchButton.onclick,'function');
  game.drawCarIndicators2D();
- const before2D=vm.runInContext('canvasCarMarkerHits.length',context);
+ const before2D=game.canvasCarMarkerHits.length;
  assert.ok(before2D>0,'default 2D mode has visible markers in starter city');
  switchButton.onclick();
  assert.equal(caption.textContent,'เปิดเพชร');
- assert.equal(vm.runInContext('carStatusDiamondsVisible',context),false);
+ assert.equal(game.carStatusDiamondsVisible,false);
  game.drawCarIndicators2D();
- assert.equal(vm.runInContext('canvasCarMarkerHits.length',context),0,
+ assert.equal(game.canvasCarMarkerHits.length,0,
   'hidden diamonds also clear 2D hit targets');
  switchButton.onclick();
  assert.equal(caption.textContent,'ปิดเพชร');
  game.drawCarIndicators2D();
- assert.equal(vm.runInContext('canvasCarMarkerHits.length',context),before2D,
+ assert.equal(game.canvasCarMarkerHits.length,before2D,
   '2D car markers return without changing traffic state');
  console.log('Car LOD: detailed/middle/far geometry, offscreen culling, 3D marker toggle, selection persistence and UI position passed.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
