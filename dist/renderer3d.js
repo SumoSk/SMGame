@@ -22,6 +22,7 @@ const PALM_FROND=(()=>{
 })();
 const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND];
 const CAR_DIAMOND=new THREE.OctahedronGeometry(1,0);
+const CAR_TECH_AURA=new THREE.SphereGeometry(1,12,8),CAR_WARP_BEAM=new THREE.CylinderGeometry(1,1,1,16,1,true);
 const UP=new THREE.Vector3(0,1,0),TAU=Math.PI*2;
 const DAYLIGHT=[
  [0,'#1a2941','#adc4e5',.35,.78,.64,1],[180,'#101d34','#8b9fc6',.26,.68,.57,1],
@@ -201,7 +202,7 @@ function mountainHeight(x,z){
 // Eight original citizen vehicle classes + one dedicated VISUAL taxi variant.
 // Citizen trait weights are intentionally untouched; tourist taxi is not a
 // ninth random citizen class.
-const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van','touristTaxi'];
+const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van','touristTaxi','f1'];
 const VEHICLE_WEIGHTS=[[26,36,20,10,4,1,1,2],[11,16,42,20,5,1,1,4],[7,12,11,24,33,6,5,2],[2,4,5,10,25,24,28,2]];
 const VEHICLE_STYLES=[
  [.49,.238,.125,-.028,.303,.118], // compact hatchback
@@ -212,7 +213,8 @@ const VEHICLE_STYLES=[
  [.615,.285,.104,-.077,.272,.089], // low sport coupe
  [.735,.308,.164,-.080,.408,.186], // long luxury limousine
  [.690,.300,.162,-.019,.478,.218], // ordinary minivan
- [.690,.300,.162,-.019,.478,.218]  // tourist taxi minivan
+ [.690,.300,.162,-.019,.478,.218], // tourist taxi minivan
+ [.745,.300,.076,-.020,.205,.075]  // low orange-red F1 open-wheel racecar
 ];
 const VEHICLE_PALETTES=[
  ['#ffa52e','#27b8e5','#ff6470','#9bdc4e','#f7f8f5','#9774f0'],
@@ -223,10 +225,12 @@ const VEHICLE_PALETTES=[
  ['#ff303f','#ffd02b','#176fdc','#ffffff','#ff702c','#8246f4'],
  ['#172137','#f6f1e7','#273a5b','#b99b6d','#651f39','#c4dbe7'],
  ['#f4f5ee','#387fc0','#f2e1d0','#d95846','#6eafbb','#304867'],
- ['#ffd127'] // Bangkok-style yellow taxi van: tourists only.
+ ['#ffd127'], // Bangkok-style yellow taxi van: tourists only.
+ ['#fc442a','#fd7129','#fb5727'] // three red-orange F1 finishes
 ];
-function carClassFor(c,id){
+function carClassFor(c,id,tech=null){
  if(c?.tourist)return 8;
+ if(tech==='speed')return 9;
  const group=Math.max(0,Math.min(3,c?.profile?.trait??0)),weights=VEHICLE_WEIGHTS[group];
  let n=hash((c?.id??id)*1.013+37,59)*100;
  for(let i=0;i<weights.length;i++){n-=weights[i];if(n<0)return i;}
@@ -244,7 +248,7 @@ function carPaintFor(c,id,kind,fallback){
 function carGeometries(style){
  const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[style],paint=[],detail=[];
  const compact=style===0,sedan=style===1,pickup=style===2,suv=style===3,
-  premium=style===4,sport=style===5,luxury=style===6,
+  premium=style===4,sport=style===5||style===9,f1=style===9,luxury=style===6,
   van=style===7||style===8,taxi=style===8;
  const chromed=premium||luxury,front=length*.5,rear=-front;
  const top=.165+height*.5,roofY=top+cabinH*.49,roofTop=roofY+cabinH*.5;
@@ -368,6 +372,19 @@ function carGeometries(style){
   }
   box(paint,'#ffffff',rear+.039,roofTop+.035,0,.066,.019,width*1.12);
   for(const sign of [-1,1])box(detail,'#282d33',rear+.036,roofTop+.015,sign*width*.37,.017,.050,.017);
+ }
+ if(f1){
+  // Low racing silhouette with broad front/rear aero wings and exposed tires.
+  box(paint,'#ffffff',front+.054,.151,0,.09,.018,width*1.55);
+  box(detail,'#1b2830',front+.068,.148,0,.018,.012,width*1.66);
+  box(detail,'#222c35',rear-.052,roofTop+.068,0,.08,.018,width*1.75);
+  for(const sign of [-1,1]){
+   box(detail,'#171e27',front-.08,.119,sign*width*.71,.17,.077,.069);
+   box(detail,'#171e27',rear+.095,.119,sign*width*.71,.19,.085,.071);
+   box(detail,'#ffe08a',0,top+.020,sign*width*.30,length*.26,.016,.018);
+  }
+  box(detail,'#131e28',cabinX,roofTop+.021,0,cabinL*.62,.026,width*.73);
+  box(detail,'#ffb73f',front*.48,top+.018,0,length*.13,.010,.035);
  }
  if(luxury){
   // Chauffeur limousine: tall upright waterfall grille, long formal roof,
@@ -5937,14 +5954,14 @@ export class TrafficRenderer{
   for(let i=0;i<items.length;i++){
    const car=items[i];
    const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[car.kind];
-   dummy.position.set(car.x,.163,car.z);
+   dummy.position.set(car.x,.163+(car.altitude||0),car.z);
    dummy.rotation.set(0,-car.angle,0);
    dummy.scale.set(length,height*.82,width*.96);
    dummy.updateMatrix();
    set.body.setMatrixAt(i,dummy.matrix);set.body.setColorAt(i,this.carTint.set(car.color));
    if(set.roof){
     const roofX=cabinX,cos=Math.cos(car.angle),sin=Math.sin(car.angle);
-    dummy.position.set(car.x+roofX*cos,.165+height*.5+cabinH*.39,car.z+roofX*sin);
+    dummy.position.set(car.x+roofX*cos,.165+(car.altitude||0)+height*.5+cabinH*.39,car.z+roofX*sin);
     dummy.scale.set(cabinL,cabinH*.78,width*.80);
     dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);
    }
@@ -5954,19 +5971,21 @@ export class TrafficRenderer{
   if(set.roof){set.roof.count=items.length;set.roof.instanceMatrix.needsUpdate=true;}
  }
  cars(state,vehiclePosition,CATALOG,vehicleTimeliness=null,selected=null,showDiamonds=true){
-  const groups=VEHICLE_TYPES.map(()=>[]),medium=[],far=[],indicators=[];
+  const groups=VEHICLE_TYPES.map(()=>[]),medium=[],far=[],indicators=[],techEffects=[],warpPoints=[];
   const frustum=this.carViewFrustum,point=this.carViewPoint,cam=this.cam;
   this.camera.updateMatrixWorld(true);
   frustum.setFromProjectionMatrix(this.carViewMatrix.multiplyMatrices(
    this.camera.projectionMatrix,this.camera.matrixWorldInverse));
   const pixelsPerUnit=this.h/(this.camera.top-this.camera.bottom);
   this.carLODStats={near:0,medium:0,far:0,culled:0};
-  const add=(x,z,angle,c,id,fallback,v=null,buildingId=null)=>{
-   point.set(x,.22,z);
+  const add=(x,z,angle,c,id,fallback,v=null,buildingId=null,altitude=0)=>{
+   point.set(x,.22+altitude,z);
    if(frustum.planes.some(plane=>plane.distanceToPoint(point)<-1.5)){
     this.carLODStats.culled++;return;
    }
-   const kind=carClassFor(c,id),car={x,z,angle,color:carPaintFor(c,id,kind,fallback),kind};
+   const tech=v?.vehicleTech??c?.vehicleTech??'normal';
+   const kind=carClassFor(c,id,tech),car={x,z,angle,color:tech==='speed'?'#ff5b24':carPaintFor(c,id,kind,fallback),kind,altitude};
+   if(['smart','fly'].includes(tech))techEffects.push({x,z,altitude,tech});
    const apparentLength=VEHICLE_STYLES[kind][0]*pixelsPerUnit;
    const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
@@ -5982,20 +6001,22 @@ export class TrafficRenderer{
    const focused=selected?.kind==='vehicle'&&selected.id===v?.id||
     selected?.kind==='parked'&&selected.id===id;
    if(showDiamonds||focused)indicators.push({
-    x,z,angle,kind,focused,
+    x,z,angle,kind,focused,altitude,
     status:showDiamonds?(vehicleTimeliness?.(v)||'green'):'green',
     selection:v?{kind:'vehicle',id:v.id,citizenId:v.citizenId}:{kind:'parked',id,buildingId}
    });
   };
   for(const v of state.vehicles.values()){
-   if(!['driving','stuck','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;
-   const p=vehiclePosition(v);if(p)add(p.x-.5,p.y-.5,Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),state.citizens.get(v.citizenId),v.citizenId??v.id,v.color,v);
+   if(!['driving','stuck','parking_in','parking_out','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;
+   const p=vehiclePosition(v);if(p)add(p.x-.5,p.y-.5,Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),state.citizens.get(v.citizenId),v.citizenId??v.id,v.color,v,null,p.altitude||0);
   }
   for(const b of state.buildings.values())for(const id of b.parked){
    if(this.parking.parkingIsMoving(id))continue;
    const index=b.parkingSlots.indexOf(id),p=this.parking.parkingSlotPose(b,index);
    if(p)add(p.x-.5,p.y-.5,Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),state.citizens.get(id),id,this.parking.citizenCarColor(id),state.vehicles.get(state.citizens.get(id)?.vehicleId),b.id);
   }
+  for(const v of state.vehicles.values())if(v.phase==='warp_charge'&&v.airFrom&&v.airTo){warpPoints.push(v.airFrom,v.airTo);}
+  this.updateCarTechEffects(techEffects,warpPoints);
   this.updateCarIndicators(indicators,showDiamonds);
   this.updateSimpleCars('medium',medium);
   this.updateSimpleCars('far',far);
@@ -6004,7 +6025,7 @@ export class TrafficRenderer{
    if(!items.length){if(old){old.body.count=0;old.trim.count=0;old.headlights.count=0;old.taillights.count=0;old.lightSpill.count=0;}continue;}
    const set=this.ensureCarSet(kind,items.length);
    for(let i=0;i<items.length;i++){
-    const car=items[i];this.carDummy.position.set(car.x,0,car.z);this.carDummy.rotation.set(0,-car.angle,0);
+    const car=items[i];this.carDummy.position.set(car.x,car.altitude||0,car.z);this.carDummy.rotation.set(0,-car.angle,0);
     this.carDummy.scale.set(1,1,1);this.carDummy.updateMatrix();
     set.body.setMatrixAt(i,this.carDummy.matrix);set.trim.setMatrixAt(i,this.carDummy.matrix);
     set.body.setColorAt(i,this.carTint.set(car.color));
@@ -6013,7 +6034,7 @@ export class TrafficRenderer{
      // Car model faces +X in local space; side offsets rotate with the body.
      const side=sign*width*.33;
      for(const [mesh,localX,height] of [[set.headlights,length*.5+.024,.185],[set.taillights,-length*.5-.024,.170]]){
-      this.carLightDummy.position.set(car.x+cos*localX-sin*side,height,car.z+sin*localX+cos*side);
+      this.carLightDummy.position.set(car.x+cos*localX-sin*side,height+(car.altitude||0),car.z+sin*localX+cos*side);
       this.carLightDummy.rotation.set(0,-car.angle,0);
       this.carLightDummy.scale.set(mesh===set.headlights?.024:.018,.037,.050);
       this.carLightDummy.updateMatrix();
@@ -6025,7 +6046,7 @@ export class TrafficRenderer{
     const spillX=length*.5+.17;
     this.carLightDummy.position.set(car.x+cos*spillX,.026,car.z+sin*spillX);
     this.carLightDummy.rotation.set(0,-car.angle,0);
-    this.carLightDummy.scale.set(.31,.008,.21);
+    this.carLightDummy.scale.set((car.altitude||0)>1?.001:.31,.008,(car.altitude||0)>1?.001:.21);
     this.carLightDummy.updateMatrix();
     set.lightSpill.setMatrixAt(i,this.carLightDummy.matrix);
    }
@@ -6033,6 +6054,44 @@ export class TrafficRenderer{
    for(const mesh of [set.headlights,set.taillights]){mesh.count=items.length*2;mesh.instanceMatrix.needsUpdate=true;}
    set.lightSpill.count=items.length;set.lightSpill.instanceMatrix.needsUpdate=true;
    if(set.body.instanceColor)set.body.instanceColor.needsUpdate=true;
+  }
+ }
+ ensureCarTechMesh(key,needed){
+  let m=this.carTechMeshes?.get(key);
+  if(needed===0)return m||null;
+  if(m&&m.instanceMatrix.count>=needed)return m;
+  if(m){this.scene.remove(m);m.material.dispose();m.dispose();}
+  const cap=Math.max(16,2**Math.ceil(Math.log2(needed)));
+  const beam=key==='beam';
+  m=new THREE.InstancedMesh(beam?CAR_WARP_BEAM:CAR_TECH_AURA,
+   new THREE.MeshBasicMaterial({color:beam?'#56d6ff':key==='fly'?'#78e6ff':'#2acfff',
+    transparent:true,opacity:beam?.24:.22,blending:THREE.AdditiveBlending,
+    depthWrite:false,depthTest:true,toneMapped:false,side:THREE.DoubleSide}),cap);
+  m.count=0;m.visible=false;m.frustumCulled=false;m.renderOrder=4;
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  this.scene.add(m);
+  if(!this.carTechMeshes)this.carTechMeshes=new Map();
+  this.carTechMeshes.set(key,m);return m;
+ }
+ updateCarTechEffects(records,warpPoints){
+  const d=this.carDummy;
+  for(const key of ['smart','fly','beam']){
+   const items=key==='beam'?warpPoints:records.filter(r=>r.tech===key);
+   const m=this.ensureCarTechMesh(key,items.length);
+   if(!m)continue;
+   m.count=items.length;m.visible=items.length>0;
+   for(let i=0;i<items.length;i++){
+    const car=items[i];
+    if(key==='beam'){
+     d.position.set(car.x-.5,3.5,car.y-.5);d.rotation.set(0,0,0);
+     d.scale.set(.30,7,.30);
+    }else{
+     d.position.set(car.x,(car.altitude||0)+.32,car.z);
+     d.rotation.set(0,0,0);d.scale.set(.44,.26,.30);
+    }
+    d.updateMatrix();m.setMatrixAt(i,d.matrix);
+   }
+   if(items.length)m.instanceMatrix.needsUpdate=true;
   }
  }
  updateCarIndicators(records,showDiamonds=true){
@@ -6053,9 +6112,9 @@ export class TrafficRenderer{
   this.carIndicatorHits=[];this.carSelectionFrame.visible=false;let count=0;
   for(const record of records){
    const style=VEHICLE_STYLES[record.kind],roof=.18+style[2]/2+style[5]*1.08;
-   if(record.focused){const frame=this.carSelectionFrame;frame.visible=true;frame.position.set(record.x,roof/2+.035,record.z);frame.rotation.set(0,-record.angle,0);frame.scale.set(style[0]+.09,roof+.04,style[1]+.08);}
+   if(record.focused){const frame=this.carSelectionFrame;frame.visible=true;frame.position.set(record.x,roof/2+.035+(record.altitude||0),record.z);frame.rotation.set(0,-record.angle,0);frame.scale.set(style[0]+.09,roof+.04,style[1]+.08);}
    if(!showDiamonds)continue;
-   d.position.set(record.x,roof+.025,record.z).addScaledVector(up,(pixels*.5+2)*unit);this.carMarkerPoint.copy(d.position).project(this.camera);
+   d.position.set(record.x,roof+.025+(record.altitude||0),record.z).addScaledVector(up,(pixels*.5+2)*unit);this.carMarkerPoint.copy(d.position).project(this.camera);
    const p=this.carMarkerPoint;if(p.x< -1.03||p.x>1.03||p.y< -1.03||p.y>1.03||p.z< -1||p.z>1)continue;
    d.quaternion.copy(this.camera.quaternion);d.scale.set(pixels*.3125*unit,pixels*.5*unit,pixels*.1*unit);d.updateMatrix();mesh.setMatrixAt(count,d.matrix);mesh.setColorAt(count,this.carMarkerTint.set(colors[record.status]||colors.green));count++;
    this.carIndicatorHits.push({x:(p.x+1)*this.w/2,y:(1-p.y)*this.h/2,selection:record.selection});
