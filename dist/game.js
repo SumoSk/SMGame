@@ -1270,13 +1270,13 @@ function openAISignalUpgrade(i){
  if(!state.roads.has(i)||junction(i)<3)return false;
  if(signalSettings(i).mode==='smart'){selected={kind:'road',id:i};renderInspector(true);return true;}
  const afford=state.money>=AI_SIGNAL_PRICE;
- modal('<div class="ai-purchase"><div class="ai-orbit">✦</div><span class="eyebrow">SMCITY / SMART TRAFFIC</span><h2>AI SIGNAL SYSTEM</h2>'+
- '<p class="ai-purchase-sub">อัปเกรดสัญญาณไฟจราจรอัจฉริยะ</p>'+
- '<div class="ai-purchase-features"><span>◈ ควบคุมสัญญาณด้วย AI</span><span>◈ วิเคราะห์คิวรถแต่ละทิศทาง</span><span>◈ ติดตั้งเฉพาะแยกนี้</span></div>'+
- '<div class="ai-purchase-price"><small>ค่าติดตั้ง</small><strong>฿1,000,000</strong><small>งบคงเหลือหลังซื้อ '+money(state.money-AI_SIGNAL_PRICE)+'</small></div>'+
- '<div class="actions ai-purchase-actions"><button type="button" id="cancelDialog">ยกเลิก</button>'+
- '<button type="button" id="confirmDialog" class="primary" '+(afford?'':'disabled')+'>ยืนยันการอัปเกรด</button></div>'+
- (!afford?'<p class="signal-note">งบประมาณไม่เพียงพอค่ะ</p>':'')+'</div>');
+ modal('<div class="ai-checkout-v2"><header><div class="ai-checkout-icon">✦</div><small>SMCITY · AI TRAFFIC CONTROL</small><h2>อัปเกรดทางแยก AI</h2><p>ระบบควบคุมสัญญาณจราจรอัจฉริยะ</p></header>'+
+ '<div class="ai-checkout-info"><span>แยกที่เลือก</span><strong>ติดตั้งระบบ AI 1 แยก</strong></div>'+
+ '<div class="ai-checkout-info"><span>ราคาติดตั้ง</span><strong>'+money(AI_SIGNAL_PRICE)+'</strong></div>'+
+ '<div class="ai-checkout-balance">งบประมาณหลังซื้อ <strong>'+money(state.money-AI_SIGNAL_PRICE)+'</strong></div>'+
+ '<div class="ai-checkout-actions"><button type="button" id="cancelDialog">ยกเลิก</button>'+
+ '<button type="button" id="confirmDialog" class="primary" '+(afford?'':'disabled')+'>ยืนยันการติดตั้ง</button></div>'+
+ (!afford?'<p class="ai-checkout-warning">งบประมาณไม่เพียงพอค่ะ</p>':'')+'</div>');
  $('dialog').classList.add('ai-upgrade-center');
  $('cancelDialog').onclick=closeModal;
  $('confirmDialog').onclick=()=>{
@@ -5426,7 +5426,7 @@ function openCityReport(){const report=cityBugReport(),rows=Object.entries(repor
 }
 $('advisorNext').onclick=e=>{const button=e.target.closest('button');if(!button)return;if(button.hasAttribute('data-advice-report'))openCityReport();else if(button.dataset.adviceCategory){category=button.dataset.adviceCategory;renderTools();}};
 if($('accountQuick'))$('accountQuick').onclick=openAccountDialog;
-if($('saveGameQuick'))$('saveGameQuick').onclick=openCloudSaveDialog;
+
 window.SMGameOnAuthChanged=loggedIn=>{
  if(!travelLogAdmin()){travelRecording=false;travelLog=null;if($('travelLogBody'))closeModal();}
  renderTools();
