@@ -1174,6 +1174,101 @@ function restoreRecommendedSignals(){
  }
  return count;
 }
+
+function buyAISignal(i){
+ if(!state.roads.has(i)||junction(i)<3){toast('ตำแหน่งนี้ไม่มีไฟแดงที่อัปเกรดได้ค่ะ');return false;}
+ if(signalSettings(i).mode==='smart'){toast('ทางแยกนี้ติดตั้ง AI แล้วค่ะ');return false;}
+ if(state.money<AI_SIGNAL_PRICE){toast('เงินเมืองไม่พอ ต้องมี 1,000,000 บาทเพื่อซื้อ AI ค่ะ');return false;}
+ // One irreversible purchase for this junction; road demolition never refunds it.
+ state.money-=AI_SIGNAL_PRICE;
+ missionMoney('aiSignalInvestment',AI_SIGNAL_PRICE);
+ state.signals.set(i,{
+  ...signalSettings(i),mode:'smart',phaseModel:'approach',holdUntil:0,
+  smartPhase:'clear',smartSlot:-1,smartUntil:state.time+SIGNAL_CLEAR_MINUTES,
+  smartSince:state.time,smartLast:signalSlots(i).map(()=>state.time-12)
+ });
+ nextAISignalPoll=-Infinity;updateUI();renderInspector(true);
+ toast('ติดตั้ง AI ที่ทางแยกนี้แล้ว −฿1,000,000');
+ return true;
+}
+function aiSignalQueuePressure(){
+ // Time-sliced city scan, not a per-car/per-frame route search.
+ const demands=new Map();
+ for(const [node,setting]of state.signals)if(setting.mode==='smart'&&state.roads.has(node)&&junction(node)>=3)
+  demands.set(node,signalSlots(node).map(()=>({cars:0,queued:0,blocked:0})));
+ if(!demands.size)return demands;
+ for(const v of state.vehicles.values()){
+  if(!['driving','stuck','departing'].includes(v.phase)||!Array.isArray(v.path)||!v.path.length)continue;
+  const start=Math.max(1,Math.floor(v.pos||0)),end=Math.min(v.path.length-1,start+9);
+  for(let k=start;k<=end;k++){
+   const node=v.path[k],entry=demands.get(node);
+   if(!entry)continue;
+   const incoming=motionDirection(v.path,k-1),idx=signalSlots(node).findIndex(slot=>slot.incoming===incoming);
+   if(idx<0)continue;
+   const q=entry[idx],distance=k-start,waiting=Number(v.wait)||0;
+   q.cars+=distance<=2?2:1;
+   if(waiting>1||v.phase==='stuck')q.queued+=Math.min(8,1+waiting/4);
+   const next=v.path[k+1],out=state.roads.get(next);
+   if(out&&(out.load>3||out.wait>6))q.blocked++;
+   break; // Only the nearest AI junction on this trip.
+  }
+ }
+ return demands;
+}
+function smartSignalStep(){
+ if(state.time<nextAISignalPoll)return;
+ nextAISignalPoll=state.time+AI_POLL_MINUTES;
+ const demand=aiSignalQueuePressure(),now=state.time;
+ for(const [node,queues]of demand){
+  const st=state.signals.get(node),slots=signalSlots(node);
+  if(!slots.length)continue;
+  if(!Array.isArray(st.smartLast)||st.smartLast.length!==slots.length)st.smartLast=slots.map(()=>now-12);
+  const index=Math.max(0,Math.min(slots.length-1,st.smartSlot??-1));
+  if(st.smartPhase==='green'){
+   const elapsed=Math.max(0,now-(st.smartSince??now));
+   const current=queues[index],otherDemand=queues.some((q,j)=>j!==index&&q.cars>0);
+   if(elapsed<AI_MIN_GREEN)continue;
+   // Hold green to clear queues, but cap it so others aren't starved.
+   if(elapsed<AI_MAX_GREEN&&current?.cars>0&&
+    (!otherDemand||elapsed<AI_MIN_GREEN+Math.min(8,current.cars*.75)))continue;
+   if(elapsed<8&&!otherDemand&&current?.cars===0)continue;
+   st.smartPhase='yellow';st.smartUntil=now+SIGNAL_YELLOW_MINUTES;continue;
+  }
+  if(st.smartPhase==='yellow'){
+   if(now<st.smartUntil)continue;
+   st.smartPhase='clear';st.smartUntil=now+SIGNAL_CLEAR_MINUTES;continue;
+  }
+  if(now<st.smartUntil)continue;
+  // Favor busy and long-waiting approaches; otherwise rotate.
+  const last=st.smartSlot??-1;
+  let winner=-1,top=-Infinity;
+  for(let j=0;j<slots.length;j++){
+   const q=queues[j],age=Math.max(0,now-(st.smartLast[j]??now)),rotate=(j-last+slots.length)%slots.length;
+   const score=q.cars? q.cars*3+q.queued*2+Math.min(36,age)*.42-q.blocked*4
+    : -25+rotate*.05;
+   if(score>top){top=score;winner=j;}
+  }
+  if(!queues.some(q=>q.cars))winner=(last+1)%slots.length;
+  if(winner===last&&slots.length>1&&queues.some((q,j)=>j!==last&&q.cars&&now-(st.smartLast[j]??now)>20))
+   winner=queues.findIndex((q,j)=>j!==last&&q.cars&&now-(st.smartLast[j]??now)>20);
+  st.smartPhase='green';st.smartSlot=winner;st.smartSince=now;
+  st.smartUntil=now+AI_MIN_GREEN;st.smartLast[winner]=now;
+ }
+}
+function openAISignalUpgrade(i){
+ if(!state.roads.has(i)||junction(i)<3)return;
+ if(signalSettings(i).mode==='smart'){selected={kind:'road',id:i};renderInspector(true);return;}
+ const afford=state.money>=AI_SIGNAL_PRICE;
+ modal('<span class="eyebrow">SMART TRAFFIC</span><h2>✦ ติดตั้งไฟแดง AI</h2>'+
+ '<p>อัปเกรดเฉพาะแยกนี้ ระบบจะเลือกทิศไฟเขียวตามรถที่กำลังรอ และจำกัดระยะเวลาเพื่อไม่ให้ทิศอื่นรอนานเกินไป</p>'+
+ '<p class="signal-ai-price">ราคา <strong>฿1,000,000</strong> · เงินคงเหลือ '+money(state.money)+'</p>'+
+ '<div class="actions"><button type="button" id="cancelDialog">ยกเลิก</button>'+
+ '<button type="button" id="confirmDialog" class="primary" '+(afford?'':'disabled')+'>ซื้อไฟแดง AI</button></div>'+
+ (!afford?'<p class="signal-note">งบประมาณยังไม่พอค่ะ</p>':''));
+ $('cancelDialog').onclick=closeModal;
+ $('confirmDialog').onclick=()=>{if(buyAISignal(i))closeModal();};
+}
+
 // A junction tile stores the road used to build it, not the lane count of
 // every movement through it. Use the connected outgoing arm for each direction.
 function movementRoad(i,d){
