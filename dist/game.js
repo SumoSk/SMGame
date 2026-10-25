@@ -1045,6 +1045,13 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
  const px=-dy/length,py=dx/length,point=(t,off)=>[x+dx*t+px*off,y+dy*t+py*off];segments.push({r,other,x,y,dx,dy,length,wa,wb,intervals,point});
  for(const [lo,hi]of intervals)for(const border of [.14,0]){const a=wa+(wb-wa)*lo,b=wa+(wb-wa)*hi;poly([point(lo,-a/2-border),point(hi,-b/2-border),point(hi,b/2+border),point(lo,a/2+border)].map(([x,y])=>screen(x+.5,y+.5)),border?'#c9c8b5':heat?roadColor(r):'#47565c');}}
  for(const l of layouts.values())poly(l.polygon.map(([x,y])=>screen(l.x+.5+x,l.y+.5+y)),'#47565c');
+ // Purchased AI: illuminate only that intersection's center in 2D fallback.
+ for(const [node,l]of layouts)if(state.signals.get(node)?.mode==='smart'){
+  const [x,y]=screen(l.x+.5,l.y+.5);
+  ctx.save();ctx.fillStyle='#36d4f466';ctx.strokeStyle='#9af4ff';ctx.lineWidth=Math.max(1,cam.z*1.5);
+  ctx.beginPath();ctx.arc(x,y,Math.max(5,8*cam.z),0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.restore();
+ }
  const roadside=roadsideVisuals(roadState,roadDetails);
  for(const face of roadside)poly(face.points.map(([x,y])=>screen(x+.5,y+.5)),face.color);
  for(const plant of roadside.plants||[]){
