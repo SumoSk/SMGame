@@ -890,7 +890,7 @@ function poly(points,fill,stroke){ctx.beginPath();points.forEach((p,i)=>i?ctx.li
 function box(x,y,w,h,height,top,side='#bcbaa0',front='#d8d4b7'){
 const a=screen(x,y),b=screen(x+w,y),c=screen(x+w,y+h),d=screen(x,y+h),at=screen(x,y,height),bt=screen(x+w,y,height),ct=screen(x+w,y+h,height),dt=screen(x,y+h,height);
 poly([b,c,ct,bt],side);poly([d,c,ct,dt],front);poly([at,bt,ct,dt],top);return{a:at,b:bt,c:ct,d:dt};}
-function tree(x,y,s=1){const [px,py]=screen(x,y),z=cam.z*s;ctx.fillStyle='#244c3330';ctx.beginPath();ctx.ellipse(px+7*z,py+3*z,10*z,5*z,0,0,7);ctx.fill();ctx.fillStyle='#927b50';ctx.fillRect(px-z,py-9*z,2*z,9*z);ctx.fillStyle='#548e59';ctx.beginPath();ctx.ellipse(px,py-13*z,8*z,10*z,0,0,7);ctx.fill();ctx.fillStyle='#74a966';ctx.beginPath();ctx.ellipse(px-2*z,py-17*z,6*z,6*z,0,0,7);ctx.fill();}
+function tree(x,y,s=1){if(graphicQuality==='low')return;const [px,py]=screen(x,y),z=cam.z*s;ctx.fillStyle='#244c3330';ctx.beginPath();ctx.ellipse(px+7*z,py+3*z,10*z,5*z,0,0,7);ctx.fill();ctx.fillStyle='#927b50';ctx.fillRect(px-z,py-9*z,2*z,9*z);ctx.fillStyle='#548e59';ctx.beginPath();ctx.ellipse(px,py-13*z,8*z,10*z,0,0,7);ctx.fill();ctx.fillStyle='#74a966';ctx.beginPath();ctx.ellipse(px-2*z,py-17*z,6*z,6*z,0,0,7);ctx.fill();}
 function drawTerrain(){
 ctx.fillStyle='#8bc8c5';ctx.fillRect(0,0,view.w,view.h);const terrain=CITIES[state.city].terrain;
 const topLeft=world(0,0),bottomRight=world(view.w,view.h),x0=Math.max(0,Math.floor(topLeft[0]-5)),x1=Math.min(300,Math.ceil(bottomRight[0]+5)),y0=Math.max(0,Math.floor(topLeft[1]-5)),y1=Math.min(300,Math.ceil(bottomRight[1]+8));
