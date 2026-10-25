@@ -5802,3 +5802,27 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleA
 :root.smcity-gray-ui #dialog .garage-v2 .garage-wallet strong{color:#a2f1dc!important}
 :root.smcity-gray-ui #dialog .garage-v2 .garage-bottom button{background:#263e56!important;color:#fff!important;border-color:#64809b!important}
 #dialog .garage-v2 .garage-product-stats strong,#dialog .garage-v2 .garage-price strong{overflow-wrap:anywhere;white-space:normal!important}
+
+
+/* AI signal checkout: clean single-layer card, theme-aware */
+#dialog.ai-upgrade-center[open]{position:fixed!important;inset:0!important;margin:auto!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:min(510px,calc(100vw - 24px))!important;max-width:510px!important;max-height:min(90dvh,720px)!important;overflow:auto!important;padding:0!important;background:transparent!important;border:0!important;border-radius:20px!important;box-shadow:none!important}
+#dialog.ai-upgrade-center #dialogContent{padding:0!important;background:transparent!important;box-shadow:none!important;border:0!important}
+#dialog.ai-upgrade-center .ai-purchase{--ai-bg:#fff;--ai-head:#f3f8fc;--ai-card:#f5f9fd;--ai-border:#d4e2ec;--ai-text:#172b40;--ai-muted:#536b7e;--ai-accent:#116a93;--ai-button:#087fa9;--ai-button-text:#fff;position:relative;box-sizing:border-box;width:100%;margin:0;background:var(--ai-bg)!important;color:var(--ai-text)!important;border:1px solid var(--ai-border)!important;box-shadow:0 18px 55px #08172b35!important;border-radius:20px!important;padding:25px!important;text-align:center}
+#dialog.ai-upgrade-center .ai-purchase *{box-sizing:border-box;letter-spacing:normal}
+#dialog.ai-upgrade-center .ai-orbit{border-color:var(--ai-accent)!important;color:var(--ai-accent)!important;background:var(--ai-head)!important;box-shadow:none!important}
+#dialog.ai-upgrade-center .ai-purchase .eyebrow,#dialog.ai-upgrade-center .ai-purchase-sub{color:var(--ai-muted)!important;line-height:1.55}
+#dialog.ai-upgrade-center .ai-purchase h2{color:var(--ai-text)!important;line-height:1.2;font-size:clamp(23px,4vw,30px);margin:12px 0 6px}
+#dialog.ai-upgrade-center .ai-purchase-features{margin:20px 0;gap:9px;text-align:left}
+#dialog.ai-upgrade-center .ai-purchase-features span{display:block;background:var(--ai-card)!important;border:1px solid var(--ai-border)!important;color:var(--ai-text)!important;padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.5}
+#dialog.ai-upgrade-center .ai-purchase-price{background:var(--ai-head)!important;border:1px solid var(--ai-border)!important;padding:17px;border-radius:14px;gap:6px}
+#dialog.ai-upgrade-center .ai-purchase-price small{color:var(--ai-muted)!important;font-size:12px;line-height:1.5}
+#dialog.ai-upgrade-center .ai-purchase-price strong{color:var(--ai-accent)!important;font-size:clamp(24px,5vw,32px);font-variant-numeric:tabular-nums}
+#dialog.ai-upgrade-center .ai-purchase-actions{display:grid;grid-template-columns:1fr 1.35fr;gap:10px;margin-top:20px}
+#dialog.ai-upgrade-center .ai-purchase-actions button{min-width:0;min-height:46px;margin:0!important;padding:11px 8px!important;border-radius:11px!important;font-size:13px;font-weight:750;white-space:normal;line-height:1.35}
+#dialog.ai-upgrade-center .ai-purchase-actions #cancelDialog{background:var(--ai-card)!important;color:var(--ai-text)!important;border:1px solid var(--ai-border)!important}
+#dialog.ai-upgrade-center .ai-purchase-actions #confirmDialog{background:var(--ai-button)!important;color:var(--ai-button-text)!important;border:1px solid transparent!important}
+#dialog.ai-upgrade-center .ai-purchase-actions #confirmDialog:disabled{opacity:.38!important;cursor:not-allowed}
+#dialog.ai-upgrade-center .signal-note{color:#ba483e!important;font-size:12px;margin:12px 0 0}
+:root.smcity-gray-ui #dialog.ai-upgrade-center .ai-purchase{--ai-bg:#101c2c;--ai-head:#172b41;--ai-card:#20364e;--ai-border:#42627f;--ai-text:#f3f9ff;--ai-muted:#c3d7e7;--ai-accent:#91e8ff;--ai-button:#92e7fa;--ai-button-text:#0b2638}
+:root.smcity-gray-ui #dialog.ai-upgrade-center .signal-note{color:#ffaca8!important}
+@media(max-width:520px){#dialog.ai-upgrade-center .ai-purchase{padding:19px 15px!important}#dialog.ai-upgrade-center .ai-purchase-actions{grid-template-columns:1fr 1.25fr}}
