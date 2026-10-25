@@ -10,7 +10,8 @@
     "test:tourism": "node work/test-tourism.cjs && node work/test-tourism-renderer.cjs",
     "test:v25": "node work/test-v25.cjs && node work/test-lifestyles.cjs && node work/test-road-erase-stroke.cjs",
     "test:v251": "node work/test-v251.cjs && node work/test-v251-schedule.cjs && node work/test-casinos.cjs && node work/test-lifestyles.cjs",
-    "test:performance": "node work/test-performance.cjs"
+    "test:performance": "node work/test-performance.cjs",
+    "test:stationary-render": "node work/test-stationary-render.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0"

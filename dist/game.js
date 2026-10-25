@@ -1636,7 +1636,7 @@ function buildingGaugeMetrics(b,approaching){
  const used=t.service?b.visitors.size:t.residents?b.residents.size:b.workers.size;
  return serviceGaugeMetrics({traveling:approaching,used,capacity:t.service||t.residents||t.jobs});
 }
-let placeLabelLayer=null,placeLabelState=null,placeLabels=new Map(),placeLabelCounts=new Map(),placeLabelAt=0,routeWarningMarkers=new Map(),buildingLabelsVisible=true;
+let placeLabelLayer=null,placeLabelState=null,placeLabels=new Map(),placeLabelCounts=new Map(),placeLabelAt=0,placeLabelProjectionKey=null,routeWarningMarkers=new Map(),buildingLabelsVisible=true;
 const NO_ROUTE_TIMEOUT=150;
 const IMMOBILE_RESPAWN_TIMEOUT=150;
 function missingRoute(v){return !!v&&(!!v.departureNoRoute||v.phase==='stuck'&&v.routeMissing!==false&&!/พบเส้นทางแล้ว/.test(v.stopReason||''));}
@@ -1939,13 +1939,16 @@ function updatePlaceLabels(){
  if(!buildingLabelsVisible)return;
  if(typeof document.createElement!=='function')return;
  if(!placeLabelLayer){placeLabelLayer=document.createElement('div');placeLabelLayer.id='buildingLabels';placeLabelLayer.setAttribute('aria-label','สถานที่และจำนวนรถที่กำลังมา');Object.assign(placeLabelLayer.style,{position:'absolute',inset:'0',pointerEvents:'none',overflow:'hidden'});canvas.insertAdjacentElement('afterend',placeLabelLayer);}
- if(placeLabelState!==state){placeLabelLayer.replaceChildren();placeLabels.clear();routeWarningMarkers.clear();placeLabelState=state;placeLabelAt=0;}
+ if(placeLabelState!==state){placeLabelLayer.replaceChildren();placeLabels.clear();routeWarningMarkers.clear();placeLabelState=state;placeLabelAt=0;placeLabelProjectionKey=null;}
+ const projectionKey=[cam.x,cam.y,cam.z,cam.angle,cam.elevation,view.w,view.h,state.buildingVisualVersion||0,state.buildings.size].join('|');
+ const project=projectionKey!==placeLabelProjectionKey||placeLabels.size!==state.buildings.size;
  const now=Date.now(),refresh=now-placeLabelAt>300||placeLabels.size!==state.buildings.size;
+ if(!project&&!refresh)return;
  if(refresh){placeLabelCounts=new Map();for(const v of state.vehicles.values())if(v.toId!=null){const count=placeLabelCounts.get(v.toId)||{approaching:0,inside:0};if(v.arrivedAt!=null){if(!state.buildings.get(v.toId)?.parked.has(v.citizenId))count.inside++;}else count.approaching++;placeLabelCounts.set(v.toId,count);}placeLabelAt=now;}
  for(const [key,label]of placeLabels)if(!state.buildings.has(key)){label.element.remove();placeLabels.delete(key);}
  for(const b of state.buildings.values()){
   const t=CATALOG[b.key],height=renderer3d?(t.kind==='office'?t.size*1.15+.7:t.kind==='park'?.65:t.kind==='home'?t.size*.62+1.2:t.size*.55+1)*18:(t.kind==='office'?t.size*8:t.kind==='park'?6:t.kind==='home'?t.size*4+11:t.size*3.5+7);
-  const model=lotModel(b),p=screen(model.x+t.size/2,model.y+t.size/2,height);let label=placeLabels.get(b.id);
+  let label=placeLabels.get(b.id);
   if(!label){
    const element=document.createElement('div'),name=document.createElement('strong'),counts=document.createElement('span');
    element.className='place-building-label';
@@ -1954,14 +1957,20 @@ function updatePlaceLabels(){
    element.append(name,counts);placeLabelLayer.append(element);
    label={element,name,counts};placeLabels.set(b.id,label);
   }
-  const visible=p[0]>-40&&p[0]<view.w+40&&p[1]>65&&p[1]<view.h-95;label.element.hidden=!visible;if(!visible)continue;
-  label.element.style.left=p[0]+'px';label.element.style.top=(p[1]-4)+'px';
+  if(project||label.visible==null){
+   const model=lotModel(b),p=screen(model.x+t.size/2,model.y+t.size/2,height);
+   label.visible=p[0]>-40&&p[0]<view.w+40&&p[1]>65&&p[1]<view.h-95;label.element.hidden=!label.visible;
+   if(label.visible){label.element.style.left=p[0]+'px';label.element.style.top=(p[1]-4)+'px';}
+  }
+  if(!label.visible)continue;
   if(refresh||!label.name.textContent){
    const traffic=buildingTraffic(b,placeLabelCounts);
-   label.name.textContent=traffic.name;label.counts.textContent=traffic.approaching+' / '+traffic.arrived+' / '+traffic.max;
-   label.element.setAttribute('aria-label',traffic.name+' กำลังมา '+traffic.approaching+' คัน ถึงอาคารแล้ว '+traffic.arrived+' คัน ความจุ '+traffic.max+' คัน');
+   if(label.name.textContent!==traffic.name)label.name.textContent=traffic.name;
+   const text=traffic.approaching+' / '+traffic.arrived+' / '+traffic.max;if(label.counts.textContent!==text)label.counts.textContent=text;
+   const aria=traffic.name+' กำลังมา '+traffic.approaching+' คัน ถึงอาคารแล้ว '+traffic.arrived+' คัน ความจุ '+traffic.max+' คัน';if(label.aria!==aria){label.element.setAttribute('aria-label',aria);label.aria=aria;}
   }
  }
+ placeLabelProjectionKey=projectionKey;
 }
 // Contextual Move / Demolish buttons stay attached to the selected building
 // in world space even while rotating, zooming or panning the camera.
