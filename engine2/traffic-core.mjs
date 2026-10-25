@@ -1,4 +1,6 @@
 // SMCITY Traffic Engine 2.0 — original implementation (not derived from legacy traffic code).
+import { LaneController } from './lane-controller.mjs';
+import { JunctionController } from './junction-controller.mjs';
 // This module has no DOM, canvas, persistence, or game-global dependencies.
 const positive = (value, name) => {
   if (!Number.isFinite(value) || value <= 0) throw new RangeError(name + ' must be positive');
@@ -169,6 +171,10 @@ export class TrafficEngine {
     this.time = 0; this.accumulator = 0; this.vehicles = new Map();
     this.events = new EventScheduler(); this.signals = new Map();
     this.pending = new Set(); this.issuedIds = new Set();
+    this.deferred = []; this.laneIntents = new Map();
+    this.lanes = new LaneController({gap});
+    this.junctions = new JunctionController({yellowSeconds:0.2, clearSeconds:0.2});
+    this.signals = this.junctions.signals;
     this.metrics = { steps: 0, completed: 0, failed: 0, moved: 0, routePlans: 0 };
   }
   planTrip({ id, from, to, at = this.time, speedFactor = 1, length = 0.45 }) {
@@ -179,60 +185,61 @@ export class TrafficEngine {
     this.events.schedule(at, 'departure', { id, from, to, speedFactor, length });
   }
   configureSignal(nodeId, phases) {
-    if (!this.network.nodes.has(nodeId) || !Array.isArray(phases) || phases.length < 2)
-      throw new Error('signal requires junction and two or more phases');
-    for (const phase of phases) {
-      positive(phase.duration, 'green duration');
-      if (!Array.isArray(phase.incomingEdges) || !phase.incomingEdges.length)
-        throw new TypeError('phase needs incomingEdges');
-      for (const edgeId of phase.incomingEdges)
-        if (this.network.edges.get(edgeId)?.to !== nodeId)
+    if (!this.network.nodes.has(nodeId)) throw new Error('signal node missing');
+    for (const phase of phases)
+      for (const id of phase.incomingEdges || [])
+        if (this.network.edges.get(id)?.to !== nodeId)
           throw new Error('incoming edge does not lead to junction');
-    }
-    const previous = this.signals.get(nodeId);
-    const token = (previous?.token || 0) + 1;
-    this.signals.set(nodeId, { phases: phases.map(p => ({
-      incomingEdges: new Set(p.incomingEdges), duration: p.duration
-    })), index: 0, token });
-    this.events.schedule(this.time + phases[0].duration, 'signal', { nodeId, token });
+    return this.junctions.configure(nodeId, phases, this.time,
+      (at, data) => this.events.schedule(at, 'signal', data));
+  }
+  requestLaneChange(id, lane) {
+    const v = this.vehicles.get(id);
+    if (!v || v.status !== 'moving' || !Number.isInteger(lane) ||
+        lane < 0 || lane >= this.network.edges.get(v.route[v.edgeIndex]).lanes)
+      return false;
+    if (lane === v.lane) return true;
+    this.laneIntents.set(id, lane);
+    return true;
   }
   cancelTrip(id) {
     const waiting = this.pending.delete(id), active = this.vehicles.delete(id);
+    this.laneIntents.delete(id);
+    if (active) this._wakeCapacity();
     return waiting || active;
+  }
+  _wakeCapacity() {
+    while (this.vehicles.size < this.maxVehicles && this.deferred.length) {
+      const request = this.deferred.shift();
+      if (this.pending.has(request.id)) this._admit(request);
+    }
+  }
+  _admit(info) {
+    this.pending.delete(info.id);
+    const route = this.network.route(info.from, info.to); this.metrics.routePlans++;
+    if (!route) {
+      this.metrics.failed++; this.onFailure(info, 'unreachable'); return;
+    }
+    if (!route.edges.length) {
+      this.metrics.completed++; this.onArrival(info); return;
+    }
+    this.vehicles.set(info.id, {
+      ...info, route: route.edges, edgeIndex: 0, distance: 0, lane: 0,
+      status: 'queued', topologyVersion: this.network.version
+    });
   }
   _dispatch(event) {
     if (event.type === 'departure') {
       const info = event.data;
       if (!this.pending.has(info.id)) return;
       if (this.vehicles.size >= this.maxVehicles) {
-        // Queue only when capacity is available; no busy retry loop per frame.
-        this.events.schedule(this.time + 2, 'departure', info); return;
+        this.deferred.push(info); return; // wake on capacity release, no time-based polling
       }
-      this.pending.delete(info.id);
-      const route = this.network.route(info.from, info.to); this.metrics.routePlans++;
-      if (!route) {
-        this.metrics.failed++; this.onFailure(info, 'unreachable'); return;
-      }
-      if (!route.edges.length) { this.metrics.completed++; this.onArrival(info); return; }
-      this.vehicles.set(info.id, { ...info, route: route.edges, edgeIndex: 0,
-        distance: 0, lane: 0, status: 'queued', topologyVersion: this.network.version });
-      return;
+      this._admit(info);
+    } else if (event.type === 'signal') {
+      this.junctions.onTimer(event.data, event.at,
+        (at,data) => this.events.schedule(at, 'signal', data));
     }
-    if (event.type === 'signal') {
-      const signal = this.signals.get(event.data.nodeId);
-      if (!signal || signal.token !== event.data.token) return;
-      signal.index = (signal.index + 1) % signal.phases.length;
-      const duration = signal.phases[signal.index].duration;
-      this.events.schedule(event.at + duration, 'signal', event.data);
-    }
-  }
-  _hasGreen(edge) {
-    const signal = this.signals.get(edge.to);
-    return !signal || signal.phases[signal.index].incomingEdges.has(edge.id);
-  }
-  _onEdge(vehicles, edgeId, lane) {
-    return vehicles.filter(v => v.status === 'moving' &&
-      v.route[v.edgeIndex] === edgeId && v.lane === lane);
   }
   _entryLane(edge, entryStarts, length) {
     let selected = null, mostRoom = -Infinity;
@@ -246,7 +253,16 @@ export class TrafficEngine {
   _advanceOne() {
     this.time += this.stepSeconds;
     this.events.drain(this.time, e => this._dispatch(e));
-    const active = [...this.vehicles.values()], occupiedNodes = new Set();
+    const active = [...this.vehicles.values()];
+    this.lanes.beginStep(active);
+    for (const [id, target] of this.laneIntents) {
+      const v = this.vehicles.get(id);
+      if (!v || v.status !== 'moving') {this.laneIntents.delete(id); continue;}
+      const edge = this.network.edges.get(v.route[v.edgeIndex]);
+      if (!edge || v.lane === target || this.lanes.tryChange(v,target,
+        {now:this.time,edgeLength:edge.length,speed:edge.speed}))
+        this.laneIntents.delete(id);
+    }
     // Spatial lane index: one scan per step, then O(lanes) entry checks.
     const entryStarts = new Map();
     for (const car of active) if (car.status === 'moving') {
@@ -254,29 +270,22 @@ export class TrafficEngine {
       entryStarts.set(key, Math.min(entryStarts.get(key) ?? Infinity, car.distance));
     }
     // Process front-to-back on each lane. Neighbours only, never all pairs.
-    const groups = new Map();
-    for (const v of active) {
-      if (v.status !== 'moving') continue;
-      const key = String(v.route[v.edgeIndex]) + ':' + v.lane;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(v);
-    }
-    for (const group of groups.values()) group.sort((a, b) => b.distance - a.distance);
+    const groups = this.lanes.index;
     const processed = new Set();
-    const all = active;
     const move = (v, leaderDistance = Infinity, leaderLength = 0) => {
       if (v.status !== 'moving') return;
       const edge = this.network.edges.get(v.route[v.edgeIndex]);
-      if (!edge) { this.vehicles.delete(v.id); this.metrics.failed++;
-        this.onFailure(v, 'edge_removed'); return; }
+      if (!edge) { this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
+        this.metrics.failed++; this.onFailure(v, 'edge_removed'); this._wakeCapacity(); return; }
       const allowed = Math.max(0, leaderDistance - leaderLength - this.gap);
       const wanted = Math.min(edge.length, v.distance + edge.speed * v.speedFactor * this.stepSeconds);
       v.distance = Math.min(wanted, allowed);
       if (v.distance < edge.length - 1e-9) { this.metrics.moved++; return; }
       const nextId = v.route[v.edgeIndex + 1];
       if (nextId == null) {
-        this.vehicles.delete(v.id); v.status = 'arrived';
-        this.metrics.completed++; this.onArrival(v); return;
+        this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
+        v.status = 'arrived'; this.metrics.completed++; this.onArrival(v);
+        this._wakeCapacity(); return;
       }
       const next = this.network.edges.get(nextId);
       if (!next || next.from !== edge.to) {
@@ -284,20 +293,23 @@ export class TrafficEngine {
         const destination = v.to, remaining = this.network.route(edge.to, destination);
         this.metrics.routePlans++;
         if (!remaining || !remaining.edges.length) {
-          this.vehicles.delete(v.id); this.metrics.failed++;
-          this.onFailure(v, 'route_lost'); return;
+          this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
+          this.metrics.failed++; this.onFailure(v, 'route_lost');
+          this._wakeCapacity(); return;
         }
         v.route = v.route.slice(0, v.edgeIndex + 1).concat(remaining.edges);
         v.topologyVersion = this.network.version;
         v.distance = Math.max(0, edge.length - 0.001);
         return;
       }
-      if (occupiedNodes.has(edge.to) || !this._hasGreen(edge)) {
+      const lane = this.lanes.chooseDownstreamLane(next, v.lane, edge.lanes,
+        entryStarts, v.length, this.gap);
+      if (lane === null || !this.junctions.enter({nodeId:edge.to,
+        incomingId:edge.id,outgoingId:next.id,incomingLane:v.lane,
+        outgoingLane:lane,now:this.time})) {
         v.distance = Math.max(0, edge.length - 0.001); return;
       }
-      const lane = this._entryLane(next, entryStarts, v.length);
-      if (lane === null) { v.distance = Math.max(0, edge.length - 0.001); return; }
-      occupiedNodes.add(edge.to); v.edgeIndex++; v.lane = lane; v.distance = 0;
+      v.edgeIndex++; v.lane = lane; v.distance = 0;
       entryStarts.set(String(next.id) + ':' + lane, 0);
       this.metrics.moved++;
     };
@@ -305,8 +317,9 @@ export class TrafficEngine {
     for (const v of active) if (v.status === 'queued') {
       const edge = this.network.edges.get(v.route[0]);
       if (!edge) { this.vehicles.delete(v.id); this.metrics.failed++;
-        this.onFailure(v, 'edge_removed'); continue; }
-      const lane = this._entryLane(edge, entryStarts, v.length);
+        this.onFailure(v, 'edge_removed'); this._wakeCapacity(); continue; }
+      const lane = this.lanes.chooseDownstreamLane(edge, 0, 1,
+        entryStarts, v.length, this.gap);
       if (lane !== null) { v.status = 'moving'; v.lane = lane; v.distance = 0;
         entryStarts.set(String(edge.id) + ':' + lane, 0); }
     }
@@ -340,6 +353,7 @@ export class TrafficEngine {
   snapshot() {
     return { time: this.time, activeVehicles: this.vehicles.size,
       metrics: { ...this.metrics }, routes: { ...this.network.metrics },
+      junctions: this.junctions.snapshot(), lanes: {...this.lanes.metrics},
       vehicles: [...this.vehicles.values()].map(v => ({
         id: v.id, status: v.status, edgeId: v.route[v.edgeIndex],
         lane: v.lane, distance: v.distance, destination: v.to
