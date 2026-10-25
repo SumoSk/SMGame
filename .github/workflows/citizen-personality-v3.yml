@@ -1,0 +1,23 @@
+name: Citizen personality relabel checks
+on:
+  push:
+    branches: [citizen-traits-party-v3]
+  workflow_dispatch:
+jobs:
+  personality-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node work/test-party-personalities.cjs
+      - run: node work/test-lifestyles.cjs
+      - run: node work/test-dynamic-citizens.cjs
+      - run: node work/test-citizens-dashboard.cjs
+      - run: npm run build
