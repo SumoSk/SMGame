@@ -8,8 +8,6 @@ on:
       - main
 permissions:
   contents: write
-env:
-  NODE_OPTIONS: --require=./work/test-dom-compat.cjs
 jobs:
   ui-check:
     runs-on: ubuntu-latest
@@ -21,11 +19,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check dist/game.js
-      - run: node work/test-ui-tourism-refresh.cjs
-      - run: node work/test-toolbar-one-row.cjs
-      - run: node work/test-citizens-dashboard.cjs
-      - run: node work/test-tracking-ui.cjs
-      - run: node work/test-tourism.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-ui-tourism-refresh.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-toolbar-one-row.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-citizens-dashboard.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-tracking-ui.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-tourism.cjs
       - run: npm run build
       - name: Commit refreshed built HTML and assets
         if: github.event_name == 'push' && github.ref == 'refs/heads/feat/softer-ui-tourism-dashboard-20261023'

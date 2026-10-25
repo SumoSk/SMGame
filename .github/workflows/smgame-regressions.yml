@@ -8,8 +8,6 @@ on:
 permissions:
   contents: write
   pages: write
-env:
-  NODE_OPTIONS: --require=./work/test-dom-compat.cjs
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -22,29 +20,29 @@ jobs:
       - run: npm ci
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
-      - run: node work/test-mission-dashboard.cjs
-      - run: node work/test-travel-log.cjs
-      - run: node work/test-landscaping.cjs
-      - run: node work/test-landscape-detail.cjs
-      - run: node work/test-lane-signals.cjs
-      - run: node work/test-signal-queue-optimization.cjs
-      - run: node work/test-signal-design.cjs
-      - run: node work/test-menu-account.cjs
-      - run: node work/test-window-dismiss.cjs
-      - run: node work/test-centered-demolition.cjs
-      - run: node work/test-building-quick-actions.cjs
-      - run: node work/test-right-side-city-rail.cjs
-      - run: node work/test-unified-panels.cjs
-      - run: node work/test-build-report-menu.cjs
-      - run: node work/test-unified-demolition.cjs
-      - run: node work/test-send-ai-map.cjs
-      - run: node work/test-grand-home.cjs
-      - run: node work/test-grand-front-signals.cjs
-      - run: node work/test-grand-parking-stress.cjs
-      - run: node work/test-grand-parking-mixed.cjs
-      - run: node work/test-grand-frontage.cjs
-      - run: node work/test-grand-driveway-polish.cjs
-      - run: npm run test:tourism
+      - run: node -r ./work/test-dom-compat.cjs work/test-mission-dashboard.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-travel-log.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-landscaping.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-landscape-detail.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-lane-signals.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-signal-queue-optimization.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-signal-design.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-menu-account.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-window-dismiss.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-centered-demolition.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-building-quick-actions.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-right-side-city-rail.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-unified-panels.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-build-report-menu.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-unified-demolition.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-send-ai-map.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-grand-home.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-grand-front-signals.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-grand-parking-stress.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-grand-parking-mixed.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-grand-frontage.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-grand-driveway-polish.cjs
+      - run: NODE_OPTIONS=--require=./work/test-dom-compat.cjs npm run test:tourism
       - run: npm run build
       - name: Regenerate downloadable game and cache hashes on the feature branch
         if: github.event_name == 'push' && github.ref == 'refs/heads/feature/smcity-1.4-landscaping-20261022'
@@ -58,7 +56,7 @@ jobs:
           fi
       - name: Legacy suite (baseline 1.4 already has 4 unrelated failures)
         continue-on-error: true
-        run: npm test
+        run: NODE_OPTIONS=--require=./work/test-dom-compat.cjs npm test
   new-building-models:
     runs-on: ubuntu-latest
     steps:
@@ -70,16 +68,16 @@ jobs:
       - run: npm ci
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
-      - run: node work/test-new-building-program.cjs
-      - run: node work/test-pub-small-model.cjs
-      - run: node work/test-architecture-collection.cjs
-      - run: node work/test-detailed-facades.cjs
-      - run: node work/test-blue-restaurants.cjs
-      - run: node work/test-yellow-shops.cjs
-      - run: node work/test-pink-malls.cjs
-      - run: node work/test-purple-pubs.cjs
-      - run: node work/test-orange-factories.cjs
-      - run: node work/test-residential-homes.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-new-building-program.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-pub-small-model.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-architecture-collection.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-detailed-facades.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-blue-restaurants.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-yellow-shops.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-pink-malls.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-purple-pubs.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-orange-factories.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-residential-homes.cjs
   lane-change-safety:
     runs-on: ubuntu-latest
     steps:
@@ -90,9 +88,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check dist/game.js
-      - run: node work/test-travel-happiness.cjs
-      - run: node work/test-lane-change-safety.cjs
-      - run: node work/test-traffic-fixes.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-travel-happiness.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-lane-change-safety.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
   publish:
     needs: [new-building-models, lane-change-safety]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
