@@ -1,0 +1,23 @@
+name: Traffic Engine 2.0 clean-room core
+on:
+  push:
+    branches: [traffic-engine-2-rewrite]
+    paths:
+      - "engine2/**"
+      - ".github/workflows/traffic-engine-v2.yml"
+  pull_request:
+    paths:
+      - "engine2/**"
+  workflow_dispatch:
+jobs:
+  traffic2-core:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit and simulation tests (Node built-in runner)
+        run: node --test engine2/test/*.test.mjs
