@@ -53,7 +53,7 @@ export class ParkingController {
     }
     if (!building.spots.delete(tripId)) return false;
     this.metrics.released++;
-    while (building.waiting.length && building.spots.size < building.capacity) {
+    while (building.status === 'open' && building.waiting.length && building.spots.size < building.capacity) {
       const nextTripId = building.waiting.shift();
       const slot = this._freeSpot(building);
       building.spots.set(nextTripId, slot);
