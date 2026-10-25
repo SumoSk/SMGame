@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CityRoadAdapter } from '../city-road-adapter.mjs';
 import { TrafficEstimator } from '../traffic-estimator.mjs';
-import { RoadNetwork } from '../traffic-core.mjs';
+import { RoadNetwork, TrafficEngine } from '../traffic-core.mjs';
 
 const road = (type, links) => ({ type, links:new Set(links) });
 
@@ -69,6 +69,10 @@ test('signal average red delay is reflected in route cost once on setup', () => 
   n.addEdge({id:'ax',from:'A',to:'X',length:1,speed:1});
   n.addEdge({id:'yx',from:'Y',to:'X',length:1,speed:1});
   n.addEdge({id:'xb',from:'X',to:'B',length:1,speed:1});
-  // The separate controller test validates clearance; this checks cost semantics.
-  assert.equal(n.edges.get('ax').delay,0);
+  const e=new TrafficEngine(n);
+  assert.equal(n.route('A','B').time,2);
+  e.configureSignal('X',[{incomingEdges:['ax'],duration:2},
+    {incomingEdges:['yx'],duration:6}]);
+  assert.ok(n.edges.get('ax').delay>0);
+  assert.ok(n.route('A','B').time>2);
 });
