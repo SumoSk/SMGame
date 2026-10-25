@@ -132,3 +132,23 @@ test('fixed step yields same deterministic state from split frame durations', ()
   assert.equal(e2.advance(.4), 2);
   assert.deepEqual(e1.snapshot(), e2.snapshot());
 });
+
+
+test('stress: 1000 cars become physically active without overlap or repeated replanning', () => {
+  const n = network(['A','B'], [edge('ab','A','B',500,1,4)]);
+  const engine = new TrafficEngine(n, {maxVehicles:1000});
+  for(let i=0;i<1000;i++) engine.planTrip({id:i,from:'A',to:'B'});
+  engine.runSteps(1620);
+  assert.equal(engine.vehicles.size,1000);
+  const state = engine.snapshot();
+  assert.equal(state.vehicles.filter(v => v.status === 'moving').length,1000);
+  assert.equal(state.metrics.failed,0);
+  assert.equal(n.metrics.searches,1);
+  for(let lane=0;lane<4;lane++) {
+    const cars = state.vehicles.filter(v => v.lane === lane)
+      .sort((a,b)=>b.distance-a.distance);
+    for(let i=1;i<cars.length;i++)
+      assert.ok(cars[i-1].distance-cars[i].distance >= 1.05-1e-9,
+        'lane '+lane+' overlaps at index '+i);
+  }
+});
