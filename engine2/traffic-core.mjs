@@ -135,16 +135,22 @@ export class RoadNetwork {
   travelTime(edge) {
     return edge.length / edge.speed * (1 + edge.congestion) + edge.delay;
   }
-  route(from, to, incomingId = null) {
+  route(from, to, incomingId = null, restrictions = null) {
     if (!this.nodes.has(from) || !this.nodes.has(to)) return null;
     if (from === to) return { nodes: [from], edges: [], time: 0 };
-    const key = JSON.stringify([from, to, incomingId, this.version, this.costVersion]);
+    const key = JSON.stringify([from, to, incomingId,
+      restrictions?.firstEdgeIds || null, restrictions?.lastEdgeIds || null,
+      this.version, this.costVersion]);
     if (this.routeCache.has(key)) {
       this.metrics.cacheHits++;
       const cached = this.routeCache.get(key);
       return cached && { nodes: [...cached.nodes], edges: [...cached.edges], time: cached.time };
     }
     this.metrics.searches++;
+    const firstAllowed = restrictions?.firstEdgeIds ?
+      new Set(restrictions.firstEdgeIds) : null;
+    const lastAllowed = restrictions?.lastEdgeIds ?
+      new Set(restrictions.lastEdgeIds) : null;
     // Search states include incoming edges, so turn bans and U-turn bans are correct.
     const frontier = new MinHeap(), best = new Map(), previous = new Map();
     // Admissible A* estimate: an optimistic physical distance / maximum speed.
@@ -165,8 +171,11 @@ export class RoadNetwork {
     while (frontier.size) {
       const current = frontier.pop();
       if (current.g !== best.get(current.key)) continue;
-      if (current.node === to) { finish = current; break; }
+      if (current.node === to && (!lastAllowed || lastAllowed.has(current.incoming))) {
+        finish = current; break;
+      }
       for (const id of this.outgoing.get(current.node) ?? []) {
+        if (current.key === initial && firstAllowed && !firstAllowed.has(id)) continue;
         const edge = this.edges.get(id);
         const incomingEdge = current.incoming == null ? null : this.edges.get(current.incoming);
         if (incomingEdge && (
@@ -241,7 +250,8 @@ export class TrafficEngine {
     this.signals = this.junctions.signals;
     this.metrics = { steps: 0, completed: 0, failed: 0, moved: 0, routePlans: 0 };
   }
-  planTrip({ id, from, to, at = this.time, speedFactor = 1, length = 0.45 }) {
+  planTrip({ id, from, to, at = this.time, speedFactor = 1,
+    length = 0.45, routeRestrictions = null }) {
     if (id == null || this.vehicles.has(id) || this.pending.has(id))
       throw new Error('vehicle id must be unique');
     if (!Number.isFinite(at) || at < this.time) throw new RangeError('trip is in the past');
@@ -249,7 +259,8 @@ export class TrafficEngine {
     this.pending.add(id);
     const token = ++this.nextTripToken;
     this.pendingToken.set(id,token);
-    this.events.schedule(at, 'departure', { id, from, to, speedFactor, length, token });
+    this.events.schedule(at, 'departure', { id, from, to, speedFactor,
+      length, token, routeRestrictions });
   }
   configureSignal(nodeId, phases) {
     if (!this.network.nodes.has(nodeId)) throw new Error('signal node missing');
@@ -299,7 +310,8 @@ export class TrafficEngine {
   _admit(info) {
     this.pending.delete(info.id); this.pendingToken.delete(info.id);
     this.estimator.refreshIfDue(this.time);
-    const route = this.network.route(info.from, info.to); this.metrics.routePlans++;
+    const route = this.network.route(info.from, info.to, null, info.routeRestrictions);
+    this.metrics.routePlans++;
     if (!route) {
       this.metrics.failed++; this.onFailure(info, 'unreachable'); return;
     }
@@ -336,7 +348,8 @@ export class TrafficEngine {
     let result = null;
     const lastPosition = this.network.positions.get(v.currentNode);
     for (const gate of this.gateNodes) {
-      const path = this.network.route(gate, v.to);
+      const path = this.network.route(gate, v.to, null,
+        v.routeRestrictions && {lastEdgeIds:v.routeRestrictions.lastEdgeIds});
       if (!path || !path.edges.length) continue;
       const gatePosition = this.network.positions.get(gate);
       const offset = lastPosition && gatePosition ?
@@ -370,7 +383,8 @@ export class TrafficEngine {
       oldCost += this.network.travelTime(edge);
       current = edge.to; previous = edge;
     }
-    const candidate = this.network.route(node, v.to, incomingEdge.id);
+    const candidate = this.network.route(node, v.to, incomingEdge.id,
+      v.routeRestrictions && {lastEdgeIds:v.routeRestrictions.lastEdgeIds});
     this.metrics.routePlans++;
     if (candidate && (!valid || candidate.time < oldCost * 0.8)) {
       v.route = v.route.slice(0,v.edgeIndex+1).concat(candidate.edges);
@@ -439,7 +453,8 @@ export class TrafficEngine {
       const next = this.network.edges.get(nextId);
       if (!next || next.from !== edge.to) {
         // Replan only after graph change or route invalidation, not every frame.
-        const destination = v.to, remaining = this.network.route(edge.to, destination, edge.id);
+        const destination = v.to, remaining = this.network.route(edge.to, destination, edge.id,
+          v.routeRestrictions && {lastEdgeIds:v.routeRestrictions.lastEdgeIds});
         this.metrics.routePlans++;
         if (!remaining || !remaining.edges.length) {
           this.estimator.edgeLeft(edge.id);
