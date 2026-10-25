@@ -1519,9 +1519,9 @@ function positionOnMotion(plan,s){
 function vehiclePosition(v){
  if(v.vehicleTech==='fly'&&v.airFrom&&v.airTo){
   const f=v.airProgress||0,a=v.airFrom,b=v.airTo;
-  if(v.phase==='air_lift')return{...a,altitude:8*f};
+  if(v.phase==='air_lift')return{...a,altitude:Math.max(1.5,8*f)};
   if(v.phase==='air_cruise')return{x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f,angle:Math.atan2((b.y-a.y)*.78,b.x-a.x),altitude:8};
-  if(v.phase==='air_land')return{...b,altitude:8*(1-f)};
+  if(v.phase==='air_land')return{...b,altitude:Math.max(1.5,8*(1-f))};
  }
  if(v.phase==='warp_charge'&&v.airFrom)return{...v.airFrom,altitude:0};
  if(v.lotPath)return parkingPose(v);if(v.phase==='departing'){const b=state.buildings.get(v.fromId);return b?parkingSlotPose(b,parkingSpace(b,v.citizenId)):null;}if(v.phase==='stuck'&&v.heldPose)return v.heldPose;return v.path?.length?positionOnMotion(motionPlan(v),motionDistance(v)):null;}
@@ -3898,9 +3898,10 @@ function leaveSkyOrigin(v){
 }
 function advanceSkyVehicle(v){
  if(v.phase==='warp_charge'){
-  v.airProgress=Math.min(1,(state.time-v.startedAt)/20);
+  // Charge once, then immediately transfer to the destination without road routing.
+  v.airProgress=Math.min(1,Math.max(0,(state.time-(v.phaseStartedAt??v.startedAt))/20));
   v.stopReason='ชาร์จวาป '+Math.round(v.airProgress*100)+'%';
-  if(v.airProgress>=1){leaveSkyOrigin(v);arrive(v,true);}
+  if(v.airProgress>=1){leaveSkyOrigin(v);v.phase='warp_arrival';v.lastMovedAt=state.time;arrive(v,true);}
   return;
  }
  if(!['air_lift','air_cruise','air_land'].includes(v.phase))return;
@@ -5205,37 +5206,13 @@ async function openLoadDialog(){
 }
 // All visible save operations use the authenticated Supabase account.
 // Historic local saves are left on the device but are never read or written by the game menus.
-let quickCloudSaving = false;
-const quickSaveName = () => 'เซฟด่วน · '+CITIES[state.city].name;
-async function quickSaveCloud(){
- const api=window.SMGameAccount;
- if(quickCloudSaving)return;
- if(!api?.user){
-  if(api?.requestSaveLogin)api.requestSaveLogin(snapshot(),quickSaveName());
-  else toast('ระบบสมาชิกยังไม่พร้อม กรุณาลองอีกครั้งค่ะ');
-  return;
- }
- quickCloudSaving=true;
- const button=$('saveGameQuick');
- if(button)button.disabled=true;
- try {
-  await api.save(quickSaveName(),'quick-save',snapshot());
-  toast('บันทึกเกมออนไลน์แล้วค่ะ');
- } catch(e) {
-  console.error('Quick save failed:',e);
-  toast('บันทึกไม่สำเร็จ: '+(e.message||'กรุณาลองอีกครั้ง'));
- } finally {
-  quickCloudSaving=false;
-  if(button)button.disabled=false;
- }
-}
 window.SMGameOnCloudSaved=()=>toast('บันทึกเกมออนไลน์แล้วค่ะ');
 // After guest registration and the first cloud save, show the regular Save/Load panel.
 // Share the same entry point with registered players to avoid duplicate menus.
 window.SMGameOpenSaveDialog=()=>openCloudSaveDialog();
 async function openCloudSaveDialog(){
  const api=window.SMGameAccount;
- if(!api?.user){quickSaveCloud();return;}
+ if(!api?.user){if(api?.openPanel)api.openPanel();else if(api?.requestSaveLogin)api.requestSaveLogin(snapshot(),'');else toast('กรุณาเข้าสู่ระบบก่อนเซฟค่ะ');return;}
  const accountId=api.user.id;
  const revision=modal('<h2>เซป/โหลด</h2><p>กำลังอ่านเซฟของคุณ…</p><div class="actions"><button id="saveLoadingClose">กลับไปเล่น</button></div>');
  $('saveLoadingClose').onclick=closeModal;
