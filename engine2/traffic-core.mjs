@@ -361,15 +361,6 @@ export class TrafficEngine {
     this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
     this.deadlocks.forget(v.id);
   }
-  _entryLane(edge, entryStarts, length) {
-    let selected = null, mostRoom = -Infinity;
-    for (let lane = 0; lane < edge.lanes; lane++) {
-      const first = entryStarts.get(String(edge.id) + ':' + lane) ?? Infinity;
-      const room = first - length - this.gap;
-      if (room >= 0 && room > mostRoom) { mostRoom = room; selected = lane; }
-    }
-    return selected;
-  }
   _advanceOne() {
     this.time += this.stepSeconds;
     this.events.drain(this.time, e => this._dispatch(e));
@@ -383,16 +374,14 @@ export class TrafficEngine {
         {now:this.time,edgeLength:edge.length,speed:edge.speed}))
         this.laneIntents.delete(id);
     }
-    // Spatial lane index: one scan per step, then O(lanes) entry checks.
-    const entryStarts = new Map();
-    for (const car of active) if (car.status === 'moving') {
-      const key = String(car.route[car.edgeIndex]) + ':' + car.lane;
-      entryStarts.set(key, Math.min(entryStarts.get(key) ?? Infinity, car.distance));
-    }
-    // Process front-to-back on each lane. Neighbours only, never all pairs.
+    // Reuse the already sorted lane groups; no second vehicle scan or pairwise collision scan.
     const groups = this.lanes.index;
-    const processed = new Set();
-    const move = (v, leaderDistance = Infinity, leaderLength = 0) => {
+    const entryStarts = new Map(), entryOwners = new Map();
+    for (const [key,group] of groups) {
+      const tail=group[group.length-1];
+      entryStarts.set(key,tail.distance); entryOwners.set(key,tail.id);
+    }
+    const move = (v, leaderDistance = Infinity, leaderLength = 0, leaderId = null) => {
       if (v.status !== 'moving') return;
       const edge = this.network.edges.get(v.route[v.edgeIndex]);
       if (!edge) { this.estimator.edgeLeft(v.route[v.edgeIndex]);
@@ -402,7 +391,12 @@ export class TrafficEngine {
       const allowed = Math.max(0, leaderDistance - leaderLength - this.gap);
       const wanted = Math.min(edge.length, v.distance + edge.speed * v.speedFactor * this.stepSeconds);
       v.distance = Math.min(wanted, allowed);
-      if (v.distance < edge.length - 1e-9) { this.metrics.moved++; return; }
+      if (v.distance < edge.length - 1e-9) {
+        if (leaderId != null && wanted > allowed + 1e-9)
+          this.deadlocks.waiting(v.id,leaderId,this.time);
+        else this.deadlocks.cleared(v.id);
+        this.metrics.moved++; return;
+      }
       this._replanAtNode(v,edge);
       const nextId = v.route[v.edgeIndex + 1];
       if (nextId == null) {
@@ -430,9 +424,22 @@ export class TrafficEngine {
       }
       const lane = this.lanes.chooseDownstreamLane(next, v.lane, edge.lanes,
         entryStarts, v.length, this.gap);
-      if (lane === null || !this.junctions.enter({nodeId:edge.to,
+      if (lane === null) {
+        const candidates=[];
+        for (let l=0;l<next.lanes;l++) {
+          const key=String(next.id)+':'+l, owner=entryOwners.get(key);
+          if(owner != null && owner !== v.id) candidates.push({
+            id:owner, distance:entryStarts.get(key) ?? Infinity
+          });
+        }
+        candidates.sort((a,b)=>b.distance-a.distance);
+        if(candidates.length) this.deadlocks.waiting(v.id,candidates[0].id,this.time);
+        v.distance = Math.max(0, edge.length - 0.001); return;
+      }
+      if (!this.junctions.enter({nodeId:edge.to,
         incomingId:edge.id,outgoingId:next.id,incomingLane:v.lane,
         outgoingLane:lane,now:this.time})) {
+        this.deadlocks.cleared(v.id);
         v.distance = Math.max(0, edge.length - 0.001); return;
       }
       this.estimator.edgeLeft(edge.id); this.estimator.edgeEntered(next.id);
@@ -440,6 +447,7 @@ export class TrafficEngine {
       this.deadlocks.cleared(v.id);
       v.edgeIndex++; v.lane = lane; v.distance = 0;
       entryStarts.set(String(next.id) + ':' + lane, 0);
+      entryOwners.set(String(next.id) + ':' + lane, v.id);
       this.metrics.moved++;
     };
     // Activate queued trips once a safe entry slot is available.
@@ -452,23 +460,36 @@ export class TrafficEngine {
       const lane = this.lanes.chooseDownstreamLane(edge, 0, 1,
         entryStarts, v.length, this.gap);
       if (lane !== null) { v.status = 'moving'; v.lane = lane; v.distance = 0;
-        entryStarts.set(String(edge.id) + ':' + lane, 0); }
+        entryStarts.set(String(edge.id) + ':' + lane, 0);
+        entryOwners.set(String(edge.id) + ':' + lane, v.id); }
     }
     for (const group of groups.values()) {
       const initialEdgeId = group[0]?.route[group[0].edgeIndex];
-      let leadPosition = Infinity, leadLength = 0;
+      let leadPosition = Infinity, leadLength = 0, leadId = null;
       for (const v of group) {
-        if (processed.has(v.id)) continue;
-        processed.add(v.id);
-        move(v, leadPosition, leadLength);
+        move(v, leadPosition, leadLength, leadId);
         if (v.status === 'moving' && v.route[v.edgeIndex] === initialEdgeId) {
-          leadPosition = v.distance; leadLength = v.length;
-        } else { leadPosition = Infinity; leadLength = 0; }
+          leadPosition = v.distance; leadLength = v.length; leadId = v.id;
+        } else { leadPosition = Infinity; leadLength = 0; leadId = null; }
       }
     }
     if (this.time >= this.nextDeadlockCheck) {
       this.nextDeadlockCheck = this.time + 5;
-      for (const report of this.deadlocks.inspect(this.time)) this.onGridlock(report);
+      for (const report of this.deadlocks.inspect(this.time)) {
+        this.onGridlock(report);
+        // Recover only a proven wait-cycle participant, never a regular queue.
+        if (this.gateNodes.length) {
+          const victim = report.vehicles.map(id=>this.vehicles.get(id)).find(Boolean);
+          if(victim) {
+            const oldEdge=victim.route[victim.edgeIndex];
+            if(this._recoverAtGate(victim,'wait_cycle')) {
+              this.estimator.edgeLeft(oldEdge);
+              this.deadlocks.forget(victim.id);
+              this.metrics.gridlockRecoveries=(this.metrics.gridlockRecoveries||0)+1;
+            }
+          }
+        }
+      }
     }
     this.metrics.steps++;
   }
