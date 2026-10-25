@@ -8,6 +8,7 @@ on:
       - "dist/index.html"
       - "dist/style.css"
       - "work/test-car-lod-toggle.cjs"
+      - "work/test-building-label-toggle.cjs"
       - ".github/workflows/car-lod-checks.yml"
   workflow_dispatch:
 jobs:
