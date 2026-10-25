@@ -46,6 +46,8 @@ vm.runInContext(fs.readFileSync('dist/game.js','utf8'),context);
 const button=get('toggleBuildingLabels'),caption=get('toggleBuildingLabelsText');
 assert.equal(typeof button.onclick,'function','Toggle must be bound as a real click handler');
 const city=game.state;
+// Isolate this overlay test from the populated starter village preset.
+city.buildings.clear();
 city.buildings.set(93939,{
  id:93939,key:'home_small',x:150,y:150,rotation:0,
  parked:new Set(),visitors:new Set(),queue:[],access:[1]
