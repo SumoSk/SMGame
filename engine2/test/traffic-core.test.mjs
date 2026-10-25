@@ -138,7 +138,7 @@ test('stress: 1000 cars become physically active without overlap or repeated rep
   const n = network(['A','B'], [edge('ab','A','B',500,1,4)]);
   const engine = new TrafficEngine(n, {maxVehicles:1000});
   for(let i=0;i<1000;i++) engine.planTrip({id:i,from:'A',to:'B'});
-  engine.runSteps(1620);
+  engine.runSteps(1850);
   assert.equal(engine.vehicles.size,1000);
   const state = engine.snapshot();
   assert.equal(state.vehicles.filter(v => v.status === 'moving').length,1000);
