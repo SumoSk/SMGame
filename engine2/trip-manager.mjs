@@ -44,19 +44,21 @@ export class TripManager {
     this.engine.planTrip({
       id: record.tripId, from: record.originNode, to: record.destinationNode,
       at: Math.max(this.engine.time, record.departureAt),
-      speedFactor: record.speedFactor
+      speedFactor: record.speedFactor,
+      routeRestrictions: record.routeRestrictions
     });
     record.dispatched = true; record.status = 'scheduled';
   }
   schedule({ tripId, citizenId, originNode, destinationNode, destinationBuildingId = null,
-    departureAt = this.engine.time, purpose = 'outing', speedFactor = 1 }) {
+    departureAt = this.engine.time, purpose = 'outing', speedFactor = 1,
+    routeRestrictions = null }) {
     if (tripId == null || citizenId == null)
       throw new TypeError('tripId and citizenId are required');
     if (this.trips.has(tripId)) throw new Error('trip already exists');
     if (this.activeByCitizen.has(citizenId))
       throw new Error('citizen already has a pending or active trip');
     const record = { tripId, citizenId, originNode, destinationNode,
-      destinationBuildingId, departureAt, purpose, speedFactor,
+      destinationBuildingId, departureAt, purpose, speedFactor, routeRestrictions,
       status:'parking_pending', dispatched:false, error:null, endedAt:null };
     this.trips.set(tripId, record);
     this.activeByCitizen.set(citizenId, tripId);
