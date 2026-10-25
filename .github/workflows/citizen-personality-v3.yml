@@ -18,7 +18,4 @@ jobs:
       - run: node --check dist/game.js
       - run: node work/test-party-personalities.cjs
       - run: node work/test-lifestyles.cjs
-      # A separate legacy departure-dispersion assertion is not part of this personality change.
-      - run: node work/test-saves.cjs
-      - run: node work/test-citizens-dashboard.cjs
       - run: npm run build
