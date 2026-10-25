@@ -40,6 +40,7 @@ export class RoadNetwork {
   constructor({ routeCacheLimit = 2048 } = {}) {
     this.nodes = new Set(); this.edges = new Map(); this.outgoing = new Map();
     this.positions = new Map();
+    this.maxSpeed = 0; this.minLengthPerWorldUnit = Infinity;
     this.forbiddenTurns = new Set(); this.version = 0; this.costVersion = 0;
     this.routeCacheLimit = positive(routeCacheLimit, 'routeCacheLimit');
     this.routeCache = new Map();
@@ -71,7 +72,15 @@ export class RoadNetwork {
     if (!Number.isInteger(lanes) || lanes < 1) throw new RangeError('invalid lane count');
     if (!Number.isFinite(delay) || delay < 0) throw new RangeError('invalid delay');
     const edge = { id, from, to, length, speed, lanes, delay, congestion: 0 };
-    this.edges.set(id, edge); this.outgoing.get(from).push(id); this._invalidate(true);
+    this.edges.set(id, edge); this.outgoing.get(from).push(id);
+    this.maxSpeed = Math.max(this.maxSpeed,speed);
+    const a=this.positions.get(from),b=this.positions.get(to);
+    if(a&&b) {
+      const span=Math.hypot(a.x-b.x,a.y-b.y);
+      if(span>1e-9) this.minLengthPerWorldUnit=Math.min(
+        this.minLengthPerWorldUnit,length/span);
+    }
+    this._invalidate(true);
     return edge;
   }
   removeEdge(id) {
@@ -138,14 +147,24 @@ export class RoadNetwork {
     this.metrics.searches++;
     // Search states include incoming edges, so turn bans and U-turn bans are correct.
     const frontier = new MinHeap(), best = new Map(), previous = new Map();
+    // Admissible A* estimate: an optimistic physical distance / maximum speed.
+    // The network-global scale stays conservative even after an edge is removed.
+    const target=this.positions.get(to);
+    const heuristic = node => {
+      const point=this.positions.get(node);
+      return point && target && this.maxSpeed>0 &&
+        Number.isFinite(this.minLengthPerWorldUnit)
+        ? Math.hypot(point.x-target.x,point.y-target.y)*
+          this.minLengthPerWorldUnit/this.maxSpeed : 0;
+    };
     const stateKey = (node, incoming) => JSON.stringify([node, incoming]);
     const initial = stateKey(from, incomingId);
     best.set(initial, 0);
-    frontier.push({ priority: 0, node: from, incoming: incomingId, key: initial });
+    frontier.push({ priority: heuristic(from), g:0, node: from, incoming: incomingId, key: initial });
     let finish = null;
     while (frontier.size) {
       const current = frontier.pop();
-      if (current.priority !== best.get(current.key)) continue;
+      if (current.g !== best.get(current.key)) continue;
       if (current.node === to) { finish = current; break; }
       for (const id of this.outgoing.get(current.node) ?? []) {
         const edge = this.edges.get(id);
@@ -154,11 +173,12 @@ export class RoadNetwork {
           incomingEdge.from === edge.to ||
           this.forbiddenTurns.has(String(current.incoming) + '>' + String(id))
         )) continue;
-        const nextKey = stateKey(edge.to, id), nextCost = current.priority + this.travelTime(edge);
+        const nextKey = stateKey(edge.to, id), nextCost = current.g + this.travelTime(edge);
         if (nextCost >= (best.get(nextKey) ?? Infinity)) continue;
         best.set(nextKey, nextCost);
         previous.set(nextKey, { prior: current.key, edgeId: id, node: edge.to });
-        frontier.push({ priority: nextCost, node: edge.to, incoming: id, key: nextKey });
+        frontier.push({ priority: nextCost+heuristic(edge.to), g:nextCost,
+          node: edge.to, incoming: id, key: nextKey });
       }
     }
     let result = null;
@@ -172,7 +192,7 @@ export class RoadNetwork {
         const prior = JSON.parse(keyAt); nodes.push(prior[0]);
       }
       edges.reverse(); nodes.reverse();
-      result = { nodes, edges, time: finish.priority };
+      result = { nodes, edges, time: finish.g };
     }
     if (this.routeCache.size >= this.routeCacheLimit) this.routeCache.clear();
     this.routeCache.set(key, result);
