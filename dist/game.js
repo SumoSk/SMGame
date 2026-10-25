@@ -2224,9 +2224,9 @@ const CITIZEN_TRAITS=['ขยัน','สายชิล','สายปาร์
 // Paid citizen technology uses stable citizen IDs, never per-trip rolling.
 const VEHICLE_TECHS=[
  {key:'speed',name:'🏎️ รถเร็ว F1',price:50000,desc:'เร็ว 3 เท่า ไม่แซง'},
- {key:'smart',name:'🧠 รถอัจฉริยะ',price:100000,desc:'เร็ว 3 เท่า หลบคิวอย่างปลอดภัย'},
- {key:'fly',name:'🚀 รถบิน',price:1000000,desc:'ยกตัวจากช่องจอดแล้วบินตรง'},
- {key:'warp',name:'⚡ รถวาป',price:5000000,desc:'ชาร์จลำแสง 20 นาที แล้วถึงเลย'}
+ {key:'smart',name:'🧠 รถอัจฉริยะ F1',price:100000,desc:'เร็ว 3 เท่า หลบคิวอย่างปลอดภัย'},
+ {key:'fly',name:'🚀 รถบิน F1',price:1000000,desc:'ยกตัวจากช่องจอดแล้วบินตรง'},
+ {key:'warp',name:'⚡ รถวาป F1',price:5000000,desc:'ชาร์จลำแสง 20 นาที แล้วถึงเลย'}
 ];
 const freshVehicleTechLevels=()=>Array.from({length:4},()=>({speed:0,smart:0,fly:0,warp:0}));
 function normalizedVehicleTechLevels(raw,unit='percent',savedCitizens=[]){
@@ -2263,7 +2263,7 @@ function vehicleTechCounts(trait){
  return{population:people.length,counts:Object.fromEntries(VEHICLE_TECHS.map(t=>[t.key,people.filter(c=>c.vehicleTech===t.key).length]))};
 }
 function openVehicleUpgrade(){
- const aura={speed:['#ff5265','แดง','รถวิ่งเร็ว'],smart:['#39bbff','ฟ้า','รถฉลาด'],fly:['#f7cb3d','เหลือง','รถลอยได้'],warp:['#40da88','เขียว','รถวาร์ป']};
+ const aura={speed:['#FF1744','แดง','รถวิ่งเร็ว F1'],smart:['#00BFFF','ฟ้า','รถฉลาด F1'],fly:['#FFE600','เหลือง','รถลอยได้ F1'],warp:['#00FF66','เขียว','รถวาร์ป F1']};
  const traits=CITIZEN_TRAITS.map((name,trait)=>{
   const owned=state.vehicleTechLevels[trait],count=vehicleTechCounts(trait);
   const cards=VEHICLE_TECHS.map(tech=>{
