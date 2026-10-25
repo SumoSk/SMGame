@@ -5781,3 +5781,24 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleA
 #dialog .garage-bottom button{background:#263e56;color:#fff;border:1px solid #52718b;border-radius:12px;padding:11px 24px;cursor:pointer}
 @media(max-width:1050px){#dialog .garage-products{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){#dialog:has(.garage-v2)[open]{width:calc(100vw - 12px)!important;max-height:94dvh!important}#dialog .garage-hero{padding:18px;gap:14px}#dialog .garage-wallet{width:100%;min-width:0}#dialog .garage-catalog{padding:14px;gap:22px}#dialog .garage-products{grid-template-columns:1fr;gap:12px}#dialog .garage-product{padding:16px}#dialog .garage-product-symbol{height:52px;font-size:35px}#dialog .garage-group-heading{align-items:flex-start;flex-wrap:wrap}#dialog .garage-product-footer{grid-template-columns:1fr 1fr;align-items:end}#dialog .garage-price strong{font-size:17px}#dialog .garage-bottom{padding:12px 14px}}
+
+
+/* Garage v3: one clean surface. White by default, dark only when theme is on. */
+#dialog:has(.garage-v2)[open]{background:transparent!important;border:0!important;box-shadow:none!important;color:inherit!important}
+#dialog:has(.garage-v2) #dialogContent{background:transparent!important;padding:0!important;border:0!important;box-shadow:none!important}
+#dialog .garage-v2{--g-bg:#fff;--g-header:#f3f7fc;--g-card:#fff;--g-line:#dce6f1;--g-text:#16263a;--g-muted:#52677e;--g-button:#126b9b;--g-button-text:#fff;--g-bottom:#f5f8fc;background:var(--g-bg)!important;color:var(--g-text)!important;border:1px solid var(--g-line);border-radius:20px;overflow:hidden}
+#dialog .garage-v2 .garage-hero{background:var(--g-header)!important;border-bottom:1px solid var(--g-line)!important;color:var(--g-text)!important}
+#dialog .garage-v2 .garage-hero h2,#dialog .garage-v2 .garage-group-heading h3,#dialog .garage-v2 .garage-product-type,#dialog .garage-v2 .garage-product-stats strong,#dialog .garage-v2 .garage-price strong{color:var(--g-text)!important}
+#dialog .garage-v2 .garage-hero p,#dialog .garage-v2 .garage-group-heading span,#dialog .garage-v2 .garage-aura,#dialog .garage-v2 .garage-product-stats small,#dialog .garage-v2 .garage-price small,#dialog .garage-v2 .garage-hero small,#dialog .garage-v2 .garage-wallet small{color:var(--g-muted)!important;opacity:1!important}
+#dialog .garage-v2 .garage-wallet,#dialog .garage-v2 .garage-product{background:var(--g-card)!important;border:1px solid var(--g-line)!important;box-shadow:none!important}
+#dialog .garage-v2 .garage-product{border-top:3px solid var(--garage-accent)!important}
+#dialog .garage-v2 .garage-wallet strong{color:#116f62!important}
+#dialog .garage-v2 .garage-product-stats{border-color:var(--g-line)!important}
+#dialog .garage-v2 .garage-buy{background:var(--g-button)!important;color:var(--g-button-text)!important}
+#dialog .garage-v2 .garage-buy:hover:not(:disabled){filter:brightness(1.12)}
+#dialog .garage-v2 .garage-bottom{background:var(--g-bottom)!important;border-color:var(--g-line)!important}
+#dialog .garage-v2 .garage-bottom button{background:#fff!important;color:#263d55!important;border:1px solid #b5c7db!important}
+:root.smcity-gray-ui #dialog .garage-v2{--g-bg:#0d1727;--g-header:#13243d;--g-card:#1b2d45;--g-line:#405771;--g-text:#f5f9ff;--g-muted:#cad9e9;--g-button:#a1e9f8;--g-button-text:#092133;--g-bottom:#14243a}
+:root.smcity-gray-ui #dialog .garage-v2 .garage-wallet strong{color:#a2f1dc!important}
+:root.smcity-gray-ui #dialog .garage-v2 .garage-bottom button{background:#263e56!important;color:#fff!important;border-color:#64809b!important}
+#dialog .garage-v2 .garage-product-stats strong,#dialog .garage-v2 .garage-price strong{overflow-wrap:anywhere;white-space:normal!important}
