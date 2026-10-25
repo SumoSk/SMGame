@@ -22,7 +22,10 @@ const PALM_FROND=(()=>{
 })();
 const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND];
 const CAR_DIAMOND=new THREE.OctahedronGeometry(1,0);
-const CAR_TECH_AURA=new THREE.SphereGeometry(1,12,8),CAR_WARP_BEAM=new THREE.CylinderGeometry(1,1,1,16,1,true);
+// One tapered GPU-instanced light streak per beam; no floating glow spheres.
+const CAR_TECH_STREAK=(()=>{const g=new THREE.ConeGeometry(.044,.60,4,1,true);g.rotateZ(-Math.PI/2);return g;})();
+const CAR_WARP_BEAM=new THREE.CylinderGeometry(1,1,1,16,1,true);
+const VEHICLE_TECH_COLORS=Object.freeze({speed:'#FF1744',smart:'#00BFFF',fly:'#FFE600',warp:'#00FF66'});
 const UP=new THREE.Vector3(0,1,0),TAU=Math.PI*2;
 const DAYLIGHT=[
  [0,'#1a2941','#adc4e5',.35,.78,.64,1],[180,'#101d34','#8b9fc6',.26,.68,.57,1],
@@ -229,8 +232,8 @@ const VEHICLE_PALETTES=[
  ['#fc442a','#fd7129','#fb5727'] // three red-orange F1 finishes
 ];
 function carClassFor(c,id,tech=null){
+ if(Object.hasOwn(VEHICLE_TECH_COLORS,tech))return 9;
  if(c?.tourist)return 8;
- if(tech==='speed')return 9;
  const group=Math.max(0,Math.min(3,c?.profile?.trait??0)),weights=VEHICLE_WEIGHTS[group];
  let n=hash((c?.id??id)*1.013+37,59)*100;
  for(let i=0;i<weights.length;i++){n-=weights[i];if(n<0)return i;}
@@ -260,6 +263,79 @@ function carGeometries(style){
   if(rot)geo.rotateZ(rot);geo.translate(x,y,z);
   parts.push({color,geo});
  };
+ // SMCITY 4.2.1: custom F1-only silhouette (no saloon cabin, doors or roof).
+ // This changes visual geometry only, never vehicle physics or collision rules.
+ if(f1){
+  const wedge=(parts,color,x0,x1,y0,y1,w0,w1)=>{
+   const vertices=[
+    x0,y0,-w0/2, x0,y0,w0/2, x1,y0,-w1/2, x1,y0,w1/2,
+    x0,y1,-w0/2, x0,y1,w0/2, x1,y1,-w1/2, x1,y1,w1/2
+   ];
+   const geom=new THREE.BufferGeometry();
+   geom.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+   geom.setIndex([0,2,1,1,2,3,4,5,6,5,7,6,0,4,2,4,6,2,1,3,5,5,3,7,0,1,4,4,1,5,2,6,3,6,7,3]);
+   geom.computeVertexNormals();parts.push({color,geo:geom});
+  };
+  // Tapered carbon monocoque and visibly pointed nose.
+  wedge(paint,'#ffffff',-.29,.055,.135,.202,.175,.158);
+  wedge(paint,'#ffffff',.048,.373,.142,.194,.139,.032);
+  box(paint,'#ffffff',-.185,.180,0,.245,.075,.158);
+  box(detail,'#17212c',-.23,.124,0,.27,.024,.186); // floor / diffuser
+  // Prominent sidepods, aero inlets and lower side wings.
+  for(const sign of [-1,1]){
+   box(paint,'#ffffff',-.085,.184,sign*.110,.288,.056,.085);
+   box(detail,'#1b2734',-.044,.207,sign*.158,.068,.029,.024);
+   box(detail,'#222b38',-.115,.127,sign*.154,.256,.016,.053);
+   box(detail,'#dce8ec',.080,.199,sign*.116,.146,.012,.012);
+   box(detail,'#141e29',-.32,.154,sign*.118,.112,.047,.027);
+  }
+  // Open cockpit, driver helmet and F1 halo safety structure.
+  box(detail,'#0a1722',-.095,.249,0,.190,.012,.116);
+  const helmet=new THREE.SphereGeometry(.039,10,7);helmet.translate(-.115,.274,0);
+  detail.push({color:'#f4f8ff',geo:helmet});
+  box(detail,'#121c27',-.070,.308,0,.138,.015,.016);
+  for(const sign of [-1,1]){
+   box(detail,'#121c27',-.007,.278,sign*.049,.017,.072,.015,.23);
+   box(detail,'#18232d',-.235,.298,sign*.022,.090,.014,.016);
+  }
+  box(paint,'#ffffff',-.244,.268,0,.076,.081,.112); // airbox
+  box(detail,'#131e29',-.209,.313,0,.032,.019,.076);
+  // Three-element front wing: colored main blade, black splitter and endplates.
+  box(paint,'#ffffff',.386,.114,0,.090,.025,.375);
+  box(detail,'#19232e',.423,.104,0,.028,.013,.404);
+  box(paint,'#ffffff',.326,.134,0,.041,.013,.321);
+  for(const sign of [-1,1]){
+   box(detail,'#141d27',.382,.135,sign*.196,.106,.056,.013);
+   box(detail,'#212d39',.302,.128,sign*.115,.071,.011,.038);
+  }
+  // Elevated rear wing, twin uprights and diffuser vanes.
+  box(detail,'#18212d',-.392,.319,0,.102,.022,.355);
+  box(paint,'#ffffff',-.375,.337,0,.080,.014,.321);
+  for(const sign of [-1,1]){
+   box(detail,'#17212a',-.393,.307,sign*.175,.110,.084,.015);
+   box(detail,'#253544',-.342,.244,sign*.086,.022,.137,.016);
+   box(detail,'#1b2732',-.353,.139,sign*.100,.100,.012,.065);
+  }
+  box(detail,'#ff4b49',-.424,.234,0,.013,.032,.034); // rain light
+  // Four separate exposed Pirelli-style tyres with wheel faces and center hubs.
+  for(const axle of [.244,-.234])for(const sign of [-1,1]){
+   const zz=sign*.188;
+   const tyre=new THREE.CylinderGeometry(.072,.072,.064,14);
+   tyre.rotateX(Math.PI/2);tyre.translate(axle,.114,zz);
+   detail.push({color:'#0d131b',geo:tyre});
+   const rim=new THREE.CylinderGeometry(.039,.039,.067,12);
+   rim.rotateX(Math.PI/2);rim.translate(axle,.114,zz+sign*.004);
+   detail.push({color:'#82949c',geo:rim});
+   const hub=new THREE.CylinderGeometry(.014,.014,.070,10);
+   hub.rotateX(Math.PI/2);hub.translate(axle,.114,zz+sign*.007);
+   detail.push({color:'#283d49',geo:hub});
+   for(const ang of [0,Math.PI/3,2*Math.PI/3]){
+    const spoke=new THREE.BoxGeometry(.062,.008,.008);
+    spoke.rotateZ(ang);spoke.translate(axle,.114,zz+sign*.039);
+    detail.push({color:'#d2e4eb',geo:spoke});
+   }
+  }
+ }else{
  // Layered, slightly tapered body with rocker, hood, rear boot and bumpers.
  box(paint,'#ffffff',0,.163,0,length,height*.82,width*.955);
  box(paint,'#ffffff',0,top-.038,0,length*.94,.055,width*.93);
@@ -417,6 +493,7 @@ function carGeometries(style){
   box(detail,'#f6eabc',cabinX+.04,roofTop+.087,0,.050,.010,.075);
   for(const sign of [-1,1])for(let k=0;k<5;k++)
    box(detail,k%2?'#1b3035':'#fbf7e6',cabinX-.045+k*.033,.160,sign*width*.493,.026,.025,.011);
+ }
  }
  const merge=parts=>{
   const positions=[],normals=[],colors=[];
@@ -5984,16 +6061,17 @@ export class TrafficRenderer{
     this.carLODStats.culled++;return;
    }
    const tech=v?.vehicleTech??c?.vehicleTech??'normal';
-   const kind=carClassFor(c,id,tech),car={x,z,angle,color:tech==='speed'?'#ff5b24':carPaintFor(c,id,kind,fallback),kind,altitude};
-   if(['speed','smart','fly','warp'].includes(tech))techEffects.push({x,z,altitude,tech});
+   const upgraded=Object.hasOwn(VEHICLE_TECH_COLORS,tech);
+   const kind=carClassFor(c,id,tech),car={x,z,angle,color:upgraded?VEHICLE_TECH_COLORS[tech]:carPaintFor(c,id,kind,fallback),kind,altitude};
    const apparentLength=VEHICLE_STYLES[kind][0]*pixelsPerUnit;
    const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
    // Low uses the cheapest proxy at every distance, while preserving car picking.
-   const level=this.graphicQuality==='veryHigh'?'near':
+   const level=upgraded?'near':this.graphicQuality==='veryHigh'?'near':
     this.graphicQuality==='low'?'far':
     apparentLength>=22&&distance<=Math.max(24,12/Math.max(.1,cam?.z??1))
      ?'near':apparentLength>=10?'medium':'far';
+   if(upgraded)techEffects.push({x,z,angle,altitude,tech,distance});
    if(level==='near')groups[kind].push(car);
    else if(level==='medium')medium.push(car);
    else far.push(car);
@@ -6056,17 +6134,22 @@ export class TrafficRenderer{
    if(set.body.instanceColor)set.body.instanceColor.needsUpdate=true;
   }
  }
+ // Per-theme GPU-instanced body sheen and three tapered light streaks.
+ // No animated sprites, spherical particles, point lights or vehicle-state writes.
  ensureCarTechMesh(key,needed){
   let m=this.carTechMeshes?.get(key);
   if(needed===0)return m||null;
   if(m&&m.instanceMatrix.count>=needed)return m;
   if(m){this.scene.remove(m);m.material.dispose();m.dispose();}
   const cap=Math.max(16,2**Math.ceil(Math.log2(needed)));
-  const beam=key==='beam';
-  m=new THREE.InstancedMesh(beam?CAR_WARP_BEAM:CAR_TECH_AURA,
-   new THREE.MeshBasicMaterial({color:({beam:'#56d6ff',speed:'#ff3030',smart:'#19aaff',fly:'#ffdd26',warp:'#29e66b'})[key]||'#ffffff',
-    transparent:true,opacity:beam?.24:.46,blending:THREE.AdditiveBlending,
-    depthWrite:false,depthTest:true,toneMapped:false,side:THREE.DoubleSide}),cap);
+  const [tech,layer='beam']=key.split(':'),beam=layer==='beam',glow=layer==='glow';
+  const geometry=beam?CAR_WARP_BEAM:glow?this.carModels[9].body:CAR_TECH_STREAK;
+  m=new THREE.InstancedMesh(geometry,new THREE.MeshBasicMaterial({
+   color:VEHICLE_TECH_COLORS[tech]||VEHICLE_TECH_COLORS.warp,
+   transparent:true,opacity:beam?.22:glow?.22:.44,
+   blending:THREE.AdditiveBlending,depthWrite:false,depthTest:true,toneMapped:false,
+   side:THREE.DoubleSide
+  }),cap);
   m.count=0;m.visible=false;m.frustumCulled=false;m.renderOrder=4;
   m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   this.scene.add(m);
@@ -6075,23 +6158,53 @@ export class TrafficRenderer{
  }
  updateCarTechEffects(records,warpPoints){
   const d=this.carDummy;
-  for(const key of ['speed','smart','fly','warp','beam']){
-   const items=key==='beam'?warpPoints:records.filter(r=>r.tech===key);
-   const m=this.ensureCarTechMesh(key,items.length);
-   if(!m)continue;
-   m.count=items.length;m.visible=items.length>0;
-   for(let i=0;i<items.length;i++){
-    const car=items[i];
-    if(key==='beam'){
-     d.position.set(car.x-.5,3.5,car.y-.5);d.rotation.set(0,0,0);
-     d.scale.set(.30,7,.30);
-    }else{
-     d.position.set(car.x,(car.altitude||0)+.32,car.z);
-     d.rotation.set(0,0,0);d.scale.set(.57,.31,.40);
+  const groups={speed:[],smart:[],fly:[],warp:[]};
+  for(const r of records)if(groups[r.tech])groups[r.tech].push(r);
+  // Bound the expensive animated streaks; retain the F1 body and color for every upgraded vehicle.
+  const streakLimit=this.graphicQuality==='low'?48:this.graphicQuality==='medium'?160:260;
+  const time=Date.now()*.0018;
+  for(const tech of Object.keys(groups)){
+   const items=groups[tech],glow=this.ensureCarTechMesh(tech+':glow',items.length);
+   if(glow){
+    glow.count=items.length;glow.visible=items.length>0;
+    for(let i=0;i<items.length;i++){
+     const car=items[i],pulse=1.026+.013*Math.sin(time+i*.38);
+     d.position.set(car.x,(car.altitude||0)+.002,car.z);
+     d.rotation.set(0,-car.angle,0);d.scale.set(pulse,pulse,pulse);d.updateMatrix();
+     glow.setMatrixAt(i,d.matrix);
     }
-    d.updateMatrix();m.setMatrixAt(i,d.matrix);
+    if(items.length)glow.instanceMatrix.needsUpdate=true;
    }
-   if(items.length)m.instanceMatrix.needsUpdate=true;
+   // Closest cars receive brighter side and tail streaks without a particle swarm.
+   const count=Math.min(items.length,streakLimit);
+   const streak=this.ensureCarTechMesh(tech+':trail',count*3);
+   if(!streak)continue;
+   streak.count=count*3;streak.visible=count>0;
+   // Sorting runs only for the small bounded effect set; simulation state stays untouched.
+   const shown=items.length>count?items.slice().sort((a,b)=>a.distance-b.distance).slice(0,count):items;
+   for(let i=0;i<shown.length;i++){
+    const car=shown[i],cos=Math.cos(car.angle),sin=Math.sin(car.angle);
+    const pulse=.94+.10*Math.sin(time*1.7+i*.73);
+    for(let j=0;j<3;j++){
+     const localX=j===2?-.46:-.29,localZ=j===2?0:(j===0?-.15:.15);
+     d.position.set(car.x+cos*localX-sin*localZ,(car.altitude||0)+.16,
+      car.z+sin*localX+cos*localZ);
+     d.rotation.set(0,-car.angle,0);d.scale.set(pulse,j===2?.70:.86,j===2?.70:.85);
+     d.updateMatrix();streak.setMatrixAt(i*3+j,d.matrix);
+    }
+   }
+   if(count)streak.instanceMatrix.needsUpdate=true;
+  }
+  // Original warp destination guide remains functional, now matching warp green.
+  const beam=this.ensureCarTechMesh('warp:beam',warpPoints.length);
+  if(beam){
+   beam.count=warpPoints.length;beam.visible=warpPoints.length>0;
+   for(let i=0;i<warpPoints.length;i++){
+    const p=warpPoints[i];
+    d.position.set(p.x-.5,3.5,p.y-.5);d.rotation.set(0,0,0);d.scale.set(.30,7,.30);
+    d.updateMatrix();beam.setMatrixAt(i,d.matrix);
+   }
+   if(warpPoints.length)beam.instanceMatrix.needsUpdate=true;
   }
  }
  updateCarIndicators(records,showDiamonds=true){
