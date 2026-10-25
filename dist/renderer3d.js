@@ -6158,7 +6158,16 @@ export class TrafficRenderer{
  const buildKey=[state.buildings.size,...[...state.buildings.values()].map(b=>[b.id,b.x,b.y,b.rotation].join(','))].join(':');
  const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}if(this.graphicQuality==='low'){this.treeGroup.visible=false;}
  else{this.treeGroup.visible=true;this.trees(state,cam);}
- this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview);
+ this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);
+  // Traffic heatmap is a map-only view: do not draw vehicle meshes or markers.
+  if(heat){
+   for(const set of this.carSets.values())for(const mesh of [set.body,set.trim,set.headlights,set.taillights,set.lightSpill])mesh.count=0;
+   for(const set of this.carLODSets.values())for(const mesh of [set.body,set.roof])if(mesh)mesh.count=0;
+   for(const mesh of this.carTechMeshes?.values()||[])mesh.count=0;
+   if(this.carMarkerMesh)this.carMarkerMesh.count=0;
+   if(this.carSelectionFrame)this.carSelectionFrame.visible=false;
+  }
+  this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview);
  this.updateSignals(signalColor);this.updateAISignalGlow(state);this.updateGrandSignals();this.updateWeatherLight(state);
  this.updateBuildingDetailLOD(cam);
  const visualNow=performance.now()*.001;
