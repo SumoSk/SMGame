@@ -422,10 +422,19 @@ function carGeometries(style){
 }
 
 class Batch{
- constructor(){this.data=new Map();this.group=new THREE.Group();}
- add(geo,color,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0,buildingId=null,glow=false,finish='matte'){const key=geo.uuid+color+(glow?'@light':'')+finish;if(!this.data.has(key))this.data.set(key,{geo,color,glow,finish,items:[]});this.data.get(key).items.push({x,y,z,sx,sy,sz,rx,ry,rz,buildingId});}
+ constructor({detailGroups=false}={}){this.data=new Map();this.group=new THREE.Group();this.detailGroups=detailGroups;}
+ add(geo,color,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0,buildingId=null,glow=false,finish='matte'){
+ const maxSize=Math.max(Math.abs(sx),Math.abs(sy),Math.abs(sz));
+ const minSize=Math.min(Math.abs(sx),Math.abs(sy),Math.abs(sz));
+ // Separate only tiny architectural trims, not walls, roofs, windows, parking paint or doors.
+ const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&
+   ((minSize<.045&&maxSize<.85)||(maxSize<.35&&Math.abs(sx*sy*sz)<.00065));
+ const key=geo.uuid+color+(glow?'@light':'')+finish+(this.detailGroups?(fine?'@detail':'@base'):'');
+ if(!this.data.has(key))this.data.set(key,{geo,color,glow,finish,fine,items:[]});
+ this.data.get(key).items.push({x,y,z,sx,sy,sz,rx,ry,rz,buildingId});
+}
  box(color,x,y,z,sx,sy,sz,ry=0,id=null,glow=false,finish='matte'){this.add(BOX,color,x,y,z,sx,sy,sz,0,ry,0,id,glow,finish);}
- build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=new THREE.MeshStandardMaterial({color,roughness:glow?.4:roughness,metalness,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){material.emissive.set(color);material.emissiveIntensity=1.6;material.toneMapped=false;}
+ build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,fine=false,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=new THREE.MeshStandardMaterial({color,roughness:glow?.4:roughness,metalness,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){material.emissive.set(color);material.emissiveIntensity=1.6;material.toneMapped=false;}
  if(finish==='foliage'||finish==='bark'){
   material.roughness=finish==='foliage'?.95:.92;
   if(finish==='foliage')material.side=THREE.DoubleSide;
@@ -440,7 +449,7 @@ class Batch{
   };
   material.customProgramCacheKey=()=>finish==='bark'?'landscape-bark-v1':'landscape-foliage-v1';
  }
- const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.baseColor=color;mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
+ const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.baseColor=color;mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
 
 export class TrafficRenderer{
@@ -448,9 +457,32 @@ export class TrafficRenderer{
  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.96;
  this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new THREE.OrthographicCamera(-30,30,20,-20,.1,500);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#e8f7ff','#698057',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
  this.ray=new THREE.Raycaster();this.ground=new THREE.Plane(UP,0);this.ndc=new THREE.Vector2();this.point=new THREE.Vector3();this.lastKey='';this.roadKey='';this.buildKey='';this.treeKey='';this.previewKey='';this.buildingMeshes=null;this.cameraKey='';this.cam=null;this.w=innerWidth;this.h=innerHeight;this.materials=[];
+ this.graphicQuality='medium';this.lastBuildingDetailLevel=null;
  this.roadGroup=new THREE.Group();this.buildingGroup=new THREE.Group();this.treeGroup=new THREE.Group();this.previewGroup=new THREE.Group();this.signalGroup=new THREE.Group();this.lampGroup=new THREE.Group();this.scene.add(this.roadGroup,this.buildingGroup,this.treeGroup,this.previewGroup,this.signalGroup,this.lampGroup);this.createCars();this.createRoute();this.createAtmosphere();this.resize();
  }
  disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.geometry&&!SHARED_RENDER_GEOMETRIES.includes(x.geometry))x.geometry.dispose();});}}
+ setGraphicQuality(value){
+  if(!['veryHigh','medium','low'].includes(value))return false;
+  if(this.graphicQuality===value)return true;
+  this.graphicQuality=value;
+  // Low deliberately renders into a smaller framebuffer: softer image at every zoom.
+  const ratio=value==='low'?.72:Math.min(devicePixelRatio||1,1.6);
+  this.renderer.setPixelRatio(ratio);
+  this.lastBuildingDetailLevel=null;
+  this.treeGroup.visible=value!=='low';
+  this.resize();
+  return true;
+ }
+ updateBuildingDetailLOD(cam){
+  const level=this.graphicQuality==='veryHigh'?'full':
+   this.graphicQuality==='low'?'light':
+   cam.z<1.35?'light':'full';
+  if(this.lastBuildingDetailLevel===level)return;
+  this.lastBuildingDetailLevel=level;
+  this.buildingGroup.traverse(mesh=>{
+   if(mesh.userData?.fineBuildingDetail)mesh.visible=level==='full';
+  });
+ }
  resize(){this.w=innerWidth;this.h=innerHeight;this.renderer.setSize(this.w,this.h,false);if(this.cam)this.updateCamera(this.cam);}
  createAtmosphere(){
   // Keep the city unobstructed at every hour: no atmospheric fog/haze.
@@ -5791,10 +5823,11 @@ export class TrafficRenderer{
 
  makeBuildings(state,CATALOG,KINDS){
   this.disposeGroup(this.buildingGroup);
-  const batch=new Batch();this.grandSignalLights=[];
+  const batch=new Batch({detailGroups:true});this.grandSignalLights=[];
   for(const building of state.buildings.values())this.building(batch,building,CATALOG,KINDS);
   this.buildingGroup.add(batch.build());
   this.createFactoryEffects(batch.factoryEffects||[]);
+  this.lastBuildingDetailLevel=null;
   this.lastNightVisibility=-1;
  }
  updateGrandSignals(){}
@@ -5899,8 +5932,12 @@ export class TrafficRenderer{
    const kind=carClassFor(c,id),car={x,z,angle,color:carPaintFor(c,id,kind,fallback),kind};
    const apparentLength=VEHICLE_STYLES[kind][0]*pixelsPerUnit;
    const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
-   const level=apparentLength>=14&&distance<=Math.max(38,18/Math.max(.1,cam?.z??1))
-    ?'near':apparentLength>=6?'medium':'far';
+   // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
+   // Low uses the cheapest proxy at every distance, while preserving car picking.
+   const level=this.graphicQuality==='veryHigh'?'near':
+    this.graphicQuality==='low'?'far':
+    apparentLength>=22&&distance<=Math.max(24,12/Math.max(.1,cam?.z??1))
+     ?'near':apparentLength>=10?'medium':'far';
    if(level==='near')groups[kind].push(car);
    else if(level==='medium')medium.push(car);
    else far.push(car);
@@ -6023,8 +6060,11 @@ export class TrafficRenderer{
  }
  render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}
  const buildKey=[state.buildings.size,...[...state.buildings.values()].map(b=>[b.id,b.x,b.y,b.rotation].join(','))].join(':');
- const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}this.trees(state,cam);this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview);
+ const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}if(this.graphicQuality==='low'){this.treeGroup.visible=false;}
+ else{this.treeGroup.visible=true;this.trees(state,cam);}
+ this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview);
  this.updateSignals(signalColor);this.updateGrandSignals();this.updateWeatherLight(state);
+ this.updateBuildingDetailLOD(cam);
  const visualNow=performance.now()*.001;
  if(this.landscapeClock)this.landscapeClock.value=visualNow;
  this.updateFactoryEffects(state,cam,visualNow);
