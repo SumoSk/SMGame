@@ -9,7 +9,8 @@
     "build": "node work/build-ipad-styles.cjs && node work/build-member.cjs && node work/build-release.cjs",
     "test:tourism": "node work/test-tourism.cjs && node work/test-tourism-renderer.cjs",
     "test:v25": "node work/test-v25.cjs && node work/test-lifestyles.cjs && node work/test-road-erase-stroke.cjs",
-    "test:v251": "node work/test-v251.cjs && node work/test-v251-schedule.cjs && node work/test-casinos.cjs && node work/test-lifestyles.cjs"
+    "test:v251": "node work/test-v251.cjs && node work/test-v251-schedule.cjs && node work/test-casinos.cjs && node work/test-lifestyles.cjs",
+    "test:performance": "node work/test-performance.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0"
