@@ -1973,7 +1973,16 @@ function toggleAIPinLabels(){
  if(aiPinsVisible){aiPinLast=-Infinity;updateAISignalPins();}
 }
 const aiPinToggle=$('toggleAIPins');
-if(aiPinToggle)aiPinToggle.onclick=toggleAIPinLabels;
+if(aiPinToggle){
+ aiPinToggle.onclick=toggleAIPinLabels;
+ if(!aiPinsVisible){
+  aiPinToggle.classList.add('is-hidden');
+  aiPinToggle.setAttribute('aria-pressed','true');
+  aiPinToggle.setAttribute('aria-label','เปิดป้าย AI เหนือทางแยก');
+  aiPinToggle.title='แสดงป้าย AI เหนือทางแยก';
+  if($('toggleAIPinsText'))$('toggleAIPinsText').textContent='เปิด AI';
+ }
+}
 function activateAISignalPin(node){
  if(!state.roads.has(node)||junction(node)<3)return false;
  const now=Date.now();
