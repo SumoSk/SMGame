@@ -6021,6 +6021,15 @@ export class TrafficRenderer{
   }
   const made={capacity,body,roof};this.carLODSets.set(level,made);return made;
  }
+ // Keep one pending upload range, including changes while a light mesh is hidden.
+ // Moving cars precede parked cars, so unchanged parking suffixes stay on the GPU.
+ dirtyCarInstances(attribute,index,count=1){
+  const start=index*attribute.itemSize,end=start+count*attribute.itemSize;
+  if(attribute.updateRanges.length){const range=attribute.updateRanges[0],last=Math.max(range.start+range.count,end);range.start=Math.min(range.start,start);range.count=last-range.start;}
+  else attribute.addUpdateRange(start,end-start);
+  attribute.needsUpdate=true;
+ }
+ sameCarPose(a,b){return !!a&&a.x===b.x&&a.z===b.z&&a.angle===b.angle&&a.altitude===b.altitude;}
  updateSimpleCars(level,items){
   const old=this.carLODSets.get(level);
   if(!items.length){
@@ -6028,24 +6037,23 @@ export class TrafficRenderer{
    return;
   }
   const set=this.ensureCarLODSet(level,items.length),dummy=this.carDummy;
+  set.lastCars??=[];
   for(let i=0;i<items.length;i++){
-   const car=items[i];
-   const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[car.kind];
-   dummy.position.set(car.x,.163+(car.altitude||0),car.z);
-   dummy.rotation.set(0,-car.angle,0);
-   dummy.scale.set(length,height*.82,width*.96);
-   dummy.updateMatrix();
-   set.body.setMatrixAt(i,dummy.matrix);set.body.setColorAt(i,this.carTint.set(car.color));
-   if(set.roof){
-    const roofX=cabinX,cos=Math.cos(car.angle),sin=Math.sin(car.angle);
-    dummy.position.set(car.x+roofX*cos,.165+(car.altitude||0)+height*.5+cabinH*.39,car.z+roofX*sin);
-    dummy.scale.set(cabinL,cabinH*.78,width*.80);
-    dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);
+   const car=items[i],old=set.lastCars[i],moved=!this.sameCarPose(old,car),painted=!old||old.color!==car.color||old.kind!==car.kind;
+   if(moved||!old||old.kind!==car.kind){
+    const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[car.kind];
+    dummy.position.set(car.x,.163+(car.altitude||0),car.z);dummy.rotation.set(0,-car.angle,0);dummy.scale.set(length,height*.82,width*.96);dummy.updateMatrix();
+    set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
+    if(set.roof){
+     const cos=Math.cos(car.angle),sin=Math.sin(car.angle);
+     dummy.position.set(car.x+cabinX*cos,.165+(car.altitude||0)+height*.5+cabinH*.39,car.z+cabinX*sin);
+     dummy.scale.set(cabinL,cabinH*.78,width*.80);dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
+    }
    }
+   if(painted){set.body.setColorAt(i,this.carTint.set(car.color));this.dirtyCarInstances(set.body.instanceColor,i);}
+   set.lastCars[i]=car;
   }
-  set.body.count=items.length;set.body.instanceMatrix.needsUpdate=true;
-  if(set.body.instanceColor)set.body.instanceColor.needsUpdate=true;
-  if(set.roof){set.roof.count=items.length;set.roof.instanceMatrix.needsUpdate=true;}
+  set.lastCars.length=items.length;set.body.count=items.length;if(set.roof)set.roof.count=items.length;
  }
  // Cache stationary parking geometry; appearance and visibility remain live.
  parkedCarPose(b,id){
@@ -6125,12 +6133,14 @@ export class TrafficRenderer{
   for(let kind=0;kind<groups.length;kind++){
    const items=groups[kind],old=this.carSets.get(kind);
    if(!items.length){if(old){old.body.count=0;old.trim.count=0;old.headlights.count=0;old.taillights.count=0;old.lightSpill.count=0;}continue;}
-   const set=this.ensureCarSet(kind,items.length);
+   const set=this.ensureCarSet(kind,items.length);set.lastCars??=[];
    for(let i=0;i<items.length;i++){
-    const car=items[i];this.carDummy.position.set(car.x,car.altitude||0,car.z);this.carDummy.rotation.set(0,-car.angle,0);
+    const car=items[i],old=set.lastCars[i],moved=!this.sameCarPose(old,car);
+    if(!old||old.color!==car.color){set.body.setColorAt(i,this.carTint.set(car.color));this.dirtyCarInstances(set.body.instanceColor,i);}
+    set.lastCars[i]=car;if(!moved)continue;
+    this.carDummy.position.set(car.x,car.altitude||0,car.z);this.carDummy.rotation.set(0,-car.angle,0);
     this.carDummy.scale.set(1,1,1);this.carDummy.updateMatrix();
     set.body.setMatrixAt(i,this.carDummy.matrix);set.trim.setMatrixAt(i,this.carDummy.matrix);
-    set.body.setColorAt(i,this.carTint.set(car.color));
     const [length,width]=VEHICLE_STYLES[kind],cos=Math.cos(car.angle),sin=Math.sin(car.angle);
     for(const sign of [-1,1]){
      // Car model faces +X in local space; side offsets rotate with the body.
@@ -6151,11 +6161,12 @@ export class TrafficRenderer{
     this.carLightDummy.scale.set((car.altitude||0)>1?.001:.31,.008,(car.altitude||0)>1?.001:.21);
     this.carLightDummy.updateMatrix();
     set.lightSpill.setMatrixAt(i,this.carLightDummy.matrix);
+    for(const mesh of [set.body,set.trim,set.lightSpill])this.dirtyCarInstances(mesh.instanceMatrix,i);
+    for(const mesh of [set.headlights,set.taillights])this.dirtyCarInstances(mesh.instanceMatrix,i*2,2);
    }
-   for(const mesh of [set.body,set.trim]){mesh.count=items.length;mesh.instanceMatrix.needsUpdate=true;}
-   for(const mesh of [set.headlights,set.taillights]){mesh.count=items.length*2;mesh.instanceMatrix.needsUpdate=true;}
-   set.lightSpill.count=items.length;set.lightSpill.instanceMatrix.needsUpdate=true;
-   if(set.body.instanceColor)set.body.instanceColor.needsUpdate=true;
+   set.lastCars.length=items.length;
+   for(const mesh of [set.body,set.trim,set.lightSpill])mesh.count=items.length;
+   for(const mesh of [set.headlights,set.taillights])mesh.count=items.length*2;
   }
  }
  // Per-theme GPU-instanced body sheen and three tapered light streaks.
