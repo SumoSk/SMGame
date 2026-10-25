@@ -150,7 +150,7 @@ export class EventScheduler {
   drain(until, handler) {
     let processed = 0;
     // Event actions may schedule another event, but cap guards accidental infinite loops.
-    while (this.queue.size && this.queue.items[0].at <= until) {
+    while (this.queue.size && this.queue.items[0].at <= until + 1e-9) {
       if (++processed > 100000) throw new Error('event scheduling loop');
       handler(this.queue.pop());
     }
