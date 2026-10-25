@@ -62,6 +62,11 @@ const {pathToFileURL}=require('node:url');
  const {game,get,context}=new Function('require',fixture+'return boot();')(require);
  const switchButton=get('toggleCarDiamonds'),caption=get('toggleCarDiamondsText');
  assert.equal(typeof switchButton.onclick,'function');
+ // Guarantee an onscreen moving pose regardless of starter-map camera presets.
+ game.state.vehicles.set('lod-test-2d',{
+  id:'lod-test-2d',phase:'parking_in',lotDistance:0,
+  lotPath:[{x:game.cam.x,y:game.cam.y},{x:game.cam.x+1,y:game.cam.y}]
+ });
  game.drawCarIndicators2D();
  const before2D=game.canvasCarMarkerHits.length;
  assert.ok(before2D>0,'default 2D mode has visible markers in starter city');
