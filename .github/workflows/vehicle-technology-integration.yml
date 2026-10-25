@@ -1,0 +1,25 @@
+name: Vehicle technology integration checks
+on:
+  push:
+    branches: [feature-vehicle-tech-four-traits]
+  workflow_dispatch:
+jobs:
+  upgrade-integration:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node --check dist/renderer3d.js
+      - run: node work/test-vehicle-technology.cjs
+      - run: node work/test-party-personalities.cjs
+      - run: node work/test-lifestyles.cjs
+      - run: node work/test-ai-pin-interaction.cjs
+      - run: node work/test-lane-change-safety.cjs
+      - run: npm run build
