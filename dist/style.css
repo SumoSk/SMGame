@@ -5614,7 +5614,7 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleC
 
 
 /* AI signal upgrade pins: always directly tappable above a visible intersection. */
-.ai-junction-overlay{position:fixed;inset:0;pointer-events:none;z-index:15;overflow:hidden;}
+.ai-junction-overlay{position:fixed;inset:0;pointer-events:none;z-index:21;overflow:hidden;}
 .ai-junction-pin{
  position:absolute;transform:translate(-50%,-110%);
  display:inline-flex;align-items:center;justify-content:center;
@@ -5625,10 +5625,10 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleC
  font:800 12px/1 system-ui,-apple-system,sans-serif;
  letter-spacing:.04em;white-space:nowrap;cursor:pointer;
  pointer-events:auto;touch-action:manipulation;
- transition:background .16s,box-shadow .16s,scale .16s;
+ transition:background .16s,box-shadow .16s; user-select:none;-webkit-user-select:none;min-height:32px;
 }
 .ai-junction-pin:hover,.ai-junction-pin:focus-visible{
- scale:1.12;outline:2px solid #e6faff;outline-offset:2px;
+ outline:2px solid #e6faff;outline-offset:2px;
  box-shadow:0 3px 12px #07324cc7,0 0 20px #1ecafaaf;
 }
 .ai-junction-pin.owned{
@@ -5642,4 +5642,18 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleC
 :root.smcity-gray-ui .signal-ai-owned{background:#163e52;color:#9aeaff}
 @media(max-width:700px){
  .ai-junction-pin{height:28px;min-width:38px;padding:3px 7px;font-size:11px;}
+}
+
+/* One stable hit target: stop the hover scale from making the AI badge jump. */
+.ai-junction-overlay[hidden]{display:none!important}
+.ai-junction-pin:active{background:#256990!important;outline:2px solid #8cf4ff}
+body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleAIPins.is-hidden{
+ background:#d5e2e8!important;border-color:#9bb2c7!important;color:#355c74!important;
+}
+:root.smcity-gray-ui body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleAIPins.is-hidden{
+ background:#313e4b!important;border-color:#8095a8!important;color:#e0f5ff!important;
+}
+#toggleAIPins .toggle-ai-pins-icon{font-size:12px;line-height:1}
+@media(max-width:1199px){
+ body>.bottom .builder-zone .build-dock .dock-head #toggleAIPinsText{display:none!important;}
 }
