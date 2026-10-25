@@ -212,7 +212,7 @@ export class TrafficEngine {
     this.deadlocks = new DeadlockMonitor();
     this.time = 0; this.accumulator = 0; this.vehicles = new Map();
     this.events = new EventScheduler(); this.signals = new Map();
-    this.pending = new Set(); this.issuedIds = new Set();
+    this.pending = new Set(); this.pendingToken = new Map(); this.nextTripToken = 0;
     this.nextDeadlockCheck = 5;
     this.deferred = []; this.laneIntents = new Map();
     this.lanes = new LaneController({gap});
@@ -222,11 +222,14 @@ export class TrafficEngine {
     this.metrics = { steps: 0, completed: 0, failed: 0, moved: 0, routePlans: 0 };
   }
   planTrip({ id, from, to, at = this.time, speedFactor = 1, length = 0.45 }) {
-    if (id == null || this.issuedIds.has(id)) throw new Error('vehicle id must be unique');
+    if (id == null || this.vehicles.has(id) || this.pending.has(id))
+      throw new Error('vehicle id must be unique');
     if (!Number.isFinite(at) || at < this.time) throw new RangeError('trip is in the past');
     positive(speedFactor, 'speedFactor'); positive(length, 'length');
-    this.issuedIds.add(id); this.pending.add(id);
-    this.events.schedule(at, 'departure', { id, from, to, speedFactor, length });
+    this.pending.add(id);
+    const token = ++this.nextTripToken;
+    this.pendingToken.set(id,token);
+    this.events.schedule(at, 'departure', { id, from, to, speedFactor, length, token });
   }
   configureSignal(nodeId, phases) {
     if (!this.network.nodes.has(nodeId)) throw new Error('signal node missing');
@@ -257,6 +260,7 @@ export class TrafficEngine {
   }
   cancelTrip(id) {
     const waiting = this.pending.delete(id), active = this.vehicles.get(id);
+    this.pendingToken.delete(id);
     if (active) {
       this.estimator.edgeLeft(active.route[active.edgeIndex]);
       this.vehicles.delete(id);
@@ -268,11 +272,12 @@ export class TrafficEngine {
   _wakeCapacity() {
     while (this.vehicles.size < this.maxVehicles && this.deferred.length) {
       const request = this.deferred.shift();
-      if (this.pending.has(request.id)) this._admit(request);
+      if (this.pending.has(request.id) &&
+          this.pendingToken.get(request.id) === request.token) this._admit(request);
     }
   }
   _admit(info) {
-    this.pending.delete(info.id);
+    this.pending.delete(info.id); this.pendingToken.delete(info.id);
     this.estimator.refreshIfDue(this.time);
     const route = this.network.route(info.from, info.to); this.metrics.routePlans++;
     if (!route) {
@@ -291,7 +296,8 @@ export class TrafficEngine {
   _dispatch(event) {
     if (event.type === 'departure') {
       const info = event.data;
-      if (!this.pending.has(info.id)) return;
+      if (!this.pending.has(info.id) ||
+          this.pendingToken.get(info.id) !== info.token) return;
       if (this.vehicles.size >= this.maxVehicles) {
         this.deferred.push(info); return; // wake on capacity release, no time-based polling
       }
