@@ -1,6 +1,7 @@
 // SMCITY Traffic Engine 2.0 — original implementation (not derived from legacy traffic code).
 import { LaneController } from './lane-controller.mjs';
 import { JunctionController } from './junction-controller.mjs';
+import { TrafficEstimator } from './traffic-estimator.mjs';
 // This module has no DOM, canvas, persistence, or game-global dependencies.
 const positive = (value, name) => {
   if (!Number.isFinite(value) || value <= 0) throw new RangeError(name + ' must be positive');
@@ -73,13 +74,35 @@ export class RoadNetwork {
     this._invalidate(true);
   }
   setCongestion(id, fraction) {
-    const edge = this.edges.get(id);
-    if (!edge) throw new Error('unknown edge');
-    if (!Number.isFinite(fraction) || fraction < 0) throw new RangeError('invalid congestion');
-    // Quantize traffic bands: small fluctuations do not invalidate every route.
-    const next = Math.round(fraction * 4) / 4;
-    if (next === edge.congestion) return;
-    edge.congestion = next; this._invalidate(false);
+    if (!this.edges.has(id)) throw new Error('unknown edge');
+    return this.setCongestionBatch([[id, fraction]]);
+  }
+  setCongestionBatch(changes) {
+    let changed=0;
+    for (const [id, fraction] of changes) {
+      const edge=this.edges.get(id);
+      if (!edge) continue;
+      if (!Number.isFinite(fraction) || fraction < 0)
+        throw new RangeError('invalid congestion');
+      const next=Math.round(fraction*4)/4;
+      if (next === edge.congestion) continue;
+      edge.congestion=next; changed++;
+    }
+    if (changed) this._invalidate(false);
+    return changed;
+  }
+  setDelayBatch(changes) {
+    let changed=0;
+    for (const [id, value] of changes) {
+      const edge=this.edges.get(id);
+      if (!edge) continue;
+      if (!Number.isFinite(value) || value < 0) throw new RangeError('invalid delay');
+      const next=Math.round(value*100)/100;
+      if (next === edge.delay) continue;
+      edge.delay=next; changed++;
+    }
+    if (changed) this._invalidate(false);
+    return changed;
   }
   _invalidate(topology) {
     if (topology) this.version++;
@@ -173,6 +196,7 @@ export class TrafficEngine {
     this.pending = new Set(); this.issuedIds = new Set();
     this.deferred = []; this.laneIntents = new Map();
     this.lanes = new LaneController({gap});
+    this.estimator = new TrafficEstimator(network);
     this.junctions = new JunctionController({yellowSeconds:0.2, clearSeconds:0.2});
     this.signals = this.junctions.signals;
     this.metrics = { steps: 0, completed: 0, failed: 0, moved: 0, routePlans: 0 };
@@ -190,8 +214,17 @@ export class TrafficEngine {
       for (const id of phase.incomingEdges || [])
         if (this.network.edges.get(id)?.to !== nodeId)
           throw new Error('incoming edge does not lead to junction');
-    return this.junctions.configure(nodeId, phases, this.time,
+    const signal = this.junctions.configure(nodeId, phases, this.time,
       (at, data) => this.events.schedule(at, 'signal', data));
+    const cycle = phases.reduce((sum,p) =>
+      sum+p.duration+this.junctions.yellowSeconds+this.junctions.clearSeconds,0);
+    const weights = [];
+    for (const phase of phases) for (const edgeId of phase.incomingEdges) {
+      const red = cycle-phase.duration;
+      weights.push([edgeId,red*red/(2*cycle)]);
+    }
+    this.network.setDelayBatch(weights);
+    return signal;
   }
   requestLaneChange(id, lane) {
     const v = this.vehicles.get(id);
@@ -203,7 +236,11 @@ export class TrafficEngine {
     return true;
   }
   cancelTrip(id) {
-    const waiting = this.pending.delete(id), active = this.vehicles.delete(id);
+    const waiting = this.pending.delete(id), active = this.vehicles.get(id);
+    if (active) {
+      this.estimator.edgeLeft(active.route[active.edgeIndex]);
+      this.vehicles.delete(id);
+    }
     this.laneIntents.delete(id);
     if (active) this._wakeCapacity();
     return waiting || active;
@@ -216,6 +253,7 @@ export class TrafficEngine {
   }
   _admit(info) {
     this.pending.delete(info.id);
+    this.estimator.refreshIfDue(this.time);
     const route = this.network.route(info.from, info.to); this.metrics.routePlans++;
     if (!route) {
       this.metrics.failed++; this.onFailure(info, 'unreachable'); return;
@@ -227,6 +265,7 @@ export class TrafficEngine {
       ...info, route: route.edges, edgeIndex: 0, distance: 0, lane: 0,
       status: 'queued', topologyVersion: this.network.version
     });
+    this.estimator.edgeEntered(route.edges[0]);
   }
   _dispatch(event) {
     if (event.type === 'departure') {
@@ -275,7 +314,8 @@ export class TrafficEngine {
     const move = (v, leaderDistance = Infinity, leaderLength = 0) => {
       if (v.status !== 'moving') return;
       const edge = this.network.edges.get(v.route[v.edgeIndex]);
-      if (!edge) { this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
+      if (!edge) { this.estimator.edgeLeft(v.route[v.edgeIndex]);
+        this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
         this.metrics.failed++; this.onFailure(v, 'edge_removed'); this._wakeCapacity(); return; }
       const allowed = Math.max(0, leaderDistance - leaderLength - this.gap);
       const wanted = Math.min(edge.length, v.distance + edge.speed * v.speedFactor * this.stepSeconds);
@@ -283,6 +323,7 @@ export class TrafficEngine {
       if (v.distance < edge.length - 1e-9) { this.metrics.moved++; return; }
       const nextId = v.route[v.edgeIndex + 1];
       if (nextId == null) {
+        this.estimator.edgeLeft(edge.id);
         this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
         v.status = 'arrived'; this.metrics.completed++; this.onArrival(v);
         this._wakeCapacity(); return;
@@ -293,6 +334,7 @@ export class TrafficEngine {
         const destination = v.to, remaining = this.network.route(edge.to, destination);
         this.metrics.routePlans++;
         if (!remaining || !remaining.edges.length) {
+          this.estimator.edgeLeft(edge.id);
           this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
           this.metrics.failed++; this.onFailure(v, 'route_lost');
           this._wakeCapacity(); return;
@@ -309,6 +351,7 @@ export class TrafficEngine {
         outgoingLane:lane,now:this.time})) {
         v.distance = Math.max(0, edge.length - 0.001); return;
       }
+      this.estimator.edgeLeft(edge.id); this.estimator.edgeEntered(next.id);
       v.edgeIndex++; v.lane = lane; v.distance = 0;
       entryStarts.set(String(next.id) + ':' + lane, 0);
       this.metrics.moved++;
@@ -316,7 +359,8 @@ export class TrafficEngine {
     // Activate queued trips once a safe entry slot is available.
     for (const v of active) if (v.status === 'queued') {
       const edge = this.network.edges.get(v.route[0]);
-      if (!edge) { this.vehicles.delete(v.id); this.metrics.failed++;
+      if (!edge) { this.estimator.edgeLeft(v.route[v.edgeIndex]);
+        this.vehicles.delete(v.id); this.metrics.failed++;
         this.onFailure(v, 'edge_removed'); this._wakeCapacity(); continue; }
       const lane = this.lanes.chooseDownstreamLane(edge, 0, 1,
         entryStarts, v.length, this.gap);
@@ -354,6 +398,7 @@ export class TrafficEngine {
     return { time: this.time, activeVehicles: this.vehicles.size,
       metrics: { ...this.metrics }, routes: { ...this.network.metrics },
       junctions: this.junctions.snapshot(), lanes: {...this.lanes.metrics},
+      trafficEstimator:{...this.estimator.metrics},
       vehicles: [...this.vehicles.values()].map(v => ({
         id: v.id, status: v.status, edgeId: v.route[v.edgeIndex],
         lane: v.lane, distance: v.distance, destination: v.to
