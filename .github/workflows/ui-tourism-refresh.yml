@@ -8,6 +8,8 @@ on:
       - main
 permissions:
   contents: write
+env:
+  NODE_OPTIONS: --require=./work/test-dom-compat.cjs
 jobs:
   ui-check:
     runs-on: ubuntu-latest

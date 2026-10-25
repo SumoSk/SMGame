@@ -595,6 +595,12 @@ export class TrafficRenderer{
  updateNightVisibility(night){
   // A controlled emissive floor keeps the driving surfaces readable without
   // lighting the entire city like daytime. Cache updates for mobile GPUs.
+  // Instance counts can change without any change in daylight (culling/heatmap).
+  // Keep light visibility live while retaining cached material/surface updates.
+  for(const set of this.carSets.values()){
+   for(const mesh of [set.headlights,set.taillights])mesh.visible=night>.04&&mesh.count>0;
+   set.lightSpill.visible=night>.20&&set.lightSpill.count>0;
+  }
   if(Math.abs(night-(this.lastNightVisibility??-1))<.018)return;
   this.lastNightVisibility=night;
   const surfaces=[

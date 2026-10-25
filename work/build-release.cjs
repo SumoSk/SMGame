@@ -1,6 +1,8 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..');
 const read=name=>fs.readFileSync(path.join(root,name),'utf8');
+// The playable page is the single UI source for hosted and downloadable builds.
+fs.writeFileSync(path.join(root,'dist/index.html'),read('index.html').replace(/\b(src|href)="dist\//g,'$1="'));
 const hash=source=>crypto.createHash('sha256').update(source).digest('hex').slice(0,12);
 const game=read('dist/game.js'),renderer=read('dist/renderer3d.js'),member=read('dist/member.js');
 const gameVersion=hash(game),rendererVersion=hash(renderer),memberVersion=hash(member);
