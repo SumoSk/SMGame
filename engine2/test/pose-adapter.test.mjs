@@ -27,7 +27,7 @@ test('turn visual transition smoothly connects incoming and outgoing lane positi
   const mid=vehiclePose(n,v,1.3);
   const end=vehiclePose(n,v,1.7);
   assert.ok(start.x<=10&&start.x>=9.99);
-  assert.ok(mid.x<start.x);
+  assert.ok(mid.x>start.x && mid.x<end.x);
   assert.ok(Math.abs(end.x-10.16)<.001);
   assert.notEqual(start.angle,end.angle);
 });
