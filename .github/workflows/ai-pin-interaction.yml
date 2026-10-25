@@ -1,0 +1,24 @@
+name: AI pin click and confirmation checks
+on:
+  push:
+    branches: [fix-ai-junction-click-confirm]
+  workflow_dispatch:
+jobs:
+  click-confirm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node --check dist/renderer3d.js
+      - run: node work/test-ai-pin-interaction.cjs
+      - run: node work/test-ai-junction.cjs
+      - run: node work/test-lane-signals.cjs
+      - run: node work/test-car-lod-toggle.cjs
+      - run: npm run build
