@@ -5888,37 +5888,37 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleA
 }
 
 /* Unified panel skins: no added overlay elements or geometry. */
-:root body>.bottom>.control-deck,
-:root body>.bottom>.control-deck .city-dashboard,
-:root body>.bottom>.control-deck .city-control-mini,
-:root body>.bottom>.control-deck .builder-zone,
-:root body>.bottom>.control-deck .builder-zone .build-dock,
-:root body>.bottom>.control-deck .builder-zone .dock-head,
-:root body>.bottom>.control-deck .city-control-mini .city-demand-panel{
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-dashboard,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-control-mini,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .build-dock,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-head,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-control-mini .city-demand-panel{
  background:linear-gradient(180deg,var(--smg-panel-top),var(--smg-panel-bottom))!important;
  border-color:var(--smg-border)!important;
  color:var(--smg-text)!important;
 }
-:root body>.bottom>.control-deck{
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck{
  box-shadow:0 5px 22px var(--smg-aura),0 0 14px var(--smg-aura),inset 0 1px 0 rgba(255,255,255,.20)!important;
 }
-:root body>.bottom>.control-deck .city-dashboard,
-:root body>.bottom>.control-deck .city-control-mini,
-:root body>.bottom>.control-deck .builder-zone .build-dock{
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-dashboard,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-control-mini,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .build-dock{
  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 8px var(--smg-aura)!important;
 }
 
 /* Toolbar buttons and tool tiles; selector specificity beats legacy theme rules. */
-:root body>.bottom>.control-deck .city-dashboard .dashboard-member-buttons>button,
-:root body>.bottom>.control-deck .city-dashboard .dashboard-actions>button,
-:root body>.bottom>.control-deck .city-dashboard .city-metric,
-:root body>.bottom>.control-deck .city-control-mini .mini-need,
-:root body>.bottom>.control-deck .builder-zone .dock-context .tool,
-:root body>.bottom>.control-deck .builder-zone .dock-context #subcategories button,
-:root body>.bottom>.control-deck .builder-zone .build-dock #categories button,
-:root body>.bottom>.control-deck .builder-zone .dock-speed .playback button,
-:root body>.bottom>.control-deck .builder-zone .build-dock .dock-head>button,
-:root body>.bottom>.control-deck .builder-zone .build-dock .dock-head .dock-display-actions>button,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-dashboard .dashboard-member-buttons>button,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-dashboard .dashboard-actions>button,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-dashboard .city-metric,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-control-mini .mini-need,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-context .tool,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-context #subcategories button,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .build-dock #categories button,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-speed .playback button,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .build-dock .dock-head>button,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .build-dock .dock-head .dock-display-actions>button,
 #cityLeftRail #cameraJoystick,
 #cityLeftRail #cameraJoystick button,
 #cityQuickModes [data-city-shortcut]:not([data-city-shortcut="erase"]){
@@ -5930,60 +5930,60 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleA
 }
 
 /* All icons on the tool rails share the glow color; text retains contrast. */
-:root body>.bottom>.control-deck :is(.map-rail-svg,.metric-icon svg,.tool-icon,.toggle-ai-pins-icon,.toggle-building-labels-icon,.toggle-car-diamonds-icon,.toggle-eye-comfort span,.quick-mode-icon),
-:root body>.bottom>.control-deck .dock-display-actions button>span[aria-hidden="true"],
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck :is(.map-rail-svg,.metric-icon svg,.tool-icon,.toggle-ai-pins-icon,.toggle-building-labels-icon,.toggle-car-diamonds-icon,.toggle-eye-comfort span,.quick-mode-icon),
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .dock-display-actions button>span[aria-hidden="true"],
 :root #cityLeftRail #cameraJoystick button,
 :root #cityQuickModes [data-city-shortcut]:not([data-city-shortcut="erase"]) .quick-mode-icon{
  color:var(--smg-icon)!important;
  filter:drop-shadow(0 0 3px var(--smg-aura))!important;
 }
-:root body>.bottom>.control-deck .builder-zone .dock-context .tool-icon{
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-context .tool-icon{
  background:transparent!important;
  border-color:transparent!important;
 }
-:root body>.bottom>.control-deck .dashboard-member-buttons .map-rail-svg :is(path,rect,circle,ellipse,line,polyline){
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .dashboard-member-buttons .map-rail-svg :is(path,rect,circle,ellipse,line,polyline){
  stroke:currentColor!important;
  fill:none!important;
 }
-:root body>.bottom>.control-deck .city-dashboard .city-metric :is(strong,small),
-:root body>.bottom>.control-deck .city-control-mini .mini-need :is(strong,span),
-:root body>.bottom>.control-deck .builder-zone .tool .tool-name{
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-dashboard .city-metric :is(strong,small),
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-control-mini .mini-need :is(strong,span),
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .tool .tool-name{
  color:inherit!important;
 }
 
 /* Hover and keyboard focus are brighter, without always-on animation. */
-:root body>.bottom>.control-deck .city-dashboard .dashboard-member-buttons>button:is(:hover,:focus-visible),
-:root body>.bottom>.control-deck .city-dashboard .city-metric:is(:hover,:focus-visible),
-:root body>.bottom>.control-deck .builder-zone .dock-context .tool:is(:hover,:focus-visible),
-:root body>.bottom>.control-deck .builder-zone .dock-context #subcategories button:is(:hover,:focus-visible),
-:root body>.bottom>.control-deck .builder-zone .build-dock #categories button:is(:hover,:focus-visible),
-:root body>.bottom>.control-deck .builder-zone .dock-speed .playback button:is(:hover,:focus-visible),
-:root body>.bottom>.control-deck .builder-zone .build-dock .dock-head button:is(:hover,:focus-visible),
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-dashboard .dashboard-member-buttons>button:is(:hover,:focus-visible),
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-dashboard .city-metric:is(:hover,:focus-visible),
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-context .tool:is(:hover,:focus-visible),
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-context #subcategories button:is(:hover,:focus-visible),
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .build-dock #categories button:is(:hover,:focus-visible),
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-speed .playback button:is(:hover,:focus-visible),
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .build-dock .dock-head button:is(:hover,:focus-visible),
 :root #cityLeftRail #cameraJoystick button:is(:hover,:focus-visible),
 :root #cityQuickModes [data-city-shortcut]:not([data-city-shortcut="erase"]):is(:hover,:focus-visible){
  background:linear-gradient(135deg,var(--smg-active-top),var(--smg-button-top))!important;
  border-color:var(--smg-icon)!important;
  box-shadow:0 2px 9px var(--smg-aura),0 0 16px var(--smg-aura-strong),inset 0 1px 0 rgba(255,255,255,.25)!important;
 }
-:root body>.bottom>.control-deck .builder-zone .dock-context .tool:is(:hover,:focus-visible) .tool-icon,
-:root body>.bottom>.control-deck .dashboard-member-buttons>button:is(:hover,:focus-visible) svg,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-context .tool:is(:hover,:focus-visible) .tool-icon,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .dashboard-member-buttons>button:is(:hover,:focus-visible) svg,
 :root #cityQuickModes [data-city-shortcut]:is(:hover,:focus-visible) .quick-mode-icon{
  filter:drop-shadow(0 0 5px var(--smg-aura-strong))!important;
 }
 
 /* Chosen mode or speed: strongest aura, but keep readable text. */
-:root body>.bottom>.control-deck .builder-zone .dock-context .tool.active,
-:root body>.bottom>.control-deck .builder-zone .dock-context #subcategories button.active,
-:root body>.bottom>.control-deck .builder-zone .build-dock #categories button.active,
-:root body>.bottom>.control-deck .builder-zone .dock-speed .playback button.active,
-:root body>.bottom>.control-deck .builder-zone .dock-head .dock-display-actions>button[aria-pressed="true"],
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-context .tool.active,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-context #subcategories button.active,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .build-dock #categories button.active,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-speed .playback button.active,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-head .dock-display-actions>button[aria-pressed="true"],
 :root #cityQuickModes [data-city-shortcut]:not([data-city-shortcut="erase"]):is(.active,[aria-pressed="true"]){
  background:linear-gradient(135deg,var(--smg-active-top),var(--smg-active-bottom))!important;
  color:var(--smg-text)!important;
  border-color:var(--smg-icon)!important;
  box-shadow:0 0 8px var(--smg-aura-strong),0 0 17px var(--smg-aura),inset 0 0 8px rgba(255,255,255,.19)!important;
 }
-:root body>.bottom>.control-deck .builder-zone .dock-context .tool.active .tool-icon{
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .builder-zone .dock-context .tool.active .tool-icon{
  color:var(--smg-icon)!important;
  background:transparent!important;
  filter:drop-shadow(0 0 5px var(--smg-aura-strong))!important;
@@ -5999,7 +5999,7 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleA
 }
 
 /* Don't make disabled actions appear purchasable/clickable. */
-:root body>.bottom>.control-deck button:disabled,
+:root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck button:disabled,
 :root #cityQuickModes button:disabled{
  opacity:.45!important;
  box-shadow:none!important;
@@ -6008,7 +6008,7 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleA
 
 /* Respect people who disable motion. No new animations in either theme. */
 @media(prefers-reduced-motion:reduce){
- :root body>.bottom>.control-deck button,
+ :root:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck button,
  :root #cityLeftRail button,
  :root #cityQuickModes button{
   transition:none!important;
