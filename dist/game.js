@@ -1237,8 +1237,12 @@ function smartSignalStep(){
    if(elapsed<AI_MIN_GREEN)continue;
    // Hold green to clear queues, but cap it so others aren't starved.
    if(elapsed<AI_MAX_GREEN&&current?.cars>0&&
-    (!otherDemand||elapsed<AI_MIN_GREEN+Math.min(8,current.cars*.75)))continue;
-   if(elapsed<8&&!otherDemand&&current?.cars===0)continue;
+    (!otherDemand||elapsed<AI_MIN_GREEN+Math.min(8,current.cars*.75))){
+    st.smartUntil=now+AI_POLL_MINUTES;continue;
+   }
+   if(elapsed<8&&!otherDemand&&current?.cars===0){
+    st.smartUntil=now+AI_POLL_MINUTES;continue;
+   }
    st.smartPhase='yellow';st.smartUntil=now+SIGNAL_YELLOW_MINUTES;continue;
   }
   if(st.smartPhase==='yellow'){
