@@ -5826,3 +5826,30 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleA
 :root.smcity-gray-ui #dialog.ai-upgrade-center .ai-purchase{--ai-bg:#101c2c;--ai-head:#172b41;--ai-card:#20364e;--ai-border:#42627f;--ai-text:#f3f9ff;--ai-muted:#c3d7e7;--ai-accent:#91e8ff;--ai-button:#92e7fa;--ai-button-text:#0b2638}
 :root.smcity-gray-ui #dialog.ai-upgrade-center .signal-note{color:#ffaca8!important}
 @media(max-width:520px){#dialog.ai-upgrade-center .ai-purchase{padding:19px 15px!important}#dialog.ai-upgrade-center .ai-purchase-actions{grid-template-columns:1fr 1.25fr}}
+
+
+/* AI checkout v2 - ONE surface, light and dark themes */
+#dialog.ai-upgrade-center[open]{width:min(480px,calc(100vw - 24px))!important;max-width:480px!important;max-height:90dvh!important;inset:0!important;margin:auto!important;padding:0!important;border:0!important;border-radius:18px!important;overflow:auto!important;background:#fff!important;box-shadow:0 20px 70px #101b293f!important}
+#dialog.ai-upgrade-center #dialogContent{padding:0!important;margin:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+#dialog.ai-upgrade-center .ai-checkout-v2{--ai-bg:#fff;--ai-header:#f5f8fc;--ai-text:#182c41;--ai-muted:#5d7387;--ai-line:#dbe5ed;--ai-primary:#1074a4;--ai-primary-text:#fff;--ai-panel:#f7fafc;box-sizing:border-box;background:var(--ai-bg)!important;color:var(--ai-text)!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:26px!important;font-size:14px;line-height:1.5}
+#dialog.ai-upgrade-center .ai-checkout-v2 *{box-sizing:border-box;letter-spacing:normal}
+#dialog.ai-upgrade-center .ai-checkout-v2 header{text-align:center;padding:2px 0 20px;border-bottom:1px solid var(--ai-line);background:transparent!important}
+#dialog.ai-upgrade-center .ai-checkout-icon{display:grid;place-items:center;margin:0 auto 11px;width:54px;height:54px;border-radius:16px;background:var(--ai-panel);border:1px solid var(--ai-line);color:var(--ai-primary);font-size:31px}
+#dialog.ai-upgrade-center .ai-checkout-v2 header small{font-size:11px;color:var(--ai-muted);font-weight:700}
+#dialog.ai-upgrade-center .ai-checkout-v2 h2{font-size:24px;line-height:1.25;color:var(--ai-text)!important;margin:9px 0 6px}
+#dialog.ai-upgrade-center .ai-checkout-v2 header p{color:var(--ai-muted)!important;margin:0;font-size:13px}
+#dialog.ai-upgrade-center .ai-checkout-info{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:16px 0;border-bottom:1px solid var(--ai-line)}
+#dialog.ai-upgrade-center .ai-checkout-info span{color:var(--ai-muted);font-size:13px}
+#dialog.ai-upgrade-center .ai-checkout-info strong{color:var(--ai-text);font-size:16px;text-align:right;overflow-wrap:anywhere}
+#dialog.ai-upgrade-center .ai-checkout-balance{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0;padding:15px;border-radius:12px;background:var(--ai-panel);color:var(--ai-muted)}
+#dialog.ai-upgrade-center .ai-checkout-balance strong{color:var(--ai-primary)}
+#dialog.ai-upgrade-center .ai-checkout-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin-top:22px}
+#dialog.ai-upgrade-center .ai-checkout-actions button{min-height:45px!important;padding:10px!important;border-radius:11px!important;font-size:13px!important;font-weight:750!important;white-space:normal}
+#dialog.ai-upgrade-center .ai-checkout-actions #cancelDialog{background:var(--ai-panel)!important;color:var(--ai-text)!important;border:1px solid var(--ai-line)!important}
+#dialog.ai-upgrade-center .ai-checkout-actions #confirmDialog{background:var(--ai-primary)!important;color:var(--ai-primary-text)!important;border:0!important}
+#dialog.ai-upgrade-center .ai-checkout-actions #confirmDialog:disabled{opacity:.4}
+#dialog.ai-upgrade-center .ai-checkout-warning{color:#ba423b;font-size:12px;text-align:center}
+:root.smcity-gray-ui #dialog.ai-upgrade-center[open]{background:#101d2e!important}
+:root.smcity-gray-ui #dialog.ai-upgrade-center .ai-checkout-v2{--ai-bg:#101d2e;--ai-header:#172b40;--ai-text:#f6faff;--ai-muted:#c3d5e4;--ai-line:#405973;--ai-primary:#9ae7f9;--ai-primary-text:#0c293b;--ai-panel:#1d3148}
+:root.smcity-gray-ui #dialog.ai-upgrade-center .ai-checkout-warning{color:#ffaca6}
+@media(max-width:520px){#dialog.ai-upgrade-center .ai-checkout-v2{padding:20px 16px!important}#dialog.ai-upgrade-center .ai-checkout-info strong{font-size:14px}}
