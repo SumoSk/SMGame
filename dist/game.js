@@ -2262,30 +2262,31 @@ function vehicleTechCounts(trait){
  return{population:people.length,counts:Object.fromEntries(VEHICLE_TECHS.map(t=>[t.key,people.filter(c=>c.vehicleTech===t.key).length]))};
 }
 function openVehicleUpgrade(){
- const auraColors={speed:['#ff4b55','ออร่าสีแดง'],smart:['#40c5ff','ออร่าสีฟ้า'],fly:['#ffdd4c','ออร่าสีเหลือง'],warp:['#4ce995','ออร่าสีเขียว']};
- const sections=CITIZEN_TRAITS.map((name,trait)=>{
-  const lv=state.vehicleTechLevels[trait],count=vehicleTechCounts(trait),total=VEHICLE_TECHS.reduce((n,t)=>n+count.counts[t.key],0);
-  return '<section class="vehicle-tech-trait vehicle-shop-section"><header><h3>'+['🏢','🌿','🎉','💎'][trait]+' '+name+'</h3>'+
-   '<span>รถธรรมดา '+Math.max(0,count.population-total)+' คัน · ประชาชน '+count.population+' คน</span></header>'+
-   '<div class="vehicle-tech-table">'+VEHICLE_TECHS.map(t=>'<div class="vehicle-tech-row vehicle-shop-card tech-'+t.key+'">'+
-    '<div class="vehicle-tech-detail"><strong>'+t.name+'</strong><small class="vehicle-aura" style="--aura:'+auraColors[t.key][0]+'"><i></i>'+auraColors[t.key][1]+'</small></div>'+
-    '<div class="vehicle-tech-value"><b>'+lv[t.key]+' คัน</b><small>ใช้จริง '+count.counts[t.key]+' คน</small></div>'+
-    '<button type="button" class="vehicle-tech-buy" data-tech-trait="'+trait+'" data-tech-key="'+t.key+'" '+
-    (state.money<t.price?'disabled':'')+'>ซื้อ 1 คัน<small>'+money(t.price)+'</small></button></div>').join('')+'</div></section>';
+ const aura={speed:['#ff5265','แดง','รถวิ่งเร็ว'],smart:['#39bbff','ฟ้า','รถฉลาด'],fly:['#f7cb3d','เหลือง','รถลอยได้'],warp:['#40da88','เขียว','รถวาร์ป']};
+ const traits=CITIZEN_TRAITS.map((name,trait)=>{
+  const owned=state.vehicleTechLevels[trait],count=vehicleTechCounts(trait);
+  const cards=VEHICLE_TECHS.map(tech=>{
+   const [color,label,title]=aura[tech.key],ownedCount=owned[tech.key]||0,active=count.counts[tech.key]||0;
+   return '<article class="garage-product garage-'+tech.key+'" style="--garage-accent:'+color+'">'+
+    '<div class="garage-product-top"><span class="garage-product-type">'+title+'</span><span class="garage-aura"><i></i>ออร่าสี'+label+'</span></div>'+
+    '<div class="garage-product-symbol" aria-hidden="true">'+({speed:'🏎️',smart:'🧠',fly:'🚀',warp:'⚡'}[tech.key])+'</div>'+
+    '<div class="garage-product-stats"><div><small>ซื้อแล้ว</small><strong>'+fmt(ownedCount)+' คัน</strong></div><div><small>ใช้งานจริง</small><strong>'+fmt(active)+' คัน</strong></div></div>'+
+    '<div class="garage-product-footer"><div class="garage-price"><small>ราคาต่อคัน</small><strong>'+money(tech.price)+'</strong></div>'+
+    '<button type="button" class="garage-buy" data-tech-trait="'+trait+'" data-tech-key="'+tech.key+'" '+(state.money<tech.price?'disabled':'')+'>ซื้อ 1 คัน</button></div></article>';
+  }).join('');
+  return '<section class="garage-group"><div class="garage-group-heading"><h3>'+['🏢','🌿','🎉','💎'][trait]+' '+name+'</h3><span>ประชาชน '+fmt(count.population)+' คน</span></div>'+
+   '<div class="garage-products">'+cards+'</div></section>';
  }).join('');
- modal('<div class="vehicle-shop"><div class="vehicle-tech-head"><span class="eyebrow">SMCITY / VEHICLE RESEARCH</span><h2>TECH GARAGE <span>อัปเกรดรถประชาชน</span></h2>'+
- '<strong class="vehicle-shop-balance">งบเมือง '+money(state.money)+'</strong></div>'+
- '<div class="vehicle-tech-traits">'+sections+'</div>'+
- 
- '<div class="actions"><button type="button" class="primary" id="vehicleTechClose">กลับไปเล่น</button></div></div>');
+ modal('<div class="garage-v2"><header class="garage-hero"><div><small>SMCITY / VEHICLE TECHNOLOGY</small><h2>TECH GARAGE</h2><p>ศูนย์อัปเกรดรถประชาชน</p></div>'+
+ '<div class="garage-wallet"><small>งบประมาณเมือง</small><strong>'+money(state.money)+'</strong></div></header>'+
+ '<div class="garage-catalog">'+traits+'</div><footer class="garage-bottom"><button type="button" id="vehicleTechClose">กลับไปเล่น</button></footer></div>');
  $('vehicleTechClose').onclick=closeModal;
- $('dialogContent').onclick=e=>{
-  const b=e.target.closest?.('[data-tech-trait][data-tech-key]');if(!b)return;
-  const trait=Number(b.dataset.techTrait),key=b.dataset.techKey,tech=VEHICLE_TECHS.find(t=>t.key===key);
+ $('dialogContent').onclick=event=>{
+  const button=event.target.closest?.('[data-tech-trait][data-tech-key]');if(!button||button.disabled)return;
+  const trait=Number(button.dataset.techTrait),key=button.dataset.techKey,tech=VEHICLE_TECHS.find(t=>t.key===key);
   if(!tech||!Number.isInteger(trait)||trait<0||trait>=4)return;
-  if(state.money<tech.price){toast('เงินไม่พอค่ะ');return;}
-  confirmAction('ซื้อรถอัปเกรด 1 คัน ใช่หรือไม่?',
-   CITIZEN_TRAITS[trait]+' · '+tech.name+' · ซื้อเพิ่ม 1 คัน · จ่าย '+money(tech.price),
+  if(state.money<tech.price){toast('งบประมาณไม่เพียงพอ');openVehicleUpgrade();return;}
+  confirmAction('ยืนยันซื้อรถ '+aura[key][2]+' 1 คัน',CITIZEN_TRAITS[trait]+' · ราคา '+money(tech.price),
    ()=>{if(state.money<tech.price){toast('งบประมาณไม่เพียงพอ');openVehicleUpgrade();return;}
     state.money-=tech.price;state.vehicleTechLevels[trait][key]++;syncCitizenVehicleTech();updateUI();openVehicleUpgrade();});
  };
