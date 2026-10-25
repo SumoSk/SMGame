@@ -329,6 +329,7 @@ export class TrafficEngine {
     v.currentNode = result.gate; v.lane = 0; v.status = 'queued';
     v.costVersion = this.network.costVersion;
     v.topologyVersion = this.network.version;
+    v.invalidRoute = false;
     this.estimator.edgeEntered(v.route[0]);
     this.deadlocks.cleared(v.id);
     this.onRecovery(v,reason,result.gate);
@@ -353,7 +354,9 @@ export class TrafficEngine {
     this.metrics.routePlans++;
     if (candidate && (!valid || candidate.time < oldCost * 0.8)) {
       v.route = v.route.slice(0,v.edgeIndex+1).concat(candidate.edges);
+      valid = true;
     }
+    v.invalidRoute = !valid;
     v.costVersion = this.network.costVersion;
     v.topologyVersion = this.network.version;
   }
@@ -398,6 +401,14 @@ export class TrafficEngine {
         this.metrics.moved++; return;
       }
       this._replanAtNode(v,edge);
+      if (v.invalidRoute) {
+        this.estimator.edgeLeft(edge.id);
+        if (this._recoverAtGate(v,'route_invalidated')) {
+          v.invalidRoute = false; return;
+        }
+        this._clearCar(v); this.metrics.failed++;
+        this.onFailure(v,'route_invalidated'); this._wakeCapacity(); return;
+      }
       const nextId = v.route[v.edgeIndex + 1];
       if (nextId == null) {
         this.estimator.edgeLeft(edge.id);
