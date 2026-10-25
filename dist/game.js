@@ -1270,13 +1270,14 @@ function openAISignalUpgrade(i){
  if(!state.roads.has(i)||junction(i)<3)return false;
  if(signalSettings(i).mode==='smart'){selected={kind:'road',id:i};renderInspector(true);return true;}
  const afford=state.money>=AI_SIGNAL_PRICE;
- modal('<span class="eyebrow">SMART TRAFFIC</span><h2>✦ ยืนยันการซื้อไฟแดง AI</h2>'+
- '<p><strong>จ่าย 1,000,000 บาท เพื่ออัปเกรดแยกนี้เป็น AI ใช่หรือไม่?</strong></p>'+
- '<p>ติดตั้งเฉพาะแยกนี้เท่านั้น · AI เลือกไฟเขียวตามคิวรถ · ซื้อครั้งเดียว ไม่มีคืนเงินเมื่อรื้อถนน</p>'+
- '<p class="signal-ai-price">ราคา <strong>฿1,000,000</strong> · เงินคงเหลือ '+money(state.money)+'</p>'+
- '<div class="actions"><button type="button" id="cancelDialog">ไม่ใช่</button>'+
- '<button type="button" id="confirmDialog" class="primary" '+(afford?'':'disabled')+'>ใช่ · จ่าย 1,000,000 บาท</button></div>'+
- (!afford?'<p class="signal-note">งบประมาณไม่เพียงพอ ต้องมีอย่างน้อย 1,000,000 บาทค่ะ</p>':''));
+ modal('<div class="ai-purchase"><div class="ai-orbit">✦</div><span class="eyebrow">SMCITY / SMART TRAFFIC</span><h2>AI SIGNAL SYSTEM</h2>'+
+ '<p class="ai-purchase-sub">อัปเกรดสัญญาณไฟจราจรอัจฉริยะ</p>'+
+ '<div class="ai-purchase-features"><span>◈ ควบคุมสัญญาณด้วย AI</span><span>◈ วิเคราะห์คิวรถแต่ละทิศทาง</span><span>◈ ติดตั้งเฉพาะแยกนี้</span></div>'+
+ '<div class="ai-purchase-price"><small>ค่าติดตั้ง</small><strong>฿1,000,000</strong><small>งบคงเหลือหลังซื้อ '+money(state.money-AI_SIGNAL_PRICE)+'</small></div>'+
+ '<div class="actions ai-purchase-actions"><button type="button" id="cancelDialog">ยกเลิก</button>'+
+ '<button type="button" id="confirmDialog" class="primary" '+(afford?'':'disabled')+'>ยืนยันการอัปเกรด</button></div>'+
+ (!afford?'<p class="signal-note">งบประมาณไม่เพียงพอค่ะ</p>':'')+'</div>');
+ $('dialog').classList.add('ai-upgrade-center');
  $('cancelDialog').onclick=closeModal;
  $('confirmDialog').onclick=()=>{
   // Recheck balance and ownership at confirmation; only this action charges money.
@@ -2250,21 +2251,22 @@ function vehicleTechCounts(trait){
  return{population:people.length,counts:Object.fromEntries(VEHICLE_TECHS.map(t=>[t.key,people.filter(c=>c.vehicleTech===t.key).length]))};
 }
 function openVehicleUpgrade(){
+ const auraColors={speed:['#ff4b55','ออร่าสีแดง'],smart:['#40c5ff','ออร่าสีฟ้า'],fly:['#ffdd4c','ออร่าสีเหลือง'],warp:['#4ce995','ออร่าสีเขียว']};
  const sections=CITIZEN_TRAITS.map((name,trait)=>{
   const lv=state.vehicleTechLevels[trait],count=vehicleTechCounts(trait),total=VEHICLE_TECHS.reduce((n,t)=>n+lv[t.key],0);
-  return '<section class="vehicle-tech-trait"><header><h3>'+['🏢','🌿','🎉','💎'][trait]+' '+name+'</h3>'+
+  return '<section class="vehicle-tech-trait vehicle-shop-section"><header><h3>'+['🏢','🌿','🎉','💎'][trait]+' '+name+'</h3>'+
    '<span>รถธรรมดา '+(100-total)+'% · ประชาชน '+count.population+' คน</span></header>'+
-   '<div class="vehicle-tech-table">'+VEHICLE_TECHS.map(t=>'<div class="vehicle-tech-row">'+
-    '<div class="vehicle-tech-detail"><strong>'+t.name+'</strong><small>'+t.desc+'</small></div>'+
+   '<div class="vehicle-tech-table">'+VEHICLE_TECHS.map(t=>'<div class="vehicle-tech-row vehicle-shop-card tech-'+t.key+'">'+
+    '<div class="vehicle-tech-detail"><strong>'+t.name+'</strong><small class="vehicle-aura" style="--aura:'+auraColors[t.key][0]+'"><i></i>'+auraColors[t.key][1]+'</small></div>'+
     '<div class="vehicle-tech-value"><b>'+lv[t.key]+'%</b><small>ใช้จริง '+count.counts[t.key]+' คน</small></div>'+
     '<button type="button" class="vehicle-tech-buy" data-tech-trait="'+trait+'" data-tech-key="'+t.key+'" '+
-    (lv[t.key]>=25||state.money<t.price?'disabled':'')+'>+1%<small>'+money(t.price)+'</small></button></div>').join('')+'</div></section>';
+    (lv[t.key]>=25||state.money<t.price?'disabled':'')+'>อัปเกรด +1%<small>'+money(t.price)+'</small></button></div>').join('')+'</div></section>';
  }).join('');
- modal('<div class="vehicle-tech-head"><span class="eyebrow">SMCITY / VEHICLE RESEARCH</span><h2>🚀 อัปเกรดรถประชาชน!</h2>'+
- '<p>ซื้อทีละ 1% ต่อบุคลิก · เทคโนโลยีละสูงสุด 25% · ซื้อแล้วไม่คืนเงิน · รถที่กำลังเดินทางไม่เปลี่ยนกลางเที่ยว</p><strong>งบเมือง '+money(state.money)+'</strong></div>'+
+ modal('<div class="vehicle-shop"><div class="vehicle-tech-head"><span class="eyebrow">SMCITY / VEHICLE RESEARCH</span><h2>TECH GARAGE <span>อัปเกรดรถประชาชน</span></h2>'+
+ '<strong class="vehicle-shop-balance">งบเมือง '+money(state.money)+'</strong></div>'+
  '<div class="vehicle-tech-traits">'+sections+'</div>'+
- '<p class="vehicle-tech-note">“ใช้จริง” ปัดตามจำนวนคน จึงอาจเป็น 0 ในเมืองที่ประชากรยังน้อย</p>'+
- '<div class="actions"><button type="button" class="primary" id="vehicleTechClose">กลับไปเล่น</button></div>');
+ 
+ '<div class="actions"><button type="button" class="primary" id="vehicleTechClose">กลับไปเล่น</button></div></div>');
  $('vehicleTechClose').onclick=closeModal;
  $('dialogContent').onclick=e=>{
   const b=e.target.closest?.('[data-tech-trait][data-tech-key]');if(!b)return;
@@ -2635,7 +2637,7 @@ function setDockCollapsed(collapsed){
 }
 function selectTool(t){movingBuildingId=null;$('cancelMoveBuilding').hidden=true;if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · วางชิดขอบถนน`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'เลือกพื้นที่โล่งเพื่อปลูกต้นไม้ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลักและถนนที่มีรถ':t==='erase'?'แตะตึกเพื่อรื้อ หรือลากตามถนนเพื่อลบต่อเนื่อง · ยืนยันก่อนรื้อทุกครั้ง':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูความสุข ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
 let dialogRevision=0;
-function modal(html){window.SMGameAccount?.closePanel?.();dialogRevision++;clearRoadPreview();$('dialogContent').onclick=null;$('dialogContent').innerHTML=html;if(!$('dialog').open)$('dialog').showModal();return dialogRevision;}
+function modal(html){$('dialog').classList.remove('ai-upgrade-center');window.SMGameAccount?.closePanel?.();dialogRevision++;clearRoadPreview();$('dialogContent').onclick=null;$('dialogContent').innerHTML=html;if(!$('dialog').open)$('dialog').showModal();return dialogRevision;}
 function clearRoadPreview(){$('dialog').classList.remove('road-preview-confirm');pendingRoadPreview=null;roadPreviewCache=null;constructionAnchor=null;$('dialog').classList.remove('construction-confirm','demolition-confirm');for(const key of ['margin','top','left','right','bottom','maxHeight'])$('dialog').style[key]='';}
 // CSS zoom is explicitly disabled on the anchored construction dialog, so
 // all measured positions are in the same viewport pixels as the pointer.
