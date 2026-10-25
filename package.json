@@ -12,7 +12,8 @@
     "test:v251": "node work/test-v251.cjs && node work/test-v251-schedule.cjs && node work/test-casinos.cjs && node work/test-lifestyles.cjs",
     "test:performance": "node work/test-performance.cjs",
     "test:stationary-render": "node work/test-stationary-render.cjs",
-    "test:release-fixes": "node -r ./work/test-dom-compat.cjs work/test-release-fixes.cjs"
+    "test:release-fixes": "node -r ./work/test-dom-compat.cjs work/test-release-fixes.cjs",
+    "test:assisted-placement": "node -r ./work/test-dom-compat.cjs work/test-assisted-placement.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0"
