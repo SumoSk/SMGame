@@ -18,7 +18,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  renderer.camera.updateProjectionMatrix();
  renderer.cam={x:177,y:149,z:1.2};renderer.w=1400;renderer.h=900;
  renderer.graphicQuality='veryHigh';
- renderer.parking={parkingIsMoving:g.parkingIsMoving||cid=>!!g.state.vehicles.get(g.state.citizens.get(cid)?.vehicleId),parkingSlotPose:g.parkingSlotPose,citizenCarColor:()=> '#a1b3c2'};
+ renderer.parking={parkingIsMoving:(cid=>{const v=g.state.vehicles.get(g.state.citizens.get(cid)?.vehicleId);return !!v&&(!!v.lotPath||['air_lift','air_cruise','air_land','warp_charge'].includes(v.phase));}),parkingSlotPose:g.parkingSlotPose,citizenCarColor:()=> '#a1b3c2'};
  renderer.createCars();
  c.vehicleTech='smart';renderer.cars(g.state,g.vehiclePosition,g.CATALOG,null,null,false);
  assert(renderer.carTechMeshes?.get('smart')?.count>0,'smart car aura must render in actual 3D instancing');
