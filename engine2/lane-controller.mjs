@@ -54,7 +54,7 @@ export class LaneController {
     if (vehicle.status !== 'moving' || !Number.isInteger(targetLane) ||
         Math.abs(targetLane - vehicle.lane) !== 1 ||
         !Number.isFinite(edgeLength) || vehicle.distance >= edgeLength - 1 ||
-        safe(now) - safe(vehicle.lastLaneChangeAt ?? -Infinity) < this.cooldown) {
+        safe(now) - (Number.isFinite(vehicle.lastLaneChangeAt) ? vehicle.lastLaneChangeAt : -Infinity) < this.cooldown) {
       this.metrics.rejected++; return false;
     }
     const oldKey = key(edgeId, vehicle.lane), newKey = key(edgeId, targetLane);
