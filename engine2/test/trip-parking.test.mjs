@@ -44,7 +44,7 @@ test('cancel a waiting parking request frees actor without creating any vehicle'
   assert.equal(trips.get('b').status,'canceled');
   trips.releaseParking('a');
   engine.runSteps(10);
-  assert.equal(engine.issuedIds.has('b'),false);
+  assert.equal(engine.pending.has('b'),false);
   assert.equal(parking.snapshot()[0].occupied,0);
 });
 
