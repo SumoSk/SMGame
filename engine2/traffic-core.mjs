@@ -167,13 +167,14 @@ export class TrafficEngine {
     this.maxVehicles = positive(maxVehicles, 'maxVehicles'); this.gap = gap;
     this.onArrival = onArrival; this.onFailure = onFailure;
     this.time = 0; this.accumulator = 0; this.vehicles = new Map();
-    this.events = new EventScheduler(); this.signals = new Map();
+    this.events = new EventScheduler(); this.signals = new Map(); this.pending = new Set();
     this.metrics = { steps: 0, completed: 0, failed: 0, moved: 0, routePlans: 0 };
   }
   planTrip({ id, from, to, at = this.time, speedFactor = 1, length = 0.45 }) {
-    if (id == null || this.vehicles.has(id)) throw new Error('vehicle id must be unique');
+    if (id == null || this.vehicles.has(id) || this.pending.has(id)) throw new Error('vehicle id must be unique');
     if (!Number.isFinite(at) || at < this.time) throw new RangeError('trip is in the past');
     positive(speedFactor, 'speedFactor'); positive(length, 'length');
+    this.pending.add(id);
     this.events.schedule(at, 'departure', { id, from, to, speedFactor, length });
   }
   configureSignal(nodeId, phases) {
@@ -201,6 +202,7 @@ export class TrafficEngine {
         // Queue only when capacity is available; no busy retry loop per frame.
         this.events.schedule(this.time + 2, 'departure', info); return;
       }
+      this.pending.delete(info.id);
       const route = this.network.route(info.from, info.to); this.metrics.routePlans++;
       if (!route) {
         this.metrics.failed++; this.onFailure(info, 'unreachable'); return;
@@ -226,13 +228,10 @@ export class TrafficEngine {
     return vehicles.filter(v => v.status === 'moving' &&
       v.route[v.edgeIndex] === edgeId && v.lane === lane);
   }
-  _entryLane(edge, state, length) {
+  _entryLane(edge, entryStarts, length) {
     let selected = null, mostRoom = -Infinity;
     for (let lane = 0; lane < edge.lanes; lane++) {
-      let first = Infinity;
-      for (const v of state) if (v.status === 'moving' &&
-        v.route[v.edgeIndex] === edge.id && v.lane === lane)
-        first = Math.min(first, v.distance);
+      const first = entryStarts.get(String(edge.id) + ':' + lane) ?? Infinity;
       const room = first - length - this.gap;
       if (room >= 0 && room > mostRoom) { mostRoom = room; selected = lane; }
     }
@@ -242,6 +241,12 @@ export class TrafficEngine {
     this.time += this.stepSeconds;
     this.events.drain(this.time, e => this._dispatch(e));
     const active = [...this.vehicles.values()], occupiedNodes = new Set();
+    // Spatial lane index: one scan per step, then O(lanes) entry checks.
+    const entryStarts = new Map();
+    for (const car of active) if (car.status === 'moving') {
+      const key = String(car.route[car.edgeIndex]) + ':' + car.lane;
+      entryStarts.set(key, Math.min(entryStarts.get(key) ?? Infinity, car.distance));
+    }
     // Process front-to-back on each lane. Neighbours only, never all pairs.
     const groups = new Map();
     for (const v of active) {
@@ -284,9 +289,10 @@ export class TrafficEngine {
       if (occupiedNodes.has(edge.to) || !this._hasGreen(edge)) {
         v.distance = Math.max(0, edge.length - 0.001); return;
       }
-      const lane = this._entryLane(next, all, v.length);
+      const lane = this._entryLane(next, entryStarts, v.length);
       if (lane === null) { v.distance = Math.max(0, edge.length - 0.001); return; }
       occupiedNodes.add(edge.to); v.edgeIndex++; v.lane = lane; v.distance = 0;
+      entryStarts.set(String(next.id) + ':' + lane, 0);
       this.metrics.moved++;
     };
     // Activate queued trips once a safe entry slot is available.
@@ -294,16 +300,18 @@ export class TrafficEngine {
       const edge = this.network.edges.get(v.route[0]);
       if (!edge) { this.vehicles.delete(v.id); this.metrics.failed++;
         this.onFailure(v, 'edge_removed'); continue; }
-      const lane = this._entryLane(edge, all, v.length);
-      if (lane !== null) { v.status = 'moving'; v.lane = lane; v.distance = 0; }
+      const lane = this._entryLane(edge, entryStarts, v.length);
+      if (lane !== null) { v.status = 'moving'; v.lane = lane; v.distance = 0;
+        entryStarts.set(String(edge.id) + ':' + lane, 0); }
     }
     for (const group of groups.values()) {
+      const initialEdgeId = group[0]?.route[group[0].edgeIndex];
       let leadPosition = Infinity, leadLength = 0;
       for (const v of group) {
         if (processed.has(v.id)) continue;
         processed.add(v.id);
         move(v, leadPosition, leadLength);
-        if (v.status === 'moving' && v.route[v.edgeIndex] === group[0]?.route[group[0].edgeIndex]) {
+        if (v.status === 'moving' && v.route[v.edgeIndex] === initialEdgeId) {
           leadPosition = v.distance; leadLength = v.length;
         } else { leadPosition = Infinity; leadLength = 0; }
       }
@@ -314,10 +322,10 @@ export class TrafficEngine {
     if (!Number.isFinite(seconds) || seconds < 0) throw new RangeError('bad elapsed time');
     this.accumulator += seconds;
     let count = 0;
-    while (this.accumulator + 1e-12 >= this.stepSeconds && count++ < maxSteps) {
-      this._advanceOne(); this.accumulator -= this.stepSeconds;
+    while (this.accumulator + 1e-12 >= this.stepSeconds && count < maxSteps) {
+      this._advanceOne(); this.accumulator -= this.stepSeconds; count++;
     }
-    return count - 1;
+    return count;
   }
   runSteps(steps) {
     if (!Number.isInteger(steps) || steps < 0) throw new RangeError('invalid steps');
