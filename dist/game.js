@@ -2286,9 +2286,12 @@ function openVehicleUpgrade(){
   const trait=Number(button.dataset.techTrait),key=button.dataset.techKey,tech=VEHICLE_TECHS.find(t=>t.key===key);
   if(!tech||!Number.isInteger(trait)||trait<0||trait>=4)return;
   if(state.money<tech.price){toast('งบประมาณไม่เพียงพอ');openVehicleUpgrade();return;}
-  confirmAction('ยืนยันซื้อรถ '+aura[key][2]+' 1 คัน',CITIZEN_TRAITS[trait]+' · ราคา '+money(tech.price),
-   ()=>{if(state.money<tech.price){toast('งบประมาณไม่เพียงพอ');openVehicleUpgrade();return;}
-    state.money-=tech.price;state.vehicleTechLevels[trait][key]++;syncCitizenVehicleTech();updateUI();openVehicleUpgrade();});
+  // One click buys one car. Keep the showroom open for unlimited successive purchases.
+  state.money-=tech.price;
+  state.vehicleTechLevels[trait][key]++;
+  syncCitizenVehicleTech();
+  updateUI();
+  openVehicleUpgrade();
  };
 }
 
