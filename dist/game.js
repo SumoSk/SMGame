@@ -1384,12 +1384,14 @@ function trackingEndpoint(v,origin=false){
  const [x,y]=xy(node);return {point:{x:x+.5,y:y+.5},name:origin?trackingOrigin(v):trackingDestination(v)};
 }
 let canvasCarMarkerHits=[];
+let carStatusDiamondsVisible=true;
 function drawCarIndicators2D(){
  canvasCarMarkerHits=[];
  const add=(pose,v,cid,buildingId=null)=>{
   if(!pose)return;const p=screen(pose.x,pose.y);if(p[0]<-15||p[0]>view.w+15||p[1]<-20||p[1]>view.h+20)return;
   const focus=v?selected?.kind==='vehicle'&&selected.id===v.id:selected?.kind==='parked'&&selected.id===cid;
   if(focus){ctx.save();ctx.translate(...p);ctx.rotate(pose.angle);ctx.strokeStyle='#ffffff';ctx.lineWidth=1.2;ctx.strokeRect(-6*cam.z,-3.5*cam.z,12*cam.z,7*cam.z);ctx.restore();}
+  if(!carStatusDiamondsVisible)return;
   const size=Math.min(16,Math.max(8,cam.z*10)),x=p[0],y=p[1]-5*cam.z-size*.5-3;ctx.beginPath();ctx.moveTo(x,y-size*.5);ctx.lineTo(x+size*.3125,y);ctx.lineTo(x,y+size*.5);ctx.lineTo(x-size*.3125,y);ctx.closePath();ctx.fillStyle=CAR_STATUS_COLORS[vehicleTimeliness(v)];ctx.fill();
   canvasCarMarkerHits.push({x,y,selection:v?{kind:'vehicle',id:v.id,citizenId:v.citizenId}:{kind:'parked',id:cid,buildingId}});
  };
@@ -1811,7 +1813,7 @@ $('buildingQuickDemolish').onclick=()=>{
  demolishBuilding(state.buildings.get(id));
  updateBuildingQuickActions();
 };
-function draw(){normalizeSelectedCar();const roadPreview=getRoadPreview();if(renderer3d){renderer3d.render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor}});updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);drawVehicles();drawCarIndicators2D();updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();
+function draw(){normalizeSelectedCar();const roadPreview=getRoadPreview();if(renderer3d){renderer3d.render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible});updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);drawVehicles();drawCarIndicators2D();updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();
 if(hover&&tool!=='hand'&&!ROADS[tool]){if(CATALOG[tool])drawBuilding({key:tool,x:hover.x,y:hover.y,rotation:checkBuilding(tool,hover.x,hover.y).rotation||0},true);else{const cells=drag?.cells||[owner(id(hover.x,hover.y))];for(const i of cells){const [x,y]=xy(i),s=screen(x,y);ctx.fillStyle=tool.startsWith('erase')?'#df7e6c99':'#fbe3989c';ctx.fillRect(s[0],s[1],T*cam.z,T*cam.z*.78);}}}
 if(state.buildings.size===0){const p=screen(154,143);ctx.fillStyle='#214c3ac9';ctx.font=`500 ${Math.max(12,14*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillText('เมืองใหม่ เริ่มจากถนนเส้นแรก',p[0],p[1]);ctx.font=`${Math.max(10,11*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillStyle='#3f6148';ctx.fillText('ถนนหลัก 8 เลนพร้อมแล้ว · เลือกถนนเล็ก แล้วลากต่อออกมา',p[0],p[1]+22*cam.z);}
 }
@@ -4436,6 +4438,26 @@ function toggleBuildingLabels(){
  document.documentElement?.classList.toggle('building-labels-off',hidden);
 }
 $('toggleBuildingLabels').onclick=toggleBuildingLabels;
+function toggleCarStatusDiamonds(){
+ carStatusDiamondsVisible=!carStatusDiamondsVisible;
+ const hidden=!carStatusDiamondsVisible,button=$('toggleCarDiamonds');
+ if(!button)return;
+ button.classList.toggle('is-hidden',hidden);
+ button.setAttribute('aria-pressed',String(hidden));
+ button.setAttribute('aria-label',hidden?'เปิดเพชรสถานะเหนือรถ':'ปิดเพชรสถานะเหนือรถ');
+ button.title=hidden?'แสดงเพชรสถานะรถอีกครั้ง':'ซ่อนเพชรสถานะบนหัวรถ';
+ const caption=$('toggleCarDiamondsText');
+ if(caption)caption.textContent=hidden?'เปิดเพชร':'ปิดเพชร';
+ // Do not change trips, tracking, incident warnings or selected car outline.
+ if(renderer3d&&hidden&&renderer3d.carMarkerMesh){
+  renderer3d.carMarkerMesh.count=0;
+  renderer3d.carMarkerMesh.visible=false;
+  renderer3d.carIndicatorHits=[];
+ }
+ if(hidden)canvasCarMarkerHits=[];
+}
+const diamondToggle=$('toggleCarDiamonds');
+if(diamondToggle)diamondToggle.onclick=toggleCarStatusDiamonds;
 
 $('closeTouristsDashboard').onclick=()=>{category='roads';dockGroup='roads';selectTool('hand');};
 $('touristSearch').oninput=e=>{touristSearch=e.target.value.slice(0,80);touristPage=0;renderTouristDashboard(true);};
