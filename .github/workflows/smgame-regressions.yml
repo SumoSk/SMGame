@@ -106,6 +106,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run test:release-fixes
+      - run: npm run test:assisted-placement
       - name: Save compiled release to main
         run: |
           git config user.name "github-actions[bot]"
