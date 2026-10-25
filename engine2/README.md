@@ -1,74 +1,81 @@
-# SMCITY — Traffic Engine 2.0 (clean-room rewrite)
+# SMCITY Traffic Engine 2.0 — Clean rewrite workstream
 
-## Status
+This folder contains a new traffic implementation and adapters; it does not reuse
+or modify the original traffic algorithms. Production SMCITY has not yet
+been switched to this engine. Tests passing is not game-level completion.
 
-This folder is a **new implementation**, not a modification, copy, or patch of the
-legacy traffic code. It is intentionally isolated on branch
-traffic-engine-2-rewrite; **not yet connected to the live SMCITY UI**.
+## Recovery and source-control safety
 
-The full pre-rewrite repository is preserved at branch
-old-version-2026-10-25 (commit f97f80f566d277b2cd93e81126d7b4378a998a8f).
+- Original live-code backup: branch old-version-2026-10-25, commit
+  f97f80f566d277b2cd93e81126d7b4378a998a8f
+- Work branch: traffic-engine-2-rewrite
+- Production main stays unchanged until browser integration tests pass.
+- Cloud saves are not deleted; new vehicle/trip schemas may be incompatible.
 
-## Approved product decisions
+## Product brief
 
-- Rebuild routing, lane movement, signals, junction coordination, trip management,
-  gates and parking from new design; preserve unrelated city/lifestyle/business/UI behavior.
-- Rules-based central network; each vehicle advances within the shared rules.
-- Realistic queues, but correct broken deadlocks without freezing or blindly deleting cars.
-- Minimize computation **without** disabling safety checks.
-- Routing optimizes *expected travel time*, not distance alone.
-- Target: 1,000 concurrently simulated cars.
-- Old vehicle/trip save schema **need not** be supported if it blocks a sound architecture.
-  Do not delete cloud save records as a side effect of the rewrite.
+- Retain citizen lifestyle generation, economy, buildings and UI while
+  replacing routing, trip and traffic algorithms from scratch.
+- Central road, lane, signal, junction and gate rules; vehicles follow them.
+- Optimize expected travel time, not physical distance alone.
+- Minimize redundant work with scheduled events, bounded caches,
+  indexed local vehicles, batched cost snapshots and fixed-step motion.
+- Aim for 1,000 concurrent vehicles and distinguish true deadlocks from queues.
 
-## Code created so far
+## Implemented standalone components
 
-- traffic-core.mjs: directed road network, weighted routing with turn and U-turn
-  constraints, versioned/bounded route cache, quantized congestion invalidation,
-  min-heap event queue, fixed-step vehicle model, queueing, simple lanes, single-junction
-  entry coordination, one-approach-at-a-time signals, cancelable trips and diagnostics.
-- trip-manager.mjs: schedules a citizen's one active trip at a time; handles trip
-  completion, failure, cancellation and bounded historical records.
-- test/: deterministic unit/regression tests, including a 1,000-car stress scenario.
-- .github/workflows/traffic-engine-v2.yml: independently runs Node tests.
+| Module | Responsibility |
+|---|---|
+| traffic-core.mjs | Directed graph, spatial A*, legal turning constraints, weighted time, route cache, event queue, fixed-step motion, lazy rerouting and gate recovery |
+| lane-controller.mjs | Neighbour clearance and lane reduction/changes |
+| junction-controller.mjs | Directional signals, yellow/clearance and conservative node reservations |
+| traffic-estimator.mjs | Occupancy-based travel-time cost updates on demand |
+| parking-controller.mjs | Parking reservations and event-woken waiting queues |
+| trip-manager.mjs | Citizen trip lifecycle with destination reservation |
+| deadlock-monitor.mjs | Threshold-based wait-for cycle detection |
+| city-road-adapter.mjs | Convert existing city road records on road edits |
+| citizen-trip-adapter.mjs | Translate trip intentions and legal building entrances/exits |
+| pose-adapter.mjs | Renderer-independent lane poses and corner transition blending |
+| test/*.test.mjs | Deterministic and multi-car regression tests |
+| benchmark.mjs | 1,000-car synthetic CPU/memory diagnostic |
 
-## Performance design
+## Last measured results (2026-10-25)
 
-- Road graph and route caching invalidate on topology / significant cost changes.
-- Trip and signal transition work is event scheduled; not recalculated every render frame.
-- Vehicle movement uses a fixed simulation time step; a lane index is rebuilt once
-  per step, so lane-entry checks do not scan all cars repeatedly.
-- The simulation does not access DOM/renderer state. A rendering adapter will consume
-  snapshots. Worker migration is optional and should be based on measured performance.
-- Animation, nearby-vehicle constraints and road geometry still require periodic
-  updates. "Event driven" does not mean disabling these calculations.
+- GitHub Actions: 42/42 Node.js tests passing in run 40201681745.
+- Synthetic 1,000 vehicles across 20 independent 4-lane links; 750 measured
+  fixed steps, 20 route searches and 980 route-cache hits.
+- GitHub-hosted Node runner: mean 0.178 ms per step, p95 0.292 ms,
+  p99 0.847 ms; heap observed about 20.7 MiB.
+- NOT real-game FPS, Safari, Edge, 3D renderer cost or a performance guarantee.
 
-## Integration contract to build next
+## Still missing before a safe production replacement
 
-1. **Map adapter:** Convert the city's road construction/deletion events to directed
-   links with valid turns, geometry and physical lane assignments. Changes must notify
-   the engine; no separate hidden traffic graph.
-2. **Citizen adapter:** Convert lifestyle decisions into one trip request containing
-   actor, origin, destination, departure time and purpose. Keep the existing
-   life-schedule generator untouched.
-3. **Junction model:** Replace the provisional one-car-per-junction-per-step mutex
-   with conflict-area reservations, downstream box checks, clearance/yellow periods,
-   and lane-turn constraints. This has **not** been completed.
-4. **Parking/gate model:** Build a new controller for slot reservations, building
-   entry/exit queues and safe merge into street flow. This has **not** been completed.
-5. **Vehicle geometry:** Physical lanes, turn trajectories, yielding, safe lane
-   changes and stuck-vs-queued diagnosis need new implementation. Current module
-   is a straight-link physics prototype, **not** feature parity.
-6. **UI/render adapter:** Feed positions and traffic state to renderer3d.js without
-   changing unrelated UI or economy logic.
-7. **Save/version cutover:** New engine state schema, migrations where necessary,
-   rollback capability, and smoke tests before replacing the public game.
+1. Main game cutover: production still runs original traffic/trip/tick code.
+2. Continuous geometric trajectories and safe swept-turn movements at 3D intersections.
+3. Automatic lane intentions before turns, taper geometry, bidirectional
+   lane-change conflict arbitration and road-speed-specific behaviour.
+4. Complete lane-specific intersection conflict matrices and throughput modelling.
+5. Animated physical parking, entry/exit queues and safe road merging.
+6. Business lifecycle callbacks to citizen happiness, work, tourism, economy,
+   analytics, incident UI, save/load and existing menus.
+7. Realistic busy-city browser tests with Edge and Safari, FPS/CPU/GPU/memory
+   measurement and long-duration save-load regression.
+8. More deadlock resolution cases. The current model only auto-recovers proven
+   wait cycles when a viable city gate is configured.
 
-## Run tests locally
+## Commands
+
+Unit/integration tests:
 
     node --test engine2/test/*.test.mjs
 
-The test pipeline is informative but **does not certify** the original city's
-save/login behavior, traffic rendering, real junctions, parking or deployment.
-Do not delete legacy modules or switch GitHub Pages to this branch until the
-integration tests pass end-to-end.
+Standalone benchmark:
+
+    node engine2/benchmark.mjs
+
+## Release acceptance
+
+Do not delete legacy modules or switch GitHub Pages until all dependent city
+features use the new engine without parallel duplicate control loops, complete
+browser regression passes, a recoverable save transition is documented, and
+the old-version backup has been exercised as a rollback option.
