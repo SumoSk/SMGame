@@ -22,6 +22,7 @@ const PALM_FROND=(()=>{
 })();
 const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND];
 const CAR_DIAMOND=new THREE.OctahedronGeometry(1,0);
+const CAR_TECH_AURA=new THREE.SphereGeometry(1,12,8),CAR_WARP_BEAM=new THREE.CylinderGeometry(1,1,1,16,1,true);
 const UP=new THREE.Vector3(0,1,0),TAU=Math.PI*2;
 const DAYLIGHT=[
  [0,'#1a2941','#adc4e5',.35,.78,.64,1],[180,'#101d34','#8b9fc6',.26,.68,.57,1],
@@ -6053,6 +6054,44 @@ export class TrafficRenderer{
    for(const mesh of [set.headlights,set.taillights]){mesh.count=items.length*2;mesh.instanceMatrix.needsUpdate=true;}
    set.lightSpill.count=items.length;set.lightSpill.instanceMatrix.needsUpdate=true;
    if(set.body.instanceColor)set.body.instanceColor.needsUpdate=true;
+  }
+ }
+ ensureCarTechMesh(key,needed){
+  let m=this.carTechMeshes?.get(key);
+  if(needed===0)return m||null;
+  if(m&&m.instanceMatrix.count>=needed)return m;
+  if(m){this.scene.remove(m);m.material.dispose();m.dispose();}
+  const cap=Math.max(16,2**Math.ceil(Math.log2(needed)));
+  const beam=key==='beam';
+  m=new THREE.InstancedMesh(beam?CAR_WARP_BEAM:CAR_TECH_AURA,
+   new THREE.MeshBasicMaterial({color:beam?'#56d6ff':key==='fly'?'#78e6ff':'#2acfff',
+    transparent:true,opacity:beam?.24:.22,blending:THREE.AdditiveBlending,
+    depthWrite:false,depthTest:true,toneMapped:false,side:THREE.DoubleSide}),cap);
+  m.count=0;m.visible=false;m.frustumCulled=false;m.renderOrder=4;
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  this.scene.add(m);
+  if(!this.carTechMeshes)this.carTechMeshes=new Map();
+  this.carTechMeshes.set(key,m);return m;
+ }
+ updateCarTechEffects(records,warpPoints){
+  const d=this.carDummy;
+  for(const key of ['smart','fly','beam']){
+   const items=key==='beam'?warpPoints:records.filter(r=>r.tech===key);
+   const m=this.ensureCarTechMesh(key,items.length);
+   if(!m)continue;
+   m.count=items.length;m.visible=items.length>0;
+   for(let i=0;i<items.length;i++){
+    const car=items[i];
+    if(key==='beam'){
+     d.position.set(car.x-.5,3.5,car.y-.5);d.rotation.set(0,0,0);
+     d.scale.set(.30,7,.30);
+    }else{
+     d.position.set(car.x,(car.altitude||0)+.32,car.z);
+     d.rotation.set(0,0,0);d.scale.set(.44,.26,.30);
+    }
+    d.updateMatrix();m.setMatrixAt(i,d.matrix);
+   }
+   if(items.length)m.instanceMatrix.needsUpdate=true;
   }
  }
  updateCarIndicators(records,showDiamonds=true){
