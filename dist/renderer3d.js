@@ -466,7 +466,7 @@ export class TrafficRenderer{
   if(this.graphicQuality===value)return true;
   this.graphicQuality=value;
   // Low deliberately renders into a smaller framebuffer: softer image at every zoom.
-  const ratio=value==='low'?.72:Math.min(devicePixelRatio||1,1.6);
+  const ratio=value==='low'?.72:Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,1.6);
   this.renderer.setPixelRatio(ratio);
   this.lastBuildingDetailLevel=null;
   this.treeGroup.visible=value!=='low';
