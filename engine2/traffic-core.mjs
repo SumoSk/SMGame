@@ -38,16 +38,29 @@ export class MinHeap {
 export class RoadNetwork {
   constructor({ routeCacheLimit = 2048 } = {}) {
     this.nodes = new Set(); this.edges = new Map(); this.outgoing = new Map();
+    this.positions = new Map();
     this.forbiddenTurns = new Set(); this.version = 0; this.costVersion = 0;
     this.routeCacheLimit = positive(routeCacheLimit, 'routeCacheLimit');
     this.routeCache = new Map();
     this.metrics = { searches: 0, cacheHits: 0 };
   }
-  addNode(id) {
+  addNode(id, position = null) {
     if (id == null) throw new TypeError('node id required');
     if (!this.nodes.has(id)) {
       this.nodes.add(id); this.outgoing.set(id, []); this._invalidate(true);
     }
+    if (position !== null) {
+      if (!Number.isFinite(position.x) || !Number.isFinite(position.y))
+        throw new TypeError('invalid node position');
+      this.positions.set(id,{x:position.x,y:position.y});
+    }
+  }
+  removeNode(id) {
+    if (!this.nodes.has(id)) return false;
+    for (const edge of [...this.edges.values()])
+      if (edge.from === id || edge.to === id) this.removeEdge(edge.id);
+    this.nodes.delete(id); this.positions.delete(id); this.outgoing.delete(id);
+    this._invalidate(true); return true;
   }
   addEdge({ id, from, to, length, speed = 1, lanes = 1, delay = 0 }) {
     if (this.edges.has(id)) throw new Error('duplicate edge ' + id);
