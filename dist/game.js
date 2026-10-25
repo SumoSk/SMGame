@@ -825,9 +825,10 @@ state.gates=[id(150,0),id(299,150),id(150,299),id(0,150)];rebuildFootprint();cam
 function startNewCity(city='phuket'){
  reset(city);
  // Preserve the original largest roads at all four city entrances.
- // A short medium collector steps down to the small village streets.
- if(!buildRoad(lineCells(id(164,150),id(164,146)),'medium',true))throw Error('Starter village collector could not be placed');
- const streets=[[[164,146],[164,132]],[[164,132],[176,132]],[[176,132],[176,144]],[[176,144],[164,144]],[[164,138],[176,138]]];
+ // One continuous medium (4-lane) collector connects the main road to the village.
+ // The remaining village streets stay small (2-lane).
+ if(!buildRoad(lineCells(id(164,150),id(164,132)),'medium',true))throw Error('Starter village collector could not be placed');
+ const streets=[[[164,132],[176,132]],[[176,132],[176,144]],[[176,144],[164,144]],[[164,138],[176,138]]];
  for(const [a,b] of streets)if(!buildRoad(lineCells(id(...a),id(...b)),'small',true))throw Error('Starter village road could not be placed');
  const plots=[
   ['home_starter',166,128,0],['home_starter',170,128,0],
@@ -840,10 +841,11 @@ function startNewCity(city='phuket'){
  const homes=[];
  for(const [key,x,y,rotation] of plots){
   const building=buildBuilding(key,x,y,true);if(!building)throw Error('Starter village building could not be placed: '+key);
-  // Keep every entrance facing an internal small street, including the two
-  // plots whose back edge also touches the large arterial's reserved verge.
+  // West-side factory and hotel access the medium collector; all other
+  // starter buildings continue to face the original small side streets.
   building.rotation=rotation;building.access=accessFor(building);
-  if(building.access.length<2||building.access.some(a=>state.roads.get(a.node)?.type!=='small'))throw Error('Starter building must face the village street: '+key);
+  const accessRoadType=x===160?'medium':'small';
+  if(building.access.length<2||building.access.some(a=>state.roads.get(a.node)?.type!==accessRoadType))throw Error('Starter building has invalid street access: '+key);
   if(key==='home_starter')homes.push(building);
  }
  for(const home of homes)for(let n=0;n<CATALOG[home.key].residents;n++){
