@@ -18,6 +18,7 @@ jobs:
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
       - run: node work/test-vehicle-technology.cjs
+      - run: node work/test-vehicle-tech-3d.cjs
       - run: node work/test-party-personalities.cjs
       - run: node work/test-lifestyles.cjs
       - run: node work/test-ai-pin-interaction.cjs
