@@ -3,7 +3,7 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
 (async()=>{
  const fixture=fs.readFileSync('work/test-tourism.cjs','utf8')
   .split('const results=[]')[0];
- const {game,get}=new Function('require',fixture+'return boot();')(require);
+ const {game,get,context}=new Function('require',fixture.replace('return{game,get};','return{game,get,context};')+'return boot();')(require);
  const center=game.id(150,150),slots=game.signalSlots(center);
  assert.equal(slots.length,4);
  assert.equal(game.state.money,500000);
@@ -62,7 +62,37 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
  assert.equal(game.state.signals.has(center),false,'demolished junction loses installed AI');
  assert.equal(game.state.money,1500000,'demolishing junction gives no refund');
 
- const src=fs.readFileSync('dist/game.js','utf8');
+
+ // Exercise the actual floating DOM badge and its click-to-buy flow in the 2D test harness.
+ game.reset();game.state.money=2000000;
+ const getOriginal=context.document.getElementById;
+ let overlay=null,uiClock=Date.now();
+ context.Date=class extends Date{static now(){return uiClock;}};
+ context.document.getElementById=id=>id==='aiJunctionOverlay'?overlay:getOriginal(id);
+ const create=id=>({
+  id,style:{},dataset:{},hidden:false,children:[],
+  classList:{toggle(name,on){this[name]=on;}},
+  setAttribute(){},remove(){this.hidden=true;},
+  appendChild(child){this.children.push(child);},
+  onclick:null,textContent:''
+ });
+ context.document.createElement=tag=>create(tag);
+ context.document.body={appendChild(el){overlay=el;}};
+ game.updateAISignalPins();
+ assert(overlay&&overlay.children.length>0,'AI icons must show on existing junctions without visiting settings');
+ const badge=overlay.children.find(el=>Number(el.dataset.node)===center);
+ assert(badge,'center 4-way junction shows clickable AI icon');
+ assert.equal(typeof badge.onclick,'function');
+ assert.equal(badge.classList.owned,false);
+ badge.onclick({preventDefault(){},stopPropagation(){}});
+ assert.match(get('dialogContent').innerHTML,/1,000,000/,'clicking pin opens purchase modal');
+ assert.equal(typeof get('confirmDialog').onclick,'function');
+ get('confirmDialog').onclick();
+ assert.equal(game.state.money,1000000,'modal purchase charges one million');
+ uiClock+=250;game.updateAISignalPins();
+ assert.equal(badge.classList.owned,true,'purchased AI changes badge to bright owned design');
+ assert.match(badge.textContent,/✓/);
+  const src=fs.readFileSync('dist/game.js','utf8');
  const css=fs.readFileSync('dist/style.css','utf8');
  assert(src.includes("button.className='ai-junction-pin'"),'AI button should float over junction');
  assert(src.includes("openAISignalUpgrade(node)"),'touching AI badge opens purchase/owned junction');
