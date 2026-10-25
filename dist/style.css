@@ -5657,3 +5657,32 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleA
 @media(max-width:1199px){
  body>.bottom .builder-zone .build-dock .dock-head #toggleAIPinsText{display:none!important;}
 }
+
+/* Paid vehicle research, four personality cards / 1% purchase controls. */
+#dialog:has(.vehicle-tech-head){width:min(980px,calc(100vw - 28px));max-width:980px;max-height:min(88vh,850px);overflow-y:auto;box-sizing:border-box;}
+.vehicle-tech-head{padding:5px 2px 17px;border-bottom:1px solid #b1c6c180;margin-bottom:15px;}
+.vehicle-tech-head h2{margin:5px 0;font-size:clamp(21px,2.7vw,28px);}
+.vehicle-tech-head p{font-size:13px;line-height:1.6;margin:7px 0;}
+.vehicle-tech-head>strong{display:inline-block;padding:7px 13px;border-radius:12px;background:#c4e8db66;color:inherit;}
+.vehicle-tech-traits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;}
+.vehicle-tech-trait{border:1px solid #bdd2ce88;border-radius:17px;padding:12px;background:#f4faf8;}
+.vehicle-tech-trait header{display:flex;justify-content:space-between;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px;}
+.vehicle-tech-trait h3{margin:0;font-size:17px;}
+.vehicle-tech-trait header span{font-size:11px;opacity:.75;}
+.vehicle-tech-row{display:grid;grid-template-columns:minmax(0,1fr) 76px 91px;gap:7px;align-items:center;border-top:1px solid #c8d8d4;padding:9px 0;}
+.vehicle-tech-detail{display:flex;flex-direction:column;min-width:0;gap:3px;}
+.vehicle-tech-detail strong{font-size:13px;}
+.vehicle-tech-detail small{font-size:10px;opacity:.73;line-height:1.35;}
+.vehicle-tech-value{text-align:center;display:flex;flex-direction:column;gap:2px;}
+.vehicle-tech-value b{font-size:21px;font-variant-numeric:tabular-nums;color:#116e78;}
+.vehicle-tech-value small{font-size:10px;white-space:nowrap;opacity:.72;}
+.vehicle-tech-buy{border:1px solid #2999a8;border-radius:12px;background:#d7f5f3;color:#075766;font-weight:800;font-size:15px;min-height:45px;padding:5px 4px;cursor:pointer;}
+.vehicle-tech-buy small{display:block;font-size:10px;font-weight:600;margin-top:2px;}
+.vehicle-tech-buy:hover:not(:disabled){background:#8de2df;}
+.vehicle-tech-buy:disabled{opacity:.34;cursor:not-allowed;}
+.vehicle-tech-note{font-size:11px;opacity:.72;margin-top:13px;}
+:root.smcity-gray-ui .vehicle-tech-trait{background:#20272e;border-color:#445760;}
+:root.smcity-gray-ui .vehicle-tech-row{border-top-color:#46535b;}
+:root.smcity-gray-ui .vehicle-tech-value b{color:#85f3f5;}
+:root.smcity-gray-ui .vehicle-tech-buy{background:#154652;color:#a7f9ff;border-color:#528e95;}
+@media(max-width:700px){.vehicle-tech-traits{grid-template-columns:1fr;}.vehicle-tech-trait{padding:10px;}.vehicle-tech-row{grid-template-columns:minmax(0,1fr) 68px 83px;gap:4px;}}
