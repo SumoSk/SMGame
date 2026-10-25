@@ -6047,6 +6047,30 @@ export class TrafficRenderer{
   if(set.body.instanceColor)set.body.instanceColor.needsUpdate=true;
   if(set.roof){set.roof.count=items.length;set.roof.instanceMatrix.needsUpdate=true;}
  }
+ // Cache stationary parking geometry; appearance and visibility remain live.
+ parkedCarPose(b,id){
+  this.parkedPoseCache??=new WeakMap();
+  let cache=this.parkedPoseCache.get(b);
+  if(!cache||cache.x!==b.x||cache.y!==b.y||cache.rotation!==b.rotation||cache.key!==b.key||cache.slots!==b.parkingSlots){
+   cache={x:b.x,y:b.y,rotation:b.rotation,key:b.key,slots:b.parkingSlots,indexes:new Map(),poses:new Map()};
+   this.parkedPoseCache.set(b,cache);
+  }
+  let index=cache.indexes.get(id);
+  if(index==null||b.parkingSlots[index]!==id){
+   cache.indexes=new Map(b.parkingSlots.map((cid,i)=>[cid,i]));index=cache.indexes.get(id);
+  }
+  if(index==null)return null;
+  if(!cache.poses.has(index))cache.poses.set(index,this.parking.parkingSlotPose(b,index));
+  return cache.poses.get(index);
+ }
+ hideCars(){
+  for(const set of this.carSets.values())for(const mesh of [set.body,set.trim,set.headlights,set.taillights,set.lightSpill])mesh.count=0;
+  for(const set of this.carLODSets.values())for(const mesh of [set.body,set.roof])if(mesh)mesh.count=0;
+  for(const mesh of this.carTechMeshes?.values()||[])mesh.count=0;
+  if(this.carMarkerMesh)this.carMarkerMesh.count=0;
+  if(this.carSelectionFrame)this.carSelectionFrame.visible=false;
+  this.carIndicatorHits=[];this.carLODStats={near:0,medium:0,far:0,culled:0};
+ }
  cars(state,vehiclePosition,CATALOG,vehicleTimeliness=null,selected=null,showDiamonds=true){
   const groups=VEHICLE_TYPES.map(()=>[]),medium=[],far=[],indicators=[],techEffects=[],warpPoints=[];
   const frustum=this.carViewFrustum,point=this.carViewPoint,cam=this.cam;
@@ -6090,7 +6114,7 @@ export class TrafficRenderer{
   }
   for(const b of state.buildings.values())for(const id of b.parked){
    if(this.parking.parkingIsMoving(id))continue;
-   const index=b.parkingSlots.indexOf(id),p=this.parking.parkingSlotPose(b,index);
+   const p=this.parkedCarPose(b,id);
    if(p)add(p.x-.5,p.y-.5,Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),state.citizens.get(id),id,this.parking.citizenCarColor(id),state.vehicles.get(state.citizens.get(id)?.vehicleId),b.id);
   }
   for(const v of state.vehicles.values())if(v.phase==='warp_charge'&&v.airFrom&&v.airTo){warpPoints.push(v.airFrom,v.airTo);}
@@ -6268,18 +6292,12 @@ export class TrafficRenderer{
  for(const [x,z,w,d,color]of boxes){const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.22,depthWrite:false}));plane.rotation.x=-Math.PI/2;plane.position.set(x,.14,z);this.previewGroup.add(plane);const points=[new THREE.Vector3(x-w/2,.17,z-d/2),new THREE.Vector3(x+w/2,.17,z-d/2),new THREE.Vector3(x+w/2,.17,z+d/2),new THREE.Vector3(x-w/2,.17,z+d/2),new THREE.Vector3(x-w/2,.17,z-d/2)];this.previewGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color})));}
  }
  render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}
- const buildKey=[state.buildings.size,...[...state.buildings.values()].map(b=>[b.id,b.x,b.y,b.rotation].join(','))].join(':');
+ const buildKey=state.buildings.size+':'+(state.buildingVisualVersion||0);
  const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}if(this.graphicQuality==='low'){this.treeGroup.visible=false;}
  else{this.treeGroup.visible=true;this.trees(state,cam);}
- this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);
-  // Traffic heatmap is a map-only view: do not draw vehicle meshes or markers.
-  if(heat){
-   for(const set of this.carSets.values())for(const mesh of [set.body,set.trim,set.headlights,set.taillights,set.lightSpill])mesh.count=0;
-   for(const set of this.carLODSets.values())for(const mesh of [set.body,set.roof])if(mesh)mesh.count=0;
-   for(const mesh of this.carTechMeshes?.values()||[])mesh.count=0;
-   if(this.carMarkerMesh)this.carMarkerMesh.count=0;
-   if(this.carSelectionFrame)this.carSelectionFrame.visible=false;
-  }
+ // Skip all vehicle pose, instance and effect preparation in map-only mode.
+ if(heat)this.hideCars();
+ else this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);
   this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview);
  this.updateSignals(signalColor);this.updateAISignalGlow(state);this.updateGrandSignals();this.updateWeatherLight(state);
  this.updateBuildingDetailLOD(cam);
