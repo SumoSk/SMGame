@@ -167,14 +167,15 @@ export class TrafficEngine {
     this.maxVehicles = positive(maxVehicles, 'maxVehicles'); this.gap = gap;
     this.onArrival = onArrival; this.onFailure = onFailure;
     this.time = 0; this.accumulator = 0; this.vehicles = new Map();
-    this.events = new EventScheduler(); this.signals = new Map(); this.pending = new Set();
+    this.events = new EventScheduler(); this.signals = new Map();
+    this.pending = new Set(); this.issuedIds = new Set();
     this.metrics = { steps: 0, completed: 0, failed: 0, moved: 0, routePlans: 0 };
   }
   planTrip({ id, from, to, at = this.time, speedFactor = 1, length = 0.45 }) {
-    if (id == null || this.vehicles.has(id) || this.pending.has(id)) throw new Error('vehicle id must be unique');
+    if (id == null || this.issuedIds.has(id)) throw new Error('vehicle id must be unique');
     if (!Number.isFinite(at) || at < this.time) throw new RangeError('trip is in the past');
     positive(speedFactor, 'speedFactor'); positive(length, 'length');
-    this.pending.add(id);
+    this.issuedIds.add(id); this.pending.add(id);
     this.events.schedule(at, 'departure', { id, from, to, speedFactor, length });
   }
   configureSignal(nodeId, phases) {
@@ -195,9 +196,14 @@ export class TrafficEngine {
     })), index: 0, token });
     this.events.schedule(this.time + phases[0].duration, 'signal', { nodeId, token });
   }
+  cancelTrip(id) {
+    const waiting = this.pending.delete(id), active = this.vehicles.delete(id);
+    return waiting || active;
+  }
   _dispatch(event) {
     if (event.type === 'departure') {
       const info = event.data;
+      if (!this.pending.has(info.id)) return;
       if (this.vehicles.size >= this.maxVehicles) {
         // Queue only when capacity is available; no busy retry loop per frame.
         this.events.schedule(this.time + 2, 'departure', info); return;
