@@ -2,6 +2,7 @@
 import { LaneController } from './lane-controller.mjs';
 import { JunctionController } from './junction-controller.mjs';
 import { TrafficEstimator } from './traffic-estimator.mjs';
+import { DeadlockMonitor } from './deadlock-monitor.mjs';
 // This module has no DOM, canvas, persistence, or game-global dependencies.
 const positive = (value, name) => {
   if (!Number.isFinite(value) || value <= 0) throw new RangeError(name + ' must be positive');
@@ -125,10 +126,10 @@ export class RoadNetwork {
   travelTime(edge) {
     return edge.length / edge.speed * (1 + edge.congestion) + edge.delay;
   }
-  route(from, to) {
+  route(from, to, incomingId = null) {
     if (!this.nodes.has(from) || !this.nodes.has(to)) return null;
     if (from === to) return { nodes: [from], edges: [], time: 0 };
-    const key = JSON.stringify([from, to, this.version, this.costVersion]);
+    const key = JSON.stringify([from, to, incomingId, this.version, this.costVersion]);
     if (this.routeCache.has(key)) {
       this.metrics.cacheHits++;
       const cached = this.routeCache.get(key);
@@ -138,8 +139,9 @@ export class RoadNetwork {
     // Search states include incoming edges, so turn bans and U-turn bans are correct.
     const frontier = new MinHeap(), best = new Map(), previous = new Map();
     const stateKey = (node, incoming) => JSON.stringify([node, incoming]);
-    const initial = stateKey(from, null);
-    best.set(initial, 0); frontier.push({ priority: 0, node: from, incoming: null, key: initial });
+    const initial = stateKey(from, incomingId);
+    best.set(initial, 0);
+    frontier.push({ priority: 0, node: from, incoming: incomingId, key: initial });
     let finish = null;
     while (frontier.size) {
       const current = frontier.pop();
@@ -198,15 +200,20 @@ export class EventScheduler {
 
 export class TrafficEngine {
   constructor(network, { stepSeconds = 0.2, maxVehicles = 1000, gap = 0.6,
-    onArrival = () => {}, onFailure = () => {} } = {}) {
+    onArrival = () => {}, onFailure = () => {}, onRecovery = () => {},
+    onGridlock = () => {}, gateNodes = [] } = {}) {
     if (!(network instanceof RoadNetwork)) throw new TypeError('network required');
     positive(stepSeconds, 'stepSeconds'); positive(gap, 'gap');
     this.network = network; this.stepSeconds = stepSeconds;
     this.maxVehicles = positive(maxVehicles, 'maxVehicles'); this.gap = gap;
     this.onArrival = onArrival; this.onFailure = onFailure;
+    this.onRecovery = onRecovery; this.onGridlock = onGridlock;
+    this.gateNodes = [...gateNodes];
+    this.deadlocks = new DeadlockMonitor();
     this.time = 0; this.accumulator = 0; this.vehicles = new Map();
     this.events = new EventScheduler(); this.signals = new Map();
     this.pending = new Set(); this.issuedIds = new Set();
+    this.nextDeadlockCheck = 5;
     this.deferred = []; this.laneIntents = new Map();
     this.lanes = new LaneController({gap});
     this.estimator = new TrafficEstimator(network);
@@ -254,7 +261,7 @@ export class TrafficEngine {
       this.estimator.edgeLeft(active.route[active.edgeIndex]);
       this.vehicles.delete(id);
     }
-    this.laneIntents.delete(id);
+    this.laneIntents.delete(id); this.deadlocks.forget(id);
     if (active) this._wakeCapacity();
     return waiting || active;
   }
@@ -276,7 +283,8 @@ export class TrafficEngine {
     }
     this.vehicles.set(info.id, {
       ...info, route: route.edges, edgeIndex: 0, distance: 0, lane: 0,
-      status: 'queued', topologyVersion: this.network.version
+      status: 'queued', topologyVersion: this.network.version,
+      costVersion: this.network.costVersion, currentNode: info.from
     });
     this.estimator.edgeEntered(route.edges[0]);
   }
@@ -292,6 +300,60 @@ export class TrafficEngine {
       this.junctions.onTimer(event.data, event.at,
         (at,data) => this.events.schedule(at, 'signal', data));
     }
+  }
+  setGateNodes(gates) {
+    if (!Array.isArray(gates) || gates.some(id => !this.network.nodes.has(id)))
+      throw new TypeError('gate node not found');
+    this.gateNodes = [...new Set(gates)];
+  }
+  _recoverAtGate(v, reason) {
+    let result = null;
+    const lastPosition = this.network.positions.get(v.currentNode);
+    for (const gate of this.gateNodes) {
+      const path = this.network.route(gate, v.to);
+      if (!path || !path.edges.length) continue;
+      const gatePosition = this.network.positions.get(gate);
+      const offset = lastPosition && gatePosition ?
+        Math.hypot(lastPosition.x-gatePosition.x,lastPosition.y-gatePosition.y) : 0;
+      const cost = path.time + offset;
+      if (!result || cost < result.cost) result = { gate, path, cost };
+    }
+    if (!result) return false;
+    v.route = result.path.edges; v.edgeIndex = 0; v.distance = 0;
+    v.currentNode = result.gate; v.lane = 0; v.status = 'queued';
+    v.costVersion = this.network.costVersion;
+    v.topologyVersion = this.network.version;
+    this.estimator.edgeEntered(v.route[0]);
+    this.deadlocks.cleared(v.id);
+    this.onRecovery(v,reason,result.gate);
+    return true;
+  }
+  _replanAtNode(v, incomingEdge) {
+    if (v.costVersion === this.network.costVersion &&
+      v.topologyVersion === this.network.version) return;
+    const node = incomingEdge.to;
+    const remainingEdges = v.route.slice(v.edgeIndex + 1);
+    let valid = true, oldCost = 0, previous = incomingEdge, current = node;
+    for (const id of remainingEdges) {
+      const edge = this.network.edges.get(id);
+      if (!edge || edge.from !== current || previous.from === edge.to ||
+          this.network.forbiddenTurns.has(String(previous.id) + '>' + String(edge.id))) {
+        valid = false; break;
+      }
+      oldCost += this.network.travelTime(edge);
+      current = edge.to; previous = edge;
+    }
+    const candidate = this.network.route(node, v.to, incomingEdge.id);
+    this.metrics.routePlans++;
+    if (candidate && (!valid || candidate.time < oldCost * 0.8)) {
+      v.route = v.route.slice(0,v.edgeIndex+1).concat(candidate.edges);
+    }
+    v.costVersion = this.network.costVersion;
+    v.topologyVersion = this.network.version;
+  }
+  _clearCar(v) {
+    this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
+    this.deadlocks.forget(v.id);
   }
   _entryLane(edge, entryStarts, length) {
     let selected = null, mostRoom = -Infinity;
@@ -328,32 +390,35 @@ export class TrafficEngine {
       if (v.status !== 'moving') return;
       const edge = this.network.edges.get(v.route[v.edgeIndex]);
       if (!edge) { this.estimator.edgeLeft(v.route[v.edgeIndex]);
-        this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
-        this.metrics.failed++; this.onFailure(v, 'edge_removed'); this._wakeCapacity(); return; }
+        if (this._recoverAtGate(v,'edge_removed')) return;
+        this._clearCar(v); this.metrics.failed++;
+        this.onFailure(v, 'edge_removed'); this._wakeCapacity(); return; }
       const allowed = Math.max(0, leaderDistance - leaderLength - this.gap);
       const wanted = Math.min(edge.length, v.distance + edge.speed * v.speedFactor * this.stepSeconds);
       v.distance = Math.min(wanted, allowed);
       if (v.distance < edge.length - 1e-9) { this.metrics.moved++; return; }
+      this._replanAtNode(v,edge);
       const nextId = v.route[v.edgeIndex + 1];
       if (nextId == null) {
         this.estimator.edgeLeft(edge.id);
-        this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
+        this._clearCar(v);
         v.status = 'arrived'; this.metrics.completed++; this.onArrival(v);
         this._wakeCapacity(); return;
       }
       const next = this.network.edges.get(nextId);
       if (!next || next.from !== edge.to) {
         // Replan only after graph change or route invalidation, not every frame.
-        const destination = v.to, remaining = this.network.route(edge.to, destination);
+        const destination = v.to, remaining = this.network.route(edge.to, destination, edge.id);
         this.metrics.routePlans++;
         if (!remaining || !remaining.edges.length) {
           this.estimator.edgeLeft(edge.id);
-          this.vehicles.delete(v.id); this.laneIntents.delete(v.id);
+          this._clearCar(v);
           this.metrics.failed++; this.onFailure(v, 'route_lost');
           this._wakeCapacity(); return;
         }
         v.route = v.route.slice(0, v.edgeIndex + 1).concat(remaining.edges);
         v.topologyVersion = this.network.version;
+        v.costVersion = this.network.costVersion;
         v.distance = Math.max(0, edge.length - 0.001);
         return;
       }
@@ -365,6 +430,8 @@ export class TrafficEngine {
         v.distance = Math.max(0, edge.length - 0.001); return;
       }
       this.estimator.edgeLeft(edge.id); this.estimator.edgeEntered(next.id);
+      v.currentNode = edge.to;
+      this.deadlocks.cleared(v.id);
       v.edgeIndex++; v.lane = lane; v.distance = 0;
       entryStarts.set(String(next.id) + ':' + lane, 0);
       this.metrics.moved++;
@@ -373,7 +440,8 @@ export class TrafficEngine {
     for (const v of active) if (v.status === 'queued') {
       const edge = this.network.edges.get(v.route[0]);
       if (!edge) { this.estimator.edgeLeft(v.route[v.edgeIndex]);
-        this.vehicles.delete(v.id); this.metrics.failed++;
+        if (this._recoverAtGate(v,'edge_removed')) continue;
+        this._clearCar(v); this.metrics.failed++;
         this.onFailure(v, 'edge_removed'); this._wakeCapacity(); continue; }
       const lane = this.lanes.chooseDownstreamLane(edge, 0, 1,
         entryStarts, v.length, this.gap);
@@ -391,6 +459,10 @@ export class TrafficEngine {
           leadPosition = v.distance; leadLength = v.length;
         } else { leadPosition = Infinity; leadLength = 0; }
       }
+    }
+    if (this.time >= this.nextDeadlockCheck) {
+      this.nextDeadlockCheck = this.time + 5;
+      for (const report of this.deadlocks.inspect(this.time)) this.onGridlock(report);
     }
     this.metrics.steps++;
   }
@@ -412,6 +484,7 @@ export class TrafficEngine {
       metrics: { ...this.metrics }, routes: { ...this.network.metrics },
       junctions: this.junctions.snapshot(), lanes: {...this.lanes.metrics},
       trafficEstimator:{...this.estimator.metrics},
+      reportedDeadlocks:this.deadlocks.reports.length,
       vehicles: [...this.vehicles.values()].map(v => ({
         id: v.id, status: v.status, edgeId: v.route[v.edgeIndex],
         lane: v.lane, distance: v.distance, destination: v.to
