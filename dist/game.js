@@ -5426,6 +5426,7 @@ function openCityReport(){const report=cityBugReport(),rows=Object.entries(repor
 }
 $('advisorNext').onclick=e=>{const button=e.target.closest('button');if(!button)return;if(button.hasAttribute('data-advice-report'))openCityReport();else if(button.dataset.adviceCategory){category=button.dataset.adviceCategory;renderTools();}};
 if($('accountQuick'))$('accountQuick').onclick=openAccountDialog;
+if($('saveGameQuick'))$('saveGameQuick').onclick=openCloudSaveDialog;
 
 window.SMGameOnAuthChanged=loggedIn=>{
  if(!travelLogAdmin()){travelRecording=false;travelLog=null;if($('travelLogBody'))closeModal();}
