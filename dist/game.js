@@ -1267,17 +1267,25 @@ function smartSignalStep(){
  }
 }
 function openAISignalUpgrade(i){
- if(!state.roads.has(i)||junction(i)<3)return;
- if(signalSettings(i).mode==='smart'){selected={kind:'road',id:i};renderInspector(true);return;}
+ if(!state.roads.has(i)||junction(i)<3)return false;
+ if(signalSettings(i).mode==='smart'){selected={kind:'road',id:i};renderInspector(true);return true;}
  const afford=state.money>=AI_SIGNAL_PRICE;
- modal('<span class="eyebrow">SMART TRAFFIC</span><h2>✦ ติดตั้งไฟแดง AI</h2>'+
- '<p>อัปเกรดเฉพาะแยกนี้ ระบบจะเลือกทิศไฟเขียวตามรถที่กำลังรอ และจำกัดระยะเวลาเพื่อไม่ให้ทิศอื่นรอนานเกินไป</p>'+
+ modal('<span class="eyebrow">SMART TRAFFIC</span><h2>✦ ยืนยันการซื้อไฟแดง AI</h2>'+
+ '<p><strong>จ่าย 1,000,000 บาท เพื่ออัปเกรดแยกนี้เป็น AI ใช่หรือไม่?</strong></p>'+
+ '<p>ติดตั้งเฉพาะแยกนี้เท่านั้น · AI เลือกไฟเขียวตามคิวรถ · ซื้อครั้งเดียว ไม่มีคืนเงินเมื่อรื้อถนน</p>'+
  '<p class="signal-ai-price">ราคา <strong>฿1,000,000</strong> · เงินคงเหลือ '+money(state.money)+'</p>'+
- '<div class="actions"><button type="button" id="cancelDialog">ยกเลิก</button>'+
- '<button type="button" id="confirmDialog" class="primary" '+(afford?'':'disabled')+'>ซื้อไฟแดง AI</button></div>'+
- (!afford?'<p class="signal-note">งบประมาณยังไม่พอค่ะ</p>':''));
+ '<div class="actions"><button type="button" id="cancelDialog">ไม่ใช่</button>'+
+ '<button type="button" id="confirmDialog" class="primary" '+(afford?'':'disabled')+'>ใช่ · จ่าย 1,000,000 บาท</button></div>'+
+ (!afford?'<p class="signal-note">งบประมาณไม่เพียงพอ ต้องมีอย่างน้อย 1,000,000 บาทค่ะ</p>':''));
  $('cancelDialog').onclick=closeModal;
- $('confirmDialog').onclick=()=>{if(buyAISignal(i))closeModal();};
+ $('confirmDialog').onclick=()=>{
+  // Recheck balance and ownership at confirmation; only this action charges money.
+  if(!state.roads.has(i)||junction(i)<3||signalSettings(i).mode==='smart'){
+   toast('ทางแยกนี้เปลี่ยนแปลงไปแล้วค่ะ');closeModal();return;
+  }
+  if(buyAISignal(i))closeModal();
+ };
+ return true;
 }
 
 // A junction tile stores the road used to build it, not the lane count of
@@ -1943,55 +1951,106 @@ $('buildingQuickDemolish').onclick=()=>{
  updateBuildingQuickActions();
 };
 
+const AI_PINS_STORAGE='smcity-ai-junction-pins-v1';
+let aiPinsVisible=true;
+try{aiPinsVisible=localStorage.getItem(AI_PINS_STORAGE)!=='hidden';}catch{}
 let aiPinState=null,aiPinVersion=-1,aiPinNodes=[],aiPinLast=-Infinity;
+let aiPinHover=null,aiPinLocked=null,aiPinLockUntil=0,aiLastActivatedNode=null,aiLastActivatedAt=-Infinity;
 const aiPinButtons=new Map();
+function toggleAIPinLabels(){
+ aiPinsVisible=!aiPinsVisible;
+ try{localStorage.setItem(AI_PINS_STORAGE,aiPinsVisible?'shown':'hidden');}catch{}
+ const button=$('toggleAIPins'),label=$('toggleAIPinsText');
+ if(button){
+  button.classList.toggle('is-hidden',!aiPinsVisible);
+  button.setAttribute('aria-pressed',String(!aiPinsVisible));
+  button.setAttribute('aria-label',aiPinsVisible?'ปิดป้าย AI เหนือทางแยก':'เปิดป้าย AI เหนือทางแยก');
+  button.title=aiPinsVisible?'ซ่อนป้าย AI (ยังใช้ระบบไฟแดงอัจฉริยะตามปกติ)':'แสดงป้าย AI เหนือทางแยก';
+ }
+ if(label)label.textContent=aiPinsVisible?'ปิด AI':'เปิด AI';
+ const overlay=document.getElementById?.('aiJunctionOverlay');
+ if(overlay)overlay.hidden=!aiPinsVisible;
+ if(aiPinsVisible){aiPinLast=-Infinity;updateAISignalPins();}
+}
+const aiPinToggle=$('toggleAIPins');
+if(aiPinToggle)aiPinToggle.onclick=toggleAIPinLabels;
+function activateAISignalPin(node){
+ if(!state.roads.has(node)||junction(node)<3)return false;
+ const now=Date.now();
+ if(aiLastActivatedNode===node&&now-aiLastActivatedAt<600)return false;
+ aiLastActivatedNode=node;aiLastActivatedAt=now;
+ aiPinLocked=node;aiPinLockUntil=now+900;
+ return openAISignalUpgrade(node);
+}
 function updateAISignalPins(){
  const now=Date.now();
- if(now-aiPinLast<220)return;
+ if(now-aiPinLast<180)return;
  aiPinLast=now;
- // Keep markers in DOM so pressing an icon still works during a camera drag.
- let overlay=document.getElementById('aiJunctionOverlay');
+ let overlay=document.getElementById?.('aiJunctionOverlay');
+ if(!aiPinsVisible){if(overlay)overlay.hidden=true;return;}
  if(!overlay){
   if(!document.body?.appendChild||!document.createElement)return;
   overlay=document.createElement('div');overlay.id='aiJunctionOverlay';
   overlay.className='ai-junction-overlay';document.body.appendChild(overlay);
  }
+ overlay.hidden=false;
  if(typeof overlay.appendChild!=='function')return;
- if(aiPinState!==state||aiPinVersion!==state.version){
+ // Never recycle or move the button while a pointer is pressing it.
+ const locked=aiPinLocked!=null&&now<aiPinLockUntil;
+ if(!locked&&(aiPinState!==state||aiPinVersion!==state.version)){
   aiPinState=state;aiPinVersion=state.version;
   aiPinNodes=[...state.roads.keys()].filter(node=>junction(node)>=3);
   for(const el of aiPinButtons.values())el.remove();
-  aiPinButtons.clear();
+  aiPinButtons.clear();aiPinHover=null;
  }
  const visible=[];
  for(const node of aiPinNodes){
-  const x=node%W,y=Math.floor(node/W),p=screen(x+(renderer3d?0:.5),y+(renderer3d?0:.5),renderer3d?33:20);
+  const x=node%W,y=Math.floor(node/W),p=screen(x+(renderer3d?0:.5),y+(renderer3d?0:.5),renderer3d?33:12);
   if(!p||p[0]<30||p[0]>innerWidth-30||p[1]<36||p[1]>innerHeight-80)continue;
   visible.push({node,x:p[0],y:p[1],dist:Math.hypot(p[0]-innerWidth*.5,p[1]-innerHeight*.5)});
  }
  visible.sort((a,b)=>a.dist-b.dist);
  const shown=new Set();
- for(const pin of visible.slice(0,90)){
+ for(const pin of visible){
   const node=pin.node,owned=signalSettings(node).mode==='smart';
   let button=aiPinButtons.get(node);
   if(!button){
    button=document.createElement('button');button.type='button';
    button.className='ai-junction-pin';button.dataset.node=String(node);
+   button.onpointerenter=()=>{aiPinHover=node;};
+   button.onpointerleave=()=>{if(aiPinHover===node)aiPinHover=null;};
+   button.onpointerdown=event=>{
+    event.stopPropagation?.();event.stopImmediatePropagation?.();
+    aiPinLocked=node;aiPinLockUntil=Date.now()+1500;
+    // Pointer capture ensures touch/mouse release returns to this button, even if the map moves.
+    if(event.pointerId!=null)try{button.setPointerCapture?.(event.pointerId);}catch{}
+   };
+   button.onpointerup=event=>{
+    event.preventDefault?.();event.stopPropagation?.();event.stopImmediatePropagation?.();
+    activateAISignalPin(node);
+   };
    button.onclick=event=>{
-    event.preventDefault();event.stopPropagation();
-    openAISignalUpgrade(node);
+    event.preventDefault?.();event.stopPropagation?.();event.stopImmediatePropagation?.();
+    activateAISignalPin(node); // keyboard and synthetic click fallback
    };
    overlay.appendChild(button);aiPinButtons.set(node,button);
   }
   shown.add(node);
+  // A hovered or pressed badge must stay at the same screen coordinates until the click settles.
+  const stationary=aiPinHover===node||(aiPinLocked===node&&now<aiPinLockUntil);
   button.hidden=false;
   button.classList.toggle('owned',owned);
-  button.textContent=owned?'✦ AI ✓':'✦ AI';
+  const label=owned?'✦ AI ✓':'✦ AI';
+  if(button.textContent!==label)button.textContent=label;
   button.title=owned?'ติดตั้ง AI แล้ว · กดดูสถานะไฟแยกนี้':'กดซื้อไฟแดง AI แยกนี้ ฿1,000,000';
   button.setAttribute('aria-label',button.title);
-  button.style.left=pin.x+'px';button.style.top=pin.y+'px';
+  if(!stationary){
+   button.style.left=pin.x+'px';button.style.top=pin.y+'px';
+  }
  }
- for(const [node,button]of aiPinButtons)if(!shown.has(node))button.hidden=true;
+ for(const [node,button]of aiPinButtons)
+  if(!shown.has(node)&&node!==aiPinHover&&!(aiPinLocked===node&&now<aiPinLockUntil))button.hidden=true;
+ if(!locked)aiPinLocked=null;
 }
 
 function draw(){normalizeSelectedCar();const roadPreview=getRoadPreview();if(renderer3d){renderer3d.render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible});updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);drawVehicles();drawCarIndicators2D();updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
@@ -5247,6 +5306,6 @@ $('menu').onclick=openMainMenu;
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;missionAutoPulse();for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;heat=true;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},get carStatusDiamondsVisible(){return carStatusDiamondsVisible;},updateAISignalPins,buyAISignal,openAISignalUpgrade,smartSignalStep,aiSignalQueuePressure,get graphicQuality(){return graphicQuality;},applyGraphicQuality,openGraphicsMenu,get canvasCarMarkerHits(){return canvasCarMarkerHits;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalSlots,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({get state(){return state;},get cam(){return cam;},get selected(){return selected;},get carStatusDiamondsVisible(){return carStatusDiamondsVisible;},get aiPinsVisible(){return aiPinsVisible;},toggleAIPinLabels,activateAISignalPin,updateAISignalPins,buyAISignal,openAISignalUpgrade,smartSignalStep,aiSignalQueuePressure,get graphicQuality(){return graphicQuality;},applyGraphicQuality,openGraphicsMenu,get canvasCarMarkerHits(){return canvasCarMarkerHits;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalSlots,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();startNewCity();requestAnimationFrame(frame);
 })();
