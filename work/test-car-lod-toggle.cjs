@@ -14,6 +14,7 @@ const {pathToFileURL}=require('node:url');
  r.camera=new THREE.OrthographicCamera(-12,12,9,-9,.1,1000);
  r.camera.position.set(0,30,20);r.camera.lookAt(0,0,0);
  r.createCars();
+ r.graphicQuality='veryHigh';
  r.parking={parkingIsMoving:()=>false,parkingSlotPose:()=>null,citizenCarColor:()=> '#aaccdd'};
  const vehicles=new Map([
   [1,{id:1,citizenId:1,phase:'driving',x:.5,z:.5}],
@@ -36,6 +37,7 @@ const {pathToFileURL}=require('node:url');
  r.cars(state,position,null,()=> 'green',selected,true);
  assert.equal(r.carMarkerMesh.count,1,'diamonds return when the toggle is enabled');
 
+ r.graphicQuality='medium';
  r.camera.left=-20;r.camera.right=20;r.camera.top=15;r.camera.bottom=-15;
  r.camera.updateProjectionMatrix();
  r.cars(state,position,null,()=> 'green',selected,true);
