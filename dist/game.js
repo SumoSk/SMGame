@@ -1524,6 +1524,7 @@ function vehiclePosition(v){
   if(v.phase==='air_land')return{...b,altitude:Math.max(1.5,8*(1-f))};
  }
  if(v.phase==='warp_charge'&&v.airFrom)return{...v.airFrom,altitude:0};
+ if(v.vehicleTech==='fly'&&['driving','stuck','parking_out','parking_in'].includes(v.phase)){const ground=v.lotPath?parkingPose(v):null;if(ground)return {...ground,altitude:3.5};}
  if(v.lotPath)return parkingPose(v);if(v.phase==='departing'){const b=state.buildings.get(v.fromId);return b?parkingSlotPose(b,parkingSpace(b,v.citizenId)):null;}if(v.phase==='stuck'&&v.heldPose)return v.heldPose;return v.path?.length?positionOnMotion(motionPlan(v),motionDistance(v)):null;}
 // Visual trip status only: never changes deadlines, happiness or vehicle motion.
 const CAR_STATUS_COLORS={green:'#64c887',orange:'#efa54d',red:'#e36b6b'};
@@ -1887,6 +1888,9 @@ function openManualIncidentLog(){
  if(userId)void loadCloud();
 }
 function updateIncidentMarkers(){
+ // v4.1: incident notifications hidden; keep incident logs intact.
+ if(incidentMarkerLayer){incidentMarkerLayer.remove();incidentMarkerLayer=null;incidentMarkers.clear();}
+ return;
  const now=Date.now();if(now-incidentRenderAt<150)return;incidentRenderAt=now;
  if(!incidentMarkerLayer){incidentMarkerLayer=document.createElement('div');incidentMarkerLayer.id='incidentMarkers';
   Object.assign(incidentMarkerLayer.style,{position:'absolute',inset:'0',overflow:'hidden',pointerEvents:'none',zIndex:'5'});
@@ -2581,7 +2585,7 @@ function travelLogPulse(){
 window.addEventListener('pagehide',()=>{if(travelRecording)travelLogStop('ปิดหรือออกจากหน้าเกม');});
 
 function dockItems(currentCategory){
- if(currentCategory==='reports')return[{key:'sendAi',name:'ส่ง AI',icon:'↗',price:'ส่งแมปและสถานะรถเพื่อวิเคราะห์บัค'},...(travelLogAdmin()?[{key:'travelLog',name:'Log การเดินทาง',icon:'◉',price:travelRecording?'กำลังบันทึก':'เฉพาะแอดมิน · เก็บในเครื่อง'}]:[]),{key:'cityReport',name:'รายงานเมือง',icon:'▤',price:'ตรวจการจราจรและเส้นทาง'},{key:'incidentLog',name:'Log เหตุจราจร',icon:'◷',price:'ประวัติการช่วยเหลือรถ'}];
+ if(currentCategory==='reports')return[{key:'sendAi',name:'ส่ง AI',icon:'↗',price:'ส่งแมปและสถานะรถเพื่อวิเคราะห์บัค'},...(travelLogAdmin()?[{key:'travelLog',name:'Log การเดินทาง',icon:'◉',price:travelRecording?'กำลังบันทึก':'เฉพาะแอดมิน · เก็บในเครื่อง'}]:[]);
  let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[...TREE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อปลูกทีละต้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+TREE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
