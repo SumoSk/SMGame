@@ -5985,7 +5985,7 @@ export class TrafficRenderer{
    }
    const tech=v?.vehicleTech??c?.vehicleTech??'normal';
    const kind=carClassFor(c,id,tech),car={x,z,angle,color:tech==='speed'?'#ff5b24':carPaintFor(c,id,kind,fallback),kind,altitude};
-   if(['smart','fly'].includes(tech))techEffects.push({x,z,altitude,tech});
+   if(['speed','smart','fly','warp'].includes(tech))techEffects.push({x,z,altitude,tech});
    const apparentLength=VEHICLE_STYLES[kind][0]*pixelsPerUnit;
    const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
@@ -6064,8 +6064,8 @@ export class TrafficRenderer{
   const cap=Math.max(16,2**Math.ceil(Math.log2(needed)));
   const beam=key==='beam';
   m=new THREE.InstancedMesh(beam?CAR_WARP_BEAM:CAR_TECH_AURA,
-   new THREE.MeshBasicMaterial({color:beam?'#56d6ff':key==='fly'?'#78e6ff':'#2acfff',
-    transparent:true,opacity:beam?.24:.22,blending:THREE.AdditiveBlending,
+   new THREE.MeshBasicMaterial({color:({beam:'#56d6ff',speed:'#ff3030',smart:'#19aaff',fly:'#ffdd26',warp:'#29e66b'})[key]||'#ffffff',
+    transparent:true,opacity:beam?.24:.46,blending:THREE.AdditiveBlending,
     depthWrite:false,depthTest:true,toneMapped:false,side:THREE.DoubleSide}),cap);
   m.count=0;m.visible=false;m.frustumCulled=false;m.renderOrder=4;
   m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -6075,7 +6075,7 @@ export class TrafficRenderer{
  }
  updateCarTechEffects(records,warpPoints){
   const d=this.carDummy;
-  for(const key of ['smart','fly','beam']){
+  for(const key of ['speed','smart','fly','warp','beam']){
    const items=key==='beam'?warpPoints:records.filter(r=>r.tech===key);
    const m=this.ensureCarTechMesh(key,items.length);
    if(!m)continue;
@@ -6087,7 +6087,7 @@ export class TrafficRenderer{
      d.scale.set(.30,7,.30);
     }else{
      d.position.set(car.x,(car.altitude||0)+.32,car.z);
-     d.rotation.set(0,0,0);d.scale.set(.44,.26,.30);
+     d.rotation.set(0,0,0);d.scale.set(.57,.31,.40);
     }
     d.updateMatrix();m.setMatrixAt(i,d.matrix);
    }
