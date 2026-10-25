@@ -5802,6 +5802,10 @@ export class TrafficRenderer{
  createCars(){
   this.carModels=VEHICLE_TYPES.map((_,i)=>carGeometries(i));
   this.carSets=new Map();this.carDummy=new THREE.Object3D();this.carLightDummy=new THREE.Object3D();this.carTint=new THREE.Color();
+  // Medium: silhouette + glass cabin. Far: one tinted box. Only the near set uses detailed meshes and lights.
+  this.carLODSets=new Map();
+  this.carViewMatrix=new THREE.Matrix4();this.carViewFrustum=new THREE.Frustum();this.carViewPoint=new THREE.Vector3();
+  this.carLODStats={near:0,medium:0,far:0,culled:0};
  }
  ensureCarSet(kind,needed){
   const old=this.carSets.get(kind);if(old&&old.capacity>=needed)return old;
@@ -5831,12 +5835,83 @@ export class TrafficRenderer{
   const created={capacity,body,trim,headlights,taillights,lightSpill};
   this.carSets.set(kind,created);this.lastNightVisibility=-1;return created;
  }
- cars(state,vehiclePosition,CATALOG,vehicleTimeliness=null,selected=null){
-  const groups=VEHICLE_TYPES.map(()=>[]),indicators=[];
+ ensureCarLODSet(level,needed){
+  const old=this.carLODSets.get(level);
+  if(old&&old.capacity>=needed)return old;
+  if(old)for(const mesh of [old.body,old.roof].filter(Boolean)){
+   this.scene.remove(mesh);mesh.material.dispose();mesh.dispose();
+  }
+  const capacity=Math.max(32,2**Math.ceil(Math.log2(Math.max(1,needed))));
+  const body=new THREE.InstancedMesh(BOX,new THREE.MeshStandardMaterial({
+   color:'#ffffff',roughness:.66,metalness:.05
+  }),capacity);
+  body.frustumCulled=false;body.castShadow=false;body.receiveShadow=false;
+  body.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(body);
+  let roof=null;
+  if(level==='medium'){
+   roof=new THREE.InstancedMesh(BOX,new THREE.MeshStandardMaterial({
+    color:'#36505e',roughness:.58
+   }),capacity);
+   roof.frustumCulled=false;roof.castShadow=false;roof.receiveShadow=false;
+   roof.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(roof);
+  }
+  const made={capacity,body,roof};this.carLODSets.set(level,made);return made;
+ }
+ updateSimpleCars(level,items){
+  const old=this.carLODSets.get(level);
+  if(!items.length){
+   if(old){old.body.count=0;if(old.roof)old.roof.count=0;}
+   return;
+  }
+  const set=this.ensureCarLODSet(level,items.length),dummy=this.carDummy;
+  for(let i=0;i<items.length;i++){
+   const car=items[i];
+   const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[car.kind];
+   dummy.position.set(car.x,.163,car.z);
+   dummy.rotation.set(0,-car.angle,0);
+   dummy.scale.set(length,height*.82,width*.96);
+   dummy.updateMatrix();
+   set.body.setMatrixAt(i,dummy.matrix);set.body.setColorAt(i,this.carTint.set(car.color));
+   if(set.roof){
+    const roofX=cabinX,cos=Math.cos(car.angle),sin=Math.sin(car.angle);
+    dummy.position.set(car.x+roofX*cos,.165+height*.5+cabinH*.39,car.z+roofX*sin);
+    dummy.scale.set(cabinL,cabinH*.78,width*.80);
+    dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);
+   }
+  }
+  set.body.count=items.length;set.body.instanceMatrix.needsUpdate=true;
+  if(set.body.instanceColor)set.body.instanceColor.needsUpdate=true;
+  if(set.roof){set.roof.count=items.length;set.roof.instanceMatrix.needsUpdate=true;}
+ }
+ cars(state,vehiclePosition,CATALOG,vehicleTimeliness=null,selected=null,showDiamonds=true){
+  const groups=VEHICLE_TYPES.map(()=>[]),medium=[],far=[],indicators=[];
+  const frustum=this.carViewFrustum,point=this.carViewPoint,cam=this.cam;
+  this.camera.updateMatrixWorld(true);
+  frustum.setFromProjectionMatrix(this.carViewMatrix.multiplyMatrices(
+   this.camera.projectionMatrix,this.camera.matrixWorldInverse));
+  const pixelsPerUnit=this.h/(this.camera.top-this.camera.bottom);
+  this.carLODStats={near:0,medium:0,far:0,culled:0};
   const add=(x,z,angle,c,id,fallback,v=null,buildingId=null)=>{
-   const kind=carClassFor(c,id);groups[kind].push({x,z,angle,color:carPaintFor(c,id,kind,fallback)});
-   const focused=selected?.kind==='vehicle'&&selected.id===v?.id||selected?.kind==='parked'&&selected.id===id;
-   indicators.push({x,z,angle,kind,focused,status:vehicleTimeliness?.(v)||'green',selection:v?{kind:'vehicle',id:v.id,citizenId:v.citizenId}:{kind:'parked',id,buildingId}});
+   point.set(x,.22,z);
+   if(frustum.planes.some(plane=>plane.distanceToPoint(point)<-1.5)){
+    this.carLODStats.culled++;return;
+   }
+   const kind=carClassFor(c,id),car={x,z,angle,color:carPaintFor(c,id,kind,fallback),kind};
+   const apparentLength=VEHICLE_STYLES[kind][0]*pixelsPerUnit;
+   const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
+   const level=apparentLength>=14&&distance<=Math.max(38,18/Math.max(.1,cam?.z??1))
+    ?'near':apparentLength>=6?'medium':'far';
+   if(level==='near')groups[kind].push(car);
+   else if(level==='medium')medium.push(car);
+   else far.push(car);
+   this.carLODStats[level]++;
+   const focused=selected?.kind==='vehicle'&&selected.id===v?.id||
+    selected?.kind==='parked'&&selected.id===id;
+   if(showDiamonds||focused)indicators.push({
+    x,z,angle,kind,focused,
+    status:showDiamonds?(vehicleTimeliness?.(v)||'green'):'green',
+    selection:v?{kind:'vehicle',id:v.id,citizenId:v.citizenId}:{kind:'parked',id,buildingId}
+   });
   };
   for(const v of state.vehicles.values()){
    if(!['driving','stuck','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;
@@ -5847,7 +5922,9 @@ export class TrafficRenderer{
    const index=b.parkingSlots.indexOf(id),p=this.parking.parkingSlotPose(b,index);
    if(p)add(p.x-.5,p.y-.5,Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),state.citizens.get(id),id,this.parking.citizenCarColor(id),state.vehicles.get(state.citizens.get(id)?.vehicleId),b.id);
   }
-  this.updateCarIndicators(indicators);
+  this.updateCarIndicators(indicators,showDiamonds);
+  this.updateSimpleCars('medium',medium);
+  this.updateSimpleCars('far',far);
   for(let kind=0;kind<groups.length;kind++){
    const items=groups[kind],old=this.carSets.get(kind);
    if(!items.length){if(old){old.body.count=0;old.trim.count=0;old.headlights.count=0;old.taillights.count=0;old.lightSpill.count=0;}continue;}
@@ -5884,9 +5961,9 @@ export class TrafficRenderer{
    if(set.body.instanceColor)set.body.instanceColor.needsUpdate=true;
   }
  }
- updateCarIndicators(records){
+ updateCarIndicators(records,showDiamonds=true){
   if(!this.camera||!this.cam||!this.h||!this.w)return;
-  if(!this.carMarkerMesh||this.carMarkerMesh.instanceMatrix.count<records.length){
+  if(showDiamonds&&(!this.carMarkerMesh||this.carMarkerMesh.instanceMatrix.count<records.length)){
    if(this.carMarkerMesh){this.scene.remove(this.carMarkerMesh);this.carMarkerMesh.material.dispose();this.carMarkerMesh.dispose();}
    const capacity=Math.max(32,2**Math.ceil(Math.log2(Math.max(1,records.length))));
    const material=new THREE.MeshBasicMaterial({color:'#ffffff',depthTest:false,depthWrite:false,toneMapped:false});
@@ -5903,12 +5980,16 @@ export class TrafficRenderer{
   for(const record of records){
    const style=VEHICLE_STYLES[record.kind],roof=.18+style[2]/2+style[5]*1.08;
    if(record.focused){const frame=this.carSelectionFrame;frame.visible=true;frame.position.set(record.x,roof/2+.035,record.z);frame.rotation.set(0,-record.angle,0);frame.scale.set(style[0]+.09,roof+.04,style[1]+.08);}
+   if(!showDiamonds)continue;
    d.position.set(record.x,roof+.025,record.z).addScaledVector(up,(pixels*.5+2)*unit);this.carMarkerPoint.copy(d.position).project(this.camera);
    const p=this.carMarkerPoint;if(p.x< -1.03||p.x>1.03||p.y< -1.03||p.y>1.03||p.z< -1||p.z>1)continue;
    d.quaternion.copy(this.camera.quaternion);d.scale.set(pixels*.3125*unit,pixels*.5*unit,pixels*.1*unit);d.updateMatrix();mesh.setMatrixAt(count,d.matrix);mesh.setColorAt(count,this.carMarkerTint.set(colors[record.status]||colors.green));count++;
    this.carIndicatorHits.push({x:(p.x+1)*this.w/2,y:(1-p.y)*this.h/2,selection:record.selection});
   }
-  mesh.count=count;mesh.visible=count>0;mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+  if(mesh){
+   mesh.count=count;mesh.visible=showDiamonds&&count>0;
+   if(showDiamonds){mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;}
+  }
  }
  pickVehicleMarker(x,y){
   let selected=null,best=10;for(const hit of this.carIndicatorHits||[]){const d=Math.hypot(x-hit.x,y-hit.y);if(d<best){best=d;selected=hit.selection;}}return selected;
@@ -5940,9 +6021,9 @@ export class TrafficRenderer{
  if(selected?.kind==='road'&&junction(selected.id)>=3)boxes.push([selected.id%300,Math.floor(selected.id/300),2.4,2.4,'#fff1a1']);
  for(const [x,z,w,d,color]of boxes){const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.22,depthWrite:false}));plane.rotation.x=-Math.PI/2;plane.position.set(x,.14,z);this.previewGroup.add(plane);const points=[new THREE.Vector3(x-w/2,.17,z-d/2),new THREE.Vector3(x+w/2,.17,z-d/2),new THREE.Vector3(x+w/2,.17,z+d/2),new THREE.Vector3(x-w/2,.17,z+d/2),new THREE.Vector3(x-w/2,.17,z-d/2)];this.previewGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color})));}
  }
- render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}
+ render({state,cam,hover,drag,roadPreview,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}
  const buildKey=[state.buildings.size,...[...state.buildings.values()].map(b=>[b.id,b.x,b.y,b.rotation].join(','))].join(':');
- const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}this.trees(state,cam);this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview);
+ const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}this.trees(state,cam);this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview);
  this.updateSignals(signalColor);this.updateGrandSignals();this.updateWeatherLight(state);
  const visualNow=performance.now()*.001;
  if(this.landscapeClock)this.landscapeClock.value=visualNow;
