@@ -458,7 +458,8 @@ export class TrafficRenderer{
  this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new THREE.OrthographicCamera(-30,30,20,-20,.1,500);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#e8f7ff','#698057',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
  this.ray=new THREE.Raycaster();this.ground=new THREE.Plane(UP,0);this.ndc=new THREE.Vector2();this.point=new THREE.Vector3();this.lastKey='';this.roadKey='';this.buildKey='';this.treeKey='';this.previewKey='';this.buildingMeshes=null;this.cameraKey='';this.cam=null;this.w=innerWidth;this.h=innerHeight;this.materials=[];
  this.graphicQuality='medium';this.lastBuildingDetailLevel=null;
- this.roadGroup=new THREE.Group();this.buildingGroup=new THREE.Group();this.treeGroup=new THREE.Group();this.previewGroup=new THREE.Group();this.signalGroup=new THREE.Group();this.lampGroup=new THREE.Group();this.scene.add(this.roadGroup,this.buildingGroup,this.treeGroup,this.previewGroup,this.signalGroup,this.lampGroup);this.createCars();this.createRoute();this.createAtmosphere();this.resize();
+ this.aiSignalGroup=new THREE.Group();this.aiSignalKey='';this.aiSignalGlows=[];
+ this.roadGroup=new THREE.Group();this.buildingGroup=new THREE.Group();this.treeGroup=new THREE.Group();this.previewGroup=new THREE.Group();this.signalGroup=new THREE.Group();this.lampGroup=new THREE.Group();this.scene.add(this.roadGroup,this.buildingGroup,this.treeGroup,this.previewGroup,this.signalGroup,this.lampGroup,this.aiSignalGroup);this.createCars();this.createRoute();this.createAtmosphere();this.resize();
  }
  disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.geometry&&!SHARED_RENDER_GEOMETRIES.includes(x.geometry))x.geometry.dispose();});}}
  setGraphicQuality(value){
@@ -954,6 +955,40 @@ export class TrafficRenderer{
  }
  this.lastGlow=-1;this.lastWet=-1;this.lastNightVisibility=-1;
 }
+
+ updateAISignalGlow(state){
+  if(!this.aiSignalGroup)return;
+  const nodes=[];
+  for(const [i,setting]of state.signals)if(setting.mode==='smart'&&state.roads.has(i))nodes.push(i);
+  nodes.sort((a,b)=>a-b);
+  const key=state.city+':'+nodes.join(',');
+  if(key!==this.aiSignalKey){
+   this.aiSignalKey=key;
+   this.disposeGroup(this.aiSignalGroup);
+   this.aiSignalGlows=[];
+   for(const node of nodes){
+    const x=node%300,z=Math.floor(node/300);
+    // A cyan-lit center island without a real GPU point light for each intersection.
+    const halo=new THREE.Mesh(new THREE.CircleGeometry(1.05,32),
+     new THREE.MeshBasicMaterial({color:'#38bdff',transparent:true,opacity:.24,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+    halo.rotation.x=-Math.PI/2;halo.position.set(x,.164,z);halo.renderOrder=3;
+    const ring=new THREE.Mesh(new THREE.RingGeometry(.48,.77,32),
+     new THREE.MeshBasicMaterial({color:'#56eaff',transparent:true,opacity:.83,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+    ring.rotation.x=-Math.PI/2;ring.position.set(x,.168,z);ring.renderOrder=4;
+    this.aiSignalGroup.add(halo,ring);
+    for(const [dx,dz]of [[-.91,-.91],[.91,-.91],[-.91,.91],[.91,.91]]){
+     const sparkle=new THREE.Mesh(new THREE.CircleGeometry(.085,12),
+      new THREE.MeshBasicMaterial({color:'#9ffaff',transparent:true,opacity:.87,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+     sparkle.rotation.x=-Math.PI/2;sparkle.position.set(x+dx,.17,z+dz);sparkle.renderOrder=4;
+     this.aiSignalGroup.add(sparkle);
+    }
+    this.aiSignalGlows.push(halo);
+   }
+  }
+  const pulse=.78+.18*Math.sin(performance.now()*.0024);
+  for(const halo of this.aiSignalGlows)halo.material.opacity=.24*pulse;
+ }
+
  updateSignals(signalColor){const lit={red:'#ff6855',yellow:'#ffd56b',green:'#9eeb96'},dim={red:'#4d302e',yellow:'#494230',green:'#2b473f'};for(const s of this.signals||[]){const active=signalColor(s.node,s.incoming);for(const [name,lens]of Object.entries(s.lenses))lens.material.color.set(name===active?lit[name]:dim[name]);}}
  roof(batch,x,z,w,d,base,color,id){const angle=Math.atan2(.55,d/2),length=Math.hypot(d/2,.55);for(const sign of[-1,1])batch.add(BOX,color,x,base+.275,z+sign*d/4,w+.18,.10,length+.11,sign*angle,0,0,id);for(let k=-w/2+.12;k<w/2;k+=.22){for(const sign of[-1,1])batch.add(BOX,'#b86d48',x+k,base+.3,z+sign*d/4,.023,.035,length+.12,sign*angle,0,0,id);}batch.box('#ce8054',x,base+.57,z,w+.19,.07,.08,0,id);}
  window(batch,x,y,z,w,h,side,id){if(side==='front'){batch.box('#385d69',x,y,z,w,h,.025,0,id);if(hash(x+id,y+z)>.36)batch.box('#ffdf9d',x,y,z+.034,w*.76,h*.78,.012,0,id,true);batch.box('#dddac4',x,y,z+.02,.026,h+.04,.022,0,id);batch.box('#e9e6d4',x,y-h/2-.035,z+.04,w+.1,.06,.075,0,id);}else{batch.box('#456d75',x,y,z,.025,h,w,0,id);if(hash(z+id,x+y)>.40)batch.box('#ffe2ad',x+.035,y,z,.012,h*.77,w*.73,0,id,true);batch.box('#ede7d3',x+.02,y-h/2-.035,z,.075,.06,w+.08,0,id);}}
@@ -6065,7 +6100,7 @@ export class TrafficRenderer{
  const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}if(this.graphicQuality==='low'){this.treeGroup.visible=false;}
  else{this.treeGroup.visible=true;this.trees(state,cam);}
  this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview);
- this.updateSignals(signalColor);this.updateGrandSignals();this.updateWeatherLight(state);
+ this.updateSignals(signalColor);this.updateAISignalGlow(state);this.updateGrandSignals();this.updateWeatherLight(state);
  this.updateBuildingDetailLOD(cam);
  const visualNow=performance.now()*.001;
  if(this.landscapeClock)this.landscapeClock.value=visualNow;

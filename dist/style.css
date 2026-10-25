@@ -5611,3 +5611,35 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleC
 @media(max-width:1100px){
  body>.bottom .builder-zone .build-dock .dock-head #toggleCarDiamondsText{display:none!important;}
 }
+
+
+/* AI signal upgrade pins: always directly tappable above a visible intersection. */
+.ai-junction-overlay{position:fixed;inset:0;pointer-events:none;z-index:15;overflow:hidden;}
+.ai-junction-pin{
+ position:absolute;transform:translate(-50%,-110%);
+ display:inline-flex;align-items:center;justify-content:center;
+ min-width:42px;height:30px;padding:3px 8px;
+ border:1.5px solid #87c7e8;border-radius:9px;
+ background:linear-gradient(135deg,#112c47,#20567b);
+ color:#f2faff;box-shadow:0 2px 8px #061b2c8c,0 0 10px #42bcf45e;
+ font:800 12px/1 system-ui,-apple-system,sans-serif;
+ letter-spacing:.04em;white-space:nowrap;cursor:pointer;
+ pointer-events:auto;touch-action:manipulation;
+ transition:background .16s,box-shadow .16s,scale .16s;
+}
+.ai-junction-pin:hover,.ai-junction-pin:focus-visible{
+ scale:1.12;outline:2px solid #e6faff;outline-offset:2px;
+ box-shadow:0 3px 12px #07324cc7,0 0 20px #1ecafaaf;
+}
+.ai-junction-pin.owned{
+ color:#052c3a;background:linear-gradient(135deg,#c1faff,#34caed);
+ border-color:#fff;box-shadow:0 0 8px #50ddfff0,0 0 20px #38cdf77a;
+}
+.ai-junction-pin[hidden]{display:none!important;}
+.signal-ai-owned{padding:9px 12px;border-radius:9px;background:#d5f8fd;color:#155673;font-weight:700}
+.signal-ai-price{margin:12px 0;font-size:1.05em}
+.signal-ai-price strong{color:#1f82bb}
+:root.smcity-gray-ui .signal-ai-owned{background:#163e52;color:#9aeaff}
+@media(max-width:700px){
+ .ai-junction-pin{height:28px;min-width:38px;padding:3px 7px;font-size:11px;}
+}
