@@ -454,6 +454,7 @@ export class TrafficEngine {
         v.distance = Math.max(0, edge.length - 0.001); return;
       }
       this.estimator.edgeLeft(edge.id); this.estimator.edgeEntered(next.id);
+      v.turnTransition = { fromEdgeId: edge.id, fromLane: v.lane, at: this.time };
       v.currentNode = edge.to;
       this.deadlocks.cleared(v.id);
       v.edgeIndex++; v.lane = lane; v.distance = 0;
@@ -525,7 +526,8 @@ export class TrafficEngine {
       reportedDeadlocks:this.deadlocks.reports.length,
       vehicles: [...this.vehicles.values()].map(v => ({
         id: v.id, status: v.status, edgeId: v.route[v.edgeIndex],
-        lane: v.lane, distance: v.distance, destination: v.to
+        lane: v.lane, distance: v.distance, destination: v.to,
+        turnTransition: v.turnTransition ? { ...v.turnTransition } : null
       })) };
   }
 }
