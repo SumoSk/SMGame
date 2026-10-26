@@ -19,17 +19,19 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  v.phase='departing';v.lotPath=null;v.lotDistance=0;
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
  const src=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
- const {TrafficRenderer}=new Function('THREE',src+'return {TrafficRenderer};')(THREE),r=Object.create(TrafficRenderer.prototype);
+ const {TrafficRenderer}=new Function('THREE','document',src+'return {TrafficRenderer};')(THREE,{createElement:()=>({width:0,height:0,getContext:()=>({clearRect(){},fillText(){}})})}),r=Object.create(TrafficRenderer.prototype);
  r.scene=new THREE.Scene();r.w=800;r.h=600;r.cam={z:2};r.camera=new THREE.OrthographicCamera(-12,12,9,-9,.1,1000);r.camera.position.set(170,30,175);r.camera.lookAt(170,0,148);r.camera.updateMatrixWorld();
  r.parking={parkingIsMoving:id=>!!g.state.vehicles.get(g.state.citizens.get(id)?.vehicleId)?.lotPath,parkingSlotPose:g.parkingSlotPose,citizenCarColor:()=> '#e9e8d8'};
  r.createCars();r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);
- assert.equal(r.carMarkerMesh.count,6,'every visible car, including parked cars');assert.equal(r.carIndicatorHits.length,6);assert(r.carSelectionFrame.visible);assert.equal(r.carSelectionFrame.material.color.getHexString(),'ffffff');
+ assert.equal(r.carMarkerMesh.count,1,'only the trip near its deadline has an emotion marker');assert.equal(r.carIndicatorHits.length,1);assert(r.carSelectionFrame.visible);assert.equal(r.carSelectionFrame.material.color.getHexString(),'ffffff');
  const hit=r.carIndicatorHits.find(h=>h.selection.id===v.id&&h.selection.kind==='vehicle');assert(hit);assert.equal(r.pickVehicleMarker(hit.x,hit.y).id,v.id,'tiny icon is clickable');
- const markerSize=()=>{const m=new THREE.Matrix4();r.carMarkerMesh.getMatrixAt(0,m);const a=new THREE.Vector3(0,-1,0).applyMatrix4(m).project(r.camera),b=new THREE.Vector3(0,1,0).applyMatrix4(m).project(r.camera);return Math.abs(a.y-b.y)*r.h/2;};
- assert(Math.abs(markerSize()-16)<1e-5,'16 CSS-pixel icon');
- r.camera.left=-20;r.camera.right=20;r.camera.top=15;r.camera.bottom=-15;r.camera.updateProjectionMatrix();r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-16)<1e-5,'zoom does not enlarge indicators');
- r.cam.z=.22;r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-8)<1e-5,'icons shrink at distant zoom');r.cam.z=2;
- const iconColor=new THREE.Color();r.carMarkerMesh.getColorAt(0,iconColor);assert.equal(iconColor.getHexString(),'efa54d');
+ const markerSize=()=>{const m=new THREE.Matrix4();r.carMarkerMesh.getMatrixAt(0,m);const a=new THREE.Vector3(0,-.5,0).applyMatrix4(m).project(r.camera),b=new THREE.Vector3(0,.5,0).applyMatrix4(m).project(r.camera);return Math.abs(a.y-b.y)*r.h/2;};
+ assert(Math.abs(markerSize()-18)<1e-5,'18 CSS-pixel emoji');
+ r.camera.left=-20;r.camera.right=20;r.camera.top=15;r.camera.bottom=-15;r.camera.updateProjectionMatrix();r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-18)<1e-5,'zoom does not enlarge indicators');
+ r.cam.z=.22;r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-12)<1e-5,'icons shrink at distant zoom');r.cam.z=2;
+ assert.equal(r.carMarkerMesh.geometry.getAttribute('emotionOffset').getX(0),0,'near-late uses worried face');
+ v.deadline=g.state.time-1;r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert.equal(r.carMarkerMesh.geometry.getAttribute('emotionOffset').getX(0),1,'late uses angry face');
+ v.deadline=g.state.time+60;r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert.equal(r.carMarkerMesh.count,0,'normal cars have no emoji');assert.equal(r.carIndicatorHits.length,0);assert(r.carSelectionFrame.visible,'normal selected car keeps its selection frame');
  // The default overlay contains only the selected trip, even with other traffic.
  const node=tag=>({tag,style:{},attrs:{},children:[],setAttribute(k,v){this.attrs[k]=String(v);},append(...nodes){for(const n of nodes)this.appendChild(n);},appendChild(n){this.children=this.children.filter(x=>x!==n);this.children.push(n);},remove(){this.removed=true;}});
  let layer;context.document.createElementNS=(_,tag)=>node(tag);context.performance={now:()=>1000};get('world').insertAdjacentElement=(_,n)=>layer=n;
@@ -39,5 +41,5 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  // Selection remains on the same citizen's car when parking completes.
  g.arrive(v,true);g.renderInspector();assert.equal(g.selected.kind,'parked');assert.equal(g.selected.id,citizen.id);assert.equal(g.selected.buildingId,office.id);
  get('closeInspector').onclick();g.updateTrackingOverlay();assert.equal(layer.style.display,'none');r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(!r.carSelectionFrame.visible);
- console.log('Car UI: all visible cars have 16px icons; deadline/30-minute/arrival boundaries; parked and moving selection; white frame; selected lane/parking route and both endpoints; zoom and cleanup.');
+ console.log('Car UI: normal cars have no icon, near-late 😥, late 😡; deadline/30-minute/arrival boundaries; parked and moving selection; white frame; selected lane/parking route and both endpoints; zoom and cleanup.');
 })().catch(e=>{console.error(e);process.exitCode=1});

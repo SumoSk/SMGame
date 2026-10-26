@@ -1534,6 +1534,7 @@ function vehiclePosition(v){
  if(v.lotPath){const p=parkingPose(v);return v.vehicleTech==='fly'&&p?{...p,altitude:4}:p;}if(v.phase==='departing'){const b=state.buildings.get(v.fromId);return b?parkingSlotPose(b,parkingSpace(b,v.citizenId)):null;}if(v.phase==='stuck'&&v.heldPose)return v.heldPose;const ground=v.path?.length?positionOnMotion(motionPlan(v),motionDistance(v)):null;return v.vehicleTech==='fly'&&ground?{...ground,altitude:5}:ground;}
 // Visual trip status only: never changes deadlines, happiness or vehicle motion.
 const CAR_STATUS_COLORS={green:'#64c887',orange:'#efa54d',red:'#e36b6b'};
+const CAR_STATUS_EMOJI={orange:'😥',red:'😡'};
 function vehicleTimeliness(v,at=state.time){
  if(!v||!Number.isFinite(v.deadline))return 'green';
  const remaining=v.deadline-(v.arrivedAt??at);
@@ -1570,7 +1571,9 @@ function drawCarIndicators2D(){
   const focus=v?selected?.kind==='vehicle'&&selected.id===v.id:selected?.kind==='parked'&&selected.id===cid;
   if(focus){ctx.save();ctx.translate(...p);ctx.rotate(pose.angle);ctx.strokeStyle='#ffffff';ctx.lineWidth=1.2;ctx.strokeRect(-6*cam.z,-3.5*cam.z,12*cam.z,7*cam.z);ctx.restore();}
   if(!carStatusDiamondsVisible)return;
-  const size=Math.min(16,Math.max(8,cam.z*10)),x=p[0],y=p[1]-5*cam.z-size*.5-3;ctx.beginPath();ctx.moveTo(x,y-size*.5);ctx.lineTo(x+size*.3125,y);ctx.lineTo(x,y+size*.5);ctx.lineTo(x-size*.3125,y);ctx.closePath();ctx.fillStyle=CAR_STATUS_COLORS[vehicleTimeliness(v)];ctx.fill();
+  const emoji=CAR_STATUS_EMOJI[vehicleTimeliness(v)];if(!emoji)return;
+  const size=Math.min(18,Math.max(12,cam.z*12)),x=p[0],y=p[1]-5*cam.z-size*.5-3;
+  ctx.save();ctx.font=size+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(emoji,x,y);ctx.restore();
   canvasCarMarkerHits.push({x,y,selection:v?{kind:'vehicle',id:v.id,citizenId:v.citizenId}:{kind:'parked',id:cid,buildingId}});
  };
  for(const v of state.vehicles.values())if(['driving','stuck','parking_in','parking_out','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)||v.phase==='departing'&&v.lotPath)add(vehiclePosition(v),v,v.citizenId);
@@ -2247,9 +2250,23 @@ function updateCityAdvisor(){
   const value=-Math.max(0,r.waiting);
   return '<div class="mini-need'+(value<0?' shortage':'')+'" data-need-kind="'+r.kind+'" title="'+e(r.label)+' · ความจุ '+fmt(r.capacity)+' · กำลังใช้ '+fmt(r.busy)+' · ความต้องการ '+value+'"><span>'+e(r.label)+'</span><div class="mini-need-values"><b class="mini-need-capacity">'+fmt(r.capacity)+'</b><b class="mini-need-busy">'+fmt(r.busy)+'</b><strong class="mini-need-missing">'+value+'</strong></div></div>';
  }).join('');
- const activity=activitySnapshot(),block=state.homeActivityReport?.blocked||{};
- const detail=Object.entries(block).map(([k,v])=>k+' '+v).join(' · ');
- set('demand',html+'<div style="font-size:10px;line-height:1.45;padding-top:4px">รถที่บ้าน '+Math.round(activity.ratio*100)+'% · '+(activity.limit==null?'ช่วงพัก ไม่จำกัด':'เป้า ≤ '+Math.round(activity.limit*100)+'%')+(detail?'<br>'+escapeSaveText(detail):'')+'</div>');
+ const activity=activitySnapshot(),block=state.homeActivityReport?.blocked||{},day=missionDay();
+ const signed=n=>n>0?'+'+fmt(n):n<0?'−'+fmt(-n):'0';
+ const shortages=needs.filter(r=>r.waiting>0).sort((a,b)=>b.waiting-a.waiting);
+ const brief=[
+  'ประชาชน'+signed((day?.populationIn||0)-(day?.populationOut||0))+'•นักท่องเที่ยว'+signed((day?.touristsIn||0)-(day?.touristsOut||0)),
+  shortages.length?shortages.slice(0,2).map(r=>r.label+'−'+fmt(r.waiting)).join('•'):'ความต้องการค้าง0',
+  'ไปไม่ทัน'+fmt(day?.missed||0)+'•ไปสาย'+fmt(day?.late||0),
+  'อยู่บ้าน'+Math.round(activity.ratio*100)+'%•รถรอ'+fmt(state.stats.waiting||0)
+ ];
+ const titles=[
+  'จำนวนเพิ่มหรือลดสุทธิสะสมวันนี้',
+  shortages.length?shortages.map(r=>r.label+' ขาด '+fmt(r.waiting)).join(' • '):'ไม่มีความต้องการค้างจากข้อมูลปัจจุบัน',
+  'ผลการเดินทางสะสมวันนี้ · ไปไม่ทัน '+fmt(day?.missed||0)+' · ไปสาย '+fmt(day?.late||0),
+  'สัดส่วนอยู่บ้านและรถรอขณะนี้'+(activity.limit==null?' · ช่วงพักไม่จำกัด':' · เป้าอยู่บ้านไม่เกิน '+Math.round(activity.limit*100)+'%')+Object.entries(block).map(([k,v])=>' · '+k+' '+v).join('')
+ ];
+ set('cityBrief',brief.map((line,i)=>'<div class="city-brief-line" title="'+e(titles[i])+'">'+e(line.replace(/\s+/g,''))+'</div>').join(''));
+ set('demand',html);
  set('advisorHeadline',e(advice.headline));set('advisorOverview',e(advice.overview));set('advisorGood',advice.good.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>เริ่มจากบ้านและถนน แล้วรอชีวิตเมืองเริ่มเดินทาง</li>');set('advisorProblems',advice.problems.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>ยังไม่พบปัญหาที่ต้องเร่งแก้จากข้อมูลปัจจุบัน</li>');
  set('advisorNext',advice.next.map((a,i)=>'<li><span>'+e(a.text)+'</span>'+(a.report?'<button data-advice-report>ตรวจเมือง</button>':a.category?'<button data-advice-category="'+a.category+'">เปิดหมวดสร้าง</button>':'')+'</li>').join(''));
 }
@@ -2872,7 +2889,7 @@ if(['vehicle','citizen'].includes(selected.kind)){
 const journey=selectedCarVehicle();
  if(journey){const status=vehicleTimeliness(journey),remaining=Number.isFinite(journey.deadline)?journey.deadline-(journey.arrivedAt??state.time):null;
   const label=remaining==null?'ไม่มีเวลานัด':status==='red'?'สายแล้ว '+Math.ceil(-remaining)+' นาที':journey.arrivedAt!=null?'ถึงอาคารแล้ว':status==='orange'?'เหลือ '+Math.ceil(remaining)+' นาที ก่อนสาย':'ยังไม่สาย';
-  html='<section class="selected-car-journey">'+row('ต้นทาง',escapeSaveText(trackingOrigin(journey)))+row('ปลายทาง',escapeSaveText(trackingDestination(journey)))+row('สถานะเวลา','<span style="color:'+CAR_STATUS_COLORS[status]+'">◆</span> '+label)+'</section>'+html;
+  html='<section class="selected-car-journey">'+row('ต้นทาง',escapeSaveText(trackingOrigin(journey)))+row('ปลายทาง',escapeSaveText(trackingDestination(journey)))+row('สถานะเวลา',(CAR_STATUS_EMOJI[status]?CAR_STATUS_EMOJI[status]+' ':'')+label)+'</section>'+html;
  }
 // Consistent, semantic headers across buildings, vehicles, roads and city metrics.
  const inspectorKinds={
@@ -5090,10 +5107,10 @@ function syncCarStatusDiamondVisibility(){
  if(!button)return;
  button.classList.toggle('is-hidden',hidden);
  button.setAttribute('aria-pressed',String(hidden));
- button.setAttribute('aria-label',hidden?'เปิดเพชรสถานะเหนือรถ':'ปิดเพชรสถานะเหนือรถ');
- button.title=hidden?'แสดงเพชรสถานะรถอีกครั้ง':'ซ่อนเพชรสถานะบนหัวรถ';
+ button.setAttribute('aria-label',hidden?'แสดงสถานะรถใกล้สายหรือสายแล้ว':'ซ่อนสถานะรถใกล้สายหรือสายแล้ว');
+ button.title=hidden?'แสดงสถานะรถ · 😥 ใกล้สาย · 😡 สายแล้ว':'ซ่อนสถานะรถ · รถปกติไม่แสดงสัญลักษณ์';
  const caption=$('toggleCarDiamondsText');
- if(caption)caption.textContent=hidden?'เปิดเพชร':'ปิดเพชร';
+ if(caption)caption.textContent=hidden?'สถานะรถ':'ซ่อนสถานะ';
  // Do not change trips, tracking, incident warnings or selected car outline.
  if(renderer3d&&hidden&&renderer3d.carMarkerMesh){
   renderer3d.carMarkerMesh.count=0;

@@ -21,7 +21,7 @@ const PALM_FROND=(()=>{
  return geometry;
 })();
 const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND];
-const CAR_DIAMOND=new THREE.OctahedronGeometry(1,0);
+
 // One tapered GPU-instanced light streak per beam; no floating glow spheres.
 const CAR_TECH_STREAK=(()=>{const g=new THREE.ConeGeometry(.044,.60,4,1,true);g.rotateZ(-Math.PI/2);return g;})();
 const CAR_WARP_BEAM=new THREE.CylinderGeometry(1,1,1,16,1,true);
@@ -6140,9 +6140,10 @@ export class TrafficRenderer{
    this.carLODStats[level]++;
    const focused=selected?.kind==='vehicle'&&selected.id===v?.id||
     selected?.kind==='parked'&&selected.id===id;
-   if(showDiamonds||focused)indicators.push({
+   const status=showDiamonds?(vehicleTimeliness?.(v)||'green'):'green';
+   if(focused||showDiamonds&&status!=='green')indicators.push({
     x,z,angle,kind,focused,altitude,
-    status:showDiamonds?(vehicleTimeliness?.(v)||'green'):'green',
+    status,
     selection:v?{kind:'vehicle',id:v.id,citizenId:v.citizenId}:{kind:'parked',id,buildingId}
    });
   };
@@ -6275,10 +6276,25 @@ export class TrafficRenderer{
  updateCarIndicators(records,showDiamonds=true){
   if(!this.camera||!this.cam||!this.h||!this.w)return;
   if(showDiamonds&&(!this.carMarkerMesh||this.carMarkerMesh.instanceMatrix.count<records.length)){
-   if(this.carMarkerMesh){this.scene.remove(this.carMarkerMesh);this.carMarkerMesh.material.dispose();this.carMarkerMesh.dispose();}
+   if(this.carMarkerMesh){this.scene.remove(this.carMarkerMesh);this.carMarkerMesh.material.dispose();this.carMarkerMesh.geometry.dispose();this.carMarkerMesh.dispose();}
    const capacity=Math.max(32,2**Math.ceil(Math.log2(Math.max(1,records.length))));
-   const material=new THREE.MeshBasicMaterial({color:'#ffffff',depthTest:false,depthWrite:false,toneMapped:false});
-   this.carMarkerMesh=new THREE.InstancedMesh(CAR_DIAMOND,material,capacity);this.carMarkerMesh.frustumCulled=false;this.carMarkerMesh.renderOrder=6;this.carMarkerMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(this.carMarkerMesh);
+   // One shared emoji atlas and one instanced draw; no per-car canvas or DOM nodes.
+   if(!this.carEmotionTexture){
+    const canvas=document.createElement('canvas');canvas.width=256;canvas.height=128;
+    const context=canvas.getContext('2d');context.clearRect(0,0,256,128);
+    context.font='96px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';context.textAlign='center';context.textBaseline='middle';
+    context.fillText('😥',64,64);context.fillText('😡',192,64);
+    this.carEmotionTexture=new THREE.CanvasTexture(canvas);this.carEmotionTexture.colorSpace=THREE.SRGBColorSpace;
+   }
+   const geometry=new THREE.PlaneGeometry(1,1);
+   geometry.setAttribute('emotionOffset',new THREE.InstancedBufferAttribute(new Float32Array(capacity),1).setUsage(THREE.DynamicDrawUsage));
+   const material=new THREE.MeshBasicMaterial({map:this.carEmotionTexture,transparent:true,alphaTest:.05,depthTest:false,depthWrite:false,toneMapped:false});
+   material.onBeforeCompile=shader=>{
+    shader.vertexShader=shader.vertexShader.replace('#include <uv_pars_vertex>','#include <uv_pars_vertex>\nattribute float emotionOffset;')
+     .replace('#include <uv_vertex>','#include <uv_vertex>\nvMapUv.x=vMapUv.x*.5+emotionOffset*.5;');
+   };
+   material.customProgramCacheKey=()=>'car-emotion-atlas-v1';
+   this.carMarkerMesh=new THREE.InstancedMesh(geometry,material,capacity);this.carMarkerMesh.frustumCulled=false;this.carMarkerMesh.renderOrder=6;this.carMarkerMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(this.carMarkerMesh);
   }
   if(!this.carSelectionFrame){
    const box=new THREE.BoxGeometry(1,1,1),geometry=new THREE.EdgesGeometry(box);box.dispose();
@@ -6286,20 +6302,21 @@ export class TrafficRenderer{
    this.carSelectionFrame.renderOrder=5;this.carSelectionFrame.frustumCulled=false;this.scene.add(this.carSelectionFrame);
    this.carMarkerDummy=new THREE.Object3D();this.carMarkerTint=new THREE.Color();this.carMarkerPoint=new THREE.Vector3();
   }
-  const mesh=this.carMarkerMesh,d=this.carMarkerDummy,unit=(this.camera.top-this.camera.bottom)/this.h,up=new THREE.Vector3(0,1,0).applyQuaternion(this.camera.quaternion),pixels=Math.min(16,Math.max(8,this.cam.z*10)),colors={green:'#64c887',orange:'#efa54d',red:'#e36b6b'};
+  const mesh=this.carMarkerMesh,d=this.carMarkerDummy,unit=(this.camera.top-this.camera.bottom)/this.h,up=new THREE.Vector3(0,1,0).applyQuaternion(this.camera.quaternion),pixels=Math.min(18,Math.max(12,this.cam.z*12));
   this.carIndicatorHits=[];this.carSelectionFrame.visible=false;let count=0;
   for(const record of records){
    const style=VEHICLE_STYLES[record.kind],roof=.18+style[2]/2+style[5]*1.08;
    if(record.focused){const frame=this.carSelectionFrame;frame.visible=true;frame.position.set(record.x,roof/2+.035+(record.altitude||0),record.z);frame.rotation.set(0,-record.angle,0);frame.scale.set(style[0]+.09,roof+.04,style[1]+.08);}
-   if(!showDiamonds)continue;
+   if(!showDiamonds||!Object.hasOwn({orange:0,red:1},record.status))continue;
    d.position.set(record.x,roof+.025+(record.altitude||0),record.z).addScaledVector(up,(pixels*.5+2)*unit);this.carMarkerPoint.copy(d.position).project(this.camera);
    const p=this.carMarkerPoint;if(p.x< -1.03||p.x>1.03||p.y< -1.03||p.y>1.03||p.z< -1||p.z>1)continue;
-   d.quaternion.copy(this.camera.quaternion);d.scale.set(pixels*.3125*unit,pixels*.5*unit,pixels*.1*unit);d.updateMatrix();mesh.setMatrixAt(count,d.matrix);mesh.setColorAt(count,this.carMarkerTint.set(colors[record.status]||colors.green));count++;
+   d.quaternion.copy(this.camera.quaternion);d.scale.set(pixels*unit,pixels*unit,1);d.updateMatrix();mesh.setMatrixAt(count,d.matrix);
+   mesh.geometry.getAttribute('emotionOffset').setX(count,record.status==='red'?1:0);count++;
    this.carIndicatorHits.push({x:(p.x+1)*this.w/2,y:(1-p.y)*this.h/2,selection:record.selection});
   }
   if(mesh){
    mesh.count=count;mesh.visible=showDiamonds&&count>0;
-   if(showDiamonds){mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;}
+   if(showDiamonds){mesh.instanceMatrix.needsUpdate=true;mesh.geometry.getAttribute('emotionOffset').needsUpdate=true;}
   }
  }
  pickVehicleMarker(x,y){
