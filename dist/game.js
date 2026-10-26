@@ -841,9 +841,11 @@ function startNewCity(city='phuket'){
  // Preserve the original largest roads at all four city entrances.
  // One continuous medium (4-lane) collector connects the main road to the village.
  // The remaining village streets stay small (2-lane).
- if(!buildRoad(lineCells(id(164,150),id(164,132)),'medium',true))throw Error('Starter village collector could not be placed');
+ // Extend the medium approach while keeping the same village layout and building mix.
+ const approachExtension=8,villageY=y=>y-approachExtension;
+ if(!buildRoad(lineCells(id(164,150),id(164,villageY(132))),'medium',true))throw Error('Starter village collector could not be placed');
  const streets=[[[164,132],[176,132]],[[176,132],[176,144]],[[176,144],[164,144]],[[164,138],[176,138]]];
- for(const [a,b] of streets)if(!buildRoad(lineCells(id(...a),id(...b)),'small',true))throw Error('Starter village road could not be placed');
+ for(const [a,b] of streets)if(!buildRoad(lineCells(id(a[0],villageY(a[1])),id(b[0],villageY(b[1]))),'small',true))throw Error('Starter village road could not be placed');
  const plots=[
   ['home_starter',166,128,0],['home_starter',170,128,0],
   ['home_starter',166,133,2],['park_starter',170,133,2],
@@ -854,7 +856,7 @@ function startNewCity(city='phuket'){
  ];
  const homes=[];
  for(const [key,x,y,rotation] of plots){
-  const building=buildBuilding(key,x,y,true);if(!building)throw Error('Starter village building could not be placed: '+key);
+  const building=buildBuilding(key,x,villageY(y),true);if(!building)throw Error('Starter village building could not be placed: '+key);
   // West-side factory and hotel access the medium collector; all other
   // starter buildings continue to face the original small side streets.
   building.rotation=rotation;building.access=accessFor(building);
@@ -870,11 +872,14 @@ function startNewCity(city='phuket'){
  syncParkingSlots();syncCitizenVehicleTech();
  // Roads and buildings are an included starting package, not a hidden charge.
  state.money=500000;state.missionStats=newMissionStats();state.lastImmigration=state.time;state.lastPass=state.time;
- cam={x:169.5,y:138.5,z:innerWidth<700?1.25:innerWidth<1100?1.65:2.05,angle:Math.PI*.2,elevation:Math.atan2(86,90)};
+ // Keep the original zoom, angle and elevation. Pan halfway between the village
+ // and main junction so that the longer approach remains visible at startup.
+ const cameraFocusY=138.5-approachExtension/2;
+ cam={x:169.5,y:cameraFocusY,z:innerWidth<700?1.25:innerWidth<1100?1.65:2.05,angle:Math.PI*.2,elevation:Math.atan2(86,90)};
  // Frame the village above the bottom controls rather than behind them.
  if(renderer3d)renderer3d.updateCamera(cam);
  const anchor=world(innerWidth*.5,innerHeight*(innerWidth<700?.29:.34));
- cam.x+=169.5-anchor[0];cam.y+=138.5-anchor[1];
+ cam.x+=169.5-anchor[0];cam.y+=cameraFocusY-anchor[1];
  news=[];addNews('หมู่บ้านเริ่มต้นพร้อมแล้ว · ชาวเมือง 18 คน · เงินเริ่มต้น 500,000 บาท');
  updateUI();renderTools();return state;
 }
