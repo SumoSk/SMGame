@@ -303,11 +303,43 @@ if (gate) {
     if (!res.ok) throw Error(payload.message || 'ระบบสถิติไม่พร้อม');
     return payload;
   }
+  const creatorHandledLiveRequests = new Set();
+  async function creatorSendLiveSnapshot(requestId) {
+    if (!requestId || creatorHandledLiveRequests.has(requestId) || document.hidden) return;
+    creatorHandledLiveRequests.add(requestId);
+    try {
+      const raw = window.SMGameCaptureLiveSnapshot?.();
+      if (typeof raw !== 'string' || !raw) throw Error('ไม่สามารถอ่านข้อมูลเมืองได้');
+      if (raw.length > 2500000) throw Error('เมืองมีขนาดใหญ่เกิน 2.5 MB สำหรับการส่งแบบสด');
+      // Compose JSON from a game-produced serialized snapshot without parsing it twice.
+      const header = JSON.stringify({
+        action: 'submit-live-snapshot', sessionId: creatorSession,
+        visitorId: creatorVisitor, requestId
+      });
+      const payload = header.slice(0, -1) + ',"snapshot":' + raw + '}';
+      const response = await fetch(creatorEndpoint, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: payload
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw Error(result.message || 'ไม่สามารถส่งสำเนาเมืองได้');
+      window.SMGameLiveNotice?.('ผู้สร้างได้รับสำเนาเมืองเพื่อวิเคราะห์ปัญหา โดยไม่กระทบการเล่นค่ะ');
+    } catch (error) {
+      console.warn('SMCITY live snapshot:', error?.message || error);
+      try {
+        await creatorRequest('fail-live-snapshot', {
+          sessionId: creatorSession, visitorId: creatorVisitor, requestId,
+          reason: String(error?.message || 'จับภาพเมืองไม่ได้').slice(0, 120)
+        });
+      } catch {}
+    }
+  }
   async function creatorHeartbeat() {
     creatorTick();
     const city = window.SMGameCreatorMetrics?.() || {};
     try {
-      await creatorRequest('ping', {
+      const response = await creatorRequest('ping', {
         sessionId: creatorSession, visitorId: creatorVisitor, device: creatorDevice,
         activeSeconds: Math.floor(creatorSeconds), isVisible: !document.hidden,
         isPlaying: !document.hidden && city.isPlaying === true,
@@ -315,6 +347,7 @@ if (gate) {
         tourists: city.tourists || 0, vehicles: city.vehicles || 0,
         buildings: city.buildings || 0,
       });
+      if (response?.liveRequestId && !document.hidden) void creatorSendLiveSnapshot(response.liveRequestId);
     } catch (error) {
       console.warn('SMCITY telemetry:', error?.message || error);
     }
@@ -350,7 +383,8 @@ if (gate) {
   <div class="cr-head"><div><h2>ผู้สร้าง · SMCITY</h2><p>ข้อมูลล่าสุดจาก Supabase</p></div><button id="creatorClose" type="button" aria-label="ปิด">✕</button></div>
   <div class="cr-stats"><div class="cr-stat"><small>เข้าชม 30 วัน</small><b id="crVisits">—</b></div><div class="cr-stat"><small>ออนไลน์</small><b id="crOnline">—</b></div><div class="cr-stat"><small>กำลังเล่น</small><b id="crPlaying">—</b></div></div>
   <div class="cr-toolbar"><span id="crStatus">รอข้อมูล</span><button id="crRefresh" type="button">รีเฟรช</button></div>
-  <section><h3>ออนไลน์ (เชื่อมต่อภายใน 90 วินาที)</h3><div class="cr-table-box"><table><thead><tr><th>ผู้เล่น</th><th>อุปกรณ์</th><th>สถานะ</th><th>เวลาเล่น</th><th>ประชากร</th><th>นักท่องเที่ยว</th><th>รถ</th><th>อาคาร</th><th>เมือง</th><th>ล่าสุด</th></tr></thead><tbody id="crLive"></tbody></table></div></section>
+  <section><h3>ออนไลน์ (เชื่อมต่อภายใน 90 วินาที)</h3><div class="cr-table-box"><table><thead><tr><th>ผู้เล่น</th><th>อุปกรณ์</th><th>สถานะ</th><th>เวลาเล่น</th><th>ประชากร</th><th>นักท่องเที่ยว</th><th>รถ</th><th>อาคาร</th><th>เมือง</th><th>ล่าสุด</th><th>ตรวจเมืองสด</th></tr></thead><tbody id="crLive"></tbody></table></div></section>
+  <p id="crLiveStatus" role="status" aria-live="polite">เลือกผู้เล่นออนไลน์แล้วกด “โหลดเมืองสด” เพื่อขอสำเนาเมืองขณะนั้น</p>
   <section><h3>ประวัติผู้เข้าชมล่าสุด (สูงสุด 150 ครั้ง)</h3><div class="cr-table-box"><table><thead><tr><th>ผู้เล่น</th><th>อุปกรณ์</th><th>เข้าเว็บ</th><th>เวลาเล่น</th><th>ประชากร</th><th>นักท่องเที่ยว</th><th>รถ</th><th>อาคาร</th><th>เมือง</th><th>ล่าสุด</th></tr></thead><tbody id="crHistory"></tbody></table></div></section>
   <p>เวลาเล่นเป็นนาทีจริงที่หน้าเว็บอยู่ด้านหน้า (ไม่ใช่นาทีในเกม) · ข้อมูลประชากรเป็นค่าที่เครื่องผู้เล่นส่งมา · ผู้เยี่ยมชมที่ไม่ล็อกอินแสดงเป็นรหัสสุ่ม · ไม่เก็บ IP</p>
   </div>`;
@@ -370,7 +404,7 @@ if (gate) {
     target.replaceChildren();
     if (!entries.length) {
       const tr = document.createElement('tr'), td = document.createElement('td');
-      td.colSpan = 10; td.textContent = 'ยังไม่มีข้อมูล'; tr.append(td); target.append(tr); return;
+      td.colSpan = live ? 11 : 10; td.textContent = 'ยังไม่มีข้อมูล'; tr.append(td); target.append(tr); return;
     }
     for (const item of entries) {
       const fields = live ? [
@@ -387,7 +421,55 @@ if (gate) {
         td.textContent = String(field ?? '—');
         tr.append(td);
       }
+      if (live) {
+        const td = document.createElement('td'), button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = 'โหลดเมืองสด';
+        button.disabled = creatorLiveBusy;
+        button.addEventListener('click', () => void creatorRequestLiveCity(item, button));
+        td.appendChild(button); tr.appendChild(td);
+      }
       target.append(tr);
+    }
+  }
+  let creatorLiveBusy = false, creatorLiveRevision = 0;
+  const creatorLiveStatus = () => cr('crLiveStatus');
+  creatorDialog.addEventListener('close', () => { creatorLiveRevision++; });
+  async function creatorRequestLiveCity(item, button) {
+    if (creatorLiveBusy || !creatorAllowed || !creatorDialog.open || !user) return;
+    creatorLiveBusy = true;
+    button.disabled = true;
+    const revision = ++creatorLiveRevision, expectedUserId = user.id;
+    const active = () => revision === creatorLiveRevision && creatorAllowed &&
+      creatorDialog.open && user?.id === expectedUserId;
+    creatorLiveStatus().textContent = 'กำลังขอสำเนาเมืองจาก ' + item.display_name + '…';
+    try {
+      const ticket = await creatorRequest('request-live-snapshot', { sessionId: item.session_id });
+      if (!active()) return;
+      const deadline = new Date(ticket.expiresAt).getTime();
+      while (active() && Date.now() < deadline) {
+        const status = await creatorRequest('get-live-snapshot', { requestId: ticket.requestId });
+        if (!active()) return;
+        if (status.status === 'ready') {
+          if (!status.data || typeof status.data !== 'object') throw Error('ข้อมูลสำเนาเมืองไม่ถูกต้อง');
+          const raw = JSON.stringify(status.data);
+          if (typeof window.SMGameLoadCreatorSave !== 'function') throw Error('ระบบโหลดเมืองยังไม่พร้อม');
+          creatorDialog.close();
+          if (!window.SMGameLoadCreatorSave(raw, 'เมืองสดของ ' + item.display_name))
+            throw Error('ไม่สามารถเปิดหน้าต่างยืนยันโหลดเมืองได้');
+          return;
+        }
+        if (status.status === 'offline') throw Error('ผู้เล่นออกจากเกมก่อนส่งข้อมูลเมืองค่ะ');
+        if (status.status === 'expired') throw Error('หมดเวลารอสำเนาเมือง กรุณาลองใหม่ค่ะ');
+        if (status.status === 'error') throw Error(status.message || 'ผู้เล่นส่งข้อมูลเมืองไม่สำเร็จ');
+        await new Promise(resolve => setTimeout(resolve, 2500));
+      }
+      if (active()) throw Error('ยังไม่ได้รับสำเนาเมืองจากผู้เล่น กรุณาลองใหม่ค่ะ');
+    } catch (error) {
+      if (active()) creatorLiveStatus().textContent = 'โหลดเมืองสดไม่ได้: ' + (error?.message || 'ไม่ทราบสาเหตุ');
+    } finally {
+      creatorLiveBusy = false;
+      button.disabled = false;
     }
   }
   async function creatorReload() {

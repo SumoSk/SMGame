@@ -5501,6 +5501,9 @@ window.SMGameLoadCreatorSave=(raw,name)=>{
   ()=>{if(loadGame(false,null,raw))toast('โหลดสำเนาเซฟผู้เล่นสำเร็จค่ะ');});
  return true;
 };
+// Serialize only on a creator-triggered request; never send the full city in regular heartbeats.
+window.SMGameCaptureLiveSnapshot=()=>snapshot();
+window.SMGameLiveNotice=message=>toast(String(message||'สำเนาเมืองถูกส่งเพื่อวิเคราะห์ปัญหา'));
 function saveSlotSummary(slot){try{const s=JSON.parse(slot.data);return escapeSaveText(CITIES[s.city]?.name||'เมือง')+' · อาคาร '+(s.buildings?.length||0)+' แห่ง · '+(slot.savedAt?escapeSaveText(new Date(slot.savedAt).toLocaleString('th-TH')):'บันทึกจากเวอร์ชันเดิม');}catch{return 'ข้อมูลเซฟอ่านไม่ได้';}}
 function saveSlotRows(slots,mode){return slots.map((slot,i)=>`<div style="padding:10px 0;border-bottom:1px solid #dce4de"><strong style="overflow-wrap:anywhere">${escapeSaveText(slot.name)}</strong><p style="margin:4px 0">${saveSlotSummary(slot)}</p><div class="actions"><button id="slotAction${i}">${mode==='save'?'เขียนทับเซฟนี้':'โหลดเซฟนี้'}</button></div></div>`).join('');}
 async function openSaveDialog(){
