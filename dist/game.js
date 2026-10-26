@@ -869,10 +869,10 @@ function startNewCity(city='phuket'){
   home.residents.add(c.id);home.parked.add(c.id);assignJob(c);
  }
  for(const c of state.citizens.values()){scheduleDay(c,0);scheduleDay(c,1);}
- // Three actual T-junctions showcase adaptive AI. The primary T joins the
- // eight-lane highway to the four-lane village collector at (164,150).
- for(const node of [id(164,150),id(164,130),id(164,136)])
-  if(!installAISignal(node))throw Error('Starter AI junction is incomplete: '+node);
+ // Only the primary T-junction where the eight-lane highway meets the
+ // four-lane collector receives free AI. The other junctions remain normal.
+ if(!installAISignal(id(164,150)))
+  throw Error('Starter main AI junction is incomplete');
  // One complimentary example of each of the four purchasable car classes.
  // Trait 0 = diligent, 1 = chill, 2 = partygoer, 3 = wealthy.
  for(const [trait,tech] of [[0,'speed'],[1,'smart'],[2,'fly'],[3,'warp']])
@@ -891,7 +891,7 @@ function startNewCity(city='phuket'){
  if(renderer3d)renderer3d.updateCamera(cam);
  const anchor=world(innerWidth*.5,innerHeight*(innerWidth<700?.29:.34));
  cam.x+=169.5-anchor[0];cam.y+=cameraFocusY-anchor[1];
- news=[];addNews('หมู่บ้านโชว์ของพร้อมแล้ว · 3 แยก AI · รถพิเศษ 4 ประเภท · ชาวเมือง 18 คน');
+ news=[];addNews('หมู่บ้านโชว์ของพร้อมแล้ว · สามแยกหลัก AI 1 จุด · รถพิเศษ 4 ประเภท · ชาวเมือง 18 คน');
  updateUI();renderTools();return state;
 }
 function link(a,b){if(a===b)return;state.roads.get(a)?.links.add(b);state.roads.get(b)?.links.add(a);}
