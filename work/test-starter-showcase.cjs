@@ -1,6 +1,6 @@
 const fs=require('node:fs'),assert=require('node:assert/strict');
-const prefix=fs.readFileSync('work/test-motion.cjs','utf8').split('const angle=')[0];
-const {game:g}=new Function('require',prefix+'return {game};')(require);
+const fixture=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
+const {game:g}=new Function('require',fixture+'return boot();')(require);
 function verify(){
  assert.equal(g.state.money,500000,'Starter upgrades must be free');
  assert.equal(g.state.buildings.size,12,'Keep original starter village');
