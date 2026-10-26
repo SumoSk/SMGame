@@ -403,6 +403,7 @@ if (gate) {
     } catch (error) { cr('crStatus').textContent = 'โหลดข้อมูลไม่ได้: ' + (error?.message || 'ไม่ทราบสาเหตุ'); }
     finally { creatorLoading = false; }
   }
+  window.SMGameCreatorRequest = creatorRequest;
   window.SMGameCreatorOpen = () => {
     if (!creatorAllowed || !user) return;
     window.SMGameCloseDialog?.();
@@ -436,3 +437,138 @@ if (gate) {
     }).catch(() => {});
   });
 }
+
+;(() => {
+  // Standalone creator-save panel. All cross-account reads are verified server-side.
+  const dialog = document.getElementById('smcityCreator');
+  const wrap = dialog?.querySelector('.cr-wrap');
+  if (!wrap || typeof window.SMGameCreatorOpen !== 'function') return;
+  const section = document.createElement('section');
+  section.className = 'cr-saves';
+  section.innerHTML =
+    '<div class="cr-toolbar"><div><h3>โหลดเซฟผู้เล่น</h3><p>อ่านสำเนาเซฟของบัญชีอื่น โดยไม่แก้ไขเซฟต้นฉบับ</p></div>' +
+    '<button type="button" id="crSavesRefresh">รีเฟรชเซฟ</button></div>' +
+    '<label for="crSavesSearch">ค้นหาผู้เล่นหรือชื่อเซฟ</label>' +
+    '<input id="crSavesSearch" type="search" autocomplete="off" placeholder="ชื่อผู้เล่น / ชื่อเซฟ" aria-label="ค้นหาเซฟผู้เล่น">' +
+    '<p id="crSavesStatus" role="status" aria-live="polite">เปิดหน้าผู้สร้างเพื่อดูรายการเซฟ</p>' +
+    '<div class="cr-table-box"><table><thead><tr><th>เจ้าของเซฟ</th><th>ชื่อเซฟ</th><th>บันทึกล่าสุด</th><th>คำสั่ง</th></tr></thead>' +
+    '<tbody id="crSavesRows"></tbody></table></div>';
+  wrap.insertBefore(section, wrap.lastElementChild);
+  const style = document.createElement('style');
+  style.textContent = [
+    '#smcityCreator .cr-saves{display:grid;gap:9px}',
+    '#smcityCreator .cr-saves .cr-toolbar{align-items:flex-start}',
+    '#smcityCreator .cr-saves label{font-size:12px;font-weight:600}',
+    '#smcityCreator .cr-saves input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #bdccd0;border-radius:10px;background:#fff;color:#20383c}',
+    '#smcityCreator .cr-saves .cr-table-box{max-height:32dvh}',
+    '#smcityCreator .cr-saves td:last-child{width:100px}',
+    ':root.smcity-gray-ui #smcityCreator .cr-saves input{background:#292e35;color:#fff;border-color:#565f69}'
+  ].join('\n');
+  document.head.appendChild(style);
+  const $ = id => section.querySelector('#' + id);
+  const rows = $('crSavesRows'), status = $('crSavesStatus'), search = $('crSavesSearch');
+  let saves = [], isLoading = false, isOpening = false, revision = 0;
+  const formatWhen = value => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '—' :
+      date.toLocaleString('th-TH', {dateStyle:'short',timeStyle:'short'});
+  };
+  function checkAccess() {
+    if (!window.SMGameCreatorCanOpen || !window.SMGameAccount?.user ||
+        typeof window.SMGameCreatorRequest !== 'function') {
+      throw Error('กรุณาเข้าสู่ระบบบัญชีผู้สร้างอีกครั้งค่ะ');
+    }
+  }
+  function renderRows() {
+    rows.replaceChildren();
+    const term = search.value.trim().toLocaleLowerCase('th');
+    const filtered = saves.filter(item =>
+      String(item.ownerName || '').toLocaleLowerCase('th').includes(term) ||
+      String(item.name || '').toLocaleLowerCase('th').includes(term));
+    if (!filtered.length) {
+      const tr = document.createElement('tr'), td = document.createElement('td');
+      td.colSpan = 4;
+      td.textContent = saves.length ? 'ไม่พบเซฟที่ค้นหา' : 'ยังไม่มีเซฟออนไลน์';
+      tr.appendChild(td); rows.appendChild(tr);
+      return;
+    }
+    for (const item of filtered) {
+      const tr = document.createElement('tr');
+      for (const label of [
+        String(item.ownerName || 'ผู้เล่น') + (item.isOwn ? ' (บัญชีของฉัน)' : ''),
+        String(item.name || 'ไม่มีชื่อ'),
+        formatWhen(item.updatedAt)
+      ]) {
+        const td = document.createElement('td');
+        td.textContent = label;
+        tr.appendChild(td);
+      }
+      const td = document.createElement('td');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = 'โหลดเซฟ';
+      button.setAttribute('aria-label', 'โหลดเซฟ ' + String(item.name || '') + ' ของ ' + String(item.ownerName || 'ผู้เล่น'));
+      button.addEventListener('click', () => void loadSelected(item, button));
+      td.appendChild(button); tr.appendChild(td); rows.appendChild(tr);
+    }
+  }
+  async function refreshSaves() {
+    if (isLoading || !dialog.open) return;
+    const requestId = ++revision;
+    isLoading = true;
+    status.textContent = 'กำลังอ่านรายการเซฟ…';
+    try {
+      checkAccess();
+      const accountId = window.SMGameAccount.user.id;
+      const response = await window.SMGameCreatorRequest('list-saves');
+      if (requestId !== revision || !dialog.open || !window.SMGameCreatorCanOpen ||
+          window.SMGameAccount?.user?.id !== accountId) return;
+      saves = Array.isArray(response.saves) ? response.saves : [];
+      renderRows();
+      status.textContent = 'พบ ' + saves.length + ' เซฟ (สูงสุด ' + (response.limit || 200) + ' รายการ)';
+    } catch (error) {
+      if (requestId !== revision || !dialog.open) return;
+      saves = []; rows.replaceChildren();
+      status.textContent = 'อ่านเซฟไม่ได้: ' + (error?.message || 'ไม่ทราบสาเหตุ');
+    } finally {
+      isLoading = false;
+    }
+  }
+  async function loadSelected(item, button) {
+    if (isOpening || !dialog.open) return;
+    const requestId = revision, accountId = window.SMGameAccount?.user?.id;
+    isOpening = true; button.disabled = true; status.textContent = 'กำลังโหลดข้อมูลเมือง…';
+    try {
+      checkAccess();
+      const result = await window.SMGameCreatorRequest('get-save', {
+        ownerId: item.ownerId, slotId: item.slotId
+      });
+      if (requestId !== revision || !dialog.open || !window.SMGameCreatorCanOpen ||
+          window.SMGameAccount?.user?.id !== accountId) return;
+      if (!result?.data || typeof result.data !== 'object' || Array.isArray(result.data)) {
+        throw Error('เซฟที่เลือกมีข้อมูลไม่ถูกต้อง');
+      }
+      if (typeof window.SMGameLoadCreatorSave !== 'function') throw Error('ระบบโหลดเกมไม่พร้อม');
+      const raw = JSON.stringify(result.data);
+      dialog.close();
+      if (!window.SMGameLoadCreatorSave(raw, result.name || item.name)) {
+        throw Error('ไม่สามารถเปิดหน้าต่างยืนยันโหลดเซฟได้');
+      }
+    } catch (error) {
+      if (dialog.open) status.textContent = 'โหลดเซฟไม่ได้: ' + (error?.message || 'ไม่ทราบสาเหตุ');
+    } finally {
+      button.disabled = false;
+      isOpening = false;
+    }
+  }
+  search.addEventListener('input', renderRows);
+  $('crSavesRefresh').addEventListener('click', () => void refreshSaves());
+  dialog.addEventListener('close', () => { revision++; saves = []; rows.replaceChildren(); search.value = ''; });
+  const open = window.SMGameCreatorOpen;
+  window.SMGameCreatorOpen = function (...args) {
+    const result = open.apply(this, args);
+    if (dialog.open && window.SMGameCreatorCanOpen) void refreshSaves();
+    return result;
+  };
+})();
+

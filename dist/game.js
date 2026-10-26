@@ -5492,6 +5492,15 @@ function loadGame(silent=false,slotId=null,rawOverride=null){const previous={sta
   if(!c.dailyPlan||!Number.isFinite(c.dailyPlan.day))c.dailyPlan=planForDay(c,Math.floor(state.time/1440));
  }
  syncCitizenVehicleTech();migrateTravelPlanning();state.speed=0;scanIncidents(true);updateUI();if(!silent)toast('โหลดเมืองพร้อมลานจอดแล้ว กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>THAILAND · สร้างเมืองในแบบคุณ</small>';updateUI();if(!silent)toast(e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
+// A developer can load a copy into the current session; no other user's save is changed.
+window.SMGameLoadCreatorSave=(raw,name)=>{
+ if(!window.SMGameCreatorCanOpen||!window.SMGameAccount?.user||typeof raw!=='string'||!raw)return false;
+ const cleanName=escapeSaveText(String(name||'เมืองผู้เล่น').slice(0,80));
+ confirmAction('โหลดสำเนาเซฟ “'+cleanName+'”',
+  'เมืองปัจจุบันที่ยังไม่ได้บันทึกจะถูกแทนที่ด้วยสำเนาเซฟ แต่เซฟต้นฉบับของผู้เล่นจะไม่เปลี่ยนแปลง',
+  ()=>{if(loadGame(false,null,raw))toast('โหลดสำเนาเซฟผู้เล่นสำเร็จค่ะ');});
+ return true;
+};
 function saveSlotSummary(slot){try{const s=JSON.parse(slot.data);return escapeSaveText(CITIES[s.city]?.name||'เมือง')+' · อาคาร '+(s.buildings?.length||0)+' แห่ง · '+(slot.savedAt?escapeSaveText(new Date(slot.savedAt).toLocaleString('th-TH')):'บันทึกจากเวอร์ชันเดิม');}catch{return 'ข้อมูลเซฟอ่านไม่ได้';}}
 function saveSlotRows(slots,mode){return slots.map((slot,i)=>`<div style="padding:10px 0;border-bottom:1px solid #dce4de"><strong style="overflow-wrap:anywhere">${escapeSaveText(slot.name)}</strong><p style="margin:4px 0">${saveSlotSummary(slot)}</p><div class="actions"><button id="slotAction${i}">${mode==='save'?'เขียนทับเซฟนี้':'โหลดเซฟนี้'}</button></div></div>`).join('');}
 async function openSaveDialog(){
