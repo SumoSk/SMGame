@@ -6474,16 +6474,6 @@ body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric .m
 }
 @media(max-height:540px){:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #inspector:not(.hidden){top:10px!important;max-height:calc(100dvh - 205px)!important}}
 
-/* Four result-only lines stay above the original capacity / use / shortage table. */
-:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-demand-panel{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important}
-:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-demand-panel .city-brief{display:flex!important;flex-direction:column!important;flex:0 0 auto!important;gap:0!important;padding:1px 2px 3px!important;margin:0 0 2px!important;border-bottom:1px solid var(--sm-panel-line)!important;color:var(--sm-panel-ink)!important}
-:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-demand-panel .city-brief-line{display:block!important;font:500 9px/1.35 "Noto Sans Thai",Tahoma,sans-serif!important;letter-spacing:0!important;word-spacing:0!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;min-width:0!important}
-:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-demand-panel .mini-control-heading{flex:0 0 16px!important;height:16px!important;min-height:16px!important;max-height:16px!important;margin:0!important}
-:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-demand-panel .panel-content{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important}
-@media(max-width:600px){:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-demand-panel .city-brief-line{font-size:8px!important;line-height:1.4!important}}
-@media(max-width:920px){
- :root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck:not(.tools-collapsed){grid-template-rows:112px minmax(0,1fr)!important}
-}
-@media(max-width:920px) and (max-height:540px){
- :root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck:not(.tools-collapsed){grid-template-rows:96px minmax(0,1fr)!important}
-}
+/* The briefing flows naturally above the rows inside the original scroller. */
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-demand-panel .city-brief{display:block!important;grid-column:1/-1!important;flex:0 0 auto!important;width:100%!important;min-width:0!important;padding:2px 0 4px!important;font:500 10px/1.45 "Noto Sans Thai",Tahoma,sans-serif!important;color:var(--sm-panel-ink)!important;white-space:normal!important;overflow-wrap:anywhere!important;letter-spacing:0!important;word-spacing:0!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-demand-panel .city-brief-line{display:inline!important;font:inherit!important;color:inherit!important;white-space:normal!important}
