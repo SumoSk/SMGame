@@ -35,7 +35,7 @@ function finishTrip(){
  if(origin){const slot=origin.parkingSlots.indexOf(sample.id);if(slot>=0)origin.parkingSlots[slot]=null;}
  game.state.time+=15;game.arrive(v,true);return v;
 }
-function event(){const e=game.eventPop();assert(e);game.state.time=Math.max(game.state.time,e.at);game.runAction(game.state.citizens.get(e.citizenId),e.action,e);return e;}
+function event(){let e=game.eventPop();assert(e);while(e.action==='lifeStart'&&sample.lifeRun&&e.day!==sample.lifeRun.day){e=game.eventPop();assert(e);}game.state.time=Math.max(game.state.time,e.at);game.runAction(game.state.citizens.get(e.citizenId),e.action,e);return e;}
 const route={version:2,day:0,works:false,steps:[{kind:'restaurant',at:1300,duration:30,expires:1740},{kind:'pub',at:1400,duration:100,expires:1740},{kind:'home',at:1400,rest:30},{kind:'shop',at:1940,duration:20,expires:2300},{kind:'home',at:1940}]};
 start(route);let v=finishTrip();assert.equal(v.toId,restaurant.id);assert.equal(sample.activityUntil,game.state.time+30,'stay starts at arrival');
 event();event();v=finishTrip();assert.equal(v.toId,pub.id);assert(sample.activityUntil>1440,'pub visit crosses midnight');
@@ -50,7 +50,7 @@ assert.equal(game.state.vehicles.size,0,'all routed trips cleaned up');
 // A service reservation that arrives after closing is never admitted.
 start({version:2,day:2,steps:[{kind:'restaurant',at:1380,duration:30,expires:1740},{kind:'home',at:1380}]});
 v=game.state.vehicles.get(sample.vehicleId);assert(v);
-game.state.time=2*1440+1441;finishTrip();
+game.state.time=2*1440+1561;finishTrip();
 assert(!game.state.buildings.get(v.toId).visitors.has(sample.id),'closed venue cannot admit late arrivals');
 assert(game.state.events.length>0,'late arrival continues itinerary');
 // No work event is discarded after midnight.

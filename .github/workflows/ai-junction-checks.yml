@@ -1,0 +1,24 @@
+name: AI junction upgrade checks
+on:
+  push:
+    branches: [ai-traffic-signal-upgrade-v3]
+  workflow_dispatch:
+jobs:
+  test-ai-signals:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node --check dist/renderer3d.js
+      - run: node work/test-ai-junction.cjs
+      - run: node work/test-lane-signals.cjs
+      - run: node work/test-signal-design.cjs
+      - run: node work/test-car-lod-toggle.cjs
+      - run: npm run build

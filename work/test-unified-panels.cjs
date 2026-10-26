@@ -1,0 +1,51 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const prefix=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
+const {city}=new Function('require',prefix+'return {city};')(require);
+const {game:g,get,restaurant:b}=city();
+const html=fs.readFileSync('index.html','utf8'),css=fs.readFileSync('dist/style.css','utf8');
+const baseline=JSON.parse(g.snapshot());
+assert(html.includes('SMCITY / CITY LIFE')&&html.includes('SMCITY / VISITORS'),'matching dashboard header metadata');
+assert(html.includes('id="closeInspector"')&&html.includes('id="closeCitizensDashboard"')&&html.includes('id="closeTouristsDashboard"'),'permanent close buttons retained');
+assert(html.includes('id="dialogCloseTop"'),'global modal close button retained');
+// Representative inspector screens must share the same semantic layout.
+g.cam.x=b.x;g.cam.y=b.y;
+let point=g.screen(b.x+.7,b.y+.7);g.inspectAt(point[0],point[1]);
+assert.equal(g.selected?.kind,'building');
+let panel=get('inspectContent').innerHTML;
+assert(panel.includes('class="sm-inspector-heading"'),'building uses unified header');
+assert(panel.includes('class="detail-row"'),'building values remain available');
+assert(panel.includes('data-action="move-building"')&&panel.includes('data-action="demolish"'),'building actions preserved');
+g.selectTool('signalManage');
+panel=get('inspectContent').innerHTML;
+assert(panel.includes('class="sm-inspector-heading"'),'intersection/signal management uses same header');
+assert(panel.includes('signal-control'),'signal controls still exist');
+g.selectTool('citizenDashboard');
+assert(get('citizensDashboardBody').innerHTML.includes('class="citizen-kpis"'),'citizen cards still render');
+assert(get('citizensDashboardBody').innerHTML.includes('citizen-section'),'citizen sections still render');
+g.selectTool('touristDashboard');
+assert(get('touristsDashboardBody').innerHTML.includes('class="citizen-kpis"'),'tourist cards still render');
+assert(get('touristsDashboardBody').innerHTML.includes('citizen-section'),'tourist sections still render');
+g.selectTool('hand');
+g.openMissionDashboard();
+assert(get('dialogContent').innerHTML.includes('class="sm-report-header"'),'daily report has shared report header');
+assert(get('dialogContent').innerHTML.includes('daily-report-section'),'report sections remain intact');
+g.closeModal();
+// Visible theme is configured for bright/dark + mobile instead of each screen
+// overriding typography and controls separately.
+assert(css.includes('SMCITY 3.0 BACKUP -> unified city information design system'),'unified panel CSS appended');
+assert(css.includes(':root.smcity-gray-ui{\n --sm-panel-bg:'),'dark mode tokens');
+for(const token of ['--sm-panel-card','--sm-panel-line','--sm-panel-muted','--sm-panel-accent'])assert(css.includes(token),'missing token '+token);
+for(const selector of ['#inspector .sm-inspector-heading','.citizens-dashboard .citizen-kpis','.daily-report-body .daily-report-section','#dialog:not(.construction-confirm)','.member-card{'])assert(css.includes(selector),'missing panel style '+selector);
+assert(css.includes('@media(max-width:720px){'),'iPad/phone responsive styles preserved');
+const leftSheet=css.slice(css.lastIndexOf('/* SMCITY compact LEFT rail and left-anchored city information windows.'));
+assert(leftSheet.length>2000,'left panel alignment overrides are required');
+for(const id of ['#inspector:not(.hidden)','#citizensDashboard.citizens-dashboard:not(.hidden)','#touristsDashboard.citizens-dashboard:not(.hidden)','#missionDailyAuto.daily-report-auto','#dialog:not(.construction-confirm)'])assert(leftSheet.includes(id),'not left-aligned: '+id);
+assert(leftSheet.includes('left:calc(77px + env(safe-area-inset-left,0px))!important'),'desktop information panels start after left rail');
+assert(leftSheet.includes('left:calc(63px + env(safe-area-inset-left,0px))!important'),'touch information panels start after narrow left rail');
+assert(leftSheet.includes('aspect-ratio:1/1!important'),'square shortcut icons');
+assert(leftSheet.includes('width:52px!important')&&leftSheet.includes('height:52px!important'),'compact shortcut size');
+
+const after=JSON.parse(g.snapshot());
+for(const key of ['city','money','roads','buildings','citizens','vehicles','signals'])assert.deepEqual(after[key],baseline[key],key+' must not change when rendering windows');
+console.log('Unified panels passed: building/signal details, citizen/tourist cards, report, modal, light/dark responsive tokens, city unchanged.');

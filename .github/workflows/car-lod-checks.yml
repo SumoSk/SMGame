@@ -1,0 +1,31 @@
+name: Car LOD and status diamond checks
+on:
+  push:
+    branches: [visual-car-lod-diamond-toggle]
+    paths:
+      - "dist/game.js"
+      - "dist/renderer3d.js"
+      - "dist/index.html"
+      - "dist/style.css"
+      - "work/test-car-lod-toggle.cjs"
+      - "work/test-building-label-toggle.cjs"
+      - ".github/workflows/car-lod-checks.yml"
+  workflow_dispatch:
+jobs:
+  car-lod:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node --check dist/renderer3d.js
+      - run: node work/test-car-lod-toggle.cjs
+      - run: node work/test-car-selection-status.cjs
+      - run: node work/test-building-label-toggle.cjs
+      - run: npm run build

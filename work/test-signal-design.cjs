@@ -3,11 +3,11 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
  const {TrafficRenderer}=await import('../dist/renderer3d.js'),THREE=await import('../dist/vendor/three.module.js');
  const fixture=fs.readFileSync('work/test-motion.cjs','utf8').split('let combinations=0;')[0];
  const game=new Function('require',fixture+'return game;')(require);
- const receiver={roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),disposeGroup:TrafficRenderer.prototype.disposeGroup};
+ const receiver={roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),lampGroup:new THREE.Group(),disposeGroup:TrafficRenderer.prototype.disposeGroup,glowTexture:new THREE.Texture()};
  game.reset();game.state.roads.clear();game.state.junctionCache.clear();game.state.footprint.fill(-1);game.state.gates=[];
  for(const [a,b,t] of [[[140,150],[160,150],'large'],[[150,140],[150,160],'medium']])assert(game.buildRoad(game.lineCells(game.id(...a),game.id(...b)),t,true));
  TrafficRenderer.prototype.makeRoads.call(receiver,game.state,game.ROADS,game.junction);
- assert.equal(receiver.signals.length,4);assert.equal(receiver.signalGroup.children.length,12);
+ assert.equal(receiver.signals.length,4);assert.equal(receiver.signalGroup.children.length,12);assert.equal(new Set(receiver.signals.map(s=>s.node+':'+s.incoming+':'+s.lane)).size,4);
  for(const signal of receiver.signals){
   assert.deepEqual(Object.keys(signal.lenses),['red','yellow','green']);
   assert(signal.lenses.red.position.y>signal.lenses.yellow.position.y&&signal.lenses.yellow.position.y>signal.lenses.green.position.y);

@@ -1,8 +1,8 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const noop=()=>{};
-function boot(){let game;const nodes=new Map(),storage={};const get=id=>{if(!nodes.has(id)){const classes=new Set(['hidden']);nodes.set(id,{textContent:'',innerHTML:'',value:'',scrollTop:0,children:[],style:{},classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),toggle:noop,contains:x=>classes.has(x)},addEventListener:noop,querySelectorAll:()=>[],showModal(){this.open=true},close(){this.open=false},getContext:()=>new Proxy({},{get:()=>noop}),setPointerCapture:noop});}return nodes.get(id);};
+function boot(){let game;const nodes=new Map(),storage={};const get=id=>{if(!nodes.has(id)){const classes=new Set(['hidden']);nodes.set(id,{textContent:'',innerHTML:'',value:'',scrollTop:0,children:[],style:{},classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),toggle:noop,contains:x=>classes.has(x)},addEventListener:noop,setAttribute:noop,querySelectorAll:()=>[],showModal(){this.open=true},close(){this.open=false},getContext:()=>new Proxy({},{get:()=>noop}),setPointerCapture:noop});}return nodes.get(id);};
  const context={document:{getElementById:get,querySelector:()=>get('dummy'),querySelectorAll:()=>[]},window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:x=>game=x},innerWidth:1024,innerHeight:768,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage:{getItem:k=>storage[k]??null,setItem:(k,v)=>storage[k]=v},console};
- vm.createContext(context);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),context);return{game,get};}
+ vm.createContext(context);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),context);game.reset();return{game,get};}
 function city(){const env=boot(),g=env.game;g.state.money=1e8;g.state.time=720;
  const build=(key,x)=>{const b=g.buildBuilding(key,x,148-g.CATALOG[key].plotHeight,true);assert(b,key);return b;};
  const home=build('home_large',160),restaurant=build('restaurant_small',190),mall=build('mall_small',210),hotel=build('hotel_small',245),pub=build('pub_small',265);

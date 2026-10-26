@@ -3,7 +3,7 @@ const fixture=fs.readFileSync('work/test-motion.cjs','utf8').split('let combinat
 (async()=>{
 const {TrafficRenderer}=await import('../dist/renderer3d.js'),THREE=await import('../dist/vendor/three.module.js');
 const game=new Function('require',fixture+'return game;')(require);
-const receiver={roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),disposeGroup:TrafficRenderer.prototype.disposeGroup};
+const receiver={roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),lampGroup:new THREE.Group(),disposeGroup:TrafficRenderer.prototype.disposeGroup};
 function render(){TrafficRenderer.prototype.makeRoads.call(receiver,game.state,game.ROADS,game.junction);return receiver.signals.length;}
 function reset(){game.reset();game.state.roads.clear();game.state.junctionCache.clear();game.state.footprint.fill(-1);game.state.gates=[];}
 function build(a,b,type){const cells=game.lineCells(game.id(...a),game.id(...b));assert(game.buildRoad(cells,type,true));return cells;}

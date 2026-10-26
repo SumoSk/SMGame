@@ -42,19 +42,17 @@ step(90);
 assert.notEqual(car.phase,'parking_out','the car must leave through a stopped road lane');
 assert.equal(game.state.occ.get(roadKey),987654,'stopped road car retains its lane');
 
-// Emergency right shift WITH a new route from the shifted location.
+// The outer-left lane follows its lane leader and never dodges right due to a parking gate.
 ({home,office}=setup());activeExit(home,office);
 let driver=roadDriver(3);
 const oldPath=Array.from(driver.path);
 step(3);
 assert.equal(driver.phase,'driving');
-assert.equal(driver.emergencyInitialLane,2,'must move one lane to the right');
-assert.equal(driver.lane,2);
-assert.equal(driver.occKey,driver.path[0]+':0:2','occupancy must change with the actual lane');
-assert(driver.emergencyRightUntil>game.state.time-1);
-assert.equal(driver.path[0],oldPath[0],'reroute must preserve the current road');
-assert.equal(driver.path[1],oldPath[1],'reroute must not drive backwards');
-assert(game.vehiclePosition(driver).y>149.1,'physical car position must move right with its lane');
+assert(!Number.isFinite(driver.emergencyInitialLane),'leftmost lane must remain in its queue');
+assert.equal(driver.lane,3,'leftmost lane remains selected');
+assert.equal(driver.occKey,driver.path[0]+':0:3','leftmost lane occupancy remains unchanged');
+assert.equal(driver.path[0],oldPath[0],'route must preserve the current road');
+assert.equal(driver.path[1],oldPath[1],'route must not drive backwards');
 // Full lane: don't teleport into a reserved or occupied right lane.
 ({home,office}=setup());activeExit(home,office);
 const occupied=game.id(166,150)+':0:2';
@@ -71,4 +69,4 @@ assert(!Number.isFinite(driver.emergencyInitialLane),'rightmost lane cannot shif
 step(2400);
 assert.equal(office.parked.size,1,'parking departure should still complete');
 assert.equal(game.state.vehicles.size,0);
-console.log(JSON.stringify({passed:true,continuousExit:true,rightShiftAndReroute:true,occupancyUpdated:true,occupiedRightLaneRejected:true,noOncomingLane:false===false,normalParkingTrip:true}));
+console.log(JSON.stringify({passed:true,continuousExit:true,leftQueueNoEmergencyShift:true,occupancyUpdated:true,occupiedRightLaneRejected:true,noOncomingLane:false===false,normalParkingTrip:true}));
