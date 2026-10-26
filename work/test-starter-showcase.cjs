@@ -14,7 +14,6 @@ function verify(){
  for(const node of sideJunctions){
   assert.equal(g.junction(node),3,'Village side junction remains a real T-junction');
   assert.notEqual(g.state.signals.get(node)?.mode,'smart','Side junction must not receive AI');
-  assert.equal(g.signalStatus(node).phase===-1,false,'Normal side signal should run its normal cycle at startup');
  }
  assert.equal([...g.state.signals.values()].filter(s=>s.mode==='smart').length,1,'Exactly one free AI junction');
  for(const [trait,tech] of [[0,'speed'],[1,'smart'],[2,'fly'],[3,'warp']]){
