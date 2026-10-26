@@ -23,7 +23,7 @@ const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.g
 const document={getElementById:get,querySelector:()=>element(),
  querySelectorAll:q=>q==='[data-camera-direction]'?[...buttons.values()]:[],
  addEventListener:noop};
-const renderer={resize:noop,updateCamera(){cameraUpdates++;}};
+const renderer={setGraphicQuality:noop,world:(x,y)=>[x/26,y/26],resize:noop,updateCamera(){cameraUpdates++;}};
 const context={document,window:{addEventListener:noop,createTrafficRenderer:()=>renderer,__TRAFFIC_TEST_HARNESS__:x=>{game=x;}},
  innerWidth:1280,innerHeight:800,devicePixelRatio:1,requestAnimationFrame:noop,
  setTimeout:()=>1,clearTimeout:noop,localStorage:{setItem:noop,getItem:()=>null},console};
@@ -61,7 +61,8 @@ for(const page of ['index.html','dist/index.html']){
  assert.ok(html.includes('data-camera-direction="up"'),'Up button missing '+page);
  assert.ok(html.includes('data-camera-direction="down"'),'Down button missing '+page);
  assert.ok(html.includes('id="resetCameraAngle"'),'Center reset missing '+page);
- assert.ok(html.includes('bootstrap.js?v=camerastick-v24-20261023'),'Stale bootstrap cache '+page);
+ const version=require('node:crypto').createHash('sha256').update(fs.readFileSync('dist/bootstrap.js')).digest('hex').slice(0,12);
+ assert.ok(html.includes('bootstrap.js?v='+version),'Stale bootstrap cache '+page);
 }
 const rendererText=fs.readFileSync('dist/renderer3d.js','utf8');
 assert.ok(rendererText.includes('cam.elevation??Math.atan2(86,90)'),'Renderer must apply joystick elevation');

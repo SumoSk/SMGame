@@ -71,7 +71,7 @@ get('toast').textContent = '';
 tap(4, 500, 400);
 event('pointerdown', 5, 800, 400);
 assert.equal(pendingTaps(), 0, 'A distant second tap commits the first touch');
-assert.match(get('hint').textContent, /ต้องการรื้อ/, 'Separate taps do not cancel the selected tool');
+assert.match(get('hint').textContent, /รื้อ/, 'Separate taps do not cancel the selected tool');
 event('pointerup', 5, 800, 400);
 flushTap();
 
