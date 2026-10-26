@@ -31,7 +31,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  for(const mesh of [set.headlights,set.taillights,set.lightSpill])mesh.count=1;
  r.updateNightVisibility(0);for(const mesh of [set.headlights,set.taillights,set.lightSpill])assert.equal(mesh.visible,false,'daytime stays off');
  const main=fs.readFileSync('index.html','utf8'),dist=fs.readFileSync('dist/index.html','utf8'),standalone=fs.readFileSync('outputs/Traffic-Fixer-Thailand-3D.html','utf8');
- assert.equal(dist,main.replace(/\b(src|href)="dist\//g,'$1"').replace(/src="assets\/smcity-welcome\.webp"/g,'src="../assets/smcity-welcome.webp"'),'dist must use the current complete UI');
+ assert.equal(dist,main.replace(/\b(src|href)="dist\//g,'$1="').replace(/src="assets\/smcity-welcome\.webp"/g,'src="../assets/smcity-welcome.webp"'),'dist must use the current complete UI');
  const title=main.match(/<title>(.*?)<\/title>/)[1];assert(standalone.includes('<title>'+title+'</title>'));
  for(const html of [main,dist,standalone])assert(html.includes('data-city-shortcut="vehicleUpgrade"'));
  assert(!/<(?:link|script)[^>]*(?:href|src)="(?:dist\/)?(?:style\.css|bootstrap\.js)/.test(standalone),'download must embed both CSS and JS');
