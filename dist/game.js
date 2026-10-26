@@ -1557,7 +1557,7 @@ function trackingEndpoint(v,origin=false){
  const [x,y]=xy(node);return {point:{x:x+.5,y:y+.5},name:origin?trackingOrigin(v):trackingDestination(v)};
 }
 let canvasCarMarkerHits=[];
-let carStatusDiamondsVisible=true;
+let carStatusDiamondsVisible=false;
 function drawCarIndicators2D(){
  canvasCarMarkerHits=[];
  const add=(pose,v,cid,buildingId=null)=>{
@@ -1636,7 +1636,7 @@ function buildingGaugeMetrics(b,approaching){
  const used=t.service?b.visitors.size:t.residents?b.residents.size:b.workers.size;
  return serviceGaugeMetrics({traveling:approaching,used,capacity:t.service||t.residents||t.jobs});
 }
-let placeLabelLayer=null,placeLabelState=null,placeLabels=new Map(),placeLabelCounts=new Map(),placeLabelAt=0,placeLabelProjectionKey=null,routeWarningMarkers=new Map(),buildingLabelsVisible=true;
+let placeLabelLayer=null,placeLabelState=null,placeLabels=new Map(),placeLabelCounts=new Map(),placeLabelAt=0,placeLabelProjectionKey=null,routeWarningMarkers=new Map(),buildingLabelsVisible=false;
 const NO_ROUTE_TIMEOUT=150;
 const IMMOBILE_RESPAWN_TIMEOUT=150;
 function missingRoute(v){return !!v&&(!!v.departureNoRoute||v.phase==='stuck'&&v.routeMissing!==false&&!/พบเส้นทางแล้ว/.test(v.stopReason||''));}
@@ -2003,15 +2003,13 @@ $('buildingQuickDemolish').onclick=()=>{
  updateBuildingQuickActions();
 };
 
-const AI_PINS_STORAGE='smcity-ai-junction-pins-v1';
-let aiPinsVisible=true;
-try{aiPinsVisible=localStorage.getItem(AI_PINS_STORAGE)!=='hidden';}catch{}
+// Start every page session with visual overlays hidden; buttons remain available.
+let aiPinsVisible=false;
 let aiPinState=null,aiPinVersion=-1,aiPinNodes=[],aiPinLast=-Infinity;
 let aiPinHover=null,aiPinLocked=null,aiPinLockUntil=0,aiLastActivatedNode=null,aiLastActivatedAt=-Infinity;
 const aiPinButtons=new Map();
 function toggleAIPinLabels(){
  aiPinsVisible=!aiPinsVisible;
- try{localStorage.setItem(AI_PINS_STORAGE,aiPinsVisible?'shown':'hidden');}catch{}
  const button=$('toggleAIPins'),label=$('toggleAIPinsText');
  if(button){
   button.classList.toggle('is-hidden',!aiPinsVisible);
@@ -4981,8 +4979,8 @@ $('cityQuickModes').onclick=event=>{
 };
 $('toggleDock').onclick=()=>setDockCollapsed(!$('buildDock').classList.contains('is-collapsed'));
 // Removing label nodes is decisive: CSS-only hiding was not reliable here.
-function toggleBuildingLabels(){
- buildingLabelsVisible=!buildingLabelsVisible;
+function toggleBuildingLabels(){buildingLabelsVisible=!buildingLabelsVisible;syncBuildingLabelVisibility();}
+function syncBuildingLabelVisibility(){
  const hidden=!buildingLabelsVisible;
  const button=$('toggleBuildingLabels');
  button.classList.toggle('is-hidden',hidden);
@@ -5003,8 +5001,9 @@ function toggleBuildingLabels(){
  document.documentElement?.classList.toggle('building-labels-off',hidden);
 }
 $('toggleBuildingLabels').onclick=toggleBuildingLabels;
-function toggleCarStatusDiamonds(){
- carStatusDiamondsVisible=!carStatusDiamondsVisible;
+syncBuildingLabelVisibility();
+function toggleCarStatusDiamonds(){carStatusDiamondsVisible=!carStatusDiamondsVisible;syncCarStatusDiamondVisibility();}
+function syncCarStatusDiamondVisibility(){
  const hidden=!carStatusDiamondsVisible,button=$('toggleCarDiamonds');
  if(!button)return;
  button.classList.toggle('is-hidden',hidden);
@@ -5022,7 +5021,7 @@ function toggleCarStatusDiamonds(){
  if(hidden)canvasCarMarkerHits=[];
 }
 const diamondToggle=$('toggleCarDiamonds');
-if(diamondToggle)diamondToggle.onclick=toggleCarStatusDiamonds;
+if(diamondToggle){diamondToggle.onclick=toggleCarStatusDiamonds;syncCarStatusDiamondVisibility();}
 
 $('closeTouristsDashboard').onclick=()=>{category='roads';dockGroup='roads';selectTool('hand');};
 $('touristSearch').oninput=e=>{touristSearch=e.target.value.slice(0,80);touristPage=0;renderTouristDashboard(true);};
