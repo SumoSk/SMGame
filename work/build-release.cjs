@@ -2,7 +2,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const root=path.resolve(__dirname,'..');
 const read=name=>fs.readFileSync(path.join(root,name),'utf8');
 // The playable page is the single UI source for hosted and downloadable builds.
-fs.writeFileSync(path.join(root,'dist/index.html'),read('index.html').replace(/\b(src|href)="dist\//g,'$1="'));
+fs.writeFileSync(path.join(root,'dist/index.html'),read('index.html').replace(/\b(src|href)="dist\//g,'$1="').replace(/src="assets\/smcity-welcome\.webp"/g,'src="../assets/smcity-welcome.webp"'));
 const hash=source=>crypto.createHash('sha256').update(source).digest('hex').slice(0,12);
 const game=read('dist/game.js'),renderer=read('dist/renderer3d.js'),member=read('dist/member.js');
 const gameVersion=hash(game),rendererVersion=hash(renderer),memberVersion=hash(member);
@@ -26,9 +26,12 @@ const inline=`\nconst makeModule=source=>URL.createObjectURL(new Blob([source],{
  `const {TrafficRenderer}=await import(rendererURL);\nwindow.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);\n`+
  `const gameScript=document.createElement('script');gameScript.textContent=${quote(game)};document.body.appendChild(gameScript);\n`+
  `const memberScript=document.createElement('script');memberScript.textContent=${quote(member)};document.body.appendChild(memberScript);\n`;
+const welcomeAsset=path.join(root,'assets/smcity-welcome.webp');
+const welcomeData=fs.existsSync(welcomeAsset)?'data:image/webp;base64,'+fs.readFileSync(welcomeAsset).toString('base64'):null;
 const html=read('dist/index.html')
  .replace(/<link rel="stylesheet" href="style\.css[^"\s]*">/,()=>'<style>\n'+read('dist/style.css')+'</style>')
- .replace(/<script type="module" src="bootstrap\.js[^"\s]*"><\/script>/,()=>'<script type="module">'+inline+'</script>');
+ .replace(/<script type="module" src="bootstrap\.js[^"\s]*"><\/script>/,()=>'<script type="module">'+inline+'</script>')
+ .replace(/src="\.\.\/assets\/smcity-welcome\.webp"/g,()=>welcomeData||'../assets/smcity-welcome.webp');
 // Theme initialization and its toggle are separate inline scripts in v2.4.3.
 // Embedding the module must preserve that template's script boundaries.
 if((html.match(/<\/script>/g)||[]).length!==(read('dist/index.html').match(/<\/script>/g)||[]).length)throw new Error('Unsafe standalone script content');
