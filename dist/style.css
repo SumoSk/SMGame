@@ -6206,3 +6206,190 @@ body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric .m
  }
  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .metric-money{grid-column:1!important}
 }
+
+/* SMCITY v4.3: shared compact panel/card language, independent of map and toolbar size. */
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)){
+ --panel-card-radius:10px;--panel-gap:8px;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#inspector,.citizens-dashboard,#dialog:not(.construction-confirm),#missionDailyAuto,.member-card){
+ border-radius:14px!important;scrollbar-width:thin;scrollbar-color:var(--sm-panel-line) transparent;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog .menu-heading,#inspector .sm-inspector-heading,.citizens-dashboard .citizens-top,.daily-report-body .sm-report-header){
+ display:flex!important;align-items:center!important;gap:10px!important;
+ min-width:0!important;box-sizing:border-box;
+ background:var(--sm-panel-head)!important;color:var(--sm-panel-ink)!important;
+ border-bottom:1px solid var(--sm-panel-line)!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .menu-heading{
+ margin:0 0 14px!important;padding:0 30px 12px 0!important;border-radius:0!important;
+ background:transparent!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog .menu-heading>div,#inspector .sm-inspector-heading-text,.citizens-dashboard .sm-panel-title,.sm-report-header>div){min-width:0;flex:1}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog .menu-logo,#inspector .sm-inspector-mark,.panel-heading-icon,.member-card .member-mark){
+ display:grid!important;place-items:center!important;flex:0 0 30px!important;
+ width:30px!important;min-width:30px!important;height:30px!important;
+ margin:0!important;padding:0!important;border-radius:9px!important;
+ background:var(--sm-panel-accent-soft)!important;color:var(--sm-panel-accent)!important;
+ font:700 17px/1 system-ui,sans-serif!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog .menu-heading h2,#inspector .sm-inspector-heading h2,.citizens-dashboard .citizens-top h2,.daily-report-body .sm-report-header h2,.member-card h2){
+ color:var(--sm-panel-ink)!important;font-size:16px!important;font-weight:750!important;
+ line-height:1.35!important;margin:0!important;letter-spacing:normal!important;overflow-wrap:anywhere;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog .menu-heading .eyebrow,.member-eyebrow){display:none!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(.panel-subtitle,.daily-report-body .mission-sub){
+ color:var(--sm-panel-muted)!important;font-size:10px!important;line-height:1.5!important;margin:4px 0 0!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#inspector .detail-row,.citizen-kpi,.citizen-person,.citizen-signal-grid>div,.daily-report-section,.daily-report-highlights .mission-card,.save-create-card,.save-slot-card,.account-password){
+ box-sizing:border-box!important;min-width:0!important;
+ border:1px solid var(--sm-panel-line)!important;border-radius:var(--panel-card-radius)!important;
+ background:var(--sm-panel-card)!important;color:var(--sm-panel-ink)!important;
+ box-shadow:none!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #inspector .detail-row{padding:9px!important;gap:4px!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#inspector .detail-row strong,.citizen-kpi strong,.daily-report-rows strong){color:var(--sm-panel-ink)!important;font-variant-numeric:tabular-nums}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#inspector .detail-row span,.citizen-kpi small,.daily-report-rows span){color:var(--sm-panel-muted)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#inspector #inspectContent,.citizen-kpis,.citizen-signal-grid,.daily-report-sections,.daily-report-highlights){gap:var(--panel-gap)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#inspector h3,.citizens-dashboard h3,.daily-report-section h3,#dialog .save-list-heading h3){
+ font-size:12px!important;line-height:1.5!important;color:var(--sm-panel-ink)!important;font-weight:750!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(.panel-help){
+ grid-column:1/-1;min-width:0;margin-top:8px;padding:8px 10px;
+ border:1px solid var(--sm-panel-line);border-radius:10px;
+ background:var(--sm-panel-soft);color:var(--sm-panel-muted);font-size:10px;line-height:1.6;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) .panel-help summary{cursor:pointer;color:var(--sm-panel-muted);font-size:10px;font-weight:600}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) .panel-help p{margin:7px 0 0!important;background:transparent!important;padding:0!important;font-size:10px!important;color:var(--sm-panel-muted)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog .smcity-menu-list,#dialog .smcity-report-list){gap:7px!important;margin:0!important;max-height:none!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog :is(.smcity-menu-list>button,.smcity-report-entry){
+ min-height:45px!important;padding:9px 10px!important;margin:0!important;gap:10px!important;
+ border:1px solid var(--sm-panel-line)!important;border-radius:10px!important;
+ background:var(--sm-panel-card)!important;color:var(--sm-panel-ink)!important;box-shadow:none!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog :is(.smcity-menu-list b,.smcity-report-entry b){font-size:12px!important;font-weight:700!important;color:var(--sm-panel-ink)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog :is(.smcity-menu-list small,.smcity-report-entry small){font-size:10px!important;line-height:1.45!important;color:var(--sm-panel-muted)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog :is(.menu-symbol,.save-slot-icon){
+ display:grid!important;place-items:center!important;flex:0 0 28px!important;
+ width:28px!important;height:28px!important;border-radius:8px!important;font-size:16px!important;
+ background:var(--sm-panel-accent-soft)!important;color:var(--sm-panel-accent)!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .menu-chevron{font-size:18px!important;color:var(--sm-panel-muted)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog .actions,#missionDailyAuto>.actions){gap:7px!important;margin-top:12px!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog .menu-resume,#dialog .actions>button,#inspector button.action,.citizens-dashboard .citizens-filters button,#missionDailyAuto button,.member-card .member-back,.member-card .member-submit){
+ border-radius:8px!important;box-shadow:none!important;font-size:11px!important;font-weight:650!important;
+ line-height:1.3!important;min-height:32px!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog .actions>button:not(.primary):not(.danger),#inspector button.action,#missionDailyAuto button:not(.primary),.member-card .member-back){
+ color:var(--sm-panel-ink)!important;background:var(--sm-panel-card)!important;border:1px solid var(--sm-panel-line)!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog .actions>button.primary,#dialog .menu-resume,#missionDailyAuto button.primary,.member-card .member-submit){
+ background:var(--sm-panel-accent)!important;color:var(--sm-panel-bg)!important;border:1px solid var(--sm-panel-accent)!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .actions>button.danger{background:var(--sm-panel-danger-soft)!important;color:var(--sm-panel-danger)!important;border:1px solid var(--sm-panel-danger)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog button,.citizens-dashboard button,#inspector button,#missionDailyAuto button):disabled{opacity:.45!important;cursor:not-allowed!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog button,.citizens-dashboard button,#inspector button,#missionDailyAuto button):focus-visible{outline:2px solid var(--sm-panel-accent);outline-offset:2px}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog input,#dialog select,.member-form input,.citizens-toolbar input){
+ box-sizing:border-box!important;border:1px solid var(--sm-panel-line)!important;border-radius:8px!important;
+ background:var(--sm-panel-card)!important;color:var(--sm-panel-ink)!important;min-height:36px!important;font-family:inherit!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(.member-card,.citizens-dashboard){color:var(--sm-panel-ink)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) .citizens-dashboard .citizens-top{padding:12px!important;border-radius:13px 13px 0 0!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) .citizens-dashboard .citizens-close{flex-shrink:0}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#dialog>.dialog-close-top,#inspector button.close,.citizens-dashboard .citizens-close,#missionDailyAuto #missionAutoDismiss){
+ width:28px!important;min-width:28px!important;height:28px!important;min-height:28px!important;
+ font-size:18px!important;border-radius:8px!important;
+}
+/* Upgrade products retain their compact layouts and distinctive technology colors. */
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .garage-v2{
+ --g-bg:var(--sm-panel-bg);--g-header:var(--sm-panel-head);--g-card:var(--sm-panel-card);
+ --g-line:var(--sm-panel-line);--g-text:var(--sm-panel-ink);--g-muted:var(--sm-panel-muted);
+ --g-button:var(--sm-panel-accent);--g-button-text:var(--sm-panel-bg);--g-bottom:var(--sm-panel-head);
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog.ai-upgrade-center .ai-checkout-v2{
+ --ai-bg:var(--sm-panel-bg);--ai-header:var(--sm-panel-head);--ai-text:var(--sm-panel-ink);
+ --ai-muted:var(--sm-panel-muted);--ai-line:var(--sm-panel-line);--ai-primary:var(--sm-panel-accent);
+ --ai-primary-text:var(--sm-panel-bg);--ai-panel:var(--sm-panel-card);
+}
+/* Save/load: named cards, clear primary load action and separate new-save form. */
+#dialog:has(.save-workspace)[open],#dialog:has(.account-identity)[open]{
+ position:fixed!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+ transform:translate(-50%,-50%)!important;zoom:1!important;margin:0!important;
+ width:min(520px,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important;
+ max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+ overflow:auto!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-workspace{font-size:11px;color:var(--sm-panel-ink)}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-create-card{padding:12px;margin:0 0 16px}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-create-card label{font-size:11px;font-weight:700}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog #onlineSaveName{display:block;width:100%;margin:7px 0 0;padding:8px 10px!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog #onlineSaveError{font-size:10px;color:var(--sm-panel-danger)!important;line-height:1.5!important;margin:7px 0 0}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog #onlineSaveError:empty{display:none}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-list-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-list-heading h3{margin:0}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-list-heading>span{font-size:10px;color:var(--sm-panel-muted)}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-slot-list{display:grid;gap:8px;min-width:0}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-slot-card{padding:11px}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-slot-heading{display:flex;align-items:center;gap:9px;min-width:0}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-slot-heading>div{min-width:0;flex:1}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-slot-heading h3{font-size:12px;margin:0 0 3px;line-height:1.4;overflow-wrap:anywhere;color:var(--sm-panel-ink)}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-slot-heading time{display:block;font-size:10px;color:var(--sm-panel-muted);line-height:1.4}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-slot-actions{display:flex!important;flex-wrap:wrap;justify-content:flex-start!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-slot-actions button{flex:1 1 70px}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) .panel-empty{border:1px dashed var(--sm-panel-line);border-radius:10px;padding:16px;text-align:center;font-size:11px;color:var(--sm-panel-muted)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .panel-footer{padding-top:10px;border-top:1px solid var(--sm-panel-line)}
+/* Same centered composition for both daily summary entry points. The auto card remains nonmodal. */
+#missionDailyAuto.daily-report-auto,#dialog:has(.daily-report-modal)[open]{
+ position:fixed!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+ transform:translate(-50%,-50%)!important;zoom:1!important;margin:0!important;
+ width:min(680px,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important;
+ max-height:min(82dvh,760px,calc(100dvh - 40px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)))!important;
+ overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;
+}
+#missionDailyAuto.daily-report-auto{padding:12px!important;z-index:110}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #missionDailyAuto .daily-report-topbar{
+ top:-12px!important;margin:-12px -12px 12px!important;padding:9px 12px!important;
+ border-radius:13px 13px 0 0!important;gap:8px!important;
+ background:var(--sm-panel-head)!important;color:var(--sm-panel-ink)!important;
+ border-bottom:1px solid var(--sm-panel-line)!important;
+}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #missionDailyAuto .daily-report-topbar b{font-size:11px;font-weight:700}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #missionDailyAuto .daily-report-topbar small{flex:1;font-size:9px;color:var(--sm-panel-muted)}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #missionDailyAuto>.actions{position:sticky;bottom:-12px;padding:10px 0 0;background:var(--sm-panel-bg)!important;border-top:1px solid var(--sm-panel-line)}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#missionDailyAuto,#dialog) .daily-report-body .sm-report-header{padding:0 0 12px!important;margin-bottom:10px!important;background:transparent!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#missionDailyAuto,#dialog) .daily-report-body .daily-report-highlights{grid-template-columns:repeat(3,minmax(0,1fr))!important;margin:10px 0!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#missionDailyAuto,#dialog) .daily-report-highlights .mission-card{padding:9px!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#missionDailyAuto,#dialog) .daily-report-highlights .mission-card small{font-size:10px!important;color:var(--sm-panel-muted)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#missionDailyAuto,#dialog) .daily-report-highlights .mission-card strong{font-size:16px!important;line-height:1.35!important;margin-top:3px!important;color:var(--sm-panel-ink)!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #missionDailyAuto .daily-report-body .daily-report-sections,:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .daily-report-body .daily-report-sections{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#missionDailyAuto,#dialog) .daily-report-section{padding:10px!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#missionDailyAuto,#dialog) .daily-report-section h3{margin:0 0 7px!important;font-size:11px!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#missionDailyAuto,#dialog) .daily-report-rows>div{font-size:10px!important;padding:6px 0!important;border-color:var(--sm-panel-line)!important;line-height:1.5!important;gap:8px!important}
+:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#missionDailyAuto,#dialog) .daily-report-rows strong{font-size:11px!important;white-space:normal!important;overflow-wrap:anywhere}
+@media(max-width:600px){
+ :root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) :is(#missionDailyAuto,#dialog) .daily-report-body .daily-report-highlights{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ :root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #missionDailyAuto .daily-report-body .daily-report-sections,:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .daily-report-body .daily-report-sections{grid-template-columns:minmax(0,1fr)!important}
+ :root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog .save-slot-actions button{flex:1 1 68px}
+ :root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) .member-form input,:root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) #dialog :is(input,select){font-size:16px!important}
+}
+
+/* Earlier theme layers remain compatible, but no longer paint a second heading background. */
+:root #inspector #inspectContent .sm-inspector-heading .tag{background:transparent!important;border:0!important;border-radius:0!important;padding:0!important;color:var(--sm-panel-muted)!important}
+:root #dialog:not(.construction-confirm):not(:has(.garage-v2)){zoom:1!important}
+#dialog:not(.construction-confirm):has(.smcity-menu-list)[open]{width:min(400px,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important}
+/* Reference, diagnostics and log screens follow the same panel surfaces. */
+:root #dialog #playerManual{font:400 12px/1.65 'Noto Sans Thai',Tahoma,sans-serif!important;color:var(--sm-panel-ink)!important;background:transparent!important}
+:root #dialog #playerManual .eyebrow{display:none!important}
+:root #dialog #playerManual :is(details,.manual-toc button,.manual-tools button,.manual-footer button){border:1px solid var(--sm-panel-line)!important;border-radius:10px!important;background:var(--sm-panel-card)!important;color:var(--sm-panel-ink)!important;box-shadow:none!important}
+:root #dialog #playerManual details{padding:0 10px!important;margin:8px 0!important}
+:root #dialog #playerManual summary{font-size:12px!important;padding:10px 0!important;color:var(--sm-panel-ink)!important}
+:root #dialog #playerManual :is(p,li,td,th){font-size:11px!important;line-height:1.65!important;color:var(--sm-panel-ink)!important}
+:root #dialog #playerManual :is(.manual-intro,.manual-status){font-size:10px!important;color:var(--sm-panel-muted)!important}
+:root #dialog #playerManual :is(.manual-tools button,.manual-footer button){font-size:11px!important;padding:7px 10px!important;min-height:32px!important}
+:root #dialog #playerManual .manual-footer{background:var(--sm-panel-bg)!important;border-color:var(--sm-panel-line)!important}
+:root #dialog #playerManual button.primary{background:var(--sm-panel-accent)!important;color:var(--sm-panel-bg)!important}
+:root #dialog #playerManual #manualSearch{width:100%;font-family:inherit!important;color:var(--sm-panel-ink)!important;background:var(--sm-panel-card)!important}
+:root #dialog #dialogContent :is(table,pre){max-width:100%;overflow:auto;border-color:var(--sm-panel-line)!important;color:var(--sm-panel-ink)!important;background:var(--sm-panel-card)!important}
+:root #dialog #dialogContent table{display:block;border-collapse:collapse}
+:root #dialog #dialogContent :is(th,td){border-color:var(--sm-panel-line)!important;color:var(--sm-panel-ink)!important;font-size:11px!important;padding:7px 9px!important}
+:root #dialog #dialogContent th{background:var(--sm-panel-head)!important}
+:root #dialog #dialogContent pre{font-size:10px;padding:10px;border:1px solid var(--sm-panel-line);border-radius:10px}
