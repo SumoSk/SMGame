@@ -6,7 +6,7 @@ function verify(){
  assert.equal(g.state.buildings.size,12,'Keep original starter village');
  assert.equal(g.state.citizens.size,18,'Keep original starter residents');
  const junctions=[g.id(164,150),g.id(164,130),g.id(164,136)];
- assert.equal(g.state.roads.get(g.id(164,151)).type,'large','Eight-lane highway');
+ assert.equal(g.state.roads.get(g.id(165,150)).type,'large','Eight-lane highway');
  assert.equal(g.state.roads.get(g.id(164,149)).type,'medium','Four-lane collector');
  for(const node of junctions){
   assert.equal(g.junction(node),3,'T-junction has three arms');
