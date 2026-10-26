@@ -5054,7 +5054,65 @@ function initCameraJoystick(){
  $('resetCameraAngle').onclick=resetCameraAngle;
 }
 initCameraJoystick();
-function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)tick(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
+
+// Compact touch-only vertical zoom slider; the existing mouse wheel stays unchanged.
+const cameraZoomRail=$('cameraZoomRail'),cameraZoomTrack=$('cameraZoomTrack'),cameraZoomThumb=$('cameraZoomThumb');
+const cameraZoomMin=.22,cameraZoomMax=5.2;
+let cameraZoomPointer=null,cameraZoomLast=NaN;
+const clampZoom=value=>Math.max(cameraZoomMin,Math.min(cameraZoomMax,value));
+const zoomFraction=()=>Math.max(0,Math.min(1,Math.log(clampZoom(cam.z)/cameraZoomMin)/Math.log(cameraZoomMax/cameraZoomMin)));
+function syncCameraZoomRail(){
+ if(!cameraZoomTrack||!cameraZoomThumb||cam.z===cameraZoomLast)return;
+ cameraZoomLast=cam.z;
+ const fraction=zoomFraction();
+ cameraZoomThumb.style.top=(8+(1-fraction)*84)+'%';
+ cameraZoomTrack.setAttribute('aria-valuenow',String(Math.round(fraction*100)));
+}
+function setCameraZoomFraction(fraction){
+ if(!renderer3d)return;
+ fraction=Math.max(0,Math.min(1,fraction));
+ const next=clampZoom(cameraZoomMin*Math.pow(cameraZoomMax/cameraZoomMin,fraction));
+ if(Math.abs(cam.z-next)<1e-8)return;
+ cam.z=next;renderer3d.updateCamera(cam);syncCameraZoomRail();
+}
+function initCameraZoomRail(){
+ if(!cameraZoomRail||!cameraZoomTrack||!cameraZoomThumb)return;
+ if(!renderer3d)return;
+ cameraZoomRail.hidden=false;
+ const fractionAt=y=>{
+  const rect=cameraZoomTrack.getBoundingClientRect();
+  if(!rect.height)return zoomFraction();
+  return (rect.bottom-y-rect.height*.08)/(rect.height*.84);
+ };
+ cameraZoomTrack.addEventListener('pointerdown',event=>{
+  if(event.button!=null&&event.button!==0)return;
+  event.preventDefault();event.stopPropagation();
+  cameraZoomPointer=event.pointerId;
+  cameraZoomTrack.setPointerCapture?.(event.pointerId);
+  setCameraZoomFraction(fractionAt(event.clientY));
+ });
+ cameraZoomTrack.addEventListener('pointermove',event=>{
+  if(cameraZoomPointer!==event.pointerId)return;
+  event.preventDefault();
+  setCameraZoomFraction(fractionAt(event.clientY));
+ });
+ const end=event=>{if(cameraZoomPointer===event.pointerId)cameraZoomPointer=null;};
+ cameraZoomTrack.addEventListener('pointerup',end);
+ cameraZoomTrack.addEventListener('pointercancel',end);
+ cameraZoomTrack.addEventListener('lostpointercapture',end);
+ cameraZoomTrack.addEventListener('keydown',event=>{
+  const current=zoomFraction();
+  const value=event.key==='ArrowUp'||event.key==='ArrowRight'?current+.04:
+   event.key==='ArrowDown'||event.key==='ArrowLeft'?current-.04:
+   event.key==='Home'?0:event.key==='End'?1:null;
+  if(value===null)return;
+  event.preventDefault();setCameraZoomFraction(value);
+ });
+ $('cameraZoomReset').onclick=resetCameraAngle;
+ syncCameraZoomRail();
+}
+initCameraZoomRail();
+function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)tick(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();syncCameraZoomRail();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
 window.addEventListener('resize',resize);
 $('categories').onclick=()=>{}; // Redundant group row retired; construction tabs are direct.
 $('subcategories').onclick=e=>{
@@ -5165,7 +5223,7 @@ function beginMouseOrbit(event){
 }
 function moveMouseOrbit(event){
  const dx=event.clientX-mouseOrbit.x,dy=event.clientY-mouseOrbit.y;
- cam.angle=(cam.angle??cameraDefaultAngle)+dx*.006;
+ cam.angle=(cam.angle??cameraDefaultAngle)-dx*.006;
  cam.elevation=clampCameraElevation((cam.elevation??cameraDefaultElevation)+dy*.004);
  mouseOrbit={x:event.clientX,y:event.clientY};renderer3d.updateCamera(cam);
 }
@@ -5177,38 +5235,23 @@ function beginTouchOrbit(){
  clearPendingTap();drag=null;hover=null;follow=null;
 }
 function moveTouchOrbit(){
- const a=pointers.get(pinch.ids[0]),b=pointers.get(pinch.ids[1]);if(!a||!b)return;
+ const a=pointers.get(pinch.ids[0]),b=pointers.get(pinch.ids[1]);if(!a||!b||!renderer3d)return;
  const dxA=a.x-pinch.a.x,dyA=a.y-pinch.a.y,dxB=b.x-pinch.b.x,dyB=b.y-pinch.b.y;
  const lengthA=Math.hypot(dxA,dyA),lengthB=Math.hypot(dxB,dyB);
- // Only a parallel two-finger drag tilts/orbits. Spreading one finger to zoom
- // must not also drag the camera around the city.
  const parallel=lengthA>4&&lengthB>4&&(dxA*dxB+dyA*dyB)/(lengthA*lengthB)>.65;
- const distance=Math.hypot(b.x-a.x,b.y-a.y),rotation=Math.atan2(b.y-a.y,b.x-a.x)-pinch.rotation;
+ const rotation=Math.atan2(b.y-a.y,b.x-a.x)-pinch.rotation;
  const twist=Math.atan2(Math.sin(rotation),Math.cos(rotation));
- // Once orbiting, hold magnification until both fingers release. Small spacing
- // changes during a twist/tilt must never stretch or pump the city's scale.
- if(renderer3d&&(parallel||Math.abs(twist)>.035)){
-  if(pinch.mode==='zoom'){
-   // Preserve the current zoom and yaw when fingers switch from zoom to orbit.
-   // Rebase the start positions so the first orbit frame cannot jump.
-   pinch.a={...a};pinch.b={...b};
-   pinch.rotation=Math.atan2(b.y-a.y,b.x-a.x);
-   pinch.x=(a.x+b.x)/2;pinch.y=(a.y+b.y)/2;
-   pinch.angle=cam.angle??cameraDefaultAngle;
-   pinch.elevation=cam.elevation??cameraDefaultElevation;
-   pinch.z=cam.z;pinch.mode='orbit';
-   return;
-  }
-  if(!pinch.mode){pinch.z=cam.z;pinch.mode='orbit';}
- }else if(!pinch.mode&&Math.abs(distance-pinch.distance)>6)pinch.mode='zoom';
- if(pinch.mode==='orbit'){
-  cam.z=pinch.z;
-  if(renderer3d){
-   cam.angle=pinch.angle-twist+(parallel?((a.x+b.x)/2-pinch.x)*.006:0);
-   cam.elevation=clampCameraElevation(pinch.elevation+(parallel?((a.y+b.y)/2-pinch.y)*.004:0));
-  }
- }else if(pinch.mode==='zoom')cam.z=Math.max(.22,Math.min(5.2,pinch.z*distance/pinch.distance));
- if(renderer3d)renderer3d.updateCamera(cam);
+ // On touchscreens, zoom is exclusively controlled by the right-side slider.
+ // Pinching fingers neither zooms nor switches gesture mode.
+ if(!pinch.mode){
+  if(!parallel&&Math.abs(twist)<.06)return;
+  pinch.mode='orbit';
+ }
+ const centerX=(a.x+b.x)/2,centerY=(a.y+b.y)/2;
+ // Match finger direction: dragging left rotates the camera left.
+ cam.angle=pinch.angle+twist-(parallel?(centerX-pinch.x)*.006:0);
+ cam.elevation=clampCameraElevation(pinch.elevation+(parallel?(centerY-pinch.y)*.004:0));
+ renderer3d.updateCamera(cam);
 }
 const ignoredTouchPointers=new Set(),doubleTapDelay=320,doubleTapRadius=44;
 function clearPendingTap(perform=false){if(!pendingTap)return;clearTimeout(pendingTap.timer);const action=pendingTap.action;pendingTap=null;lastTap=null;if(perform)action();}

@@ -6477,3 +6477,51 @@ body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric .m
 /* The briefing flows naturally above the rows inside the original scroller. */
 :root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-demand-panel .city-brief{display:block!important;grid-column:1/-1!important;flex:0 0 auto!important;width:100%!important;min-width:0!important;padding:2px 0 4px!important;font:500 10px/1.45 "Noto Sans Thai",Tahoma,sans-serif!important;color:var(--sm-panel-ink)!important;white-space:normal!important;overflow-wrap:anywhere!important;letter-spacing:0!important;word-spacing:0!important}
 :root[data-ui-version="4.3"]:is(.smcity-gray-ui,:not(.smcity-gray-ui)) body>.bottom>.control-deck .city-demand-panel .city-brief-line{display:inline!important;font:inherit!important;color:inherit!important;white-space:normal!important}
+
+
+/* Touch camera: compact right-edge zoom rail. No floating labels or +/- buttons. */
+#cameraZoomRail[hidden]{display:none!important}
+#cameraZoomRail{display:none}
+@media(pointer:coarse){
+ #cameraZoomRail{
+  --zoom-track:rgba(32,68,59,.42);--zoom-knob:#f7faf6;--zoom-edge:rgba(45,91,70,.67);--zoom-symbol:#2d5945;
+  display:flex;position:fixed;z-index:27;
+  top:50%;right:calc(4px + env(safe-area-inset-right,0px));transform:translateY(-50%);
+  width:34px;align-items:center;flex-direction:column;gap:10px;
+  pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;
+ }
+ #cameraZoomReset{
+  box-sizing:border-box;display:grid;place-items:center;
+  width:29px;height:29px;min-width:29px;min-height:29px;padding:0;
+  border:1px solid var(--zoom-edge);border-radius:50%;
+  background:var(--zoom-knob);color:var(--zoom-symbol);
+  box-shadow:0 1px 5px rgba(0,0,0,.12);
+  font:600 21px/1 system-ui,sans-serif;cursor:pointer;touch-action:manipulation;
+ }
+ #cameraZoomTrack{
+  position:relative;box-sizing:border-box;
+  width:34px;height:clamp(130px,25dvh,186px);
+  padding:0;margin:0;background:transparent;border:0;border-radius:12px;
+  cursor:ns-resize;touch-action:none;outline-offset:2px;
+ }
+ #cameraZoomTrack:before{
+  content:"";position:absolute;left:50%;top:8%;bottom:8%;width:3px;
+  border-radius:4px;background:var(--zoom-track);transform:translateX(-50%);
+ }
+ #cameraZoomThumb{
+  box-sizing:border-box;display:block;position:absolute;left:50%;top:50%;
+  width:21px;height:25px;border:1px solid var(--zoom-edge);
+  border-radius:9px;background:var(--zoom-knob);
+  box-shadow:0 1px 4px rgba(0,0,0,.16);
+  transform:translate(-50%,-50%);pointer-events:none;
+ }
+ #cameraZoomTrack:focus-visible,#cameraZoomReset:focus-visible{outline:2px solid var(--zoom-symbol)}
+ :root.smcity-gray-ui #cameraZoomRail{
+  --zoom-track:rgba(218,226,234,.48);--zoom-knob:#272c32;
+  --zoom-edge:#77818c;--zoom-symbol:#f0f2f6;
+ }
+ /* Detail panels take priority over the otherwise unobtrusive right-edge control. */
+ body:has(#inspector:not(.hidden),#citizensDashboard:not(.hidden),#touristsDashboard:not(.hidden)) #cameraZoomRail{
+  opacity:0;pointer-events:none;
+ }
+}
