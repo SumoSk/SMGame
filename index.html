@@ -254,6 +254,17 @@
  background:#d6dfe8!important;color:#13161c!important;
 }
 
+</style>
+<style id="smcity-welcome-style">
+/* Welcome poster lives above the rendered city, inside dynamically measured play area. */
+#smcityWelcome{position:fixed;inset:12px;z-index:420;display:flex;justify-content:center;align-items:center;pointer-events:none;isolation:isolate}
+#smcityWelcome[hidden]{display:none!important}
+#smcityWelcome::before{content:"";position:absolute;inset:0;background:rgba(4,18,36,.17);pointer-events:none}
+#smcityWelcome .smcity-welcome-card{position:relative;width:min(900px,calc(100% - 20px));max-width:100%;max-height:100%;aspect-ratio:3/2;border:2px solid rgba(83,223,255,.8);border-radius:16px;background:#063565;box-shadow:0 16px 46px rgba(2,12,27,.5);pointer-events:auto}
+#smcityWelcome .smcity-welcome-image{display:block;width:100%;height:100%;object-fit:contain;border-radius:14px;cursor:pointer}
+#smcityWelcome .smcity-welcome-close{position:absolute;top:0;right:0;transform:translate(28%,-28%);width:39px;height:39px;display:grid;place-items:center;padding:0;border:2px solid #a9eeff;border-radius:50%;background:#073a70;color:#fff;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 3px 12px #001b3f;z-index:1}
+#smcityWelcome .smcity-welcome-close:hover,#smcityWelcome .smcity-welcome-close:focus-visible{background:#0a5caa;outline:2px solid #fff;outline-offset:2px}
+@media(max-width:600px){#smcityWelcome .smcity-welcome-card{border-width:1px;border-radius:10px}#smcityWelcome .smcity-welcome-image{border-radius:9px}#smcityWelcome .smcity-welcome-close{width:32px;height:32px;font-size:23px;transform:translate(12%,-12%)}}
 </style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
@@ -326,6 +337,45 @@
   <button id="memberBack" type="button" class="member-back">กลับไปเล่น</button>
  </section>
 </dialog>
+
+<section id="smcityWelcome" aria-label="ยินดีต้อนรับสู่ SMCITY">
+ <div class="smcity-welcome-card" id="smcityWelcomeCard">
+  <img class="smcity-welcome-image" id="smcityWelcomeImage" src="assets/smcity-welcome.webp" width="1536" height="1024" alt="SMCITY สร้างเมืองในแบบคุณ วางถนน สร้างเมือง ดูแลทุกการเดินทาง อัปเกรดแยก AI อัปเกรดบ้าน อัปเกรดรถ กดเพื่อเริ่มเล่น" role="button" tabindex="0" aria-label="เริ่มสร้างเมืองของคุณ">
+  <button type="button" class="smcity-welcome-close" id="smcityWelcomeClose" aria-label="ปิดภาพต้อนรับและเริ่มเล่น" title="ปิดแล้วเริ่มเล่น">×</button>
+ </div>
+</section>
+<script id="smcity-welcome-script">
+(function(){
+ const layer=document.getElementById('smcityWelcome'),card=document.getElementById('smcityWelcomeCard'),image=document.getElementById('smcityWelcomeImage');
+ if(!layer||!card||!image)return;
+ function closeWelcome(){layer.hidden=true;}
+ function updateWelcome(){
+  if(layer.hidden)return;
+  const w=window.innerWidth,h=window.innerHeight;
+  const dock=document.querySelector('body > .bottom');
+  const rail=document.getElementById('cityLeftRail');
+  const topbar=document.querySelector('.citizens-top');
+  let left=12,right=12,top=12,bottom=12;
+  if(dock){const r=dock.getBoundingClientRect();if(r.width>w*.45&&r.height>10&&r.top<h&&r.top>h*.28)bottom=Math.max(bottom,Math.ceil(h-r.top)+12);}
+  if(rail){const r=rail.getBoundingClientRect();if(r.width>10&&r.height>h*.2&&r.left<w*.2&&r.right<w*.45)left=Math.max(left,Math.ceil(r.right)+12);}
+  if(topbar){const r=topbar.getBoundingClientRect();if(r.height>10&&r.top<h*.18&&r.width>w*.35&&r.right>w*.4)top=Math.max(top,Math.ceil(r.bottom)+8);}
+  if(h-top-bottom<120){top=8;bottom=Math.min(bottom,Math.round(h*.28));}
+  if(w-left-right<180)left=8;
+  layer.style.top=top+'px';layer.style.bottom=bottom+'px';layer.style.left=left+'px';layer.style.right=right+'px';
+  const freeW=Math.max(120,w-left-right-28),freeH=Math.max(80,h-top-bottom-24);
+  card.style.width=Math.floor(Math.min(900,freeW,freeH*1.5))+'px';
+ }
+ image.addEventListener('click',closeWelcome);
+ image.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();closeWelcome();}});
+ document.getElementById('smcityWelcomeClose').addEventListener('click',closeWelcome);
+ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!layer.hidden)closeWelcome();});
+ image.addEventListener('error',function(){card.innerHTML='<button type="button" class="smcity-welcome-close" aria-label="เริ่มเล่น" style="position:static;transform:none;width:100%;border-radius:12px">เริ่มเล่น SMCITY</button>';card.querySelector('button').addEventListener('click',closeWelcome);});
+ window.addEventListener('resize',updateWelcome,{passive:true});
+ if('ResizeObserver' in window){const ro=new ResizeObserver(updateWelcome);for(const node of [document.querySelector('body > .bottom'),document.getElementById('cityLeftRail'),document.querySelector('.citizens-top')])if(node)ro.observe(node);}
+ updateWelcome();
+})();
+</script>
+
 <script>window.SMGameAuthLocked = false;</script>
 <script>
 (function(){
