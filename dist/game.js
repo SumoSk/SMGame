@@ -5135,10 +5135,62 @@ $('citizensDashboardBody').onclick=e=>{
  if(e.target.closest('[data-citizen-more]')){citizenPage++;renderCitizenDashboard(true);}
 };$('pause').onclick=()=>{state.speed=state.speed?0:1;updateUI();};document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{state.speed=+b.dataset.speed;updateUI();});$('closeInspector').onclick=()=>{selected=null;$('inspector').classList.add('hidden');follow=null;};document.querySelectorAll('[data-inspect]').forEach(b=>b.onclick=()=>{selected={kind:b.dataset.inspect};renderInspector();});
 let pointers=new Map(),pinch=null,pendingTap=null,lastTap=null;
+let mouseOrbit=null,mouseChordHeld=false,mouseRightPending=false;
+const clampCameraElevation=value=>Math.max(Math.PI*22/180,Math.min(Math.PI*78/180,value));
+function beginMouseOrbit(event){
+ if(!renderer3d)return false;
+ event.preventDefault?.();clearPendingTap();drag=null;hover=null;follow=null;mouseRightPending=false;
+ if(!mouseOrbit)mouseOrbit={x:event.clientX,y:event.clientY};
+ mouseChordHeld=true;
+ if(event.pointerId!=null){canvas.setPointerCapture(event.pointerId);pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});}
+ return true;
+}
+function moveMouseOrbit(event){
+ const dx=event.clientX-mouseOrbit.x,dy=event.clientY-mouseOrbit.y;
+ cam.angle=(cam.angle??cameraDefaultAngle)-dx*.006;
+ cam.elevation=clampCameraElevation((cam.elevation??cameraDefaultElevation)+dy*.004);
+ mouseOrbit={x:event.clientX,y:event.clientY};renderer3d.updateCamera(cam);
+}
+function beginTouchOrbit(){
+ const entries=[...pointers.entries()].slice(0,2),a=entries[0][1],b=entries[1][1];
+ pinch={ids:entries.map(e=>e[0]),a:{...a},b:{...b},distance:Math.max(12,Math.hypot(b.x-a.x,b.y-a.y)),
+  rotation:Math.atan2(b.y-a.y,b.x-a.x),x:(a.x+b.x)/2,y:(a.y+b.y)/2,z:cam.z,
+  angle:cam.angle??cameraDefaultAngle,elevation:cam.elevation??cameraDefaultElevation};
+ clearPendingTap();drag=null;hover=null;follow=null;
+}
+function moveTouchOrbit(){
+ const a=pointers.get(pinch.ids[0]),b=pointers.get(pinch.ids[1]);if(!a||!b)return;
+ const dxA=a.x-pinch.a.x,dyA=a.y-pinch.a.y,dxB=b.x-pinch.b.x,dyB=b.y-pinch.b.y;
+ const lengthA=Math.hypot(dxA,dyA),lengthB=Math.hypot(dxB,dyB);
+ // Only a parallel two-finger drag tilts/orbits. Spreading one finger to zoom
+ // must not also drag the camera around the city.
+ const parallel=lengthA>4&&lengthB>4&&(dxA*dxB+dyA*dyB)/(lengthA*lengthB)>.65;
+ const distance=Math.hypot(b.x-a.x,b.y-a.y),rotation=Math.atan2(b.y-a.y,b.x-a.x)-pinch.rotation;
+ const twist=Math.atan2(Math.sin(rotation),Math.cos(rotation));
+ // Once orbiting, hold magnification until both fingers release. Small spacing
+ // changes during a twist/tilt must never stretch or pump the city's scale.
+ if(renderer3d&&(parallel||Math.abs(twist)>.035))pinch.mode='orbit';
+ else if(!pinch.mode&&Math.abs(distance-pinch.distance)>6)pinch.mode='zoom';
+ if(pinch.mode==='orbit'){
+  cam.z=pinch.z;
+  if(renderer3d){
+   cam.angle=pinch.angle-twist-(parallel?((a.x+b.x)/2-pinch.x)*.006:0);
+   cam.elevation=clampCameraElevation(pinch.elevation+(parallel?((a.y+b.y)/2-pinch.y)*.004:0));
+  }
+ }else if(pinch.mode==='zoom')cam.z=Math.max(.22,Math.min(5.2,pinch.z*distance/pinch.distance));
+ if(renderer3d)renderer3d.updateCamera(cam);
+}
 const ignoredTouchPointers=new Set(),doubleTapDelay=320,doubleTapRadius=44;
 function clearPendingTap(perform=false){if(!pendingTap)return;clearTimeout(pendingTap.timer);const action=pendingTap.action;pendingTap=null;lastTap=null;if(perform)action();}
-function cancelInteraction(){clearPendingTap();for(const pointerId of pointers.keys())if(canvas.hasPointerCapture?.(pointerId))canvas.releasePointerCapture(pointerId);pointers.clear();pinch=null;drag=null;hover=null;selected=null;follow=null;selectTool('hand');$('inspector').classList.add('hidden');}
-canvas.addEventListener('mousedown',e=>{if(e.button===2){e.preventDefault();cancelInteraction();}});
+function cancelInteraction(){clearPendingTap();for(const pointerId of pointers.keys())if(canvas.hasPointerCapture?.(pointerId))canvas.releasePointerCapture(pointerId);pointers.clear();pinch=null;mouseOrbit=null;mouseChordHeld=false;mouseRightPending=false;drag=null;hover=null;selected=null;follow=null;selectTool('hand');$('inspector').classList.add('hidden');}
+canvas.addEventListener('mousedown',e=>{
+ if((e.buttons&3)===3&&beginMouseOrbit(e))return;
+ if(e.button===2)e.preventDefault();
+});
+canvas.addEventListener('mouseup',e=>{
+ if(mouseChordHeld){drag=null;mouseOrbit=null;if(!e.buttons){mouseChordHeld=false;mouseRightPending=false;}return;}
+ if(e.button===2&&mouseRightPending){e.preventDefault();cancelInteraction();}
+});
 function demolitionBuildingAt(clientX,clientY){
  const picked=renderer3d?.pickBuilding?.(clientX,clientY);
  if(picked!=null&&state.buildings.has(picked))return picked;
@@ -5148,14 +5200,16 @@ function demolitionBuildingAt(clientX,clientY){
  return buildingId>=0&&state.buildings.has(buildingId)?buildingId:null;
 }
 canvas.addEventListener('pointerdown',e=>{
- if(e.button===2){e.preventDefault();cancelInteraction();return;}
- if(e.pointerType==='touch'&&pendingTap){
+ if(e.pointerType!=='touch'&&(e.buttons&3)===3&&beginMouseOrbit(e))return;
+ if(e.button===2){e.preventDefault();mouseRightPending=true;canvas.setPointerCapture(e.pointerId);return;}
+ if(e.pointerType!=='touch'&&mouseChordHeld)return;
+ if(e.pointerType==='touch'&&pendingTap&&pointers.size===0){
   const doubleTap=lastTap&&Date.now()-lastTap.at<=doubleTapDelay&&Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<=doubleTapRadius;
   if(doubleTap){e.preventDefault();cancelInteraction();ignoredTouchPointers.add(e.pointerId);return;}
   clearPendingTap(true);
  }
  canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
- if(pointers.size===2){const a=[...pointers.values()];pinch={distance:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),z:cam.z};drag=null;return;}
+ if(e.pointerType==='touch'&&pointers.size>=2){if(!pinch||!pinch.ids.every(id=>pointers.has(id)))beginTouchOrbit();return;}
  const p=world(e.clientX,e.clientY),x=Math.floor(p[0]),y=Math.floor(p[1]);hover={x,y};
  const pan=tool==='hand'||tool==='tracking'||tool==='signalManage'||tool==='citizenDashboard'||e.button===1||e.shiftKey;
  const eraseBuildingId=tool==='erase'&&!pan?demolitionBuildingAt(e.clientX,e.clientY):null;
@@ -5164,7 +5218,12 @@ canvas.addEventListener('pointerdown',e=>{
   cells:initialRoads!==null?initialRoads:(valid(x,y)?[owner(id(x,y))]:[]),
   eraseLastX:x,eraseLastY:y,eraseBuildingId,eraseSeen:new Set(initialRoads||[])};
 });
-canvas.addEventListener('pointermove',e=>{const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1])};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch&&pointers.size===2){const a=[...pointers.values()];cam.z=Math.max(.22,Math.min(5.2,pinch.z*Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)/pinch.distance));return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(owner(id(drag.x,drag.y)),owner(id(hover.x,hover.y)));
+canvas.addEventListener('pointermove',e=>{
+ if(e.pointerType!=='touch'){
+  if((e.buttons&3)===3){if(!mouseOrbit){if(beginMouseOrbit(e))return;}else{e.preventDefault();moveMouseOrbit(e);return;}}
+  if(mouseChordHeld){mouseOrbit=null;drag=null;if(!e.buttons){mouseChordHeld=false;mouseRightPending=false;pointers.delete(e.pointerId);}return;}
+ }
+ const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1])};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch){moveTouchOrbit();hover=null;return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(owner(id(drag.x,drag.y)),owner(id(hover.x,hover.y)));
  else if((tool==='eraseRoad'||tool==='erase')&&drag.eraseBuildingId==null)appendRoadEraseStroke(drag,hover.x,hover.y);
  drag.lastX=e.clientX;drag.lastY=e.clientY;});
 function finishCanvasInteraction(d,x,y,activeTool){
@@ -5189,6 +5248,8 @@ function finishCanvasInteraction(d,x,y,activeTool){
  else{const p=world(x,y),ix=Math.floor(p[0]),iy=Math.floor(p[1]);if(!valid(ix,iy))return;if(tool==='eraseBuilding')demolishBuilding(state.buildings.get(state.buildGrid[id(ix,iy)]),false,{x,y});}
 }
 canvas.addEventListener('pointerup',e=>{
+ if(e.pointerType!=='touch'&&mouseChordHeld){e.preventDefault();drag=null;mouseOrbit=null;if(!e.buttons){mouseChordHeld=false;mouseRightPending=false;pointers.delete(e.pointerId);}return;}
+ if(e.pointerType!=='touch'&&e.button===2&&mouseRightPending){e.preventDefault();cancelInteraction();return;}
  pointers.delete(e.pointerId);if(ignoredTouchPointers.delete(e.pointerId))return;
  if(pinch){if(pointers.size===0)pinch=null;drag=null;return;}
  if(!drag)return;
@@ -5199,7 +5260,7 @@ canvas.addEventListener('pointerup',e=>{
  if(e.pointerType==='touch'&&!d.moved){lastTap={x,y,at:Date.now()};pendingTap={action,timer:setTimeout(()=>{pendingTap=null;lastTap=null;action();},doubleTapDelay)};return;}
  action();
 });
-canvas.addEventListener('pointercancel',e=>{ignoredTouchPointers.delete(e.pointerId);pointers.delete(e.pointerId);drag=null;pinch=null;});canvas.addEventListener('contextmenu',e=>{e.preventDefault();cancelInteraction();});canvas.addEventListener('pointerleave',()=>hover=null);
+canvas.addEventListener('pointercancel',e=>{ignoredTouchPointers.delete(e.pointerId);pointers.delete(e.pointerId);drag=null;pinch=null;mouseOrbit=null;mouseChordHeld=false;mouseRightPending=false;});canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('pointerleave',()=>hover=null);
 canvas.addEventListener('wheel',e=>{e.preventDefault();const before=world(e.clientX,e.clientY);cam.z=Math.max(.22,Math.min(5.2,cam.z*(e.deltaY<0?1.12:.89)));if(renderer3d)renderer3d.updateCamera(cam);const after=world(e.clientX,e.clientY);cam.x+=before[0]-after[0];cam.y+=before[1]-after[1];},{passive:false});
 // Close nonmodal city panels when the user touches anywhere else.
 // Do not consume the pointer event: map and toolbar remain immediately usable.
