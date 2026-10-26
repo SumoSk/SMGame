@@ -348,8 +348,8 @@ if (gate) {
   <div class="cr-head"><div><h2>ผู้สร้าง · SMCITY</h2><p>ข้อมูลล่าสุดจาก Supabase</p></div><button id="creatorClose" type="button" aria-label="ปิด">✕</button></div>
   <div class="cr-stats"><div class="cr-stat"><small>เข้าชม 30 วัน</small><b id="crVisits">—</b></div><div class="cr-stat"><small>ออนไลน์</small><b id="crOnline">—</b></div><div class="cr-stat"><small>กำลังเล่น</small><b id="crPlaying">—</b></div></div>
   <div class="cr-toolbar"><span id="crStatus">รอข้อมูล</span><button id="crRefresh" type="button">รีเฟรช</button></div>
-  <section><h3>ออนไลน์ (เชื่อมต่อภายใน 90 วินาที)</h3><div class="cr-table-box"><table><thead><tr><th>ผู้เล่น</th><th>อุปกรณ์</th><th>สถานะ</th><th>เวลาเล่น</th><th>ประชากร</th><th>รถ</th><th>เมือง</th><th>ล่าสุด</th></tr></thead><tbody id="crLive"></tbody></table></div></section>
-  <section><h3>ประวัติผู้เข้าชมล่าสุด (สูงสุด 150 ครั้ง)</h3><div class="cr-table-box"><table><thead><tr><th>ผู้เล่น</th><th>อุปกรณ์</th><th>เข้าเว็บ</th><th>เวลาเล่น</th><th>ประชากร</th><th>รถ</th><th>เมือง</th><th>ล่าสุด</th></tr></thead><tbody id="crHistory"></tbody></table></div></section>
+  <section><h3>ออนไลน์ (เชื่อมต่อภายใน 90 วินาที)</h3><div class="cr-table-box"><table><thead><tr><th>ผู้เล่น</th><th>อุปกรณ์</th><th>สถานะ</th><th>เวลาเล่น</th><th>ประชากร</th><th>นักท่องเที่ยว</th><th>รถ</th><th>อาคาร</th><th>เมือง</th><th>ล่าสุด</th></tr></thead><tbody id="crLive"></tbody></table></div></section>
+  <section><h3>ประวัติผู้เข้าชมล่าสุด (สูงสุด 150 ครั้ง)</h3><div class="cr-table-box"><table><thead><tr><th>ผู้เล่น</th><th>อุปกรณ์</th><th>เข้าเว็บ</th><th>เวลาเล่น</th><th>ประชากร</th><th>นักท่องเที่ยว</th><th>รถ</th><th>อาคาร</th><th>เมือง</th><th>ล่าสุด</th></tr></thead><tbody id="crHistory"></tbody></table></div></section>
   <p>เวลาเล่นเป็นนาทีจริงที่หน้าเว็บอยู่ด้านหน้า (ไม่ใช่นาทีในเกม) · ข้อมูลประชากรเป็นค่าที่เครื่องผู้เล่นส่งมา · ผู้เยี่ยมชมที่ไม่ล็อกอินแสดงเป็นรหัสสุ่ม · ไม่เก็บ IP</p>
   </div>`;
   document.body.append(creatorDialog);
@@ -368,16 +368,16 @@ if (gate) {
     target.replaceChildren();
     if (!entries.length) {
       const tr = document.createElement('tr'), td = document.createElement('td');
-      td.colSpan = 8; td.textContent = 'ยังไม่มีข้อมูล'; tr.append(td); target.append(tr); return;
+      td.colSpan = 10; td.textContent = 'ยังไม่มีข้อมูล'; tr.append(td); target.append(tr); return;
     }
     for (const item of entries) {
       const fields = live ? [
         item.display_name, deviceNames[item.device] || 'อื่น ๆ',
         !item.is_visible ? 'เปิดอยู่เบื้องหลัง' : item.is_playing ? 'กำลังเล่น' : 'เปิดหน้าเว็บ',
-        tfmt(item.active_seconds), nfmt(item.population), nfmt(item.vehicles), item.city, dfmt(item.last_seen_at)
+        tfmt(item.active_seconds), nfmt(item.population), nfmt(item.tourists), nfmt(item.vehicles), nfmt(item.buildings), item.city, dfmt(item.last_seen_at)
       ] : [
         item.display_name, deviceNames[item.device] || 'อื่น ๆ', dfmt(item.started_at),
-        tfmt(item.active_seconds), nfmt(item.population), nfmt(item.vehicles), item.city, dfmt(item.last_seen_at)
+        tfmt(item.active_seconds), nfmt(item.population), nfmt(item.tourists), nfmt(item.vehicles), nfmt(item.buildings), item.city, dfmt(item.last_seen_at)
       ];
       const tr = document.createElement('tr');
       for (const field of fields) {
