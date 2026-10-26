@@ -47,6 +47,27 @@ function lightAt(time){
    exposure:THREE.MathUtils.lerp(a[5],b[5],f),lamps:THREE.MathUtils.lerp(a[6],b[6],f)};
  }
 }
+// Surface visibility is independent of the original sun/shadow trajectory.
+// Headline hours: bright buildings through 22:00, deepest night at 04:00,
+// blue-hour recovery from 05:00 and the original sunrise from 06:00 onward.
+const CITY_VISIBILITY=[
+ [0,1.42,.91,.18,.22,.14],[180,1.28,.85,.11,.20,.18],
+ [240,1.10,.82,.08,.18,.20],[300,1.24,.85,.10,.20,.17],
+ [330,1.38,.88,.12,.21,.13],[360,1.52,.90,.13,.20,.10],
+ [390,1.64,.91,.10,.18,.06],[510,2.23,1.03,0,0,0],
+ [720,2.44,1.09,0,0,0],[900,2.14,1.02,0,0,0],
+ [1020,1.63,.94,.08,.10,.04],[1080,1.50,.94,.20,.20,.07],
+ [1140,1.50,.96,.26,.24,.10],[1260,1.50,.96,.26,.24,.10],
+ [1320,1.50,.96,.26,.24,.10],[1440,1.42,.91,.18,.22,.14]
+];
+function cityVisibilityAt(time){
+ const minute=((time%1440)+1440)%1440;
+ for(let i=1;i<CITY_VISIBILITY.length;i++)if(minute<=CITY_VISIBILITY[i][0]){
+  const a=CITY_VISIBILITY[i-1],b=CITY_VISIBILITY[i],f=smooth((minute-a[0])/(b[0]-a[0]));
+  const mix=k=>THREE.MathUtils.lerp(a[k],b[k],f);
+  return{ambient:mix(1),exposure:mix(2),building:mix(3),road:mix(4),marking:mix(5)};
+ }
+}
 function climateAt(time,city){
  // Render-only deterministic weather; never writes to city state or randomizes citizen behavior.
  const day=Math.floor(time/1440),minute=((time%1440)+1440)%1440;
@@ -543,7 +564,7 @@ class Batch{
   };
   material.customProgramCacheKey=()=>finish==='bark'?'landscape-bark-v1':'landscape-foliage-v1';
  }
- const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
+ const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
 
 export class TrafficRenderer{
@@ -592,7 +613,7 @@ export class TrafficRenderer{
   this.rain=new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color:'#cfe6f1',transparent:true,opacity:0,depthWrite:false}));
   this.rain.frustumCulled=false;this.rain.visible=false;this.scene.add(this.rain);this.lastGlow=-1;
  }
- updateNightVisibility(night){
+ updateNightVisibility(night,visibility={building:0,road:night*.18,marking:night*.20}){
   // A controlled emissive floor keeps the driving surfaces readable without
   // lighting the entire city like daytime. Cache updates for mobile GPUs.
   // Instance counts can change without any change in daylight (culling/heatmap).
@@ -601,8 +622,10 @@ export class TrafficRenderer{
    for(const mesh of [set.headlights,set.taillights])mesh.visible=night>.04&&mesh.count>0;
    set.lightSpill.visible=night>.20&&set.lightSpill.count>0;
   }
-  if(Math.abs(night-(this.lastNightVisibility??-1))<.018)return;
-  this.lastNightVisibility=night;
+  const previous=this.lastSurfaceVisibility;
+  if(Math.abs(night-(this.lastNightVisibility??-1))<.018&&previous&&
+   Math.abs(visibility.building-previous.building)<.003&&Math.abs(visibility.road-previous.road)<.003&&Math.abs(visibility.marking-previous.marking)<.003)return;
+  this.lastNightVisibility=night;this.lastSurfaceVisibility={...visibility};
   const surfaces=[
    [this.roadGroup,true],
    [this.buildingGroup,false]
@@ -615,16 +638,17 @@ export class TrafficRenderer{
     if(['#47565c','#424f55'].includes(base))role='asphalt';
     else if(['#dce3d8','#ead78c','#edf0df','#f1eddb'].includes(base))role='marking';
    }
-   let tint=base,intensity=0;
-   if(role==='asphalt'){intensity=.18;tint=base||'#56666a';}
-   else if(role==='night-asphalt'){intensity=.18;tint=base||'#56666a';}
+   let tint=base,intensity=0,managed=false;
+   if(role==='asphalt'){managed=true;intensity=visibility.road;tint=base||'#56666a';}
+   else if(role==='night-asphalt'){managed=true;intensity=visibility.road;tint=base||'#56666a';}
    else if(role==='marking'||role==='road-marking'||role==='night-marking'){
     // Road paint reflects ambient light; it should not read as neon at night.
-    intensity=.025;tint=base||'#f4edd8';
-    mesh.material.color.set(tint).multiplyScalar(1-night*.42);
+    managed=true;intensity=night*.025;tint=base||'#f4edd8';
+    mesh.material.color.set(tint).multiplyScalar(1-visibility.marking);
    }
-   else if(role==='lot-base'||role==='night-lot-base'){intensity=.08;tint=base||'#bdc6ae';}
-   if(intensity){mesh.material.emissive.set(tint);mesh.material.emissiveIntensity=night*intensity;}
+   else if(role==='lot-base'||role==='night-lot-base'){managed=true;intensity=visibility.road*.45;tint=base||'#bdc6ae';}
+   else if(mesh.userData.buildingSurface&&!mesh.userData.nightGlow){managed=true;intensity=visibility.building;}
+   if(managed){mesh.material.emissive.set(tint);mesh.material.emissiveIntensity=intensity;}
   });
   for(const set of this.carSets.values()){
    set.body.material.emissive.set('#a5afb4');
@@ -640,17 +664,17 @@ export class TrafficRenderer{
   }
  }
  updateWeatherLight(state){
-  const sun=lightAt(state.time),air=climateAt(state.time,state.city);
+  const sun=lightAt(state.time),air=climateAt(state.time,state.city),visibility=cityVisibilityAt(state.time);
   this.scene.background.copy(sun.sky).lerp(new THREE.Color('#738999'),air.cloud*.22+air.rain*.38);
-  this.skyLight.intensity=Math.max(.84,sun.ambient*(1-air.cloud*.14-air.rain*.24));
+  this.skyLight.intensity=Math.max(1.10,visibility.ambient*(1-air.cloud*.14-air.rain*.24));
   this.light.color.copy(sun.sun).lerp(new THREE.Color('#dfe9f0'),air.cloud*.25);
-  this.light.intensity=Math.max(.44,sun.strength*(1-air.cloud*.18-air.rain*.36));
-  this.renderer.toneMappingExposure=Math.max(.69,sun.exposure*(1-air.rain*.09));
+  this.light.intensity=Math.max(.60,sun.strength*(1-air.cloud*.18-air.rain*.36));
+  this.renderer.toneMappingExposure=Math.max(.82,visibility.exposure*(1-air.rain*.09));
   const solar=Math.max(0,Math.sin((sun.minute-360)/720*Math.PI)),az=sun.minute/1440*Math.PI*2;
   this.light.position.set(this.cam.x+Math.cos(az)*65,27+solar*68,this.cam.y+Math.sin(az)*65);
   this.light.castShadow=sun.strength>.58;
   const glow=smooth(sun.lamps)*(1-air.rain*.12);
-  this.updateNightVisibility(glow);
+  this.updateNightVisibility(glow,visibility);
   if(Math.abs(glow-this.lastGlow)>.008){
    for(const group of [this.lampGroup,this.buildingGroup])group.traverse(mesh=>{
     if(!mesh.userData.nightGlow)return;mesh.visible=glow>.015;
