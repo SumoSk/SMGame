@@ -24,11 +24,11 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  r.parking={parkingIsMoving:id=>!!g.state.vehicles.get(g.state.citizens.get(id)?.vehicleId)?.lotPath,parkingSlotPose:g.parkingSlotPose,citizenCarColor:()=> '#e9e8d8'};
  r.createCars();r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);
  assert.equal(r.carMarkerMesh.count,1,'only the trip near its deadline has an emotion marker');assert.equal(r.carIndicatorHits.length,1);assert(r.carSelectionFrame.visible);assert.equal(r.carSelectionFrame.material.color.getHexString(),'ffffff');
- const hit=r.carIndicatorHits.find(h=>h.selection.id===v.id&&h.selection.kind==='vehicle');assert(hit);assert.equal(r.pickVehicleMarker(hit.x,hit.y).id,v.id,'tiny icon is clickable');
+ const hit=r.carIndicatorHits.find(h=>h.selection.id===v.id&&h.selection.kind==='vehicle');assert(hit);assert.equal(r.pickVehicleMarker(hit.x,hit.y).id,v.id,'emoji is clickable');assert.equal(r.pickVehicleMarker(hit.x+hit.radius*.85,hit.y).id,v.id,'expanded emoji hit area is clickable');assert.equal(r.pickVehicleMarker(hit.x+hit.radius+2,hit.y),null,'hit area does not extend beyond the larger icon');
  const markerSize=()=>{const m=new THREE.Matrix4();r.carMarkerMesh.getMatrixAt(0,m);const a=new THREE.Vector3(0,-.5,0).applyMatrix4(m).project(r.camera),b=new THREE.Vector3(0,.5,0).applyMatrix4(m).project(r.camera);return Math.abs(a.y-b.y)*r.h/2;};
- assert(Math.abs(markerSize()-18)<1e-5,'18 CSS-pixel emoji');
- r.camera.left=-20;r.camera.right=20;r.camera.top=15;r.camera.bottom=-15;r.camera.updateProjectionMatrix();r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-18)<1e-5,'zoom does not enlarge indicators');
- r.cam.z=.22;r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-12)<1e-5,'icons shrink at distant zoom');r.cam.z=2;
+ assert(Math.abs(markerSize()-36)<1e-5,'36 CSS-pixel emoji, doubled from 18');
+ r.camera.left=-20;r.camera.right=20;r.camera.top=15;r.camera.bottom=-15;r.camera.updateProjectionMatrix();r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-36)<1e-5,'zoom does not enlarge indicators');
+ r.cam.z=.22;r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert(Math.abs(markerSize()-24)<1e-5,'icons shrink at distant zoom, doubled from 12');r.cam.z=2;
  assert.equal(r.carMarkerMesh.geometry.getAttribute('emotionOffset').getX(0),0,'near-late uses worried face');
  v.deadline=g.state.time-1;r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert.equal(r.carMarkerMesh.geometry.getAttribute('emotionOffset').getX(0),1,'late uses angry face');
  v.deadline=g.state.time+60;r.cars(g.state,g.vehiclePosition,g.CATALOG,g.vehicleTimeliness,g.selected);assert.equal(r.carMarkerMesh.count,0,'normal cars have no emoji');assert.equal(r.carIndicatorHits.length,0);assert(r.carSelectionFrame.visible,'normal selected car keeps its selection frame');
