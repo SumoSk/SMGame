@@ -267,6 +267,8 @@ if (gate) {
     },
   };
 
+  // Browser-only telemetry and creator panels; skip lightweight DOM stubs in tests.
+  if (typeof document.createElement === 'function' && typeof navigator !== 'undefined') {
   // Per-page visit telemetry is kept separate from saves and the simulation.
   const creatorEndpoint = SUPABASE_URL + '/functions/v1/smgame-creator-presence';
   const creatorSession = crypto.randomUUID();
@@ -436,9 +438,11 @@ if (gate) {
       body: JSON.stringify({ action: 'end', sessionId: creatorSession, visitorId: creatorVisitor }),
     }).catch(() => {});
   });
+  }
 }
 
 ;(() => {
+  if (typeof document.createElement !== 'function') return;
   // Standalone creator-save panel. All cross-account reads are verified server-side.
   const dialog = document.getElementById('smcityCreator');
   const wrap = dialog?.querySelector('.cr-wrap');
