@@ -16,4 +16,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check dist/game.js
-      - run: node work/test-starter-showcase.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-starter-showcase.cjs
