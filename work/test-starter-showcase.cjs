@@ -25,7 +25,7 @@ function verify(){
  for(const [trait,tech] of [[0,'speed'],[1,'smart'],[2,'fly'],[3,'warp']])
   assert.equal(g.vehicleTechCounts(trait).counts[tech],1);
 }
-verify();
+g.startNewCity('phuket');verify();
 for(const city of ['bangkok','chiangmai','korat']){g.startNewCity(city);verify();}
 g.reset();
 assert.equal(g.state.signals.size,0,'Fresh reset cannot leak starter AI into loaded saves');
