@@ -6117,3 +6117,82 @@ body>.bottom .builder-zone .build-dock .dock-head .dock-display-actions>#toggleA
  #dialog .garage-products{grid-template-columns:minmax(0,1fr)}
  #dialog .garage-product-footer{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center}
 }
+
+/* Independent command bar above the city/tool deck; IDs and event handlers stay intact. */
+body>.bottom>.city-command-bar{
+ box-sizing:border-box;display:block;pointer-events:auto;position:relative;
+ width:min(1200px,calc(100vw - 16px));max-width:100%;margin:0 auto 8px;
+ padding:6px 8px;border:1px solid var(--smg-border);border-radius:14px;
+ color:var(--smg-text);background:linear-gradient(135deg,var(--smg-panel-top),var(--smg-panel-bottom));
+ box-shadow:0 4px 18px var(--smg-aura),inset 0 1px 0 #ffffff30;
+}
+#cityCommandBar .dock-head{
+ display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;
+ align-items:center!important;gap:10px!important;min-width:0!important;
+ height:auto!important;min-height:0!important;max-height:none!important;
+ margin:0!important;padding:0!important;border:0!important;background:transparent!important;
+ overflow:visible!important;
+}
+#cityCommandBar .dock-timebar{display:flex!important;align-items:center!important;flex-wrap:nowrap!important;gap:12px!important;min-width:0!important;width:auto!important;margin:0!important;padding:0!important;overflow:hidden!important}
+#cityCommandBar .dock-clock{display:flex!important;flex:0 0 auto!important;align-items:center!important;gap:9px!important;width:auto!important;min-width:0!important;white-space:nowrap!important;color:inherit!important}
+#cityCommandBar #day{font-size:11px!important;color:inherit!important}
+#cityCommandBar #clock{font-size:17px!important;line-height:1.2!important;font-variant-numeric:tabular-nums;color:inherit!important}
+#cityCommandBar .dock-speed{display:block!important;flex:0 1 auto!important;min-width:0!important;margin:0!important;padding:0!important;overflow-x:auto!important;scrollbar-width:none;touch-action:pan-x}
+#cityCommandBar .playback{display:flex!important;align-items:center!important;gap:3px!important;flex-wrap:nowrap!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+#cityCommandBar :is(#status,.edition){display:none!important}
+#cityCommandBar .dock-display-actions{display:flex!important;align-items:center!important;gap:5px!important;position:static!important;width:auto!important;height:auto!important;visibility:visible!important;overflow:visible!important}
+#cityCommandBar button{
+ box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ flex:0 0 auto!important;width:auto!important;min-width:32px!important;max-width:none!important;
+ height:32px!important;min-height:32px!important;max-height:32px!important;
+ padding:5px 8px!important;margin:0!important;gap:4px!important;
+ font:600 11px/1.2 'Noto Sans Thai',Tahoma,sans-serif!important;white-space:nowrap!important;
+ color:var(--smg-text)!important;background:linear-gradient(135deg,var(--smg-button-top),var(--smg-button-bottom))!important;
+ border:1px solid var(--smg-border)!important;border-radius:8px!important;
+ box-shadow:0 1px 6px var(--smg-aura)!important;cursor:pointer;touch-action:manipulation;
+}
+#cityCommandBar button:is(.active,[aria-pressed="true"]){background:linear-gradient(135deg,var(--smg-active-top),var(--smg-active-bottom))!important;border-color:var(--smg-icon)!important;box-shadow:0 0 8px var(--smg-aura-strong)!important}
+#cityCommandBar button:hover{border-color:var(--smg-icon)!important}
+#cityCommandBar button:focus-visible{outline:2px solid var(--smg-icon);outline-offset:2px}
+#cityCommandBar button.is-hidden{opacity:.65}
+#cityCommandBar .dock-display-actions button>span[aria-hidden="true"]{color:var(--smg-icon)!important;font-size:15px}
+#cityCommandBar #toggleDock{min-width:38px!important}
+body>.bottom>.control-deck.tools-collapsed{display:none!important}
+/* Categories now start at the top of the construction area vacated by time controls. */
+body>.bottom>.control-deck:not(.tools-collapsed){height:124px!important;min-height:124px!important;max-height:124px!important}
+body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-body{padding-top:4px!important}
+body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-context{margin-top:0!important}
+@media(max-width:1100px){
+ #cityCommandBar .dock-head{gap:6px!important}
+ #cityCommandBar .dock-timebar{gap:8px!important}
+ #cityCommandBar :is(#toggleBuildingLabelsText,#toggleCarDiamondsText,#toggleAIPinsText){display:none!important}
+ #cityCommandBar .dock-display-actions{gap:4px!important}
+}
+@media(max-width:920px){
+ body>.bottom>.city-command-bar{width:calc(100vw - 12px);margin-bottom:6px;padding:6px;border-radius:12px}
+ #cityCommandBar .dock-head{grid-template-columns:minmax(0,1fr) auto!important;gap:6px!important}
+ #cityCommandBar .dock-timebar{grid-column:1/-1;justify-content:space-between!important}
+ #cityCommandBar .dock-display-actions{justify-self:start}
+ #cityCommandBar #toggleDock{justify-self:end}
+ #cityCommandBar #toggleDockText{display:inline!important}
+ body>.bottom>.control-deck:not(.tools-collapsed){height:200px!important;min-height:0!important;max-height:calc(100dvh - 100px - env(safe-area-inset-bottom,0px))!important;grid-template-rows:minmax(0,1fr) minmax(0,1fr)!important}
+}
+@media(max-width:500px){
+ #cityCommandBar #day{font-size:10px!important}
+ #cityCommandBar #clock{font-size:14px!important}
+ #cityCommandBar .dock-clock{gap:5px!important}
+ #cityCommandBar .dock-timebar{gap:5px!important}
+ #cityCommandBar .playback{gap:2px!important}
+ #cityCommandBar .playback button{min-width:27px!important;padding:4px!important;font-size:10px!important}
+ #cityCommandBar #skip .skip-day-label{display:none!important}
+ #cityCommandBar .dock-display-actions button{padding:4px 7px!important}
+}
+@media(max-width:359px){
+ #cityCommandBar .dock-timebar{flex-wrap:wrap!important;gap:4px!important}
+ #cityCommandBar .dock-clock{justify-content:space-between!important;width:100%!important}
+ #cityCommandBar .dock-speed{width:100%!important;flex:1 1 100%!important}
+ #cityCommandBar .playback{justify-content:space-between!important}
+}
+@media(max-width:920px) and (max-height:520px){
+ body>.bottom>.control-deck:not(.tools-collapsed){height:158px!important;grid-template-rows:minmax(0,78fr) minmax(0,80fr)!important}
+}
