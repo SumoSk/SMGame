@@ -70,7 +70,8 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
  context.Date=class extends Date{static now(){return uiClock;}};
  context.document.getElementById=id=>id==='aiJunctionOverlay'?overlay:getOriginal(id);
  const create=id=>({
-  id,style:{},dataset:{},hidden:false,children:[],
+  id,style:{setProperty(k,v){this[k]=v;}},dataset:{},hidden:false,children:[],parts:new Map(),
+  addEventListener(){},querySelector(key){if(!this.parts.has(key))this.parts.set(key,create(key));return this.parts.get(key);},
   classList:{toggle(name,on){this[name]=on;}},
   setAttribute(){},remove(){this.hidden=true;},
   appendChild(child){this.children.push(child);},
@@ -78,14 +79,17 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
  });
  context.document.createElement=tag=>create(tag);
  context.document.body={appendChild(el){overlay=el;}};
- game.updateAISignalPins();
+ game.toggleAIPinLabels();
  assert(overlay&&overlay.children.length>0,'AI icons must show on existing junctions without visiting settings');
  const badge=overlay.children.find(el=>Number(el.dataset.node)===center);
  assert(badge,'center 4-way junction shows clickable AI icon');
  assert.equal(typeof badge.onclick,'function');
  assert.equal(badge.classList.owned,false);
  badge.onclick({preventDefault(){},stopPropagation(){}});
- assert.match(get('dialogContent').innerHTML,/1,000,000/,'clicking pin opens purchase modal');
+ const card=overlay.children.find(el=>el.id==='aiPinPopover');
+ assert(card&&!card.hidden,'clicking pin expands local details');
+ card.querySelector('[data-ai-upgrade]').onclick();
+ assert.match(get('dialogContent').innerHTML,/1,000,000/,'upgrade action opens explicit confirmation');
  assert.equal(typeof get('confirmDialog').onclick,'function');
  get('confirmDialog').onclick();
  assert.equal(game.state.money,1000000,'modal purchase charges one million');

@@ -2010,17 +2010,19 @@ $('buildingQuickDemolish').onclick=()=>{
 
 // Start every page session with visual overlays hidden; buttons remain available.
 let aiPinsVisible=false;
+let aiPinExpanded=null,aiPinPopover=null;
 let aiPinState=null,aiPinVersion=-1,aiPinNodes=[],aiPinLast=-Infinity;
 let aiPinHover=null,aiPinLocked=null,aiPinLockUntil=0,aiLastActivatedNode=null,aiLastActivatedAt=-Infinity;
 const aiPinButtons=new Map();
 function toggleAIPinLabels(){
  aiPinsVisible=!aiPinsVisible;
+ collapseAISignalPin();
  const button=$('toggleAIPins'),label=$('toggleAIPinsText');
  if(button){
   button.classList.toggle('is-hidden',!aiPinsVisible);
   button.setAttribute('aria-pressed',String(!aiPinsVisible));
-  button.setAttribute('aria-label',aiPinsVisible?'ปิดป้าย AI เหนือทางแยก':'เปิดป้าย AI เหนือทางแยก');
-  button.title=aiPinsVisible?'ซ่อนป้าย AI (ยังใช้ระบบไฟแดงอัจฉริยะตามปกติ)':'แสดงป้าย AI เหนือทางแยก';
+  button.setAttribute('aria-label',aiPinsVisible?'ซ่อนปุ่ม AI ที่ทางแยก':'เซ่อนปุ่ม AI ที่ทางแยก');
+  button.title=aiPinsVisible?'ซ่อนป้าย AI (ยังใช้ระบบไฟแดงอัจฉริยะตามปกติ)':'แสดงปุ่ม AI ที่ทางแยก';
  }
  if(label)label.textContent=aiPinsVisible?'ปิด AI':'เปิด AI';
  const overlay=document.getElementById?.('aiJunctionOverlay');
@@ -2033,8 +2035,8 @@ if(aiPinToggle){
  if(!aiPinsVisible){
   aiPinToggle.classList.add('is-hidden');
   aiPinToggle.setAttribute('aria-pressed','true');
-  aiPinToggle.setAttribute('aria-label','เปิดป้าย AI เหนือทางแยก');
-  aiPinToggle.title='แสดงป้าย AI เหนือทางแยก';
+  aiPinToggle.setAttribute('aria-label','เซ่อนปุ่ม AI ที่ทางแยก');
+  aiPinToggle.title='แสดงปุ่ม AI ที่ทางแยก';
   if($('toggleAIPinsText'))$('toggleAIPinsText').textContent='เปิด AI';
  }
 }
@@ -2044,8 +2046,49 @@ function activateAISignalPin(node){
  if(aiLastActivatedNode===node&&now-aiLastActivatedAt<600)return false;
  aiLastActivatedNode=node;aiLastActivatedAt=now;
  aiPinLocked=node;aiPinLockUntil=now+900;
- return openAISignalUpgrade(node);
+ if(aiPinExpanded===node){collapseAISignalPin();return true;}
+ aiPinExpanded=node;
+ updateAIPinPopover();
+ return true;
 }
+function collapseAISignalPin(){
+ aiPinExpanded=null;
+ if(aiPinPopover)aiPinPopover.hidden=true;
+ for(const button of aiPinButtons.values())button.setAttribute('aria-expanded','false');
+}
+function updateAIPinPopover(){
+ const node=aiPinExpanded;
+ if(node==null)return;
+ const pin=aiPinButtons.get(node);
+ if(!aiPinsVisible||aiPinState!==state||!pin||pin.hidden||!state.roads.has(node)||junction(node)<3){collapseAISignalPin();return;}
+ if(!aiPinPopover){
+  aiPinPopover=document.createElement('section');aiPinPopover.className='ai-pin-popover';aiPinPopover.id='aiPinPopover';
+  aiPinPopover.setAttribute('role','region');aiPinPopover.setAttribute('aria-label','AI ทางแยก');
+  aiPinPopover.addEventListener('pointerdown',e=>e.stopPropagation());
+  document.getElementById('aiJunctionOverlay').appendChild(aiPinPopover);
+ }
+ const owned=signalSettings(node).mode==='smart';
+ const content='<header><strong>AI ทางแยก</strong><button type="button" data-ai-close aria-label="หุบรายละเอียด">−</button></header>'+
+ '<p>'+(owned?'ติดตั้งแล้ว · ปรับไฟตามคิวรถ':'ปรับไฟอัตโนมัติตามคิวรถ')+'</p>'+
+ (owned?'':'<div class="ai-pin-price"><span>ติดตั้ง 1 แยก</span><b>'+money(AI_SIGNAL_PRICE)+'</b></div>')+
+ '<button type="button" class="ai-pin-upgrade" data-ai-upgrade>'+(owned?'ดูสถานะทางแยก':'อัปเกรด AI')+'</button>';
+ if(aiPinPopover.innerHTML!==content){
+  aiPinPopover.innerHTML=content;
+  aiPinPopover.querySelector('[data-ai-close]').onclick=()=>{collapseAISignalPin();pin.focus?.();};
+  aiPinPopover.querySelector('[data-ai-upgrade]').onclick=()=>{collapseAISignalPin();openAISignalUpgrade(node);};
+ }
+ aiPinPopover.hidden=false;
+ const x=parseFloat(pin.style.left),y=parseFloat(pin.style.top);
+ const width=Math.min(210,innerWidth-16),height=aiPinPopover.offsetHeight||145;
+ aiPinPopover.style.width=width+'px';
+ aiPinPopover.style.left=Math.max(8,Math.min(innerWidth-width-8,x-width/2))+'px';
+ aiPinPopover.style.top=Math.max(8,y+height+28>innerHeight?y-height-24:y+24)+'px';
+ for(const [id,button]of aiPinButtons)button.setAttribute('aria-expanded',String(id===node));
+}
+document.addEventListener?.('pointerdown',event=>{
+ if(aiPinExpanded!=null&&!event.target.closest?.('.ai-junction-pin,.ai-pin-popover'))collapseAISignalPin();
+},true);
+document.addEventListener?.('keydown',event=>{if(event.key==='Escape')collapseAISignalPin();});
 function updateAISignalPins(){
  const now=Date.now();
  if(now-aiPinLast<180)return;
@@ -2062,6 +2105,7 @@ function updateAISignalPins(){
  // Never recycle or move the button while a pointer is pressing it.
  const locked=aiPinLocked!=null&&now<aiPinLockUntil;
  if(!locked&&(aiPinState!==state||aiPinVersion!==state.version)){
+  if(aiPinState!==state)collapseAISignalPin();
   aiPinState=state;aiPinVersion=state.version;
   aiPinNodes=[...state.roads.keys()].filter(node=>junction(node)>=3);
   for(const el of aiPinButtons.values())el.remove();
@@ -2069,7 +2113,7 @@ function updateAISignalPins(){
  }
  const visible=[];
  for(const node of aiPinNodes){
-  const x=node%W,y=Math.floor(node/W),p=screen(x+(renderer3d?0:.5),y+(renderer3d?0:.5),renderer3d?33:12);
+  const x=node%W,y=Math.floor(node/W),p=screen(x+(renderer3d?0:.5),y+(renderer3d?0:.5),renderer3d?1.5:0);
   if(!p||p[0]<30||p[0]>innerWidth-30||p[1]<36||p[1]>innerHeight-80)continue;
   visible.push({node,x:p[0],y:p[1],dist:Math.hypot(p[0]-innerWidth*.5,p[1]-innerHeight*.5)});
  }
@@ -2081,6 +2125,7 @@ function updateAISignalPins(){
   if(!button){
    button=document.createElement('button');button.type='button';
    button.className='ai-junction-pin';button.dataset.node=String(node);
+   button.setAttribute('aria-controls','aiPinPopover');button.setAttribute('aria-expanded','false');
    button.onpointerenter=()=>{aiPinHover=node;};
    button.onpointerleave=()=>{if(aiPinHover===node)aiPinHover=null;};
    button.onpointerdown=event=>{
@@ -2103,10 +2148,11 @@ function updateAISignalPins(){
   // A hovered or pressed badge must stay at the same screen coordinates until the click settles.
   const stationary=aiPinHover===node||(aiPinLocked===node&&now<aiPinLockUntil);
   button.hidden=false;
+  button.style.setProperty('--ai-pin-size',Math.max(22,Math.min(30,22+Math.log2(Math.max(.25,cam.z))*4))+'px');
   button.classList.toggle('owned',owned);
-  const label=owned?'✦ AI ✓':'✦ AI';
+  const label=owned?'AI ✓':'AI +';
   if(button.textContent!==label)button.textContent=label;
-  button.title=owned?'ติดตั้ง AI แล้ว · กดดูสถานะไฟแยกนี้':'กดซื้อไฟแดง AI แยกนี้ ฿1,000,000';
+  button.title=owned?'AI ติดตั้งแล้ว · แตะเพื่อกางรายละเอียด':'อัปเกรด AI ทางแยก · แตะเพื่อกางรายละเอียด';
   button.setAttribute('aria-label',button.title);
   if(!stationary){
    button.style.left=pin.x+'px';button.style.top=pin.y+'px';
@@ -2115,6 +2161,7 @@ function updateAISignalPins(){
  for(const [node,button]of aiPinButtons)
   if(!shown.has(node)&&node!==aiPinHover&&!(aiPinLocked===node&&now<aiPinLockUntil))button.hidden=true;
  if(!locked)aiPinLocked=null;
+ updateAIPinPopover();
 }
 
 function draw(){normalizeSelectedCar();const roadPreview=getRoadPreview(),placement=hover&&CATALOG[tool]?assistedBuildingPlacement(tool,hover.x,hover.y):null,visualHover=placement?{...hover,x:placement.x,y:placement.y,placement}:hover,demolitionPreview=getDemolitionPreview();if(renderer3d){renderer3d.render({state,cam,hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible});updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
@@ -2740,13 +2787,13 @@ function signalInspector(i){
  const next=slots.length?slots[(signalManualSlot(i,setting,slots)+1)%slots.length]:null;
  return `<section class="signal-control" data-node="${i}"><h3>🚦 ควบคุมไฟแยกนี้</h3>
   <div class="signal-current"><span class="signal-mode">${smart?'✦ AI อัจฉริยะ':manual?'ควบคุมเอง':'อัตโนมัติ'}</span><strong>${current}</strong><small>${remaining}</small></div>${rows}
-  ${smart?'<p class="signal-ai-owned">✦ ซื้อ AI แล้ว · ระบบควบคุมเฉพาะแยกนี้</p><h3>เวลาไฟเขียวเดิม (เก็บไว้สำหรับอ้างอิง)</h3>':'<h3>ตั้งเวลาเขียวต่อทิศ</h3>'}<div class="signal-times">
+  <details class="inspect-section signal-settings"><summary>${smart?'เวลาไฟเดิม':'ตั้งเวลาและควบคุมไฟ'}</summary><div class="inspect-section-body"><div class="signal-times">
   <label for="signalEW">ทิศแนวนอน <span><input class="signal-minutes" id="signalEW" type="number" min="5" max="240" value="${setting.eastWest}"> นาที</span></label>
   <label for="signalNS">ทิศแนวตั้ง <span><input class="signal-minutes" id="signalNS" type="number" min="5" max="240" value="${setting.northSouth}"> นาที</span></label></div>
   <p class="signal-note">เปิดเขียวทีละทิศ ทุกเลนออกพร้อมกัน · เหลือง ${SIGNAL_YELLOW_MINUTES} นาที · แดงเคลียร์ ${SIGNAL_CLEAR_MINUTES} นาที · รอบ ${signalCycle(i)} นาทีเกม</p>`+
-  (smart?'':action('บันทึกเวลาไฟแยกนี้','signal-save',i))+
+  (smart?'':action('บันทึกเวลาไฟแยกนี้','signal-save',i))+'</div></details>'+
   (smart?'<p class="signal-note">AI ตรวจคิวรถอัตโนมัติ · เขียวครั้งละ 5–18 นาทีเกม · ยังคงไฟเหลืองและช่วงเคลียร์แยก</p>':
-   action('✦ ซื้อไฟแดง AI — ฿1,000,000','signal-ai-buy',i))+
+   action('AI + อัปเกรดแยก · ฿1,000,000','signal-ai-buy',i))+
   (smart?'':manual?`<div class="signal-manual">${action('สลับไป '+signalSlotName(next),'signal-switch',i)}${action('กลับสู่ระบบอัตโนมัติ','signal-auto',i)}</div>`:
    action('ควบคุมไฟเอง','signal-manual',i))+
   (category==='signals'?action('ตั้งค่าไฟจราจรทั้งเมือง','signal-global',i):'')+`</section>`;
@@ -2767,6 +2814,11 @@ function refreshSignalInspector(i){
  }
  return true;
 }
+function inspectorDisclosure(title,body,key){
+ const content=$('inspectContent'),identity=selected.kind+':'+selected.id;
+ const open=content.dataset?.selection===identity&&content.querySelector?.('details[data-inspect-section="'+key+'"]')?.open;
+ return '<details class="inspect-section" data-inspect-section="'+key+'"'+(open?' open':'')+'><summary>'+title+'</summary><div class="inspect-section-body">'+body+'</div></details>';
+}
 function renderInspector(force=false){
 normalizeSelectedCar();if(!selected)return;const s=computeStats();let html='';
 if(!force&&selected.kind==='road'&&state.roads.has(selected.id)&&junction(selected.id)>=3&&refreshSignalInspector(selected.id))return;
@@ -2776,7 +2828,25 @@ else if(selected.kind==='parked'){
  if(!c||!b||!b.parked.has(c.id)){selected=null;$('inspector').classList.add('hidden');return;}
  html='<span class="tag">รถในลานจอด</span><h2>รถของ '+escapeSaveText(citizenName(c))+'</h2>'+row('สถานะ','จอดปกติ')+row('อาคาร',escapeSaveText(CATALOG[b.key].name))+row('ช่องจอด',String(parkingSpace(b,c.id)+1))+action('ดูข้อมูลประชาชน','citizen',c.id);
 }
-else if(selected.kind==='building'){const b=state.buildings.get(selected.id);if(!b){selected=null;$('inspector').classList.add('hidden');return;}const t=CATALOG[b.key];html=`<span class="tag">${KINDS[t.kind].icon} อาคาร #${b.id}</span><h2>${t.name}</h2>`+row('พื้นที่รวมลานจอด',buildingBounds(b).w+' × '+buildingBounds(b).h)+row('ค่าดูแล / วัน',money(t.maint));if(t.beds)html+=row('ผู้จองที่พัก / เตียง',(b.guests?.size||0)+' / '+t.beds)+row('กำลังพักโรงแรม',[...(b.guests||[])].filter(id=>state.citizens.get(id)?.sleepUntil>state.time).length+' คน');if(t.residents)html+=row('ผู้อยู่อาศัย',b.residents.size+' / '+t.residents)+row('กำลังย้ายเข้า',b.reservedResidents+' คน');if(t.jobs)html+=row('พนักงาน',b.workers.size+' / '+t.jobs);if(t.service)html+=row('ผู้ใช้บริการ',b.visitors.size+' / '+t.service)+row('จองเดินทางมา',b.reservedService+' คน')+row('เปิดบริการ',t.kind==='casino'?'24 ชั่วโมง':timeText(SERVICE_HOURS[t.kind][0])+'–'+timeText(SERVICE_HOURS[t.kind][1]));html+=row('รถกำลังเดินทางมา',buildingTraffic(b).approaching+' คัน')+row('รถจอด / รองรับสูงสุด',b.parked.size+' / '+buildingTraffic(b).max+' คัน')+row('รอออกจากอาคาร',b.queue.length+' คัน')+row('รอเส้นทาง',[...b.queue].filter(id=>state.vehicles.get(id)?.departureNoRoute).length+' คัน')+row('เดินทางมาถึง',b.arrivals+' ครั้ง')+'<h3>การเข้าออก</h3><p>เข้าออกจากขอบทางฝั่งซ้ายตามทิศรถ หากอยู่คนละฝั่ง รถต้องวนกลับตามเส้นทาง</p>';const people=[...new Set([...b.residents,...b.workers,...b.visitors,...(b.guests||[])])].slice(0,24);if(people.length)html+='<h3>ประชาชน</h3><div class="inspect-list">'+people.map(c=>action(citizenName(state.citizens.get(c)), 'citizen',c)).join('')+'</div>';html+=action('ย้ายอาคาร','move-building',b.id)+action('รื้ออาคารนี้ · ฟรี','demolish',b.id);}
+else if(selected.kind==='building'){
+ const b=state.buildings.get(selected.id);if(!b){selected=null;$('inspector').classList.add('hidden');return;}
+ const t=CATALOG[b.key],traffic=buildingTraffic(b);
+ html=`<span class="tag">${KINDS[t.kind].icon} อาคาร #${b.id}</span><h2>${t.name}</h2><div class="inspect-overview">`;
+ if(t.residents)html+=row('ผู้อยู่อาศัย',b.residents.size+' / '+t.residents);
+ if(t.jobs)html+=row('พนักงาน',b.workers.size+' / '+t.jobs);
+ if(t.service)html+=row('ผู้ใช้บริการ',b.visitors.size+' / '+t.service);
+ if(t.beds)html+=row('จองที่พัก',(b.guests?.size||0)+' / '+t.beds);
+ html+=row('รถจอด',b.parked.size+' / '+traffic.max)+row('กำลังเดินทางมา',traffic.approaching+' คัน')+row('รอออก',b.queue.length+' คัน')+'</div>';
+ let detail=row('พื้นที่รวมลานจอด',buildingBounds(b).w+' × '+buildingBounds(b).h)+row('ค่าดูแล / วัน',money(t.maint));
+ if(t.residents)detail+=row('กำลังย้ายเข้า',b.reservedResidents+' คน');
+ if(t.beds)detail+=row('กำลังพักโรงแรม',[...(b.guests||[])].filter(id=>state.citizens.get(id)?.sleepUntil>state.time).length+' คน');
+ if(t.service)detail+=row('จองเดินทางมา',b.reservedService+' คน')+row('เปิดบริการ',t.kind==='casino'?'24 ชั่วโมง':timeText(SERVICE_HOURS[t.kind][0])+'–'+timeText(SERVICE_HOURS[t.kind][1]));
+ detail+=row('รอเส้นทาง',[...b.queue].filter(id=>state.vehicles.get(id)?.departureNoRoute).length+' คัน')+row('เดินทางมาถึง',b.arrivals+' ครั้ง')+'<p>เข้าออกจากขอบทางฝั่งซ้ายตามทิศรถ หากอยู่คนละฝั่ง รถต้องวนกลับตามเส้นทาง</p>';
+ html+=inspectorDisclosure('รายละเอียดอาคารและการเดินทาง',detail,'building-info');
+ const people=[...new Set([...b.residents,...b.workers,...b.visitors,...(b.guests||[])])].slice(0,24);
+ if(people.length)html+=inspectorDisclosure('ประชาชน · '+people.length+' คน','<div class="inspect-list">'+people.map(c=>action(citizenName(state.citizens.get(c)),'citizen',c)).join('')+'</div>','building-people');
+ html+='<div class="inspect-actions">'+action('ย้ายอาคาร','move-building',b.id)+action('รื้ออาคาร · ฟรี','demolish',b.id)+'</div>';
+}
 else if(selected.kind==='citizen'||selected.kind==='vehicle'){const v=selected.kind==='vehicle'?state.vehicles.get(selected.id):null,c=selected.kind==='citizen'?state.citizens.get(selected.id):v?.citizenId?state.citizens.get(v.citizenId):null;if(!c&&!v){html='<h2>เดินทางถึงจุดหมายแล้ว</h2><p>รถคันนี้เดินทางเสร็จแล้ว เลือกอาคารปลายทางเพื่อดูประชาชนต่อค่ะ</p>';}else if(c?.tourist){html=touristInspector(c);}else if(c){const cv=state.vehicles.get(c.vehicleId);html=`<span class="tag">ชีวิตประชาชน #${c.id}</span><h2>${citizenName(c)}</h2>`+row('บุคลิก',CITIZEN_TRAITS[c.profile.trait])+row('รูปแบบชีวิตวันนี้',lifestyleName(c.dailyPlan))+row('สถานะ',c.state)+row('ความสุข',Math.round(c.happy)+'%')+row('ภาษีวันนี้',money(workTax(c)))+row('บ้าน',buildingName(c.homeId))+row('งาน',c.profile.trait===3?'ไม่ต้องทำงาน':buildingName(c.workId))+row('ปัญหาล่าสุด',c.problem||'ยังไม่มีปัญหา');if(cv)html+=row('การเดินทาง',TRIPS[cv.kind].name)+row('จุดหมาย',cv.toId?buildingName(cv.toId):'ประตูเมือง')+row('เวลารอ',Math.floor(cv.wait)+' นาที')+action(follow===cv.id?'หยุดติดตามรถ':'ติดตามรถและเส้นทาง','follow',cv.id)+vehicleRecoveryActions(cv);html+='<h3>ตารางชีวิต</h3>'+row('ออกทำงานวันนี้',c.dailyPlan?.works?timeText(c.dailyPlan.day*1440+c.dailyPlan.leave):'—')+row('เลิกงานวันนี้',c.dailyPlan?.works?timeText(c.dailyPlan.day*1440+c.dailyPlan.end):'—')+row('ปรับออกเร็วขึ้น',Math.round(c.routine?.advance||0)+' นาที')+row('กิจกรรมโปรด',KINDS[c.profile.leisure]?.name||'กลับบ้าน');if(c.dailyPlan?.steps?.length)html+='<h3>แผนกิจกรรมวันนี้</h3><p>'+c.dailyPlan.steps.map(s=>timeText(c.dailyPlan.day*1440+(s.estimatedAt??s.at))+' '+lifestyleStepName(s)+((s.estimatedAt??s.at)>=1440?' (วันถัดไป)':'')).join('<br>')+'</p><p>เวลาโดยประมาณ ปรับตามการเดินทางและเวลาถึงจริง</p>';if(c.lifeRun&&c.lifeRun.day!==c.dailyPlan?.day)html+=row('กิจกรรมต่อจากวันก่อน',lifestyleStepName(c.lifeRun.plan.steps[c.lifeRun.index]));if(c.history.length)html+='<h3>การเดินทางล่าสุด</h3><p>'+c.history.slice(-4).reverse().join('<br>')+'</p>';}
 else html='<span class="tag">รถภายนอก</span><h2>เดินทางผ่านเมือง</h2><p>รถจากประตูเมืองหนึ่งไปอีกประตูเมืองหนึ่ง ไม่มีประชาชนเจ้าของในเมืองนี้</p>'+action('ติดตามเส้นทาง','follow',v.id)+vehicleRecoveryActions(v);}
 else if(selected.kind==='road'){const r=state.roads.get(selected.id);if(!r){$('inspector').classList.add('hidden');return;}const t=ROADS[r.type],j=junction(selected.id);html='<span class="tag">โครงข่ายจราจร</span><h2>'+t.name+'</h2>'+row('จำนวนเลน',t.lanes+' เลน')+row('ความจุจริง',t.lanes+' คัน / ช่อง')+row('รถในช่องนี้',occupancy(selected.id)+' คัน')+row('ค่าดูแล / วัน',r.main?'ฟรี':money(t.maint))+row('ทางแยก',j===4?'สี่แยก · ไฟจราจร':j===3?'สามแยก · ไฟจราจร':j===1?'ทางตัน · กลับรถไม่ได้':'ถนนต่อเนื่อง')+'<p>'+(r.main?'ถนนหลักเริ่มต้นของเมือง รื้อไม่ได้':'รถขับชิดซ้ายและใช้เลนตามเส้นทาง เมื่อเต็มจะรอคิว')+'</p>';if(j>=3)html+=signalInspector(selected.id);}
@@ -2788,13 +2858,17 @@ else html='<span class="tag">การเดินทาง</span><h2>จรา�
 $('inspector').classList.remove('hidden');
  // Keep the category label so each details panel has the same heading hierarchy.
  for(const note of ['การเข้าออกจากขอบทางฝั่งซ้ายตามทิศรถ หากอยู่คนละฝั่ง รถต้องวนกลับตามเส้นทาง','เวลาโดยประมาณ ปรับตามการเดินทางและเวลาถึงจริง','ถนนหลักเริ่มต้นของเมือง รื้อไม่ได้','รถขับชิดซ้ายและใช้เลนตามเส้นทาง เมื่อเต็มจะรอคิว','ภาษีปกติ 500 บาท ทำงานสาย 400 บาท พลาดงาน 250 บาท กิจกรรมอื่นไม่ลดภาษี ถนนหลักไม่มีค่าดูแล','มีบ้านว่าง เส้นทางจากประตูเมือง และความสุขตั้งแต่ 70% จึงจะมีคนย้ายเข้า คนจะนับเป็นประชากรเมื่อเดินทางถึงบ้านจริง','ไปทำงานและใช้บริการทันเวลาช่วยให้มีความสุข รถติด ไปสาย ไม่มีงาน และขาดบริการทำให้ความสุขลดลง','ต่ำกว่า 25% หรือว่างงาน 2 วัน ประชาชนจะเตรียมย้ายออก','คลิกที่รถเพื่อดูว่าของใคร กำลังไปไหน และติดอยู่เพราะอะไร เพิ่มเลนหรือกระจายงานและบริการให้ใกล้บ้านช่วยลดการเดินทาง'])html=html.replace('<p>'+note+'</p>','');
- if(['building','road','money','population','happiness','traffic','signals'].includes(selected.kind)){
+ if(['road','money','population','happiness','traffic','signals'].includes(selected.kind)){
   const notes=[];
   html=html.replace(/<p>([^<]+)<\/p>/g,(part,text)=>{notes.push(part);return '';});
   html=html.replace('<h3>การเข้าออก</h3>','');
   if(notes.length)html+='<details class="panel-help"><summary>รายละเอียดเพิ่มเติม</summary>'+notes.join('')+'</details>';
  }
  if(selected.kind==='vehicle'&&state.vehicles.has(selected.id)&&state.citizens.get(state.vehicles.get(selected.id).citizenId)?.tourist)html+=vehicleRecoveryActions(state.vehicles.get(selected.id));
+if(['vehicle','citizen'].includes(selected.kind)){
+ let section=0;
+ html=html.replace(/<h3>([^<]*)<\/h3>([\s\S]*?)(?=<h3>|$)/g,(_all,title,body)=>inspectorDisclosure(title,body,'life-'+section++));
+}
 const journey=selectedCarVehicle();
  if(journey){const status=vehicleTimeliness(journey),remaining=Number.isFinite(journey.deadline)?journey.deadline-(journey.arrivedAt??state.time):null;
   const label=remaining==null?'ไม่มีเวลานัด':status==='red'?'สายแล้ว '+Math.ceil(-remaining)+' นาที':journey.arrivedAt!=null?'ถึงอาคารแล้ว':status==='orange'?'เหลือ '+Math.ceil(remaining)+' นาที ก่อนสาย':'ยังไม่สาย';
@@ -2817,7 +2891,10 @@ const journey=selectedCarVehicle();
   (_all,tag,heading)=>'<header class="sm-inspector-heading"><span class="sm-inspector-mark" aria-hidden="true">'+panelIcon+
    '</span><div class="sm-inspector-heading-text">'+(tag||'<span class="tag">'+panelLabel+'</span>')+heading+'</div></header>'+journeyCard);
  if($('inspector').dataset)$('inspector').dataset.kind=selected.kind;
- $('inspectContent').innerHTML=html;
+ const content=$('inspectContent'),scroll=content.scrollTop;
+ if(content.__inspectMarkup!==html){content.innerHTML=html;content.__inspectMarkup=html;}
+ if(content.dataset)content.dataset.selection=selected.kind+':'+selected.id;
+ content.scrollTop=scroll;
 }
 function buildingName(i){const b=state.buildings.get(i);return b?CATALOG[b.key].name+' #'+i:'ยังไม่มี';}
 function citizenName(c){return c?['กานต์','ต้น','พลอย','มะลิ','นนท์','แพรว','ภูมิ','ฟ้า','บีม','อิง','พีท','ข้าวหอม'][c.id%12]+' #'+c.id:'ประชาชน';}
