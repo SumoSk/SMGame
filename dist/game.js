@@ -2265,8 +2265,8 @@ function updateCityAdvisor(){
   'ผลการเดินทางสะสมวันนี้ · ไปไม่ทัน '+fmt(day?.missed||0)+' · ไปสาย '+fmt(day?.late||0),
   'สัดส่วนอยู่บ้านและรถรอขณะนี้'+(activity.limit==null?' · ช่วงพักไม่จำกัด':' · เป้าอยู่บ้านไม่เกิน '+Math.round(activity.limit*100)+'%')+Object.entries(block).map(([k,v])=>' · '+k+' '+v).join('')
  ];
- set('cityBrief',brief.map((line,i)=>'<div class="city-brief-line" title="'+e(titles[i])+'">'+e(line.replace(/\s+/g,''))+'</div>').join(''));
- set('demand',html);
+ const summary='<div id="cityBrief" class="city-brief" aria-label="สรุปเมืองปัจจุบัน">'+brief.map((line,i)=>'<span class="city-brief-line" title="'+e(titles[i])+'">'+e(line.replace(/\s+/g,''))+'</span>').join('•')+'</div>';
+ set('demand',summary+html);
  set('advisorHeadline',e(advice.headline));set('advisorOverview',e(advice.overview));set('advisorGood',advice.good.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>เริ่มจากบ้านและถนน แล้วรอชีวิตเมืองเริ่มเดินทาง</li>');set('advisorProblems',advice.problems.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>ยังไม่พบปัญหาที่ต้องเร่งแก้จากข้อมูลปัจจุบัน</li>');
  set('advisorNext',advice.next.map((a,i)=>'<li><span>'+e(a.text)+'</span>'+(a.report?'<button data-advice-report>ตรวจเมือง</button>':a.category?'<button data-advice-category="'+a.category+'">เปิดหมวดสร้าง</button>':'')+'</li>').join(''));
 }
