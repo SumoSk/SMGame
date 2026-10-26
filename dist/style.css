@@ -6175,3 +6175,34 @@ body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-context{mar
 @media(max-width:920px) and (max-height:520px){
  body>.bottom>.control-deck:not(.tools-collapsed){height:158px!important;grid-template-rows:minmax(0,78fr) minmax(0,80fr)!important}
 }
+
+/* Inline city metrics: each label, live value and daily delta stays on one line. */
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) .metric-text{
+ display:flex!important;flex-direction:row!important;align-items:baseline!important;
+ flex:1 1 auto!important;flex-wrap:nowrap!important;gap:3px!important;
+ width:auto!important;min-width:0!important;white-space:nowrap!important;text-align:left!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) :is(.metric-icon,.metric-arrow){display:none!important}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) .metric-text>small,
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) .metric-text>strong{
+ display:inline!important;flex:0 0 auto!important;margin:0!important;padding:0!important;
+ font-size:9px!important;line-height:1.25!important;white-space:nowrap!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) .metric-text>strong{font-variant-numeric:tabular-nums}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) strong em{font:inherit!important;margin:0!important}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric .metric-delta{
+ display:inline!important;font-size:8px!important;font-weight:500!important;line-height:1!important;
+ margin:0!important;white-space:nowrap!important;color:inherit!important;opacity:.85;
+}
+:root.smcity-gray-ui body>.bottom>.control-deck .city-control-mini .mini-need-values,
+:root.smcity-gray-ui body>.bottom>.control-deck .city-control-mini .mini-need-values *{color:#fff!important;opacity:1!important}
+@media(max-width:600px){
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats{
+  grid-template-columns:minmax(0,1fr)!important;grid-template-rows:repeat(5,minmax(0,1fr))!important;gap:1px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric{
+  grid-column:1!important;display:flex!important;flex-direction:row!important;
+  align-items:center!important;justify-content:flex-start!important;padding:0 2px!important;gap:2px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .metric-money{grid-column:1!important}
+}
