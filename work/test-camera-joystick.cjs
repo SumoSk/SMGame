@@ -47,7 +47,7 @@ assert.ok(Math.abs(game.cam.elevation-initialElevation)<1e-9,'Down joystick reve
 for(let i=0;i<100;i++)game.nudgeCamera('up');
 assert.ok(game.cam.elevation<=Math.PI*78/180+1e-9,'Elevation has safe upper bound');
 for(let i=0;i<150;i++)game.nudgeCamera('down');
-assert.ok(game.cam.elevation>=Math.PI*22/180-1e-9,'Elevation has safe lower bound');
+assert.ok(game.cam.elevation>=Math.PI*35/180-1e-9,'Elevation has safe lower bound');
 get('resetCameraAngle').onclick();
 assert.ok(Math.abs(game.cam.angle-initialAngle)<1e-9,'Center restores default yaw');
 assert.ok(Math.abs(game.cam.elevation-initialElevation)<1e-9,'Center restores default elevation');

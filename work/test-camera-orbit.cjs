@@ -17,18 +17,31 @@ let b=baseline();touch('pointerdown',10,300,300);touch('pointerdown',11,500,300)
 near(game.cam.angle,b.angle-Math.PI/2,'two-finger twist rotates actual camera continuously');near(game.cam.z,b.z,'twisting preserves zoom');near(game.cam.elevation,b.elevation,'twisting does not tilt');
 touch('pointerup',10,400,200);const after=baseline();touch('pointermove',11,700,600);near(game.cam.angle,after.angle,'remaining finger cannot start another action');touch('pointerup',11,700,600);
 assert.equal(game.state.roads.size,roads);assert.equal(game.state.money,money);assert(!get('dialog').open);assert.match(get('hint').textContent,/ลากจากถนนเดิม/,'construction tool survives orbit');
-b=baseline();touch('pointerdown',10,300,300);touch('pointerdown',11,500,300);touch('pointermove',10,350,340);touch('pointermove',11,550,340);near(game.cam.angle,b.angle-.3,'parallel horizontal drag orbits');near(game.cam.elevation,b.elevation+.16,'parallel vertical drag tilts');near(game.cam.z,b.z,'parallel drag preserves zoom');release();
+b=baseline();touch('pointerdown',10,300,300);touch('pointerdown',11,500,300);touch('pointermove',10,350,340);touch('pointermove',11,550,340);near(game.cam.angle,b.angle+.3,'parallel horizontal drag orbits in corrected direction');near(game.cam.elevation,b.elevation+.16,'parallel vertical drag tilts');near(game.cam.z,b.z,'parallel drag preserves zoom');release();
 b=baseline();touch('pointerdown',10,300,300);touch('pointerdown',11,500,300);touch('pointermove',11,600,300);near(game.cam.z,b.z*1.5,'spread zooms');near(game.cam.angle,b.angle,'one-finger spread does not orbit');near(game.cam.elevation,b.elevation,'one-finger spread does not tilt');release();
+// Zoom-to-orbit transition must not snap back to the starting zoom or yaw.
+b=baseline();touch('pointerdown',10,300,300);touch('pointerdown',11,500,300);
+touch('pointermove',11,600,300);
+const magnified=baseline();near(magnified.z,b.z*1.5,'pinch zoom works');
+touch('pointermove',10,340,330);
+near(game.cam.z,magnified.z,'zoom-to-orbit preserves current zoom');
+near(game.cam.angle,magnified.angle,'zoom-to-orbit preserves yaw on transition');
+near(game.cam.elevation,magnified.elevation,'zoom-to-orbit preserves tilt on transition');
+touch('pointermove',10,360,350);
+assert(Math.abs(game.cam.angle-magnified.angle)>1e-4,'orbit responds after zoom');
+near(game.cam.z,magnified.z,'orbit holds current zoom');
+release();
 // All touch IDs remain latched until released, including extra fingers/cancellation.
 touch('pointerdown',10,300,300);touch('pointerdown',11,500,300);touch('pointerdown',12,600,300);touch('pointerup',12,600,300);touch('pointercancel',10,300,300);touch('pointerup',11,500,300);assert.equal(game.state.roads.size,roads);
 // Native mice emit mousedown/up for chord changes, not a second pointerdown.
-game.resetCameraAngle();b=baseline();send('pointerdown',{buttons:1});send('mousedown',{buttons:1});send('mousedown',{button:2,buttons:3});send('pointermove',{clientX:440,clientY:320,buttons:3});near(game.cam.angle,b.angle-.24,'left+right chord orbits');near(game.cam.elevation,b.elevation+.08,'chord tilts');near(game.cam.z,b.z,'mouse rotation never changes scale');
+game.resetCameraAngle();b=baseline();send('pointerdown',{buttons:1});send('mousedown',{buttons:1});send('mousedown',{button:2,buttons:3});send('pointermove',{clientX:440,clientY:320,buttons:3});near(game.cam.angle,b.angle+.24,'left+right chord orbits');near(game.cam.elevation,b.elevation+.08,'chord tilts');near(game.cam.z,b.z,'mouse rotation never changes scale');
 send('mouseup',{button:0,buttons:2});const held=baseline();send('pointermove',{clientX:500,buttons:2});near(game.cam.angle,held.angle,'one released mouse button ends rotation');send('pointerup',{button:2,buttons:0});send('mouseup',{button:2,buttons:0});send('contextmenu');assert.match(get('hint').textContent,/ลากจากถนนเดิม/,'chord context menu cannot cancel selected construction tool');assert(!get('dialog').open);
-b=baseline();send('pointerdown',{button:2,buttons:2});send('mousedown',{button:2,buttons:2});send('contextmenu');send('mousedown',{button:0,buttons:3});send('pointermove',{clientX:420,clientY:310,buttons:3});near(game.cam.angle,b.angle-.12,'right-first chord also works');send('mouseup',{button:2,buttons:1});send('pointerup',{button:0,buttons:0});send('mouseup',{button:0,buttons:0});assert.match(get('hint').textContent,/ลากจากถนนเดิม/);
+b=baseline();send('pointerdown',{button:2,buttons:2});send('mousedown',{button:2,buttons:2});send('contextmenu');send('mousedown',{button:0,buttons:3});send('pointermove',{clientX:420,clientY:310,buttons:3});near(game.cam.angle,b.angle+.12,'right-first chord also works');send('mouseup',{button:2,buttons:1});send('pointerup',{button:0,buttons:0});send('mouseup',{button:0,buttons:0});assert.match(get('hint').textContent,/ลากจากถนนเดิม/);
 send('pointerdown',{button:2,buttons:2});send('pointerup',{button:2,buttons:0});assert.match(get('hint').textContent,/ลากแผนที่เพื่อเลื่อน/,'right-only click still cancels on release');
 const x=game.cam.x;send('pointerdown',{buttons:1});send('pointermove',{clientX:450,buttons:1});send('pointerup');assert(game.cam.x!==x,'ordinary left drag still pans');
 // Safe tilt and zoom bounds; a zero-length pinch never produces NaN.
 touch('pointerdown',10,300,300);touch('pointerdown',11,500,300);touch('pointermove',10,300,10000);touch('pointermove',11,500,10000);assert(game.cam.elevation<=Math.PI*78/180);release();
+game.resetCameraAngle();for(let i=0;i<150;i++)game.nudgeCamera('down');assert(game.cam.elevation>=Math.PI*35/180-1e-9,'minimum tilt prevents severely flattened ground');game.resetCameraAngle();
 touch('pointerdown',10,300,300);touch('pointerdown',11,300,300);touch('pointermove',11,300,300);assert(Number.isFinite(game.cam.z)&&game.cam.z>=.22);release();
 assert.equal(game.state.roads.size,roads);assert.equal(game.state.money,money);assert(updates>10);assert.equal([...timers.values()].filter(t=>t.delay===320).length,0,'gestures never schedule construction taps');
 console.log('PASS: continuous touch twist/drag/zoom, mouse chord in either order, safe release/cancel, no accidental construction, right-click cancel, normal pan, bounded tilt and finite zoom');
@@ -44,5 +57,11 @@ console.log('PASS: continuous touch twist/drag/zoom, mouse chord in either order
  const center=new THREE.Vector3(cam.x,0,cam.y).project(r.camera);assert(Math.hypot(center.x,center.y)<1e-8,'orbit keeps the city focus centered');
  r.updateCamera({...cam,elevation:1});near(r.camera.top-r.camera.bottom,beforeHeight,'pitch preserves projection scale');assert(r.camera.position.y>before.y,'tilt changes actual 3D camera height');
  near(r.camera.position.distanceTo(new THREE.Vector3(cam.x,0,cam.y)),before.distanceTo(new THREE.Vector3(cam.x,0,cam.y)),'camera orbits at fixed radius');
- console.log('PASS: real Three.js camera positions, continuous small-angle orbit, centered focus and physical height change');
+ r.updateCamera({...cam,elevation:Math.PI*22/180,angle:0});
+ const groundCenter=new THREE.Vector3(cam.x,0,cam.y).project(r.camera),alongRoad=new THREE.Vector3(cam.x,0,cam.y+1).project(r.camera),acrossRoad=new THREE.Vector3(cam.x+1,0,cam.y).project(r.camera);
+ const depth=Math.abs(alongRoad.y-groundCenter.y)*r.h/2,width=Math.abs(acrossRoad.x-groundCenter.x)*r.w/2;
+ assert(depth/width>.57,'at minimum tilt, road depth stays readable');
+ const legacyCam={...cam,elevation:Math.PI*22/180};r.updateCamera(legacyCam);
+ near(legacyCam.elevation,Math.PI*35/180,'legacy saved tilt normalized');
+ console.log('PASS: real Three.js orbit, fixed projection scale, safe ground proportions');
 })().catch(e=>{console.error(e);process.exitCode=1;});

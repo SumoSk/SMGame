@@ -68,6 +68,8 @@ jobs:
       - run: npm ci
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
+      - run: node -r ./work/test-dom-compat.cjs work/test-camera-orbit.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-camera-joystick.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-new-building-program.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-pub-small-model.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-architecture-collection.cjs
