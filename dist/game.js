@@ -5002,7 +5002,7 @@ function nudgeCamera(direction,amount=1){
  if(direction==='left'||direction==='right'){
   cam.angle=(angle+(direction==='left'?-1:1)*Math.PI/12*amount)%(Math.PI*2);
  }else if(direction==='up'||direction==='down'){
-  cam.elevation=Math.max(Math.PI*22/180,Math.min(Math.PI*78/180,elevation+(direction==='up'?1:-1)*Math.PI/24*amount));
+  cam.elevation=Math.max(Math.PI*35/180,Math.min(Math.PI*78/180,elevation+(direction==='up'?1:-1)*Math.PI/24*amount));
  }else return;
  renderer3d.updateCamera(cam);
 }
@@ -5136,7 +5136,7 @@ $('citizensDashboardBody').onclick=e=>{
 };$('pause').onclick=()=>{state.speed=state.speed?0:1;updateUI();};document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{state.speed=+b.dataset.speed;updateUI();});$('closeInspector').onclick=()=>{selected=null;$('inspector').classList.add('hidden');follow=null;};document.querySelectorAll('[data-inspect]').forEach(b=>b.onclick=()=>{selected={kind:b.dataset.inspect};renderInspector();});
 let pointers=new Map(),pinch=null,pendingTap=null,lastTap=null;
 let mouseOrbit=null,mouseChordHeld=false,mouseRightPending=false;
-const clampCameraElevation=value=>Math.max(Math.PI*22/180,Math.min(Math.PI*78/180,value));
+const clampCameraElevation=value=>Math.max(Math.PI*35/180,Math.min(Math.PI*78/180,value));
 function beginMouseOrbit(event){
  if(!renderer3d)return false;
  event.preventDefault?.();clearPendingTap();drag=null;hover=null;follow=null;mouseRightPending=false;
@@ -5147,7 +5147,7 @@ function beginMouseOrbit(event){
 }
 function moveMouseOrbit(event){
  const dx=event.clientX-mouseOrbit.x,dy=event.clientY-mouseOrbit.y;
- cam.angle=(cam.angle??cameraDefaultAngle)-dx*.006;
+ cam.angle=(cam.angle??cameraDefaultAngle)+dx*.006;
  cam.elevation=clampCameraElevation((cam.elevation??cameraDefaultElevation)+dy*.004);
  mouseOrbit={x:event.clientX,y:event.clientY};renderer3d.updateCamera(cam);
 }
@@ -5169,12 +5169,24 @@ function moveTouchOrbit(){
  const twist=Math.atan2(Math.sin(rotation),Math.cos(rotation));
  // Once orbiting, hold magnification until both fingers release. Small spacing
  // changes during a twist/tilt must never stretch or pump the city's scale.
- if(renderer3d&&(parallel||Math.abs(twist)>.035))pinch.mode='orbit';
- else if(!pinch.mode&&Math.abs(distance-pinch.distance)>6)pinch.mode='zoom';
+ if(renderer3d&&(parallel||Math.abs(twist)>.035)){
+  if(pinch.mode==='zoom'){
+   // Preserve the current zoom and yaw when fingers switch from zoom to orbit.
+   // Rebase the start positions so the first orbit frame cannot jump.
+   pinch.a={...a};pinch.b={...b};
+   pinch.rotation=Math.atan2(b.y-a.y,b.x-a.x);
+   pinch.x=(a.x+b.x)/2;pinch.y=(a.y+b.y)/2;
+   pinch.angle=cam.angle??cameraDefaultAngle;
+   pinch.elevation=cam.elevation??cameraDefaultElevation;
+   pinch.z=cam.z;pinch.mode='orbit';
+   return;
+  }
+  if(!pinch.mode){pinch.z=cam.z;pinch.mode='orbit';}
+ }else if(!pinch.mode&&Math.abs(distance-pinch.distance)>6)pinch.mode='zoom';
  if(pinch.mode==='orbit'){
   cam.z=pinch.z;
   if(renderer3d){
-   cam.angle=pinch.angle-twist-(parallel?((a.x+b.x)/2-pinch.x)*.006:0);
+   cam.angle=pinch.angle-twist+(parallel?((a.x+b.x)/2-pinch.x)*.006:0);
    cam.elevation=clampCameraElevation(pinch.elevation+(parallel?((a.y+b.y)/2-pinch.y)*.004:0));
   }
  }else if(pinch.mode==='zoom')cam.z=Math.max(.22,Math.min(5.2,pinch.z*distance/pinch.distance));
