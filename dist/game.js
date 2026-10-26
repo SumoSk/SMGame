@@ -869,7 +869,18 @@ function startNewCity(city='phuket'){
   home.residents.add(c.id);home.parked.add(c.id);assignJob(c);
  }
  for(const c of state.citizens.values()){scheduleDay(c,0);scheduleDay(c,1);}
+ // Three actual T-junctions showcase adaptive AI. The primary T joins the
+ // eight-lane highway to the four-lane village collector at (164,150).
+ for(const node of [id(164,150),id(164,130),id(164,136)])
+  if(!installAISignal(node))throw Error('Starter AI junction is incomplete: '+node);
+ // One complimentary example of each of the four purchasable car classes.
+ // Trait 0 = diligent, 1 = chill, 2 = partygoer, 3 = wealthy.
+ for(const [trait,tech] of [[0,'speed'],[1,'smart'],[2,'fly'],[3,'warp']])
+  state.vehicleTechLevels[trait][tech]=1;
  syncParkingSlots();syncCitizenVehicleTech();
+ for(const [trait,tech] of [[0,'speed'],[1,'smart'],[2,'fly'],[3,'warp']])
+  if(vehicleTechCounts(trait).counts[tech]!==1)
+   throw Error('Starter vehicle showcase is incomplete: '+tech);
  // Roads and buildings are an included starting package, not a hidden charge.
  state.money=500000;state.missionStats=newMissionStats();state.lastImmigration=state.time;state.lastPass=state.time;
  // Keep the original zoom, angle and elevation. Pan halfway between the village
@@ -880,7 +891,7 @@ function startNewCity(city='phuket'){
  if(renderer3d)renderer3d.updateCamera(cam);
  const anchor=world(innerWidth*.5,innerHeight*(innerWidth<700?.29:.34));
  cam.x+=169.5-anchor[0];cam.y+=cameraFocusY-anchor[1];
- news=[];addNews('หมู่บ้านเริ่มต้นพร้อมแล้ว · ชาวเมือง 18 คน · เงินเริ่มต้น 500,000 บาท');
+ news=[];addNews('หมู่บ้านโชว์ของพร้อมแล้ว · 3 แยก AI · รถพิเศษ 4 ประเภท · ชาวเมือง 18 คน');
  updateUI();renderTools();return state;
 }
 function link(a,b){if(a===b)return;state.roads.get(a)?.links.add(b);state.roads.get(b)?.links.add(a);}
@@ -1187,6 +1198,17 @@ function restoreRecommendedSignals(){
  return count;
 }
 
+// Shared AI initialization, used for purchases and the starter showcase.
+function installAISignal(i){
+ if(!state.roads.has(i)||junction(i)<3)return false;
+ state.signals.set(i,{
+  ...signalSettings(i),mode:'smart',phaseModel:'approach',holdUntil:0,
+  smartPhase:'clear',smartSlot:-1,smartUntil:state.time+SIGNAL_CLEAR_MINUTES,
+  smartSince:state.time,smartLast:signalSlots(i).map(()=>state.time-12)
+ });
+ nextAISignalPoll=-Infinity;
+ return true;
+}
 function buyAISignal(i){
  if(!state.roads.has(i)||junction(i)<3){toast('ตำแหน่งนี้ไม่มีไฟแดงที่อัปเกรดได้ค่ะ');return false;}
  if(signalSettings(i).mode==='smart'){toast('ทางแยกนี้ติดตั้ง AI แล้วค่ะ');return false;}
@@ -1194,12 +1216,8 @@ function buyAISignal(i){
  // One irreversible purchase for this junction; road demolition never refunds it.
  state.money-=AI_SIGNAL_PRICE;
  missionMoney('aiSignalInvestment',AI_SIGNAL_PRICE);
- state.signals.set(i,{
-  ...signalSettings(i),mode:'smart',phaseModel:'approach',holdUntil:0,
-  smartPhase:'clear',smartSlot:-1,smartUntil:state.time+SIGNAL_CLEAR_MINUTES,
-  smartSince:state.time,smartLast:signalSlots(i).map(()=>state.time-12)
- });
- nextAISignalPoll=-Infinity;updateUI();renderInspector(true);
+ installAISignal(i);
+ updateUI();renderInspector(true);
  toast('ติดตั้ง AI ที่ทางแยกนี้แล้ว −฿1,000,000');
  return true;
 }
