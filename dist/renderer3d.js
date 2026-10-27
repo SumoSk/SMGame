@@ -2258,9 +2258,10 @@ export class TrafficRenderer{
    return;
   }
 
-  // BLUE RESTAURANT COLLECTION: a neighbourhood bistro, a family restaurant,
-  // and a two-storey dining house. Roofs, real place settings and a welcoming
-  // menu/host entrance replace the former exposed counter-and-stool layout.
+  // BLUE RESTAURANTS v2: slender pavilions rather than a continuous blue box.
+  // Ground-floor kitchen and open dining have separate rooflines. Only the
+  // largest tier has a smaller rooftop dining terrace. Purely visual changes:
+  // plot, parking, jobs, services, access gates and traffic remain untouched.
   if(t.kind==='restaurant'){
    const level=t.modelTier||1,W=t.plotWidth,H=t.plotHeight,P=t.parkingZoneDepth;
    const L=1.06,R=W-1.06,cx=W/2,rear=P+.34,front=H-.88,D=front-rear,mid=(rear+front)/2;
@@ -2351,35 +2352,64 @@ export class TrafficRenderer{
     }
     block('#335e89',x,eave+rise+.06,z,.12,.10,d+.09,'metal');
    };
-   const roomFront=level===3?front-.58:front-.72,roomRear=rear+.12;
-   const eave=level===3?4.57:level===2?2.64:2.35;
-   const kitchenW=level===1?1.36:level===2?1.80:2.05,kx=L+kitchenW/2,kz=rear+.75;
-   // Connected terrace, tiled entrance and the actual restaurant foundation.
-   floor(cx,.15,mid,R-L+.16,D+.20,'#c8beac');
-   floor(cx,.25,mid,R-L-.10,D+.08,ivory);
-   floor(cx,.12,front+.14,R-L,.28,'#d3c4ac');
-   for(let i=0;i<5;i++)block(i%2?sky:ivory,cx-.40+i*.20,.31,front+.14,.15,.015,.19,'stone');
-   // Closed rear and short side walls give the venue a proper dining-house
-   // silhouette. Front arches and low windows leave the place settings visible.
-   for(const side of[-1,1]){
-    const x=side<0?L:R;
-    block(blue,x,1.25,mid,.13,1.90,D-.10,'wood');
-    block(ivory,x+side*.075,.59,mid,.027,.15,D-.13,'wood');
-    for(let k=0;k<(level===3?4:2);k++){
-     const z=rear+.55+k*(D-1.0)/(level===3?3:1);
-     block('#7da6b7',x+side*.080,1.39,z,.035,.85,.55,'glass');
-     block(ivory,x+side*.104,1.39,z,.022,.87,.023,'wood');
-     block('#d5e5de',x+side*.105,1.60,z,.020,.025,.49,'glass');
+   // A light lattice over open-air seats. The slats create real gaps in the
+   // roof and allow the dining area to stay visibly open on all four sides.
+   const pergola=(x,z,w,d,y)=>{
+    if(w<=.42||d<=.35)return;
+    const edge='#d7e3df',slat='#567f99';
+    for(const side of[-1,1]){
+     const xx=x+side*(w*.5-.055);
+     for(const zz of[z-d*.5+.10,z+d*.5-.10])
+      block(edge,xx,y*.52+.09,zz,.075,y-.18,.085,'metal');
+     block('#c8d6d8',xx,y,z,.115,.085,d+.04,'metal');
     }
-    block(ivory,x,eave-.06,mid,.16,.14,D-.09,'wood');
+    for(let k=0;k<7;k++){
+     const zz=z-d*.45+k*d*.90/6;
+     block(k%2?slat:edge,x,y+.045,zz,w-.15,.050,.105,'metal');
+    }
+    for(const xx of[x-w*.27,x+w*.27])
+     block('#ffe2af',xx,y-.055,z,.035,.033,d*.73,'glass',true);
+   };
+   const roomFront=level===3?front-.58:front-.72,roomRear=rear+.12;
+   // Keep the skyline close to street level; no full-height dining cube.
+   const eave=level===3?3.90:level===2?2.32:2.18;
+   const kitchenW=level===1?1.36:level===2?1.80:2.05,kx=L+kitchenW/2,kz=rear+.75;
+   // Split-stone courtyard and slim raised decking. No tall central block.
+   floor(cx,.14,mid,R-L+.16,D+.20,'#a8b6b5');
+   floor(cx,.205,mid,R-L-.16,D+.04,'#dedbd0');
+   floor(cx,.115,front+.13,R-L-.12,.24,'#adbfc1');
+   for(let i=0;i<5;i++)block(i%2?sky:ivory,cx-.40+i*.20,.265,front+.13,.15,.014,.15,'stone');
+
+   // Only the REAR-LEFT cooking bay is enclosed: a low warm-stone service
+   // volume with skylight glazing. The rest of the restaurant stays open.
+   const cookRear=rear+.14,cookFront=Math.min(front-.48,rear+1.77);
+   block('#e0e4de',kx,.76,cookRear,kitchenW+.14,1.09,.10,'stone');
+   for(const xx of[L+.08,L+kitchenW-.08]){
+    block('#e6e7dd',xx,.76,(cookRear+cookFront)/2,.085,1.09,cookFront-cookRear,'stone');
+    block('#83b6c2',xx,1.60,(cookRear+cookFront)/2,.048,.54,cookFront-cookRear,'glass');
    }
-   block(blue,cx,1.26,roomRear,R-L,1.93,.12,'wood');
-   block(ivory,cx,.54,roomRear-.075,R-L,.20,.035,'wood');
-   for(let k=0;k<(level===1?3:5);k++){
-    const x=L+.45+k*(R-L-.90)/(level===1?2:4);
-    block('#81a9b8',x,1.40,roomRear-.075,.60,.70,.028,'glass');
-    block(ivory,x,1.40,roomRear-.10,.023,.76,.025,'wood');
-    block(ivory,x,1.77,roomRear-.09,.67,.06,.05,'wood');
+   block('#5a899f',kx,1.62,cookRear,kitchenW+.15,.045,.11,'metal');
+   // A framed, see-through food collection counter replaces the old rear
+   // solid wall and connects kitchen service directly to the patio.
+   block(oak,kx,.71,cookFront+.03,kitchenW+.11,.20,.24,'wood');
+   block('#8caeb5',kx,1.18,cookFront+.08,kitchenW+.08,.56,.035,'glass');
+   block(ivory,kx,1.55,cookFront+.10,kitchenW+.12,.075,.09,'metal');
+
+   // Side elevations are narrow structural posts and short glass balustrades,
+   // with long clear openings between them rather than opaque blue walls.
+   for(const xx of[L+.10,R-.10]){
+    for(const zz of[rear+.22,mid,front-.16])
+     post(xx,zz,1.78,.22);
+    for(const zz of[(rear+mid)*.5,(mid+front)*.5]){
+     block('#88bac3',xx,.69,zz,.055,.72,Math.max(.32,(front-rear)*.38),'glass');
+     block(ivory,xx,1.07,zz,.065,.045,Math.max(.32,(front-rear)*.38),'wood');
+    }
+   }
+   // Warm trim, flowerbeds and visible table tops keep the building readable
+   // from both low and overhead camera angles.
+   for(const xx of[L+.20,R-.20]){
+    flower(xx,rear+.32,.20,.25);
+    flower(xx,front-.19,.20,.25);
    }
    // Stainless show kitchen: range, pots, hood, prep bench, sink and plated
    // meals at a serving pass. It is a kitchen with no surrounding stool row.
@@ -2431,7 +2461,7 @@ export class TrafficRenderer{
    arch(entryX,roomFront,.28,.93,1.85);
    // A blue/ivory striped awning shades the dining porch; low valance and
    // concealed warm light are attached to the facade and entrance posts.
-   const awningY=level===1?2.13:2.32,awningZ=roomFront+.28,awningW=R-L-.05;
+   const awningY=level===1?2.05:2.18,awningZ=roomFront+.28,awningW=(R-L)*.64;
    block(blue,cx,awningY,awningZ,awningW,.08,.65,'wood');
    const stripes=Math.ceil(awningW/.25);
    for(let i=0;i<stripes;i++){
@@ -2442,36 +2472,46 @@ export class TrafficRenderer{
    block('#ffe1a7',cx,awningY-.06,awningZ,awningW*.92,.018,.025,'glass',true);
    for(const x of[L+.10,R-.10]){post(x,front+.08,awningY-.25);flower(x,front+.13,.25,.30);}
 
+   // Three visibly different silhouettes, keeping all genuine dining tables.
+   // Each tier's blue pitched roof shelters the KITCHEN ONLY; the dining room
+   // is a low, open pergola rather than one deep rectangular roof.
+   roof(kx,rear+.88,kitchenW+.43,1.67,level===3?3.56:eave,level===1?.45:.48);
+   const pergolaLeft=L+kitchenW+.25,pergolaRight=R-.10;
+   const pWidth=pergolaRight-pergolaLeft,pCenter=(pergolaLeft+pergolaRight)/2;
    if(level===3){
-    const upper=2.47,upperRear=rear+.16,upperFront=front-.50,upperMid=(upperRear+upperFront)/2;
-    floor(cx,upper,upperMid,R-L-.15,upperFront-upperRear,'#dfd8c9');
-    for(const x of[L+.10,cx,R-.10])for(const z of[upperRear+.10,upperFront-.10])post(x,z,upper-.30);
-    // Two glazed upper dining rooms share a formal balcony. No tall counter
-    // or bottle display competes with the dining setting.
-    block(blue,cx,upper+1.08,upperRear,R-L-.15,1.98,.12,'wood');
-    for(const x of[L+.10,R-.10]){
-     block(blue,x,upper+1.03,upperMid,.13,1.90,upperFront-upperRear,'wood');
-     for(let k=0;k<3;k++)block('#8eafbd',x+(x<cx?-.08:.08),upper+1.12,upperRear+.65+k*1.24,.025,.80,.69,'glass');
+    const upper=2.47,upperRear=rear+.16,upperFront=front-.48;
+    const upperD=upperFront-upperRear,upperMid=(upperRear+upperFront)/2;
+    // Rooftop dining is a SLIM FLOATING DECK on visible columns, not a
+    // second solid restaurant floor with a huge enclosing upper box.
+    floor(cx,upper,upperMid,R-L-.18,upperD,'#b9cbd0');
+    for(const xx of[L+.13,cx,R-.13])
+     for(const zz of[upperRear+.12,upperFront-.12])
+      block('#cfdad9',xx,(upper+.20)*.5,zz,.09,upper-.20,.095,'metal');
+    rail(cx,upper+.07,upperFront+.02,R-L-.30);
+    for(const xx of[L+.15,R-.15]){
+     block('#91bac5',xx,upper+.48,upperMid,.048,.73,upperD-.08,'glass');
+     block(ivory,xx,upper+.87,upperMid,.060,.047,upperD-.08,'metal');
     }
-    for(const x of[4.33,7.20])for(const z of[rear+1.35,front-1.00])table(x,z,upper+.07,.90);
-    rail(cx,upper+.07,upperFront+.03,R-L-.23);
-    for(const x of[L+.18,cx,R-.18])post(x,upperFront-.58,2.02,upper+.06);
-    for(const x of[cx-1.65,cx+1.65]){arch(x,upperFront-.58,upper+.63,1.28,1.18);pendant(x,upperFront-1.14,upper+1.81);}
-    // A supported twelve-step staircase connects the two real dining floors.
+    for(const xx of[4.33,7.20])for(const zz of[rear+1.35,front-1.00])
+     table(xx,zz,upper+.07,.90);
+    // Compact glazed sky lounge at one end, open terrace and pergola beside.
+    block('#e0e7e3',kx,upper+.66,upperRear+.08,kitchenW+.08,.84,.08,'stone');
+    block('#8dbac5',kx,upper+1.24,upperRear+.07,kitchenW+.04,.32,.055,'glass');
+    pergola(pCenter,upperMid,pWidth-.20,Math.min(upperD-.30,3.60),3.61);
+    // Clear stair access keeps the elevated dining area visually plausible.
     for(let i=0;i<12;i++){
-     const q=i/11,z=front-.75-q*2.78,y=.31+q*(upper-.31);
-     block(i%2?ivory:'#cfc7b8',L+.66,y,z,.72,.13,.26,'stone');
-     block(blue,L+.22,y+.22,z,.033,.43,.20,'wood');
+     const q=i/11,zz=front-.75-q*2.78,y=.31+q*(upper-.31);
+     block(i%2?ivory:'#cfc7b8',L+.66,y,zz,.72,.13,.26,'stone');
+     block(blue,L+.22,y+.22,zz,.033,.43,.20,'wood');
     }
-    // Blue upper dining roof, balcony awnings and warm chandeliers.
-    roof(cx,rear+1.62,R-L+.12,3.12,eave,.56);
-    for(const x of[4.33,7.20])pendant(x,rear+1.35,eave-.36);
-    trim(cx,upper+.08,upperFront-.02,R-L-.16,.16,royal);
-    block(blue,cx,upper+1.88,upperFront-.58,R-L-.14,.25,.15,'wood');
-    for(const x of[L+.38,R-.38])flower(x,upperFront-.16,upper+.07,.35);
+    for(const xx of[L+.38,R-.38])flower(xx,upperFront-.15,upper+.07,.32);
+    pendant(4.33,upperMid,3.28);
+    pendant(7.20,upperMid,3.28);
    }else{
-    roof(cx,rear+.98,R-L+.13,2.05,eave,level===1?.54:.63);
-    for(const x of[level===1?4.35:4.5,level===1?5.12:7.55])pendant(x,rear+.92,eave-.25);
+    // Small bistro uses one airy canopy, medium gets a wider garden terrace.
+    pergola(pCenter,mid,pWidth-.12,D-.38,level===1?2.15:2.27);
+    for(const xx of[level===1?3.50:4.1,level===1?5.10:7.5])
+     pendant(xx,mid,level===1?2.03:2.16);
    }
    for(const x of[L+.10,R-.10]){
     block(navy,x,1.57,front+.08,.17,.30,.18,'metal');
@@ -2481,7 +2521,7 @@ export class TrafficRenderer{
    }
    // A clear restaurant identity at both the street entrance and the kitchen
    // edge: raised cream letters are visible in daytime, warm light at night.
-   sign(level===1?'BLUE BISTRO':level===2?'BLUE RESTAURANT':'BLUE DINING',cx,level===3?4.25:awningY+.08,level===3?front-1.00:roomFront+.66,level===1?2.83:3.80,.35);
+   sign(level===1?'BLUE BISTRO':level===2?'BLUE RESTAURANT':'BLUE DINING',cx,level===3?3.66:awningY+.08,level===3?front-1.00:roomFront+.66,level===1?2.83:3.40,.35);
    // Menu easel, host desk and a three-dimensional fork-and-spoon emblem.
    const mx=entryX+(level===1?.59:.72),mz=front+.06;
    block(oak,mx,.54,mz,.29,.64,.075,'wood');
@@ -2497,9 +2537,10 @@ export class TrafficRenderer{
     else pole(gold,x,1.94,roomFront+.09,.065,.13,'metal');
    }
    for(const x of[L+.18,R-.18]){flower(x,rear+.27,.25,.28);flower(x,front-.13,.25,.28);}
-   // Rooftop exhaust and duct belong to the kitchen, kept below the roof ridge.
-   block('#889b9e',kx,eave+.04,rear+.54,.21,.22,.24,'metal');
-   block('#cad3ce',kx,eave+.17,rear+.54,.31,.055,.30,'metal');
+   // Exhaust belongs above the low cooking pavilion, not the dining pergola.
+   const hoodHeight=level===3?3.56:eave;
+   block('#889b9e',kx,hoodHeight+.04,rear+.54,.21,.22,.24,'metal');
+   block('#cad3ce',kx,hoodHeight+.17,rear+.54,.31,.055,.30,'metal');
    return;
   }
 
