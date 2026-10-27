@@ -4361,15 +4361,15 @@ export class TrafficRenderer{
     const trees=level===1?[
       [courtLeft,parkStart+parkDepth*.78,'cherry',1.32],
       [courtRight,parkStart+parkDepth*.78,'pine',1.36],
-      [courtLeft,parkStart+parkDepth*.18,'palm',1.28],
-      [courtRight,parkStart+parkDepth*.18,'shade',1.30]
+      [courtLeft,parkStart+parkDepth*.34,'palm',1.28],
+      [courtRight,parkStart+parkDepth*.34,'shade',1.30]
     ]:level===2?[
       [courtLeft,parkStart+parkDepth*.82,'cherry',1.50],
       [courtRight,parkStart+parkDepth*.82,'pine',1.53],
       [courtLeft,parkStart+parkDepth*.49,'palm',1.43],
       [courtRight,parkStart+parkDepth*.49,'jacaranda',1.48],
-      [courtLeft,parkStart+parkDepth*.15,'shade',1.41],
-      [courtRight,parkStart+parkDepth*.15,'flower',1.39]
+      [courtLeft,parkStart+parkDepth*.34,'shade',1.41],
+      [courtRight,parkStart+parkDepth*.34,'flower',1.39]
     ]:[
       [courtLeft,parkStart+parkDepth*.86,'cherry',1.58],
       [courtRight,parkStart+parkDepth*.86,'cedar',1.60],
@@ -4377,8 +4377,8 @@ export class TrafficRenderer{
       [courtRight,parkStart+parkDepth*.65,'jacaranda',1.55],
       [courtLeft,parkStart+parkDepth*.42,'flower',1.53],
       [courtRight,parkStart+parkDepth*.42,'pine',1.57],
-      [courtLeft,parkStart+parkDepth*.20,'shade',1.53],
-      [courtRight,parkStart+parkDepth*.20,'cherry',1.55]
+      [courtLeft,parkStart+parkDepth*.35,'shade',1.53],
+      [courtRight,parkStart+parkDepth*.35,'cherry',1.55]
     ];
     for(const [x,z,kind,scale] of trees){
       // Local-space symmetric crowns keep all four plot rotations identical.
