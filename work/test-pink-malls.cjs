@@ -67,6 +67,14 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    assert(items.filter(i=>i.finish==='glass'&&!i.glow).length>=14,
     'transparent storefronts and atrium required');
    assert(items.filter(i=>i.glow).length>=10,'architectural warm lighting required');
+   // Lighting is tagged for quality switches rather than bright unlit glass:
+   // anchored architectural accents survive Low, luxury extras can vanish.
+   const lights=items.filter(i=>i.finish.startsWith('mall-night-'));
+   assert(lights.filter(i=>i.finish==='mall-night-essential').length>=16,
+    key+' main roof/atrium/glass-frame lighting is missing');
+   assert(lights.filter(i=>i.finish==='mall-night-detail').length>=8,
+    key+' lacks premium night accent detail');
+   assert(lights.every(i=>i.glow),key+' decorative LED meshes must emit light');
    assert(items.some(i=>i.color==='#9bbac0'&&Math.abs(i.rz)>.05),
     'faceted curved skylight missing');
    assert(items.some(i=>i.color==='#77b7c6')||items.some(i=>i.color==='#87bac5'),
@@ -86,20 +94,47 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  const large=g.CATALOG.mall_large;
  const b=new Batch();renderer.building(b,{key:'mall_large',id:92,x:40,y:50,rotation:0,
   parked:new Set(),parkingSlots:Array(large.parkingCapacity).fill(null)},g.CATALOG,{});
- const lowItems=[...b.data.values()].flatMap(v=>v.items);
+ const lowGroups=[...b.data.values()],lowItems=lowGroups.flatMap(v=>v.items);
+ const lowEssential=lowGroups.filter(v=>v.finish==='mall-night-essential')
+   .reduce((n,v)=>n+v.items.length,0);
+ const lowDetail=lowGroups.filter(v=>v.finish==='mall-night-detail')
+   .reduce((n,v)=>n+v.items.length,0);
  assert(lowItems.length<=results[2].instances,'low mode should not use more instances');
+ assert(lowEssential>=16,'low-quality mall must preserve hero lights');
+ assert(lowDetail<results[2].glow,'low-quality mall must omit accent LEDs');
+ // Changing the graphics preset at runtime must hide expensive luxury
+ // light groups without switching off essentials or requiring a rebuild.
+ renderer.graphicQuality='veryHigh';
+ const toggleBatch=new Batch({detailGroups:true});
+ renderer.building(toggleBatch,{key:'mall_large',id:94,x:40,y:50,rotation:0,
+  parked:new Set(),parkingSlots:Array(large.parkingCapacity).fill(null)},g.CATALOG,{});
+ renderer.buildingGroup=new THREE.Group();
+ renderer.buildingGroup.add(toggleBatch.build());
+ renderer.graphicQuality='low';renderer.lastGlow=1;renderer.lastBuildingDetailLevel=null;
+ renderer.updateBuildingDetailLOD({z:2});
+ const mallMeshes=[];
+ renderer.buildingGroup.traverse(mesh=>{if(mesh.userData.mallNightTier)mallMeshes.push(mesh);});
+ assert(mallMeshes.some(m=>m.userData.mallNightTier==='essential'&&m.visible),
+  'Low must show essential shopping-mall night lights');
+ assert(mallMeshes.some(m=>m.userData.mallNightTier==='detail'&&!m.visible),
+  'Low must suppress premium mall accent LEDs');
+ renderer.graphicQuality='veryHigh';renderer.lastBuildingDetailLevel=null;
+ renderer.updateBuildingDetailLOD({z:2});
+ assert(mallMeshes.every(m=>m.visible),'High must restore all mall nighttime LED tiers');
  renderer.graphicQuality=undefined;
  // Starter one-floor variant has three recognizable airy pavilions.
  const starter=g.CATALOG.mall_starter,starterBatch=new Batch();
  renderer.building(starterBatch,{key:'mall_starter',id:93,x:40,y:50,rotation:0,
   parked:new Set(),parkingSlots:Array(starter.parkingCapacity).fill(null)},g.CATALOG,{});
- const starterItems=[...starterBatch.data.values()].flatMap(v=>v.items.map(i=>({...i,color:v.color,finish:v.finish})));
+ const starterItems=[...starterBatch.data.values()].flatMap(v=>v.items.map(i=>({...i,color:v.color,finish:v.finish,glow:v.glow})));
  assert(starterItems.some(i=>i.color==='#76afbe'),'starter curved glass lobby missing');
  assert(starterItems.some(i=>i.color==='#dee8e4'),'starter floating silver roof missing');
  assert(!starterItems.some(i=>i.finish==='stone'&&i.sx>2&&i.sy>1),
   'starter must not be a box');
  assert(Math.max(...starterItems.map(i=>i.y+i.sy/2))<2.1,
   'starter is strictly single-floor');
+ assert(starterItems.filter(i=>i.finish==='mall-night-essential'&&i.glow).length>=7,
+  'starter glass pavilion must glow on Low without expensive spotlights');
  console.log(JSON.stringify({passed:true,malls:4,rotations:12,maxFloors:2,
   appleStyle:true,parkingPreserved:true,results}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
