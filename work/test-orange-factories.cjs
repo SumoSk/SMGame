@@ -73,6 +73,23 @@
      assert(local.filter(p=>p.color==='#f4ffff'&&p.glow).length===1,'central arc reactor white-hot core glows');
      assert.equal(local.filter(p=>p.color==='#d4fbff'||p.color==='#69e4f2').length,12,'all 12 visible outer arc reactor segments are present');
      assert.equal(local.filter(p=>p.color==='#e2fcff'||p.color==='#4acdea').length,12,'12 inner high-quality reactor ring segments');
+     // The complete emblem must be on the ROOF, not on the old front wall.
+     const eave=3.40,rise=.53,rooftop=eave+rise+.11+2*.91;
+     const cx=(.94+(t.plotWidth-2.27))*.5;
+     const cz=((t.parkingZoneDepth+.30+.095)+(t.plotHeight-.57-.13))*.5;
+     const outer=local.filter(p=>p.color==='#d4fbff'||p.color==='#69e4f2');
+     const inner=local.filter(p=>p.color==='#e2fcff'||p.color==='#4acdea');
+     assert([...outer,...inner].every(p=>p.y>rooftop+.32),
+      'all arc reactor logo ring lights must be at the top of circular control tower');
+     assert(outer.every(p=>Math.abs(Math.hypot(p.u-cx,p.v-cz)-.350)<.005),
+      'outer reactor circle must be centred on the rooftop');
+     assert(inner.every(p=>Math.abs(Math.hypot(p.u-cx,p.v-cz)-.221)<.005),
+      'inner reactor circle must be centred on the rooftop');
+     const white=local.filter(p=>p.color==='#f4ffff'&&p.glow);
+     assert(white[0].y>rooftop+.40&&Math.hypot(white[0].u-cx,white[0].v-cz)<.005,
+      'reactor logo white core must be at the very top rather than the facade');
+     assert([...outer,...inner].every(p=>Math.abs(p.rz)<1e-6),
+      'logo rings must lie horizontally on the rooftop, visible from overhead');
     }else{
      assert.equal(reactorBands.length,0,'only largest factory may have tall round office');
      assert.equal(roundFloorPanels.length,0,'no added office floor on smaller models');
