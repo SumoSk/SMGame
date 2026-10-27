@@ -25,5 +25,24 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
   }
   results.push({key,...base});
  }
- console.log(JSON.stringify({passed:true,models:3,rotations:12,cards:true,chips:true,parkingClear:true,results}));
+ // Low graphics must keep the distinct gaming halls with fewer decorative
+ // instanced emissive strips. No extra animations or costly dynamic lights.
+ const key='casino_large',t=g.CATALOG[key];
+ r.graphicQuality='low';
+ const lowBatch=new Batch();r.building(lowBatch,{key,id:100,x:20,y:20,rotation:0},g.CATALOG,g.KINDS);
+ const lowItems=[...lowBatch.data.values()].flatMap(x=>x.items.map(p=>({color:x.color,glow:x.glow,...p})));
+ assert(lowItems.length<results[2].instances,'Low mode must cut neon detailing');
+ assert(lowItems.filter(x=>x.glow).length>25,'Low mode must retain atmospheric visible neon');
+ assert(lowItems.some(x=>x.color==='#4a8096')&&lowItems.some(x=>x.color==='#43758e'),
+  'Low mode must preserve separated lobby and gaming arcade');
+ r.graphicQuality=undefined;
+ const starter=g.CATALOG.casino_starter,starterBatch=new Batch();
+ r.building(starterBatch,{key:'casino_starter',id:101,x:20,y:20,rotation:0},
+  g.CATALOG,g.KINDS);
+ const starters=[...starterBatch.data.values()].flatMap(x=>x.items.map(p=>({color:x.color,...p})));
+ assert(starters.some(x=>x.color==='#6d7ead')&&starters.some(x=>x.color==='#63c7ce'),
+  'starter casino should have distinct circular roulette and slot pavilions');
+ assert(!starters.some(x=>x.color==='#282c48'&&x.sx>2),
+  'starter casino must not contain its former solid box');
+  console.log(JSON.stringify({passed:true,models:3,rotations:12,cards:true,chips:true,parkingClear:true,results}));
 })().catch(e=>{console.error(e);process.exitCode=1});
