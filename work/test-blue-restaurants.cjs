@@ -32,6 +32,18 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    assert(items.filter(p=>p.color==='#242d35').length>=(size==='small'?4:6),'cooker range missing');
    assert(items.some(p=>p.color==='#8ca0a7'),'stainless preparation kitchen missing');
    assert(items.some(p=>p.color==='#123b72'&&Math.abs(p.rz)>.05),'blue pitched dining-house roof missing');
+   // Restaurant v2: the footprint is unchanged, while the enclosed block is
+   // limited to a compact kitchen and the rest remains an airy dining canopy.
+   const pitched=items.filter(p=>p.color==='#123b72'&&Math.abs(p.rz)>.05);
+   assert(Math.max(...pitched.map(p=>p.sx))<1.70,
+    'restaurant kitchen roof must be compact, not a full-width boxy roof');
+   assert.equal(items.filter(p=>p.color==='#123b72'&&p.sy>1.20&&p.sx>1.0).length,0,
+    'restaurant must not recreate tall solid blue side walls');
+   assert(items.filter(p=>p.color==='#567f99').length>=3,
+    'open-air dining canopy must have spaced blue slats');
+   assert(items.filter(p=>p.color==='#88bac3').length>=4,
+    'side elevations must use waist-height glass rather than solid walls');
+
    assert(items.filter(p=>p.color==='#f1ddaf'&&!p.glow).length>50,'daylight restaurant lettering absent');
    assert(items.filter(p=>p.glow).length>8,'warm dining lights missing');
    if(size==='large')assert.equal(dining.filter(p=>p.y>3).length,4,'four genuine upper-floor dining tables');
