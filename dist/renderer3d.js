@@ -2003,6 +2003,9 @@ export class TrafficRenderer{
     // a rounded central lobby and a single floating silver canopy, Apple-like
     // not a solid full-width retail cuboid. Existing 3x3 plot unaffected.
     const pale='#e4ebe8',metal='#bfcfd0',tint='#79b5c3',wood='#b6a17e';
+    const low=this.graphicQuality==='low';
+    const led=(c,x,y,z,w,h,d,grade='detail')=>
+     block(c,x,y,z,w,h,d,'mall-night-'+grade,true);
     block('#d2d6cd',1.50,.11,.63,2.67,.16,1.09,'stone');
     block('#e5e9e3',1.50,.20,.63,2.54,.04,.98,'stone');
     for(const [x,w,z] of [[.77,.79,.65],[2.23,.78,.52]]){
@@ -2018,6 +2021,20 @@ export class TrafficRenderer{
      block('#dee8e4',x,1.50,z,w+.15,.075,.95,'metal');
      block(metal,x,1.565,z,w+.17,.045,.97,'metal');
      block(wood,x,.33,z+.31,w*.67,.055,.22,'wood');
+     // The glass stays transparent-looking while warm light frames its
+     // edges and the inner display; no extra physical light source.
+     led('#ffe6b8',x,1.403,z+.36,w*.84,.021,.029,'essential');
+     led('#ffe0aa',x,.47,z+.395,w*.63,.028,.029,'essential');
+     if(!low){
+      led('#ccebf0',x,1.594,z+.32,w*.86,.017,.027);
+      for(const side of[-1,1])
+       led('#cdeef2',x+side*w*.44,.98,z+.403,.018,.65,.022);
+     }
+     block('#dfe4dc',x,.36,z-.04,w*.53,.060,.16,'stone');
+     for(const dx of[-w*.21,w*.21]){
+      block('#8aadae',x+dx,.60,z+.09,.13,.32,.11,'glass');
+      if(!low)led('#ffe7be',x+dx,.83,z+.105,.09,.017,.012);
+     }
     }
     const p=point(1.50,.59);
     batch.add(CYL_SMOOTH,'#76afbe',p.x-.5,.87,p.y-.5,.35,1.05,.35,0,turn,0,id,false,'glass');
@@ -2027,6 +2044,8 @@ export class TrafficRenderer{
      const xx=1.5+.34*Math.cos(a),zz=.59+.34*Math.sin(a);
      block(pale,xx,.91,zz,.027,1.10,.025,'metal');
      if(n%2===0)block('#ffe2b9',xx,.45,zz,.035,.11,.033,'glass',true);
+     led(n%2?'#c9ecf0':'#ffe1ad',xx,1.40,zz,.023,.078,.024,
+      n%2?'detail':'essential');
     }
     for(const xx of[.39,2.61]){
      planter(xx,1.13,.105);
@@ -2034,6 +2053,13 @@ export class TrafficRenderer{
     }
     block('#ccd7d3',1.50,.16,1.16,.58,.07,.18,'stone');
     badge('MALL',1.50,1.21,1.142,.72,'#536c76','#e9eee8');
+    // A bright but restrained entrance/landscape finish for Low graphics.
+    led('#ffe5b8',1.50,1.40,1.12,.63,.024,.033,'essential');
+    led('#ffe6b6',1.50,.30,1.18,.47,.022,.028,'essential');
+    for(const xx of[.37,2.63]){
+     led('#ffe4ab',xx,1.24,1.10,.105,.022,.034,'essential');
+     if(!low)led('#c4eaf1',xx,.46,1.115,.065,.020,.029);
+    }
     return;
    }
    if(t.kind==='office'){
