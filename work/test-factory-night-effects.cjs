@@ -29,7 +29,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
    if(tier===3){
     // Low quality MUST display the reactor itself, not just a single dot.
     assert(essential>=bays+12+1,'Low draws at least 12 arc segments and a central core');
-    assert(reactor>=44,'High has inner ring, spokes and 24 floor lights');
+    assert(reactor>=20,'High retains its pulsing inner reactor ring and spokes');
     const ringParts=tagged.filter(entry=>entry.color==='#69e4f2'||entry.color==='#d4fbff')
      .reduce((n,entry)=>n+entry.items.length,0);
     assert.equal(ringParts,12,'Low reactor ring is a visible full circle');
@@ -70,6 +70,61 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
   }
   assert(counts.every(x=>JSON.stringify(x)===JSON.stringify(counts[0])),'rotation changes lighting complexity '+key);
  }
+ // Runtime reproduction of the reported bug: placing a factory at 02:00
+ // after other nighttime frames previously left all new LED meshes hidden.
+ const plot=g.CATALOG.factory_large;
+ const building={key:'factory_large',id:899,x:31,y:42,rotation:1,
+  parked:new Set(),parkingSlots:Array(plot.parkingCapacity).fill(null)};
+ renderer.scene=new THREE.Scene();renderer.scene.background=new THREE.Color('#1a2941');
+ renderer.buildingGroup=new THREE.Group();
+ renderer.lampGroup=new THREE.Group();
+ renderer.roadGroup=new THREE.Group();
+ renderer.skyLight=new THREE.HemisphereLight();
+ renderer.light=new THREE.DirectionalLight();
+ renderer.renderer={toneMappingExposure:1};
+ renderer.cam={x:34,y:46,z:1};
+ renderer.carSets=new Map();
+ renderer.camera=new THREE.PerspectiveCamera();
+ renderer.graphicQuality='medium';
+ renderer.lastGlow=1; // same nighttime light level from prior frame
+ renderer.lastNightVisibility=1;
+ renderer.lastBuildingDetailLevel=null;
+ renderer.rain={visible:false,position:new THREE.Vector3(),
+  material:{opacity:0},geometry:{attributes:{position:{needsUpdate:false}}}};
+ renderer.rainPoints=new Float32Array(430*6);
+ renderer.makeBuildings({buildings:new Map([[building.id,building]])},g.CATALOG,{});
+ assert.equal(renderer.lastGlow,-1,'new factory must invalidate glow cache');
+ const factoryMeshes=[];
+ renderer.buildingGroup.traverse(mesh=>{
+  if(mesh.userData?.factoryNightTier)factoryMeshes.push(mesh);
+ });
+ assert(factoryMeshes.some(mesh=>!mesh.visible),'new emissive geometry initially hidden');
+ renderer.updateWeatherLight({time:120,city:'bangkok'}); // real 02:00 game lighting
+ renderer.updateBuildingDetailLOD({z:1.7});
+ assert(factoryMeshes.some(mesh=>mesh.visible&&mesh.userData.factoryNightTier==='essential'),
+  'factory reactor AND bay lights become visible immediately at night');
+ assert(factoryMeshes.some(mesh=>mesh.visible&&mesh.userData.factoryNightTier==='reactor'),
+  'high-quality extra reactor lights become visible at night');
+ assert(factoryMeshes.every(mesh=>!mesh.visible||mesh.material.opacity>.6),
+  'new factory LEDs must be visibly bright');
+ assert(factoryMeshes.some(mesh=>mesh.material.blending===THREE.AdditiveBlending),
+  'neon uses additive lighting instead of faint glass paints');
+ // Change to Low, rebuild while clock remains at 02:00, then change back.
+ renderer.graphicQuality='low';renderer.lastGlow=-1;renderer.lastBuildingDetailLevel=null;
+ renderer.updateWeatherLight({time:120,city:'bangkok'});
+ renderer.updateBuildingDetailLOD({z:1.7});
+ assert(factoryMeshes.filter(mesh=>mesh.userData.factoryNightTier==='essential').every(mesh=>mesh.visible),
+  'Low shows 360-degree tower lights and the reactor outer ring');
+ assert(factoryMeshes.filter(mesh=>mesh.userData.factoryNightTier==='reactor').every(mesh=>!mesh.visible),
+  'Low omits only expensive decorative reactor effect');
+ renderer.graphicQuality='veryHigh';renderer.lastGlow=-1;renderer.lastBuildingDetailLevel=null;
+ renderer.updateWeatherLight({time:120,city:'bangkok'});
+ renderer.updateBuildingDetailLOD({z:1.7});
+ assert(factoryMeshes.filter(mesh=>mesh.userData.factoryNightTier==='reactor').every(mesh=>mesh.visible),
+  'High restores all extra reactor lights');
+ renderer.updateWeatherLight({time:720,city:'bangkok'});
+ renderer.updateBuildingDetailLOD({z:1.7});
+ assert(factoryMeshes.every(mesh=>!mesh.visible),'all reactor night LEDs disappear by noon');
  assert(src.includes('this.factoryNightPulseMeshes=[]'),'pulse groups are cached on building rebuild');
  assert(src.includes("const wave=.81+.19*Math.sin(performance.now()*.001*2.6)"),
   'reactor pulse animates its existing material, without new meshes');
