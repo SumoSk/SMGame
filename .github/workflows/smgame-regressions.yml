@@ -66,6 +66,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run build
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
       - run: node -r ./work/test-dom-compat.cjs work/test-camera-orbit.cjs
