@@ -711,7 +711,7 @@ class Batch{
  const maxSize=Math.max(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  const minSize=Math.min(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  // Separate only tiny architectural trims, not walls, roofs, windows, parking paint or doors.
- const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&
+ const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&
    ((minSize<.045&&maxSize<.85)||(maxSize<.35&&Math.abs(sx*sy*sz)<.00065));
  const key=geo.uuid+color+(glow?'@light':'')+finish+(this.detailGroups?(fine?'@detail':'@base'):'');
  if(!this.data.has(key))this.data.set(key,{geo,color,glow,finish,fine,items:[]});
@@ -733,7 +733,7 @@ class Batch{
   };
   material.customProgramCacheKey=()=>finish==='bark'?'landscape-bark-v1':'landscape-foliage-v1';
  }
- const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
+ const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
 
 export class TrafficRenderer{
@@ -755,6 +755,7 @@ export class TrafficRenderer{
   const ratio=value==='low'?.72:Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,1.6);
   this.renderer.setPixelRatio(ratio);
   this.lastBuildingDetailLevel=null;
+  this.lastGlow=-1; // Force refresh on the first frame after a quality switch.
   this.treeGroup.visible=value!=='low';
   this.resize();
   return true;
@@ -768,6 +769,8 @@ export class TrafficRenderer{
   this.buildingGroup.traverse(mesh=>{
    if(mesh.userData?.fineBuildingDetail)mesh.visible=level==='full';
    if(mesh.userData?.isBuildingTree)mesh.visible=this.graphicQuality!=='low';
+   if(mesh.userData?.factoryNightTier)mesh.visible=(this.lastGlow??0)>.015&&
+    (this.graphicQuality!=='low'||mesh.userData.factoryNightTier==='essential');
   });
  }
  resize(){this.w=innerWidth;this.h=innerHeight;this.renderer.setSize(this.w,this.h,false);if(this.cam)this.updateCamera(this.cam);}
@@ -846,11 +849,19 @@ export class TrafficRenderer{
   this.updateNightVisibility(glow,visibility);
   if(Math.abs(glow-this.lastGlow)>.008){
    for(const group of [this.lampGroup,this.buildingGroup])group.traverse(mesh=>{
-    if(!mesh.userData.nightGlow)return;mesh.visible=glow>.015;
+    if(!mesh.userData.nightGlow)return;
+    mesh.visible=glow>.015&&(this.graphicQuality!=='low'||!mesh.userData.factoryNightTier||
+     mesh.userData.factoryNightTier==='essential');
     mesh.material.opacity=.78*glow;mesh.material.emissiveIntensity=.70+glow*.55;
    });
    if(this.streetGlow)this.streetGlow.material.opacity=.24*glow;
    this.lastGlow=glow;
+  }
+  // Breathing cyan reactor light: only existing instanced materials are
+  // updated; no point lights, geometry rebuilds or per-vehicle calculations.
+  if(glow>.015&&this.graphicQuality!=='low'&&this.factoryNightPulseMeshes){
+   const wave=.81+.19*Math.sin(performance.now()*.001*2.6);
+   for(const mesh of this.factoryNightPulseMeshes)mesh.material.opacity=glow*.70*wave;
   }
   this.rain.visible=air.rain>.025;
   if(this.rain.visible){
@@ -1351,6 +1362,10 @@ export class TrafficRenderer{
    const steel='#7e9298',white='#e7eeeb',bone='#d1dedb',slate='#475e69',
     roofBlue='#607b89',solar='#25435d',solarTrim='#9dbbc4',glass='#7baebd',
     amber='#f6dca8',pale='#c7d4d0',wood='#b99062',asphalt='#aab8b2';
+   // Night-only, instanced emissive detail: essential survives Low;
+   // decorative strips + reactor pulse are Medium/High only.
+   const nightLED=(color,u,y,v,w,h,d,grade='detail')=>
+    block(color,u,y,v,w,h,d,'factory-night-'+grade,true);
    // A low rectangular plot slab is an outline, not a giant solid building.
    block('#c7d0c8',center,.095,(back+front)*.5,width-(starter?.48:1.43),.075,halfDepth,'stone');
    block('#9aada9',center,.145,front-.11,width-(starter?.59:1.55),.035,.17,'stone');
@@ -1386,6 +1401,9 @@ export class TrafficRenderer{
      const p=point(xx,zmid),tilt=-side*slope;
      batch.add(BOX,bay%2?'#dbe4e2':'#edf0eb',p.x-.5,yy,p.y-.5,
       slopeLen+.025,.075,depth+.05,0,turn,tilt,id,false,'metal');
+     // Cyan roof-gutter lighting, invisible in Low quality.
+     const eaveX=x+side*(half-.11);
+     nightLED('#69c9e6',eaveX,eave+.038,zmid,.024,.027,depth-.14);
      // One large blue array per roof face, inset from gutters & ridge.
      // Clear the middle large-factory roof for its two-storey circular
      // control room; retain compact solar panels behind that room.
@@ -1444,8 +1462,12 @@ export class TrafficRenderer{
      record('weld',x,.86,machineZ+.08);
      record('fan',x,eave+rise+.12,hallBack+depth*.24,{radius:.14});
     }
-    // Bright under-eave lights, without expensive per-building point lights.
-    block(amber,x,eave-.79,high+.085,spanW*.36,.055,.035,'glass',true);
+    // Warm loading-bay floodlight survives Low; fine strips and machine
+    // indicators are reserved for Medium and Very High.
+    nightLED('#ffe5b2',x,eave-.76,high+.085,spanW*.36,.048,.028,'essential');
+    nightLED('#66c9df',x,eave-.20,high+.083,spanW*.72,.024,.027);
+    for(const sign of[-1,1])nightLED('#f4c78c',x+sign*spanW*.36,.65,high+.085,.045,.20,.038);
+    if(!starter)nightLED('#92d9e7',x,.68,machineZ,.19,.027,.17);
    }
    // LARGE FACTORY ONLY: the central one of three production bays grows
    // TWO additional levels. Round, glazed control rooms and a glowing arc-
@@ -1485,7 +1507,7 @@ export class TrafficRenderer{
       const a=k*Math.PI/6,x=coreX+Math.cos(a)*rad*.94;
       const z=coreZ+Math.sin(a)*rad*.94,p=point(x,z);
       batch.add(BOX,'#66dfed',p.x-.5,floorY+.86,p.y-.5,
-       rad*.49,.032,.049,0,turn+a+Math.PI/2,0,id,true,'glass');
+       rad*.49,.032,.049,0,turn+a+Math.PI/2,0,id,true,'factory-night-reactor');
      }
     }
     const rooftop=bottom+2*storey;
@@ -1500,9 +1522,15 @@ export class TrafficRenderer{
      const y=centerY+Math.sin(a)*ringR,p=point(x,faceZ);
      batch.add(BOX,k%3===0?'#e2fcff':'#5bdff1',
       p.x-.5,y,p.y-.5,.117,.058,.055,
-      0,turn,a+Math.PI/2,id,true,'glass');
+      0,turn,a+Math.PI/2,id,true,'factory-night-reactor');
     }
-    block('#c7faff',coreX,centerY,faceZ+.045,.145,.145,.053,'glass',true);
+    nightLED('#c7faff',coreX,centerY,faceZ+.045,.145,.145,.053,'essential');
+    // Static illuminated crown ribs; omitted for Low quality.
+    for(let k=0;k<8;k++){
+     const a=k*Math.PI/4;
+     nightLED('#6fcde4',coreX+Math.cos(a)*rad*.85,rooftop+.17,
+      coreZ+Math.sin(a)*rad*.85,.062,.027,.068);
+    }
     // Two slim horizontal walkways signal a human-occupied control tower.
     for(const h of[bottom+.13,bottom+storey+.13])
      block('#9ebcc6',coreX,h,coreZ+rad*.75,rad*.80,.045,.11,'metal');
@@ -1533,7 +1561,10 @@ export class TrafficRenderer{
      block('#b3c9cd',dx,adminH+.39,adminZ-.32,.11,.055,.31,'glass');
     }
     block('#456a79',adminX,.56,adminZ+adminD*.52,.38,.70,.043,'glass');
-    block('#fbdda5',adminX,.84,adminZ+adminD*.56,.31,.07,.025,'glass',true);
+    nightLED('#ffdaa0',adminX,.84,adminZ+adminD*.56,.31,.055,.025,'essential');
+    nightLED('#7bd8e3',adminX,adminH+.43,adminZ+adminD*.47,adminW*.70,.025,.031);
+    for(const side of[-1,1])
+     nightLED('#d7eced',adminX+side*adminW*.38,.57,adminZ+adminD*.50,.035,.43,.035);
    }
    // Silver silos and external service pipes occupy the side utility strip.
    // Starter uses one miniature tank; medium/large use three separated tanks.
@@ -1551,6 +1582,7 @@ export class TrafficRenderer{
     batch.add(CYL,'#6f8a93',p.x-.5,.23+tankHeight,p.y-.5,
      tankRadius*2+.045,.07,tankRadius*2+.045,0,0,0,id,false,'metal');
     block('#587680',tankX,.70,z+tankRadius+.02,.11,.17,.047,'metal');
+    if(!starter)nightLED('#78b9cb',tankX,.70,z+tankRadius+.075,.075,.42,.034);
     if(!starter){
      block('#8da7b1',tankX+.31,1.15,z,.047,.053,.32,'metal');
      block('#7d979c',tankX+.28,1.05,z,.028,.72,.035,'metal');
@@ -5869,6 +5901,10 @@ export class TrafficRenderer{
   const batch=new Batch({detailGroups:true});this.grandSignalLights=[];
   for(const building of state.buildings.values())this.building(batch,building,CATALOG,KINDS);
   this.buildingGroup.add(batch.build());
+  this.factoryNightPulseMeshes=[];
+  this.buildingGroup.traverse(mesh=>{
+   if(mesh.userData?.factoryNightTier==='reactor')this.factoryNightPulseMeshes.push(mesh);
+  });
   this.createFactoryEffects(batch.factoryEffects||[]);
   this.lastBuildingDetailLevel=null;
   this.lastNightVisibility=-1;
