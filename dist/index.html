@@ -380,7 +380,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
 <button type="button" id="cancelMoveBuilding" class="cancel-building-move" hidden>✕ ยกเลิกย้ายอาคาร</button><div id="toast" role="status"></div><dialog id="dialog"><button type="button" id="dialogCloseTop" class="dialog-close-top" aria-label="ปิดหน้าต่าง" title="ปิดหน้าต่าง">×</button><div id="dialogContent"></div></dialog>
 <dialog id="memberGate" class="member-gate" role="dialog" hidden aria-modal="true" aria-label="เข้าสู่ระบบ SMGame">
  <section class="member-card" style="position:relative"><button id="memberClose" type="button" aria-label="กลับไปเล่นโดยไม่บันทึก" title="กลับไปเล่นโดยไม่บันทึก" style="position:absolute;top:10px;right:10px;font-size:22px;width:32px;height:32px;border-radius:8px">×</button>
-  <span class="member-mark" aria-hidden="true">♙</span>
+  <button id="memberDevQuick" type="button" class="member-mark" title="เข้าโหมดผู้สร้างด้วยบัญชีที่ล็อกอินไว้" aria-label="เปิดบัญชีผู้สร้างด้วยเซสชันเดิม" style="border:0;padding:0;cursor:pointer;font-family:inherit">♙</button>
   <h2 id="memberTitle">บัญชีผู้ใช้</h2>
   <p id="memberIntro" class="member-intro">เข้าสู่ระบบเพื่อบันทึกเมืองและเล่นต่อบนอุปกรณ์อื่น</p>
   <div class="member-tabs" role="tablist" aria-label="สมาชิก SMGame">
@@ -560,4 +560,4 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  window.addEventListener('pagehide',()=>{window.clearTimeout(start);window.clearInterval(timer);},{once:true});
 })();
 </script>
-<script type="module" src="bootstrap.js?v=38614aaf6db6"></script></body></html>
+<script type="module" src="bootstrap.js?v=754d82627114"></script></body></html>
