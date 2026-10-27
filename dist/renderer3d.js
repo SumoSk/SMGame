@@ -1398,6 +1398,13 @@ export class TrafficRenderer{
     const x=left+spanW*(bay+.5),half=spanW*.5;
     const low=hallBack+.04,high=hallFront-.04,zmid=(low+high)*.5;
     const depth=high-low;
+    // Real epoxy production floor is sized to each hall, never to the lot.
+    block('#62777c',x,.163,zmid,spanW*.93,.060,depth*.94,'stone');
+    for(const zz of[low+.10,high-.10])
+     block('#d9ae58',x,.200,zz,spanW*.74,.012,.029,'metal');
+    block('#91a4a3',x+spanW*.31,.200,zmid,.115,.012,depth*.67,'stone');
+    // Large factory only: office-side bay is half enclosed workplace.
+    const isOfficeHall=level===3&&bay===spans-1;
     for(const edge of[x-half+.055,x+half-.055]){
      block(white,edge,(eave+.23)*.5,zmid,.092,eave-.23,depth,'metal');
      block('#a6bcc1',edge,eave-.42,zmid,.11,.25,depth-.10,'glass');
@@ -1451,12 +1458,43 @@ export class TrafficRenderer{
      }
     }
     block('#ccd8d5',x,eave+rise+.030,zmid,.092,.068,depth+.12,'metal');
-    // Upper loading shutter, open below. The machinery behind it is visible.
-    block('#556f79',x,eave-.45,high+.035,spanW*.67,.25,.070,'metal');
-    for(let k=0;k<3;k++)
-     block('#c3d0ce',x,eave-.52+k*.069,high+.079,spanW*.62,.017,.018,'metal');
-    for(const side of[-1,1])
-     block('#b4a078',x+side*spanW*.38,.71,high+.06,.070,.54,.06,'metal');
+    // Close the front half of the office-side hall with thin walls and
+    // panoramic glass. The rear half stays an active production space.
+    // No opaque solid cuboid: the existing roof and footprints stay intact.
+    if(isOfficeHall){
+     const officeBack=zmid+.025,officeFront=high-.07;
+     const officeDepth=officeFront-officeBack,officeMid=(officeBack+officeFront)*.5;
+     block('#526a70',x,.207,officeMid,spanW*.87,.035,officeDepth*.93,'stone');
+     for(const side of[-1,1]){
+      const xx=x+side*(half-.083);
+      block('#d2dedb',xx,.62,officeMid,.067,.77,officeDepth,'metal');
+      block('#80aeb9',xx,1.49,officeMid,.052,.87,officeDepth,'glass');
+      block('#a9bac0',xx,2.58,officeMid,.075,1.20,officeDepth,'metal');
+      block('#526d78',xx,1.49,officeMid,.069,.045,officeDepth,'metal');
+     }
+     block('#d2dedb',x,.57,officeBack,spanW*.89,.66,.072,'metal');
+     block('#80aeb9',x,1.43,officeBack,spanW*.88,.91,.055,'glass');
+     block('#a9bac0',x,2.55,officeBack,spanW*.90,1.14,.070,'metal');
+     for(const side of[-1,1]){
+      const xx=x+side*spanW*.228,deskZ=officeMid+side*officeDepth*.23;
+      block('#80aeb9',xx,1.46,officeFront+.042,spanW*.43,1.82,.055,'glass');
+      block('#d1dfdd',xx,2.69,officeFront+.047,spanW*.43,.50,.075,'metal');
+      block('#9bbdc7',xx,.47,officeFront+.044,spanW*.43,.075,.082,'metal');
+      block('#b99a6e',xx,.42,deskZ,spanW*.30,.10,.34,'wood');
+      block('#657e84',xx,.59,deskZ-.08,.21,.23,.032,'metal');
+      block('#c3e5e7',xx,.61,deskZ-.060,.18,.14,.010,'glass');
+      block('#84989d',xx,.34,deskZ+.16,.20,.28,.22,'metal');
+     }
+     block('#dbe7e3',x,2.94,officeFront+.055,spanW*.88,.075,.15,'metal');
+     nightLED('#ffe5b7',x,2.67,officeFront+.10,spanW*.57,.042,.023,'essential');
+     nightLED('#72cadc',x,1.96,officeFront+.105,spanW*.81,.025,.025);
+    }else{
+     block('#556f79',x,eave-.45,high+.035,spanW*.67,.25,.070,'metal');
+     for(let k=0;k<3;k++)
+      block('#c3d0ce',x,eave-.52+k*.069,high+.079,spanW*.62,.017,.018,'metal');
+     for(const side of[-1,1])
+      block('#b4a078',x+side*spanW*.38,.71,high+.06,.070,.54,.06,'metal');
+    }
     // Small interior conveyor belts, stacked goods and fabrication tools.
     const machineZ=starter?hallZ:hallBack+depth*.39;
     block('#4f626b',x,.35,machineZ,spanW*.47,.29,Math.min(.68,depth*.31),'metal');
@@ -1466,14 +1504,14 @@ export class TrafficRenderer{
     block('#acbdbe',x+.16,.96,machineZ+.15,spanW*.12,.07,.15,'glass');
     // Forklift and wood crate palette, both STATIC model props.
     if(!starter){
-     const fx=x-spanW*.20,fz=high-.52;
+     const fx=x-spanW*.20,fz=isOfficeHall?low+depth*.25:high-.52;
      block('#e6a952',fx,.32,fz,.30,.23,.41,'metal');
      block('#5b6c70',fx,.57,fz-.14,.15,.28,.16,'metal');
      block('#303f48',fx+.20,.52,fz+.11,.026,.62,.041,'metal');
      block('#b58c5e',fx+.25,.27,fz+.12,.30,.22,.27,'wood');
      for(const dx of[-.12,.12])for(const dz of[-.16,.16])
       block('#2b3b44',fx+dx,.19,fz+dz,.072,.11,.07,'metal');
-     for(const dz of[high-.22,high-.43])
+     for(const dz of(isOfficeHall?[low+.20,low+.43]:[high-.22,high-.43]))
       block(wood,x+spanW*.23,.37,dz,.38,.31,.24,'wood');
     }
     // Limited animation records; these are visual effects, never traffic.
