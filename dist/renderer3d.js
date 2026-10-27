@@ -2262,7 +2262,7 @@ export class TrafficRenderer{
     block(k%2?'#e4d3be':'#768596',L+.32+k*(R-L-.64)/6,.238,front+.04,.12,.018,.34,'stone');
 
    // LEFT: a faceted roulette rotunda instead of a square casino facade.
-   const rotR=Math.min(unitW*.43,depth*.36,1.04);
+   const rotR=Math.min(unitW*.29,depth*.26,.72);
    local(CYL,ink,leftX,1.12,groundZ,rotR*1.74,1.72,rotR*1.74);
    local(CYL,'#4c547e',leftX,1.97,groundZ,rotR*1.85,.12,rotR*1.85);
    local(CONE,'#6875ad',leftX,2.35,groundZ,rotR*1.96,.75,rotR*1.96);
