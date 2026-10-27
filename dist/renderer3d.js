@@ -2082,6 +2082,16 @@ export class TrafficRenderer{
     block('#c4d6c2',2.63,.51,.625,.23,.24,.02,'glass');
     badge('PARK',1.50,1.02,.14,.81,'#527853','#e5e6b9');
     for(const x of [1.03,1.97])pole('#796c51',x,.53,.14,.023,.90,'wood');
+    // Tiny starter park: two deliberately prominent canopy trees behind
+    // the pathway, plus bright flowerbeds and a low sculpted hedge.
+    for(const [x,k] of [[.82,'cherry'],[2.18,'pine']]){
+      const p=point(x,.55);
+      this.tree(batch,p.x-.5,p.y-.5,1.06,k,'standard');
+    }
+    for(const xx of[.49,1.12,1.85,2.52]){
+      block('#7ca66e',xx,.21,1.04,.23,.16,.19,'foliage');
+      block(xx<1.5?'#e7a9c2':'#e6c08e',xx,.33,1.04,.12,.10,.12,'stone');
+    }
     for(const x of [.30,.94,1.99,2.75])planter(x,.76,.075);return;
    }
    if(t.kind==='pub'){
@@ -2107,26 +2117,46 @@ export class TrafficRenderer{
     for(const x of [.28,2.72])planter(x,1.12,.085);return;
    }
    if(t.kind==='casino'){
-    // Sci-fi casino: neon pylons, three physical playing cards and chip stacks.
-    block('#65657a',1.50,.10,.63,2.74,.14,1.12,'stone');
-    block('#282c48',1.50,.70,.61,2.43,1.07,.95,'metal');
-    block('#554b7a',1.50,1.26,.60,2.65,.14,1.04,'metal');
-    block('#65d6df',1.50,1.35,1.13,2.62,.035,.04,'glass',true);
-    for(const x of [.30,2.70]){
-     block('#9eabc0',x,.81,1.12,.13,1.19,.12,'metal');
-     block('#64dbe4',x,.82,1.19,.035,1.14,.018,'glass',true);
+    // Starter NOVA CASINO: three tiny architectural volumes, rather than a
+    // single solid box. Shared instanced geometry + cheap emissive accents.
+    block('#747e96',1.50,.13,.63,2.63,.14,1.10,'stone');
+    for(const xx of[.64,1.50,2.35])
+     block('#303a59',xx,.25,.62,.68,.12,.94,'metal');
+    // Left small roulette rotunda and mint-lit faceted cone roof.
+    local(CYL,'#434b75',.64,.81,.60,.56,.86,.56);
+    local(CONE,'#6d7ead',.64,1.43,.60,.65,.45,.65);
+    for(let i=0;i<4;i++){
+     const a=i*Math.PI/2;
+     local(BALL,i%2?'#eaa3ce':'#75d8dc',
+      .64+Math.cos(a)*.245,.93,.60+Math.sin(a)*.24,.09,.09,.09,0,0,0,true);
     }
-    pane(1.50,.68,1.12,1.26,.69,true,'#447b91');
-    badge('CASINO',1.50,1.23,1.15,1.50,'#453c69','#f1d4ee');
+    // Middle glass-front lobby with independent pale-blue canopy.
+    block('#6593a8',1.50,.77,.58,.64,.89,.77,'glass');
+    for(const xx of[1.18,1.82])
+     block('#d1dedc',xx,.77,.58,.07,1.02,.82,'metal');
+    block('#4d5f89',1.50,1.36,.58,.79,.12,.91,'metal');
+    block('#65dce4',1.50,1.45,1.00,.69,.048,.08,'glass',true);
+    // Right miniature slot-machine gallery with individual screens.
+    block('#41415f',2.35,.72,.58,.68,.88,.76,'metal');
+    for(const xx of[2.16,2.35,2.54]){
+     block('#63c7ce',xx,.84,1.005,.15,.30,.035,'glass',true);
+     block('#e3bc82',xx,.53,1.025,.12,.07,.075,'metal');
+    }
+    block('#a6b5c2',2.35,1.25,.58,.75,.12,.84,'metal');
+    for(const xx of[.31,2.70]){
+     block('#7b7a9d',xx,.78,1.03,.07,1.07,.08,'metal');
+     block('#e481c5',xx,1.37,1.04,.11,.14,.11,'glass',true);
+    }
+    badge('CASINO',1.50,1.13,1.075,.92,'#344761','#f6d8ed');
+    // Three physical playing cards over the lobby distinguish the icon.
     for(let n=0;n<3;n++){
-     const x=1.02+n*.48;
-     block('#eee9db',x,1.72,.60,.34,.48,.055,'stone');
-     block('#ba97b9',x,1.72,.563,.38,.52,.022,'metal');
-     for(let pip=0;pip<=n;pip++)local(BALL,n%2?'#b36687':'#3e4d69',x+(n===2?(pip-1)*.067:0),1.72+(n===1?(pip-.5)*.13:0),.638,.042,.045,.012);
+     const x=1.19+n*.31;
+     block('#eee9db',x,1.91,.61,.27,.41,.052,'stone');
+     block(n===1?'#ca6f91':'#4c5f90',x,1.91,.647,.13,.19,.020,'metal');
     }
-    for(const x of [.58,2.42])for(let n=0;n<4;n++){
-     pole(n%2?'#b47bb6':'#67c4ce',x,.23+n*.075,1.08,.13,.065,'metal');
-     pole('#e8dfce',x,.269+n*.075,1.08,.08,.012,'stone');
+    for(const xx of[.36,2.66])for(let n=0;n<4;n++){
+     pole(n%2?'#e282c2':'#67d3db',xx,.28+n*.095,.89,.09,.055,'metal');
+     pole('#f1e5d1',xx,.312+n*.095,.89,.055,.014,'stone');
     }
     return;
    }
@@ -2211,91 +2241,129 @@ export class TrafficRenderer{
     }
     strip(x,y-.29,z+.075,width,.035);
    };
-   // Offset setbacks give each size an architectural silhouette of its own.
-   block('#a6b0ba',cx,.15,cz,R-L,.18,D,'stone');
-   block(ink,cx,.30,cz,R-L-.10,.14,D-.08,'metal');
-   block(violet,cx,(floor+roof)/2,cz,R-L-.34,roof-floor,D-.28,'metal');
-   // Recessed front arcade with actual views of the gaming floor.
-   block(ink,cx,1.20,front+.016,R-L-.57,1.65,.09,'metal');
-   const bays=level===1?3:level===2?5:7;
-   for(let n=0;n<bays;n++){
-    const x=L+.30+(n+.5)*(R-L-.60)/bays,bw=(R-L-.60)/bays;
-    block(glass,x,1.12,front+.074,bw-.13,1.33,.035,'glass');
-    strip(x-bw*.43,1.13,front+.10,.025,.035);
-    block(chrome,x,.40,front+.10,bw-.09,.07,.10,'metal');
+   // NOVA CASINO DISTRICT — three independent low-poly entertainment
+   // pavilions, never a full-plot rectangular tower. Shared static instanced
+   // geometry and emissive polygons give showtime lighting without point-light
+   // calculations, audio, particles, reflections or frame-by-frame animation.
+   const low=this.graphicQuality==='low';
+   const bay=(R-L)/3,gap=.23,unitW=bay-gap;
+   const leftX=L+bay*.5,mainX=cx,rightX=R-bay*.5;
+   const depth=Math.min(D-.19,2.56+level*.22);
+   const groundZ=cz,zoneRear=groundZ-depth*.5,zoneFront=groundZ+depth*.5;
+   // Three separated plinths with a genuinely open entrance plaza.
+   block('#9da6b2',cx,.13,cz,R-L,.17,D,'stone');
+   for(const [x,z,w] of [[leftX,cz,unitW],[mainX,cz,unitW],[rightX,cz,unitW]]){
+    block('#414966',x,.24,z,w,.12,depth,'metal');
+    block('#c5bdc0',x,.317,z,w-.16,.022,depth-.13,'stone');
+    for(const side of[-1,1])strip(x+side*(w*.5-.10),.36,z,.052,depth-.18,side<0?cyan:pink);
    }
-   // A projecting entrance canopy is supported, clear of the frontage lane.
-   block(ink,cx,2.04,front+.12,Math.min(2.15,R-L-.2),.15,.44,'metal');
-   strip(cx,2.13,front+.30,Math.min(2.0,R-L-.3),.045);
-   for(const dx of[-.70,.70]){pole(chrome,cx+dx,1.10,front+.22,.045,1.95,'metal');strip(cx+dx,1.13,front+.24,.025,.025,pink);}
-   block('#74b4c2',cx,1.05,front+.105,.78,1.25,.025,'glass');block(chrome,cx,1.04,front+.13,.035,1.24,.02,'metal');
-   // Faceted arrival pylons and diagonal armor make the silhouette futuristic.
+   block('#53617a',cx,.185,front+.04,R-L-.22,.09,.39,'metal');
+   for(let k=0;k<7;k++)
+    block(k%2?'#e4d3be':'#768596',L+.32+k*(R-L-.64)/6,.238,front+.04,.12,.018,.34,'stone');
+
+   // LEFT: a faceted roulette rotunda instead of a square casino facade.
+   const rotR=Math.min(unitW*.29,depth*.26,.72);
+   local(CYL,ink,leftX,1.12,groundZ,rotR*1.74,1.72,rotR*1.74);
+   local(CYL,'#4c547e',leftX,1.97,groundZ,rotR*1.85,.12,rotR*1.85);
+   local(CONE,'#6875ad',leftX,2.35,groundZ,rotR*1.96,.75,rotR*1.96);
+   for(let k=0;k<8;k++){
+    const a=k*Math.PI/4;
+    const xx=leftX+Math.cos(a)*rotR*.82,zz=groundZ+Math.sin(a)*rotR*.82;
+    local(CYL,k%2?cyan:pink,xx,.96,zz,.10,1.04,.10,0,0,0,true);
+    local(BALL,k%2?'#d2edeb':'#ffe0ec',xx,1.52,zz,.17,.13,.17,0,0,0,true);
+   }
+   const wheelZ=groundZ+depth*.28;
+   local(CYL,'#c9aa74',leftX,.53,wheelZ,.78,.11,.78);
+   local(CYL,'#1d7268',leftX,.61,wheelZ,.62,.045,.62);
+   local(CYL,gold,leftX,.69,wheelZ,.13,.08,.13);
+   for(let k=0;k<8;k++){
+    const a=k*Math.PI/4;
+    local(BOX,k%2?pink:cyan,leftX+Math.cos(a)*.22,.655,
+     wheelZ+Math.sin(a)*.22,.12,.023,.10,0,-a);
+   }
+
+   // CENTRE: luminous glass entrance hall with raised front marquee. It is
+   // visibly separate from both the rounded hall and the slot-machine wing.
+   const h=2.00+level*.13,frontGlass=groundZ+depth*.5-.10;
    for(const side of[-1,1]){
-    const x=side<0?L+.40:R-.40,z=front-.18,radius=.23+level*.065;
-    local(CYL,ink,x,roof*.5,z,radius,roof,radius);
-    for(let n=0;n<5;n++){
-     const yy=.55+n*(roof-.6)/4;
-     local(CYL,chrome,x,yy,z,radius+.035,.09,radius+.035);
-     local(CYL,side<0?cyan:pink,x,yy+.055,z,radius+.04,.035,radius+.04,0,0,0,true);
+    const xx=mainX+side*(unitW*.5-.12);
+    for(const zz of[zoneRear+.10,zoneFront-.10])
+     block(chrome,xx,h*.5+.31,zz,.10,h-.28,.11,'metal');
+    block('#54899e',xx,1.22,groundZ,.045,1.35,depth-.25,'glass');
+    for(const zz of[zoneRear+.31,groundZ,zoneFront-.31])
+     block(chrome,xx+side*.036,1.13,zz,.041,1.22,.045,'metal');
+   }
+   block('#4a8096',mainX,1.25,zoneRear+.05,unitW-.24,1.27,.046,'glass');
+   block('#3c6d8a',mainX,1.24,frontGlass,unitW-.24,1.40,.046,'glass');
+   for(const xx of[mainX-unitW*.24,mainX+unitW*.24]){
+    block(chrome,xx,1.24,frontGlass+.047,.045,1.46,.055,'metal');
+    strip(xx,h*.84,frontGlass+.065,.035,.032,pink);
+   }
+   const p=point(mainX,groundZ);
+   batch.add(PITCHED_ROOF,ink,p.x-.5,h+.10,p.y-.5,unitW+.08,.40,depth+.05,0,turn,0,id,false,'metal');
+   block(chrome,mainX,h+.10,frontGlass+.025,unitW+.10,.10,.13,'metal');
+   strip(mainX,h+.17,frontGlass+.10,unitW-.15,.032,cyan);
+   sign('CASINO',mainX,h-.36,frontGlass+.14,Math.min(2.58,unitW-.08));
+   // Front entrance and the gold-glass crown identify the venue at distance.
+   block('#79bec6',mainX,.90,frontGlass+.10,.69,1.09,.025,'glass');
+   block(chrome,mainX,.94,frontGlass+.131,.028,1.14,.030,'metal');
+   for(const dx of[-unitW*.33,unitW*.33]){
+    local(CYL,gold,mainX+dx,1.06,frontGlass+.13,.12,1.54,.12);
+    local(BALL,'#fff0ba',mainX+dx,1.93,frontGlass+.13,.17,.15,.17,0,0,0,true);
+   }
+
+   // RIGHT: stepped lounge with three slim separate slot-machine kiosks,
+   // real displays, buttons and stools visible from the overhead camera.
+   const podN=level===1?2:3,podDepth=depth/podN-.16;
+   for(let n=0;n<podN;n++){
+    const z=zoneRear+depth*(n+.5)/podN;
+    block('#303c5e',rightX,.73,z,unitW*.80,1.10,podDepth,'metal');
+    block('#6a7ca6',rightX,1.31,z,unitW*.88,.10,podDepth+.10,'metal');
+    block('#43758e',rightX,1.00,z+podDepth*.5+.035,unitW*.63,.62,.035,'glass');
+    for(let k=0;k<3;k++){
+     const xx=rightX+(k-1)*unitW*.19;
+     block(k%2?cyan:pink,xx,1.04,z+podDepth*.5+.065,unitW*.13,.25,.017,'glass',true);
+     block(gold,xx,.70,z+podDepth*.5+.07,.11,.08,.13,'metal');
     }
-    local(CONE,chrome,x,roof+.16,z,radius+.07,.30,radius+.07);
-    const finZ=rear+D*.52;
-    local(BOX,chrome,x,roof+.25,finZ,.12,.85,D*.65,0,0,side*.30);
-    local(BOX,side<0?cyan:pink,x,roof+.25,finZ+.015,.055,.80,D*.61,0,0,side*.30,true);
-   }
-   // Sloping armor fins break the mass without hiding the side and back detail.
-   for(const side of[-1,1]){
-    const x=side<0?L+.10:R-.10;
-    for(let j=0;j<Math.max(3,Math.floor(D/.6));j++){
-     const z=rear+.25+j*(D-.5)/(Math.max(3,Math.floor(D/.6))-1);
-     block(glass,x,1.33,z,.07,1.3,.33,'glass');
-     local(BOX,chrome,x,1.42,z,.095,1.9,.09,side*.09);
-     strip(x,roof-.13,z,.055,.22,side<0?cyan:pink);
+    strip(rightX,1.38,z,unitW*.81,.043,n%2?pink:cyan);
+    for(const side of[-1,1]){
+     const xx=rightX+side*unitW*.43;
+     local(BALL,n%2?cyan:pink,xx,1.42,z,.15,.12,.15,0,0,0,true);
     }
+    local(CYL,'#b9a4a8',rightX,.47,z+podDepth*.62,.25,.10,.25);
    }
-   block(ink,cx,roof,cz,R-L+.04,.18,D+.04,'metal');
-   for(const z of[rear,front])strip(cx,roof+.11,z,R-L-.05,.045,z===rear?pink:cyan);
-   for(const x of[L,R])strip(x,roof+.11,cz,.045,D-.06);
-   // Rear elevation: luminous glazing and layered service architecture.
-   block(glass,cx,1.25,rear-.03,R-L-.55,1.1,.05,'glass');
-   for(let n=0;n<5+level;n++)block(chrome,L+.25+n*(R-L-.5)/(4+level),1.28,rear-.07,.055,1.5,.055,'metal');
-   strip(cx,1.93,rear-.08,R-L-.38,.04,pink);
-   const towerW=Math.min(R-L-1.1,1.55+level*.65),towerD=Math.min(D-.5,1.05+level*.3),top=roof+level*.65;
-   block(ink,cx,roof+(top-roof)/2,cz,towerW,top-roof,towerD,'metal');
-   for(let n=0;n<level+2;n++){
-    const yy=roof+.15+n*(top-roof-.20)/(level+1);
-    block(glass,cx,yy,cz+towerD/2+.015,towerW-.18,.16,.025,'glass');
-    strip(cx,yy+.10,cz+towerD/2+.045,towerW-.08,.025,n%2?pink:cyan);
-   }
-   block(chrome,cx,top+.04,cz,towerW+.15,.10,towerD+.12,'metal');
-   sign('CASINO',cx,roof-.39,front+.18,Math.min(3.7,R-L-.30));
-   // Three giant physical playing cards form the rooftop crown.
-   const cardY=top+.63,cardZ=cz+.02;
+
+   // Independent rooftop card crown — keeps three physical readable cards.
+   const cardY=h+1.06,cardZ=groundZ;
    for(let n=0;n<3;n++){
-    const x=cx+(n-1)*.43,tilt=(n-1)*-.17;
+    const x=mainX+(n-1)*.43,tilt=(n-1)*-.17;
     local(BOX,chrome,x,cardY,cardZ+n*.065,.53,.91,.065,0,0,tilt);
     local(BOX,'#eee9db',x,cardY,cardZ+.042+n*.065,.47,.85,.025,0,0,tilt);
-    if(n===1){ // diamond pip, visible in daylight as well as at night
-     local(BOX,'#bb3869',x,cardY,cardZ+.063+n*.065,.22,.22,.025,0,0,Math.PI/4);
-    }else{
+    if(n===1)local(BOX,'#bb3869',x,cardY,cardZ+.065+n*.065,.22,.22,.025,0,0,Math.PI/4);
+    else{
      for(const dx of[-.064,.064])local(BALL,ink,x+dx,cardY+.055,cardZ+.07+n*.065,.09,.09,.025);
      local(BOX,ink,x,cardY-.015,cardZ+.076+n*.065,.17,.17,.025,0,0,Math.PI/4);
      block(ink,x,cardY-.16,cardZ+.08+n*.065,.10,.08,.025,'metal');
     }
    }
-   // Rooftop chip stacks and green baize tables identify the use from above.
-   for(const side of[-1,1])for(let n=0;n<3+level;n++)chip(cx+side*(towerW/2+.30),roof+.16+n*.105,cz,.22,n%2?pink:cyan);
-   if(level>=2){
-    const rows=level===3?2:1;
-    for(let row=0;row<rows;row++)for(let n=0;n<2;n++){
-     const x=cx+(n?1:-1)*(towerW/2+.62),z=rear+.55+row*.95;
-     pole(chrome,x,roof+.30,z,.035,.4,'metal');pole('#1c6f63',x,roof+.54,z,.34,.06,'stone');
-     for(let k=0;k<3;k++){const a=k*Math.PI*2/3;chip(x+Math.cos(a)*.20,roof+.59,z+Math.sin(a)*.20,.045,k?pink:gold);}
-    }
+   // Chip sculptures outside each separated pavilion; they replace heavy
+   // facade masses with small colourful landmarks and scalable detailing.
+   for(const side of[-1,1])for(let n=0;n<4+level;n++){
+    const x=side<0?leftX-rotR*.83:rightX+unitW*.35;
+    chip(x,.45+n*.108,zoneRear+.31,.20,n%2?pink:cyan);
    }
-   for(const x of[L+.36,R-.36]){
-    block('#647782',x,.42,rear+.30,.42,.32,.40,'metal');planted(x,rear+.30,.30);
-    strip(x,.62,front+.12,.17,.17,pink);
+   for(const x of[L+.18,R-.18]){
+    block('#536879',x,.41,front-.28,.29,.31,.34,'metal');
+    local(BALL,'#75a58e',x,.77,front-.28,.37,.29,.37);
+    strip(x,.43,front+.12,.16,.14,pink);
+   }
+   // Static show lighting survives Low in reduced form. Decorative strips
+   // are instanced emissive surfaces: not expensive physical light sources.
+   for(const x of[leftX,mainX,rightX]){
+    for(let i=0;i<(low?4:9);i++){
+     const z=zoneRear+.14+i*(depth-.28)/(low?3:8);
+     strip(x,.39,z,Math.min(unitW*.62,.75),.024,i%2?pink:cyan);
+    }
    }
    return;
   }
@@ -4303,9 +4371,94 @@ export class TrafficRenderer{
     }
    }
    if(family==='park'){
+    // GRAND BOTANICAL PARK: showy flower trees, tall pines, palms and rounded
+    // topiary dominate every tier. Trees share cheap instanced geometry,
+    // not dynamically shaded leaves or animated spotlights.
+    const pw=W-2.0,parkStart=baseV+.34,parkDepth=Math.min(availableDepth-.77,availableDepth>=6?5.10:2.75);
+    const low=this.graphicQuality==='low';
+    const flowers=['cherry','jacaranda','flower'],evergreens=['pine','cedar','palm'],rounds=['shade','banyan','oak'];
+    const courtLeft=u-pw*.30,courtRight=u+pw*.30;
+    const trees=level===1?[
+      [courtLeft,parkStart+parkDepth*.78,'cherry',1.32],
+      [courtRight,parkStart+parkDepth*.78,'pine',1.36],
+      [courtLeft,parkStart+parkDepth*.34,'palm',1.28],
+      [courtRight,parkStart+parkDepth*.34,'shade',1.30]
+    ]:level===2?[
+      [courtLeft,parkStart+parkDepth*.82,'cherry',1.50],
+      [courtRight,parkStart+parkDepth*.82,'pine',1.53],
+      [courtLeft,parkStart+parkDepth*.49,'palm',1.43],
+      [courtRight,parkStart+parkDepth*.49,'jacaranda',1.48],
+      [courtLeft,parkStart+parkDepth*.34,'shade',1.41],
+      [courtRight,parkStart+parkDepth*.34,'flower',1.39]
+    ]:[
+      [courtLeft,parkStart+parkDepth*.86,'cherry',1.58],
+      [courtRight,parkStart+parkDepth*.86,'cedar',1.60],
+      [courtLeft,parkStart+parkDepth*.65,'palm',1.52],
+      [courtRight,parkStart+parkDepth*.65,'jacaranda',1.55],
+      [courtLeft,parkStart+parkDepth*.42,'flower',1.53],
+      [courtRight,parkStart+parkDepth*.42,'pine',1.57],
+      [courtLeft,parkStart+parkDepth*.35,'shade',1.53],
+      [courtRight,parkStart+parkDepth*.35,'cherry',1.55]
+    ];
+    for(const [x,z,kind,scale] of trees){
+      // Local-space symmetric crowns keep all four plot rotations identical.
+      // Unlike natural world trees, architectural trees must rotate with lots.
+      const pine=kind==='pine'||kind==='cedar',palm=kind==='palm';
+      const crown=kind==='cherry'?'#eda5bf':kind==='jacaranda'?'#a38ad3':
+       kind==='flower'?'#df91ad':kind==='shade'?'#6fa56b':'#4c8e61';
+      const h=(pine?1.65:palm?1.39:1.17)*scale;
+      pole('#937855',x,.17+h*.5,z,.085*scale,h,'bark');
+      const p=point(x,z);
+      if(pine){
+        for(let k=0;k<3;k++)batch.add(CONE,k===1?'#3c7c52':'#568b5c',
+          p.x-.5,h*(.47+k*.25),p.y-.5,
+          (.60-k*.12)*scale,.73*scale,(.60-k*.12)*scale,
+          0,0,0,id,false,'foliage');
+      }else if(palm){
+        for(let k=0;k<8;k++)batch.add(PALM_FROND,k%2?'#62a66d':'#83ba7c',
+          p.x-.5,h+.15*scale,p.y-.5,.84*scale,scale,scale,
+          0,k*TAU/8,0,id,false,'foliage');
+      }else{
+        batch.add(BALL,crown,p.x-.5,h+.18*scale,p.y-.5,
+          .92*scale,.59*scale,.92*scale,0,0,0,id,false,'foliage');
+        for(const [dx,dz] of [[-.39,0],[.39,0],[0,-.39],[0,.39]]){
+          const q=point(x+dx*scale,z+dz*scale);
+          batch.add(BALL,crown,q.x-.5,h+.13*scale,q.y-.5,
+            .59*scale,.48*scale,.59*scale,0,0,0,id,false,'foliage');
+        }
+      }
+    }
+    // Alternating rose borders and spherical sculpted hedges along walking
+    // paths give it the density of a curated ornamental botanic garden.
+    const borderN=level===1?5:level===2?8:12;
+    for(let k=0;k<borderN;k++){
+      const z=parkStart+.22+(k+.5)*(parkDepth-.40)/borderN;
+      const x=u+(k%2?-.50:.50);
+      block(k%3===0?'#e8b4c8':k%3===1?'#e7c17c':'#b2a2d8',
+       x,.37,z,.18,.13,.25,'stone');
+      block('#698d5e',x,.25,z,.23,.16,.28,'foliage');
+    }
+    // Ornate gateway, clipped circular topiary, sculptural pergola posts,
+    // and gold-tinted low-poly glow (no realtime point lights).
+    for(const side of[-1,1]){
+      const x=u+side*pw*.42,frontZ=parkStart+parkDepth-.22;
+      block('#e3dbca',x,.88,frontZ,.16,1.47,.16,'stone');
+      block('#dabd84',x,1.67,frontZ,.22,.12,.22,'metal');
+      block('#ffe6a8',x,1.76,frontZ,.11,.11,.11,'glass',true);
+      const p=point(x,parkStart+.29);
+      batch.add(CYL,'#6d945d',p.x-.5,.69,p.y-.5,.37,.64,.37,0,0,0,id,false,'foliage');
+      batch.add(BALL,'#91b878',p.x-.5,1.09,p.y-.5,.57,.49,.57,0,0,0,id,false,'foliage');
+    }
+    block('#e1d8c0',u,1.71,parkStart+parkDepth-.22,pw*.74,.14,.18,'stone');
+    for(const x of[u-pw*.21,u+pw*.21])for(const z of[parkStart+.15,parkStart+parkDepth*.94]){
+      block('#879e9d',x,.28,z,.10,.24,.10,'stone');
+      block('#e0c48d',x,.46,z,.15,.07,.15,'metal');
+      block('#ffe4b2',x,.52,z,.10,.06,.10,'glass',true);
+    }
+    // Pavilion gardens still use the legacy fountain, paths and terraces.
+    // All extra decorations are deterministic, static and instanced.
     // Four-way promenade, illuminated fountain and ascending pavilion; the
     // largest tier has a stepped pond and more shaded gazebos.
-    const pw=W-2.0,parkStart=baseV+.34,parkDepth=Math.min(availableDepth-.77,availableDepth>=6?5.10:2.75);
     block('#79aa7b',u,.24,parkStart+parkDepth/2,pw,.11,parkDepth,'stone');
     block('#e6d8bc',u,.29,parkStart+parkDepth/2,pw-.10,.042,.26,'stone');
     block('#e6d8bc',u,.29,parkStart+parkDepth/2,.28,.042,parkDepth-.10,'stone');
