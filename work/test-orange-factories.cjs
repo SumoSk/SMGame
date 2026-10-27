@@ -65,6 +65,29 @@
     const roundFloorPanels=local.filter(p=>p.color==='#629bad'||p.color==='#76bbcb');
     const high=Math.max(...local.map(p=>p.y+p.sy*.5));
     if(spec.key==='factory_large'){
+     // The THREE production hall structures are each exactly 80% of their
+     // original plan-area dimensions. Their common centre is unchanged.
+     // None of the parking footprint, entrance/exit routing or lot geometry
+     // is scaled with these buildings.
+     const hallOriginalLeft=.94,hallOriginalRight=t.plotWidth-2.27;
+     const hallOriginalBack=t.parkingZoneDepth+.30+.095;
+     const hallOriginalFront=t.plotHeight-.57-.13;
+     const midX=(hallOriginalLeft+hallOriginalRight)*.5;
+     const midZ=(hallOriginalBack+hallOriginalFront)*.5;
+     const oldWidth=hallOriginalRight-hallOriginalLeft;
+     const oldDepth=hallOriginalFront-hallOriginalBack;
+     const roofRidges=local.filter(p=>p.color==='#ccd8d5'&&Math.abs(p.sy-.068)<1e-6);
+     assert.equal(roofRidges.length,3,'large factory still has exactly three production hall roofs');
+     roofRidges.sort((a,b)=>a.u-b.u);
+     for(let bay=0;bay<3;bay++){
+      const expectedX=midX+(((bay+.5)/3)-.5)*oldWidth*.8;
+      assert(Math.abs(roofRidges[bay].u-expectedX)<.0001,'hall '+bay+' centre uses 80% scale about group centre');
+      assert(Math.abs(roofRidges[bay].v-midZ)<.0001,'all three halls stay centred along plot depth');
+      assert(Math.abs((roofRidges[bay].sz-.12)-oldDepth*.8)<.0001,
+       'hall '+bay+' length is reduced by exactly 20 percent');
+     }
+     assert(Math.abs((roofRidges[0].u+roofRidges[2].u)*.5-midX)<.0001,
+      'three production halls as one group keep their original horizontal centre');
      assert.equal(reactorBands.length,12,'one glowing control-floor ring of 12 segments');
      assert.equal(roundFloorPanels.length,12,'one storey of panoramic circular-office glass');
      assert(high>5.2&&high<5.7,'circular office reduced one full storey while keeping rooftop reactor');
