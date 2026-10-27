@@ -26,6 +26,14 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
    assert(essential>=bays,'Low has warm loading lighting at all bays '+key);
    assert(detail>=bays*4,'Medium/High have separate perimeter/tank LEDs '+key);
    assert.equal(reactor>0,tier===3,'only large reactor is pulsing '+key);
+   if(tier===3){
+    // Low quality MUST display the reactor itself, not just a single dot.
+    assert(essential>=bays+12+1,'Low draws at least 12 arc segments and a central core');
+    assert(reactor>=44,'High has inner ring, spokes and 24 floor lights');
+    const ringParts=tagged.filter(entry=>entry.color==='#69e4f2'||entry.color==='#d4fbff')
+     .reduce((n,entry)=>n+entry.items.length,0);
+    assert.equal(ringParts,12,'Low reactor ring is a visible full circle');
+   }
    for(const group of tagged)for(const item of group.items){
     const dx=item.x-b.x,dz=item.z-b.y;
     const uv=rotation===0?{u:dx,v:dz}:rotation===1?{u:dz,v:t.plotHeight-dx}:

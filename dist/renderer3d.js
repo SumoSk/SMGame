@@ -1514,17 +1514,32 @@ export class TrafficRenderer{
     disc('#4b6570',rooftop+.06,rad+.12,.15);
     disc('#c3d4d3',rooftop+.16,rad*.86,.055);
     disc('#436f81',rooftop+.205,rad*.51,.08);
-    // Arc-reactor-like circular cyan display at the FRONT of the tower.
-    // It uses a faceted ring and a small glowing core, not an animated cube.
-    const faceZ=coreZ+rad+.075,centerY=bottom+storey*.96,ringR=.27;
-    for(let k=0;k<12;k++){
-     const a=k*Math.PI/6,x=coreX+Math.cos(a)*ringR;
-     const y=centerY+Math.sin(a)*ringR,p=point(x,faceZ);
-     batch.add(BOX,k%3===0?'#e2fcff':'#5bdff1',
-      p.x-.5,y,p.y-.5,.117,.058,.055,
-      0,turn,a+Math.PI/2,id,true,'factory-night-reactor');
+    // Arc-reactor-inspired faceplate: a visibly luminous DOUBLE RING.
+    // Low keeps 12 broad outer cyan segments + bright white core; Medium/High
+    // show 12 additional blue/white inner segments with a subtle night pulse.
+    // The ring is mounted on the existing round office, not a point light.
+    const faceZ=coreZ+rad+.075,centerY=bottom+storey*.96;
+    const arcSegment=(radius,k,color,grade,length,width=.062)=>{
+     const a=k*Math.PI/6,x=coreX+Math.cos(a)*radius,y=centerY+Math.sin(a)*radius;
+     const p=point(x,faceZ+(grade==='essential'?.040:.078));
+     batch.add(BOX,color,p.x-.5,y,p.y-.5,length,width,.054,
+      0,turn,a+Math.PI/2,id,true,'factory-night-'+grade);
+    };
+    // Outer ring is cheap, and remains legible in the Low quality preset.
+    for(let k=0;k<12;k++)
+     arcSegment(.345,k,k%3===0?'#d4fbff':'#69e4f2','essential',.159,.066);
+    // High-quality reactor: inner ring plus radial luminous energy spokes.
+    for(let k=0;k<12;k++)
+     arcSegment(.226,k,k%3===0?'#e2fcff':'#4acdea','reactor',.104,.052);
+    for(let k=0;k<8;k++){
+     const a=k*Math.PI/4,x=coreX+Math.cos(a)*.143;
+     const y=centerY+Math.sin(a)*.143,p=point(x,faceZ+.108);
+     batch.add(BOX,'#a3efff',p.x-.5,y,p.y-.5,.087,.024,.048,
+      0,turn,a,id,true,'factory-night-reactor');
     }
-    nightLED('#c7faff',coreX,centerY,faceZ+.045,.145,.145,.053,'essential');
+    // A white hot heart + cyan halo persist in Low without 3D light sources.
+    nightLED('#68daee',coreX,centerY,faceZ+.075,.222,.222,.034,'reactor');
+    nightLED('#f4ffff',coreX,centerY,faceZ+.125,.142,.142,.047,'essential');
     // Static illuminated crown ribs; omitted for Low quality.
     for(let k=0;k<8;k++){
      const a=k*Math.PI/4;
