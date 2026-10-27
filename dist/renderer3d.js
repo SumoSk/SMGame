@@ -1443,7 +1443,7 @@ export class TrafficRenderer{
    }
    // Administrative office is a distinct LOW-volume front wing: clear glass
    // bands, small square entrance, parapet, not one bulky factory box.
-   const adminX=starter?2.48:width-1.32,adminW=starter?.43:1.57;
+   const adminX=starter?2.48:width-1.39,adminW=starter?.43:1.24;
    const adminZ=starter?.88:front-1.18,adminD=starter?.67:1.78;
    const floors=level>=2?2:1,adminH=starter?.89:level===1?1.42:2.28;
    block('#d8e1dd',adminX,.20,adminZ,adminW,.19,adminD,'stone');
