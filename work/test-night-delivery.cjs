@@ -4,7 +4,7 @@ const noop=()=>{};let game;
 const elements=new Map();
 function node(id){if(!elements.has(id)){const classes=new Set(['hidden']);elements.set(id,{textContent:'',innerHTML:'',value:'',style:{},children:[],classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),contains:x=>classes.has(x),toggle:noop},addEventListener:noop,setAttribute:noop,querySelectorAll:()=>[],showModal:noop,close:noop,getContext:()=>new Proxy({},{get:()=>noop}),setPointerCapture:noop});}return elements.get(id);}
 const localStorage={getItem:()=>null,setItem:noop};
-const context={document:{getElementById:node,querySelector:()=>node('dummy'),querySelectorAll:()=>[]},window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:x=>game=x},innerWidth:1280,innerHeight:800,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage,console};
+const context={document:{addEventListener:noop,getElementById:node,querySelector:()=>node('dummy'),querySelectorAll:()=>[]},window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:x=>game=x},innerWidth:1280,innerHeight:800,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage,console};
 vm.createContext(context);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),context);
 assert.equal(game.deliveryNightAt(21*60+59),null);
 assert.equal(game.deliveryNightAt(22*60),0);
