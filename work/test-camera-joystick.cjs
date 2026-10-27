@@ -65,5 +65,5 @@ for(const page of ['index.html','dist/index.html']){
  assert.ok(html.includes('bootstrap.js?v='+version),'Stale bootstrap cache '+page);
 }
 const rendererText=fs.readFileSync('dist/renderer3d.js','utf8');
-assert.ok(rendererText.includes('cam.elevation??Math.atan2(86,90)'),'Renderer must apply joystick elevation');
+assert.ok(rendererText.includes('cam.elevation??Math.PI*50/180'),'Renderer must apply default 50-degree joystick elevation');
 console.log('Camera joystick: 4 directions, live 3D updates, pitch limits, reset, markup and cache passed.');
