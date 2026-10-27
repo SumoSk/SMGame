@@ -18,4 +18,5 @@ jobs:
       - run: node --check dist/game.js
       - run: node -r ./work/test-dom-compat.cjs work/test-starter-showcase.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-emigration-40.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-emigration-cooldown.cjs
       - run: node work/test-city-notice.cjs
