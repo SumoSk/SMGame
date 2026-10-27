@@ -2888,11 +2888,11 @@ else if(selected.kind==='road'){const r=state.roads.get(selected.id);if(!r){$('i
 else if(selected.kind==='money')html='<span class="tag">การคลังเมือง</span><h2>งบประมาณ</h2>'+row('เงินคงเหลือ',money(state.money))+row('ภาษีประชาชน / วัน',money(s.tax))+row('ภาษีธุรกิจ / วัน',money(s.business))+row('ท่องเที่ยวรับจริงวันนี้',money(tourismLedger().fees-tourismLedger().refunds))+row('ค่าดูแลทั้งหมด / วัน',money(s.maint))+row('สุทธิ / วัน',money(s.net))+'<p>ภาษีปกติ 500 บาท ทำงานสาย 400 บาท พลาดงาน 250 บาท กิจกรรมอื่นไม่ลดภาษี ถนนหลักไม่มีค่าดูแล</p>';
 else if(selected.kind==='tourists')html='<span class="tag">การท่องเที่ยว</span><h2>นักท่องเที่ยว</h2>'+touristSummaryMarkup()+action('ดูรายชื่อนักท่องเที่ยว','tourist-dashboard');
 else if(selected.kind==='population')html='<span class="tag">ผู้คนในเมือง</span><h2>ประชากร '+s.pop+' คน</h2>'+row('กำลังย้ายเข้า',[...state.citizens.values()].filter(c=>!c.resident&&!c.removed&&!c.tourist).length+' คน')+row('ที่ว่างในบ้าน',s.freeHomes+' คน')+row('ตำแหน่งงานทั้งหมด',s.jobs)+row('ว่างงาน',s.unemployed+' คน')+'<p>มีบ้านว่าง เส้นทางจากประตูเมือง และความสุขตั้งแต่ 70% จึงจะมีคนย้ายเข้า คนจะนับเป็นประชากรเมื่อเดินทางถึงบ้านจริง</p><div class="inspect-list">'+[...state.citizens.values()].filter(c=>c.resident&&!c.removed).slice(0,40).map(c=>action(citizenName(c),'citizen',c.id)).join('')+'</div>';
-else if(selected.kind==='happiness')html='<span class="tag">คุณภาพชีวิต</span><h2>ความสุข '+Math.round(s.happy)+'%</h2>'+row('มีความสุข',[...state.citizens.values()].filter(c=>c.resident&&c.happy>=80).length+' คน')+row('กำลังมีปัญหา',[...state.citizens.values()].filter(c=>c.resident&&c.happy<55).length+' คน')+'<p>ฐานเดินทาง 2 นาทีเกมต่อบล็อก + เผื่อรวม 20 นาที · ตัดสินเมื่อถึงอาคาร เที่ยวเดียวมีผลหลักครั้งเดียว และความเครียดจากรถติดเกินเวลาเผื่อไม่เกิน 2 แต้มต่อเที่ยว ภาษีลดเฉพาะปัญหาการทำงาน</p><p>งาน: ตรงเวลา +4 / สาย −2 / พลาด −6 · กิจกรรมเสริม: ตรงเวลา +3 / สายแต่สำเร็จ +1 / ไปไม่ทัน −2 · ข้ามก่อนออกเพราะเวลาไม่พอ: 0</p><p>ความสุขต่ำกว่า 25% ต่อเนื่อง 3 วัน หรือไม่มีงาน 5 วัน จึงเตรียมย้ายออก แก้ปัญหาแล้วความสุขฟื้นได้</p>';
+else if(selected.kind==='happiness')html='<span class="tag">คุณภาพชีวิต</span><h2>ความสุข '+Math.round(s.happy)+'%</h2>'+row('มีความสุข',[...state.citizens.values()].filter(c=>c.resident&&c.happy>=80).length+' คน')+row('กำลังมีปัญหา',[...state.citizens.values()].filter(c=>c.resident&&c.happy<55).length+' คน')+'<p>ฐานเดินทาง 2 นาทีเกมต่อบล็อก + เผื่อรวม 20 นาที · ตัดสินเมื่อถึงอาคาร เที่ยวเดียวมีผลหลักครั้งเดียว และความเครียดจากรถติดเกินเวลาเผื่อไม่เกิน 2 แต้มต่อเที่ยว ภาษีลดเฉพาะปัญหาการทำงาน</p><p>งาน: ตรงเวลา +4 / สาย −2 / พลาด −6 · กิจกรรมเสริม: ตรงเวลา +3 / สายแต่สำเร็จ +1 / ไปไม่ทัน −2 · ข้ามก่อนออกเพราะเวลาไม่พอ: 0</p><p>ความสุขส่วนบุคคลต่ำกว่า 40% จะเตรียมย้ายออกทันที โดยเดินทางไปประตูเมือง</p>';
 else html='<span class="tag">การเดินทาง</span><h2>จราจรในเมือง</h2>'+row('รถทั้งหมด',state.vehicles.size+' คัน')+row('กำลังรอ',s.waiting+' คัน')+row('ความคล่องตัว',Math.round(s.flow)+'%')+'<p>คลิกที่รถเพื่อดูว่าของใคร กำลังไปไหน และติดอยู่เพราะอะไร เพิ่มเลนหรือกระจายงานและบริการให้ใกล้บ้านช่วยลดการเดินทาง</p>'+action(heat?'ปิดแผนที่รถติด':'เปิดแผนที่รถติด','heat');
 $('inspector').classList.remove('hidden');
  // Keep the category label so each details panel has the same heading hierarchy.
- for(const note of ['การเข้าออกจากขอบทางฝั่งซ้ายตามทิศรถ หากอยู่คนละฝั่ง รถต้องวนกลับตามเส้นทาง','เวลาโดยประมาณ ปรับตามการเดินทางและเวลาถึงจริง','ถนนหลักเริ่มต้นของเมือง รื้อไม่ได้','รถขับชิดซ้ายและใช้เลนตามเส้นทาง เมื่อเต็มจะรอคิว','ภาษีปกติ 500 บาท ทำงานสาย 400 บาท พลาดงาน 250 บาท กิจกรรมอื่นไม่ลดภาษี ถนนหลักไม่มีค่าดูแล','มีบ้านว่าง เส้นทางจากประตูเมือง และความสุขตั้งแต่ 70% จึงจะมีคนย้ายเข้า คนจะนับเป็นประชากรเมื่อเดินทางถึงบ้านจริง','ไปทำงานและใช้บริการทันเวลาช่วยให้มีความสุข รถติด ไปสาย ไม่มีงาน และขาดบริการทำให้ความสุขลดลง','ต่ำกว่า 25% หรือว่างงาน 2 วัน ประชาชนจะเตรียมย้ายออก','คลิกที่รถเพื่อดูว่าของใคร กำลังไปไหน และติดอยู่เพราะอะไร เพิ่มเลนหรือกระจายงานและบริการให้ใกล้บ้านช่วยลดการเดินทาง'])html=html.replace('<p>'+note+'</p>','');
+ for(const note of ['การเข้าออกจากขอบทางฝั่งซ้ายตามทิศรถ หากอยู่คนละฝั่ง รถต้องวนกลับตามเส้นทาง','เวลาโดยประมาณ ปรับตามการเดินทางและเวลาถึงจริง','ถนนหลักเริ่มต้นของเมือง รื้อไม่ได้','รถขับชิดซ้ายและใช้เลนตามเส้นทาง เมื่อเต็มจะรอคิว','ภาษีปกติ 500 บาท ทำงานสาย 400 บาท พลาดงาน 250 บาท กิจกรรมอื่นไม่ลดภาษี ถนนหลักไม่มีค่าดูแล','มีบ้านว่าง เส้นทางจากประตูเมือง และความสุขตั้งแต่ 70% จึงจะมีคนย้ายเข้า คนจะนับเป็นประชากรเมื่อเดินทางถึงบ้านจริง','ไปทำงานและใช้บริการทันเวลาช่วยให้มีความสุข รถติด ไปสาย ไม่มีงาน และขาดบริการทำให้ความสุขลดลง','ความสุขส่วนบุคคลต่ำกว่า 40% ประชาชนจะเตรียมย้ายออกทันที','คลิกที่รถเพื่อดูว่าของใคร กำลังไปไหน และติดอยู่เพราะอะไร เพิ่มเลนหรือกระจายงานและบริการให้ใกล้บ้านช่วยลดการเดินทาง'])html=html.replace('<p>'+note+'</p>','');
  if(['road','money','population','happiness','traffic','signals'].includes(selected.kind)){
   const notes=[];
   html=html.replace(/<p>([^<]+)<\/p>/g,(part,text)=>{notes.push(part);return '';});
@@ -3955,7 +3955,15 @@ function resumeCancelledLife(c,v,reason){
  if(!c.lifeRun&&c.locationId!==c.homeId)schedule(c,state.time+5,'home');
 }
 
-function pain(c,amount,problem,key){if(!c||c.removed)return;if(key&&c.failKinds.has(key))return;if(key)c.failKinds.add(key);const before=c.happy;c.happy=Math.max(0,c.happy-amount);c.pain+=amount;c.problem=problem;if(c.happy!==before)travelLogEvent('happiness',{citizenId:c.id,before,after:c.happy,delta:c.happy-before,reason:problem||'ความสุขลดลง'});}
+// A resident below 40% happiness chooses to leave immediately, without a multi-day wait.
+// The existing moveOut trip handles actual departure via the road network.
+function checkImmediateMoveOut(c){
+ if(!c||!c.resident||c.tourist||c.removed||c.movingOut||!(c.happy<40))return false;
+ c.movingOut=true;c.state='เตรียมย้ายออก';
+ schedule(c,state.time+1,'moveOut');
+ return true;
+}
+function pain(c,amount,problem,key){if(!c||c.removed)return;if(key&&c.failKinds.has(key))return;if(key)c.failKinds.add(key);const before=c.happy;c.happy=Math.max(0,c.happy-amount);c.pain+=amount;c.problem=problem;if(c.happy!==before)travelLogEvent('happiness',{citizenId:c.id,before,after:c.happy,delta:c.happy-before,reason:problem||'ความสุขลดลง'});checkImmediateMoveOut(c);}
 function reward(c,amount,cap){const before=c.happy;c.happy=Math.max(c.happy,Math.min(cap,c.happy+amount));if(c.happy!==before)travelLogEvent('happiness',{citizenId:c.id,before,after:c.happy,delta:c.happy-before,reason:'ได้รับความสุขจากกิจกรรม'});}
 function pending(c,action,extra={},problem='ไม่มีเส้นทาง'){const attempts=(c.pending?.attempts||0)+1;c.pending={action,...extra,attempts,next:state.time+Math.min(45,8+attempts*2)+(c.id%7),expires:state.time+360};c.problem=problem;}
 function runAction(c,action,extra={}){
@@ -3969,7 +3977,7 @@ function runAction(c,action,extra={}){
  if(extra.day!=null&&extra.day!==day&&action!=='home')return;
  if(c.vehicleId){
   if(action==='work'&&c.queued?.action)return;
-  if(action==='afterWork'||action==='home'||!c.queued)c.queued={action,...extra};
+  if(action==='moveOut'||action==='afterWork'||action==='home'||!c.queued)c.queued={action,...extra};
   return;
  }
  if(c.movingOut&&action!=='moveOut')return;
@@ -4090,14 +4098,17 @@ v.lastMovedAt=state.time;v.respawns=0;
 if(travelRecording)travelLogEvent('trip_start',travelLogVehicle(v));
 if(from){parkingSpace(from,c.id,true);from.queue.push(v.id);}if(c){c.vehicleId=v.id;c.location=from?CATALOG[from.key].kind:'travel';c.state=from?'รอออกเดินทาง':TRIPS[kind].name;c.history.push(timeText(state.time)+' '+TRIPS[kind].name+' → '+(to?CATALOG[to.key].name:'ประตูเมือง'));c.history=c.history.slice(-12);}return true;}
 function arrive(v,instant=false){if(!instant&&v.phase!=='parking_in'&&beginParkingArrival(v))return;if(travelRecording)travelLogEvent('arrival',{...travelLogVehicle(v),instant:!!instant});release(v);cleanupParkingVehicle(v,true);state.vehicles.delete(v.id);missionTripEnd(v.kind);updateTrafficSpatial(v);const from=state.buildings.get(v.fromId);if(from)from.queue=from.queue.filter(i=>i!==v.id);const b=state.buildings.get(v.toId),c=state.citizens.get(v.citizenId);if(v.residentReservation&&b)b.reservedResidents=Math.max(0,b.reservedResidents-1);if(v.serviceReservation&&b)b.reservedService=Math.max(0,b.reservedService-1);if(!c)return;c.vehicleId=null;if(c.tourist&&!b){arriveTourist(c,v,b);return;}
-if(v.kind==='moveOut'){removeCitizen(c);addNews(citizenName(c)+' ย้ายออกจากเมือง');return;}if(!b){c.location='home';c.locationId=c.homeId;c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);return;}
+if(v.kind==='moveOut'){removeCitizen(c);addNews(citizenName(c)+' ย้ายออกจากเมือง');return;}
+// A low-happiness resident already en route will leave after the current trip.
+if(c.movingOut){c.queued={action:'moveOut'};schedule(c,state.time+.5,'moveOut');}
+if(!b){c.location='home';c.locationId=c.homeId;c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);return;}
 if(!c.tourist&&v.arrivedAt==null&&['work','leisure','home'].includes(v.kind)){const outcome=arrivalOutcome(v,c,b);v.late=outcome==='late';v.arrivalResult=outcome;journeyResult(c,v,outcome,outcome==='ontime'?'เดินทางและทำกิจกรรมสำเร็จ':outcome==='late'?'ถึงปลายทางช้ากว่านัดหมาย':'ถึงแล้วไม่ทันทำงานหรือใช้บริการ');}
 if(!v.arrivalCounted)b.arrivals++;b.parked.add(c.id);parkingSpace(b,c.id,true);c.locationId=b.id;c.location=CATALOG[b.key].kind;
 if(c.tourist){arriveTourist(c,v,b);return;}if(v.life){arriveLifestyle(c,v,b);return;}
 if(v.kind==='moveIn'){if(!c.resident)missionCount('populationIn');c.arrivedAt=v.arrivedAt??state.time;c.resident=true;b.residents.add(c.id);c.state='อยู่บ้าน';assignJob(c);scheduleDay(c,Math.floor(state.time/1440));scheduleDay(c,Math.floor(state.time/1440)+1);if(computeStats().pop<=5)addNews(citizenName(c)+' ย้ายมาถึงบ้านแล้ว');}
 else if(v.kind==='work'){
  c.state=v.arrivalResult==='missed'?'ถึงที่ทำงานหลังหมดช่วงงาน':v.late?'อยู่ที่ทำงาน · มาสาย':'อยู่ที่ทำงาน';
- const plan=c.dailyPlan;if(plan&&state.time>=plan.day*1440+plan.end+plan.postDelay)c.queued=plan.day===Math.floor(state.time/1440)?{action:'afterWork',day:plan.day,kind:plan.kind}:{action:'home'};
+ const plan=c.dailyPlan;if(!c.movingOut&&plan&&state.time>=plan.day*1440+plan.end+plan.postDelay)c.queued=plan.day===Math.floor(state.time/1440)?{action:'afterWork',day:plan.day,kind:plan.kind}:{action:'home'};
 }
 else if(v.kind==='leisure'){if(v.arrivalResult!=='missed'){b.visitors.add(c.id);c.state='อยู่'+KINDS[CATALOG[b.key].kind].name;schedule(c,Math.max(state.time+.5,(v.arrivedAt??state.time)+(v.stay||30)),'home');}else{c.state='ถึงแล้วแต่ใช้บริการไม่ทัน';schedule(c,state.time+.5,'home');}}
 else{c.state='อยู่บ้าน';}if(c.queued){const q=c.queued;c.queued=null;schedule(c,state.time+.5,q.action,q);}}
@@ -4757,9 +4768,9 @@ function daily(){
  for(const c of state.citizens.values()){
   if(!c.resident||c.removed)continue;assignJob(c);
   if(c.profile.trait!==3&&!c.workId){c.unemployed++;pain(c,6,'ไม่มีงานรองรับประจำวัน');}else c.unemployed=0;
-  if(c.happy<25)c.lowHappyDays=(c.lowHappyDays||0)+1;else c.lowHappyDays=0;
-  if(c.unemployed>=5||c.lowHappyDays>=3)c.movingOut=true;
-  if(c.movingOut)schedule(c,state.time+1,'moveOut');else if(c.pain<8&&!c.workDays?.[closedDay]?.missed)reward(c,3,90);
+  // Covers low-happiness residents loaded from an older save as well.
+  checkImmediateMoveOut(c);
+  if(!c.movingOut&&c.pain<8&&!c.workDays?.[closedDay]?.missed)reward(c,3,90);
   c.lastTax=workTax(c,closedDay);if(!c.taxSettledDays)c.taxSettledDays={};c.taxSettledDays[closedDay]=c.lastTax;
   for(const d of Object.keys(c.taxSettledDays))if(+d<day-3)delete c.taxSettledDays[d];
   c.late=!!(c.workDays?.[day]?.late||c.workDays?.[day]?.missed);c.pain=0;c.failKinds.clear();scheduleDay(c,day);
