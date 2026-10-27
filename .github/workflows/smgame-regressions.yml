@@ -20,6 +20,8 @@ jobs:
       - run: npm ci
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
+      - run: node work/test-orange-factories.cjs
+      - run: node work/test-factory-night-effects.cjs
       - run: node work/test-night-delivery.cjs
       - run: node work/test-intercity-roadtrain.cjs
       - run: node work/test-roadtrain-low-poly.cjs
