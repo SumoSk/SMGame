@@ -1387,17 +1387,23 @@ export class TrafficRenderer{
      batch.add(BOX,bay%2?'#dbe4e2':'#edf0eb',p.x-.5,yy,p.y-.5,
       slopeLen+.025,.075,depth+.05,0,turn,tilt,id,false,'metal');
      // One large blue array per roof face, inset from gutters & ridge.
-     const sx=x+side*half*.53,sz=zmid,ps=point(sx,sz);
+     // Clear the middle large-factory roof for its two-storey circular
+     // control room; retain compact solar panels behind that room.
+     const controlBay=level===3&&bay===1;
+     const sx=x+side*half*.53;
+     const sz=controlBay?low+depth*.16:zmid;
+     const solarDepth=depth*(controlBay?.21:.68);
+     const ps=point(sx,sz);
      batch.add(BOX,solar,ps.x-.5,yy+.067,ps.y-.5,
-      slopeLen*.68,.025,depth*.68,0,turn,tilt,id,false,'glass');
+      slopeLen*.68,.025,solarDepth,0,turn,tilt,id,false,'glass');
      const n=starter?2:level===3?5:4;
      for(let k=1;k<n;k++){
-      const zz=zmid-depth*.34+k*depth*.68/n,q=point(sx,zz);
+      const zz=sz-solarDepth*.5+k*solarDepth/n,q=point(sx,zz);
       batch.add(BOX,solarTrim,q.x-.5,yy+.085,q.y-.5,
        slopeLen*.70,.008,.014,0,turn,tilt,id,false,'metal');
      }
      // Edge gasket frames distinguish solar panels from plain glass roofs.
-     for(const zz of[zmid-depth*.35,zmid+depth*.35]){
+     for(const zz of[sz-solarDepth*.52,sz+solarDepth*.52]){
       const q=point(sx,zz);
       batch.add(BOX,'#c2d5d9',q.x-.5,yy+.082,q.y-.5,
        slopeLen*.71,.011,.022,0,turn,tilt,id,false,'metal');
@@ -1440,6 +1446,66 @@ export class TrafficRenderer{
     }
     // Bright under-eave lights, without expensive per-building point lights.
     block(amber,x,eave-.79,high+.085,spanW*.36,.055,.035,'glass',true);
+   }
+   // LARGE FACTORY ONLY: the central one of three production bays grows
+   // TWO additional levels. Round, glazed control rooms and a glowing arc-
+   // reactor-inspired ring replace the previous boxy central skyline.
+   // This is purely visual; it is not another functional building or vehicle.
+   if(level===3){
+    const coreX=left+spanW*1.5,coreZ=hallZ,rad=Math.min(spanW*.32,.82);
+    const bottom=eave+rise+.11,storey=.91;
+    const disc=(col,y,r,h=.095,glow=false)=>{
+     const p=point(coreX,coreZ);
+     batch.add(CYL,col,p.x-.5,y,p.y-.5,r*2,h,r*2,
+      0,turn,0,id,glow,glow?'glass':'metal');
+    };
+    // Slender structural stilts actually touch the middle production hall;
+    // the 2-level round office does not float over the gabled roof.
+    for(let k=0;k<8;k++){
+     const a=k*Math.PI/4,x=coreX+Math.cos(a)*rad*.84,z=coreZ+Math.sin(a)*rad*.84;
+     block('#77939d',x,bottom-.32,z,.068,.75,.068,'metal');
+    }
+    disc('#465d68',bottom,rad+.115,.16);
+    // Separate glass levels, each with its own floor, panoramic windows
+    // and angular mullions forming a cylinder without a giant solid box.
+    for(let floor=0;floor<2;floor++){
+     const floorY=bottom+floor*storey;
+     disc('#d8e1dc',floorY+.08,rad+.06,.095);
+     for(let k=0;k<12;k++){
+      const a=k*Math.PI/6,x=coreX+Math.cos(a)*rad*.89;
+      const z=coreZ+Math.sin(a)*rad*.89,p=point(x,z);
+      batch.add(BOX,floor?'#629bad':'#76bbcb',
+       p.x-.5,floorY+.49,p.y-.5,rad*.44,.69,.037,
+       0,turn+a+Math.PI/2,0,id,false,'glass');
+      block('#c9d8d6',x,floorY+.48,z,.043,.81,.048,'metal');
+      block('#b9d0d4',x,floorY+.81,z,.14,.024,.054,'metal');
+     }
+     // A glowing cyan band makes the TWO floors readable at gameplay zoom.
+     for(let k=0;k<12;k++){
+      const a=k*Math.PI/6,x=coreX+Math.cos(a)*rad*.94;
+      const z=coreZ+Math.sin(a)*rad*.94,p=point(x,z);
+      batch.add(BOX,'#66dfed',p.x-.5,floorY+.86,p.y-.5,
+       rad*.49,.032,.049,0,turn+a+Math.PI/2,0,id,true,'glass');
+     }
+    }
+    const rooftop=bottom+2*storey;
+    disc('#4b6570',rooftop+.06,rad+.12,.15);
+    disc('#c3d4d3',rooftop+.16,rad*.86,.055);
+    disc('#436f81',rooftop+.205,rad*.51,.08);
+    // Arc-reactor-like circular cyan display at the FRONT of the tower.
+    // It uses a faceted ring and a small glowing core, not an animated cube.
+    const faceZ=coreZ+rad+.075,centerY=bottom+storey*.96,ringR=.27;
+    for(let k=0;k<12;k++){
+     const a=k*Math.PI/6,x=coreX+Math.cos(a)*ringR;
+     const y=centerY+Math.sin(a)*ringR,p=point(x,faceZ);
+     batch.add(BOX,k%3===0?'#e2fcff':'#5bdff1',
+      p.x-.5,y,p.y-.5,.117,.058,.055,
+      0,turn,a+Math.PI/2,id,true,'glass');
+    }
+    block('#c7faff',coreX,centerY,faceZ+.045,.145,.145,.053,'glass',true);
+    // Two slim horizontal walkways signal a human-occupied control tower.
+    for(const h of[bottom+.13,bottom+storey+.13])
+     block('#9ebcc6',coreX,h,coreZ+rad*.75,rad*.80,.045,.11,'metal');
    }
    // Administrative office is a distinct LOW-volume front wing: clear glass
    // bands, small square entrance, parapet, not one bulky factory box.
@@ -1497,11 +1563,10 @@ export class TrafficRenderer{
     block('#637d89',tankX,.35,tankBack+.53,.045,.30,.05,'metal');
     block('#b18a63',adminX,.22,front-.19,.34,.20,.22,'wood');
     block(amber,adminX,.41,front-.18,.16,.06,.04,'glass',true);
-    // Industrial steam and cargo animation stay visible but bounded.
+    // Keep lightweight pipe steam. Remove the previously animated sliding
+    // cargo box next to the administrative office on ALL factory sizes.
     const p=point(tankX,tankBack);
     (batch.factoryEffects??=[]).push({kind:'steam',id,x:p.x-.5,y:.27+tankHeight,z:p.y-.5,turn,tier:level});
-    const q=point(adminX,front-.25);
-    (batch.factoryEffects??=[]).push({kind:'cargo',id,x:q.x-.5,y:.52,z:q.y-.5,turn,tier:level,distance:.23});
    }
    return;
   }
@@ -5782,10 +5847,6 @@ export class TrafficRenderer{
    }
    if(p.kind==='fan')for(let k=0;k<3&&part<112;k++){
     const a=cycle*4.3+k*TAU/3;box(fx.parts,part++,p.x+Math.cos(a)*.08,p.y,p.z+Math.sin(a)*.08,.18,.023,.05,-a,'#b2c5c4');
-   }
-   if(p.kind==='cargo'&&part<112){
-    const phase=(cycle*.17)%1,distance=(phase-.5)*p.distance;
-    box(fx.parts,part++,p.x-Math.sin(p.turn)*distance,p.y,p.z+Math.cos(p.turn)*distance,.30,.23,.25,p.turn,'#d4a265');
    }
    if(p.kind==='beacon'&&light<160){
     const pulse=.035+.045*(.5+.5*Math.sin(cycle*4));box(fx.sparks,light++,p.x,p.y,p.z,pulse,.07,pulse,p.turn,'#ffc777');
