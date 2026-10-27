@@ -222,7 +222,7 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
  if(!ignoreRoadTraffic&&b&&['departing','parking_out'].includes(v.phase)){
   const t=CATALOG[b.key],entrance=lotPoint(b,t.frontageEntranceU??.45,t.plotHeight),exit=lotPoint(b,t.frontageExitU??(t.dualParking?t.parkingExitB:t.plotWidth-.45),t.plotHeight);
   if(v.phase==='parking_out'||Math.min(Math.hypot(pose.x-entrance.x,pose.y-entrance.y),Math.hypot(pose.x-exit.x,pose.y-exit.y))<1.15)
-   for(const other of state.vehicles.values()){
+   for(const other of nearbyParkingCars(pose,1.1)){
     if(other.id===v.id||!['driving','stuck','parking_out','parking_in','departing'].includes(other.phase))continue;
     if(other.lotBuilding===b.id&&other.lotPath)continue;
     const p=vehiclePosition(other);
@@ -356,7 +356,7 @@ function prepareParkingMerges(dt){
   const pose=vehiclePosition(v),previous=v.mergeLastPose;
   v.mergeLastPose={x:pose.x,y:pose.y};
   if(!previous||Math.hypot(previous.x-pose.x,previous.y-pose.y)>.001){v.mergeBlockSeconds=0;v.mergeBlockRoad=null;continue;}
-  const candidate=[...state.vehicles.values()].find(road=>{
+  const candidate=[...nearbyParkingCars(pose,2)].find(road=>{
    if(road.id===v.id||road.phase!=='driving'||road.mergeExitActive||road.parkingEscapeFor||(road.speed||0)>.05)return false;
    const plan=motionPlan(road),s=motionDistance(road,plan);
    // Both vehicles' immediate forward footprints must block one another.
@@ -390,7 +390,7 @@ function parkingMergeClear(v){
  if(!cellAvailable(node,d,lane,v.id))return false;
  // Only check the physical merge point of that same tile, not the whole driveway or road ahead.
  const entry=positionOnMotion(motionPlan(v),0);
- for(const other of state.vehicles.values()){
+ for(const other of nearbyParkingCars(entry,.85)){
   if(other.id===v.id||!['driving','stuck','parking_out','parking_in'].includes(other.phase))continue;
   const p=vehiclePosition(other);
   if(p&&Math.hypot(p.x-entry.x,p.y-entry.y)<.85&&lotCarsOverlap(entry,p,.04))return false;
@@ -1594,7 +1594,18 @@ function positionOnMotion(plan,s){
  const tangent=p.line?{x:p.p3.x-p.p0.x,y:p.p3.y-p.p0.y}:bezierTangent(p.p0,p.p1,p.p2,p.p3,t);
  const length=Math.hypot(tangent.x,tangent.y)||1;return{x:point.x,y:point.y,angle:Math.atan2(tangent.y*.78,tangent.x),dx:tangent.x/length,dy:tangent.y/length};
 }
+// Reuse poses within one traffic step only; geometry and distance invalidate
+// immediately when the car moves, changes route, or enters/leaves a driveway.
 function vehiclePosition(v){
+ if(!trafficSpatial||v.vehicleTech==='fly'||(!v.lotPath&&v.phase!=='driving')||v.phase==='delivery_unload')return computeVehiclePosition(v);
+ const geometry=v.lotPath||motionPlan(v),distance=v.lotPath?(v.lotDistance||0):motionDistance(v,geometry);
+ const memo=trafficSpatial.poseMemo.get(v);
+ if(memo&&memo.geometry===geometry&&memo.distance===distance&&memo.phase===v.phase&&memo.tech===v.vehicleTech)return memo.pose;
+ const pose=computeVehiclePosition(v);
+ trafficSpatial.poseMemo.set(v,{geometry,distance,phase:v.phase,tech:v.vehicleTech,pose});
+ return pose;
+}
+function computeVehiclePosition(v){
  if(v.phase==='delivery_unload'&&v.deliveryPose)return v.deliveryPose;
  if(v.vehicleTech==='fly'&&v.airFrom&&v.airTo){
   const f=v.airProgress||0,a=v.airFrom,b=v.airTo;
@@ -4295,7 +4306,7 @@ function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(c?.
  const skyTrip=!!from&&!!to&&vehicleTech==='warp';
  const path=skyTrip?[]:kind==='intercity'?straightIntercityPath(fromGate,toGate):tripRoute(fromId,toId,fromGate,toGate,c?.id);
  if(!path)return false;if(kind==='leisure'&&to.visitors.size+to.reservedService>=CATALOG[to.key].service)return false;
-const v={id:state.nextId++,trafficModel:2,noUTurnPolicy:1,citizenId:c?.id||null,kind,fromId,toId,fromGate,toGate,path:[...path],pathSet:new Set(path),pos:0,progress:0,lane:0,laneSeed:Math.abs(state.nextId)%4,speed:0,vehicleTech,phase:skyTrip?(vehicleTech==='fly'?'air_lift':'warp_charge'):from?'departing':'gate_waiting',wait:0,lastPain:0,deadline,startedAt:state.time,congestionMinutes:0,workEnd:kind==='work'?(extra.life?extra.life.day*1440+c?.lifeRun?.plan.steps[extra.life.index]?.until:c?.dailyPlan?.day*1440+c?.dailyPlan?.end):null,late:false,color:c?citizenCarColor(c.id):TRIPS[kind].color,version:state.version,life:extra.life,stay:extra.stay,closeAt:extra.closeAt,activityEnd:extra.activityEnd,serviceKind:extra.serviceKind,residentReservation:kind==='moveIn',serviceReservation:kind==='leisure',retryAt:0,occKey:null,stopReason:'',routeMissing:false,routeMissingSince:null,committedJunction:null,departureRouteVersion:state.version};state.vehicles.set(v.id,v);if(kind!=='intercity')missionTripStart(kind);if(kind==='moveIn')to.reservedResidents++;if(kind==='leisure')to.reservedService++;
+const v={id:state.nextId++,trafficModel:2,noUTurnPolicy:1,citizenId:c?.id||null,kind,fromId,toId,fromGate,toGate,path:[...path],pathSet:new Set(path),pos:0,progress:0,lane:0,laneSeed:Math.abs(state.nextId)%4,speed:0,vehicleTech,phase:skyTrip?(vehicleTech==='fly'?'air_lift':'warp_charge'):from?'departing':'gate_waiting',wait:0,lastPain:0,deadline,startedAt:state.time,congestionMinutes:0,workEnd:kind==='work'?(extra.life?extra.life.day*1440+c?.lifeRun?.plan.steps[extra.life.index]?.until:c?.dailyPlan?.day*1440+c?.dailyPlan?.end):null,late:false,color:c?citizenCarColor(c.id):TRIPS[kind].color,version:state.version,life:extra.life,stay:extra.stay,closeAt:extra.closeAt,activityEnd:extra.activityEnd,serviceKind:extra.serviceKind,residentReservation:kind==='moveIn',serviceReservation:kind==='leisure',retryAt:0,occKey:null,stopReason:'',routeMissing:false,routeMissingSince:null,committedJunction:null,departureRouteVersion:state.version};state.vehicles.set(v.id,v);updateParkingRoadSpatial(v);if(kind!=='intercity')missionTripStart(kind);if(kind==='moveIn')to.reservedResidents++;if(kind==='leisure')to.reservedService++;
 v.lastMovedAt=state.time;v.respawns=0;
  v.travelBudget=skyTrip?{totalMinutes:vehicleTech==='warp'?20:6+Math.hypot(to.x-from.x,to.y-from.y)/2.6}:travelEstimate(path);
  if(skyTrip){
@@ -4563,6 +4574,38 @@ function refreshMotionReservations(v,plan,s){
  v.committedJunction=active.length?active[active.length-1].node:null;
 }
 let trafficSpatial=null;
+// Unlike the road-only index, this conservative grid also includes departing
+// cars without a lotPath and stuck cars without heldPose. Exact checks stay live.
+function updateParkingRoadSpatial(v){
+ const grid=trafficSpatial?.parkingGrid;
+ if(!grid)return;
+ const old=grid.cars.get(v.id);
+ let order=grid.orders.get(v);if(order==null){order=grid.nextOrder++;grid.orders.set(v,order);}
+ const eligible=state.vehicles.get(v.id)===v&&['driving','stuck','parking_out','parking_in','departing'].includes(v.phase);
+ const pose=eligible?vehiclePosition(v):null;
+ const key=pose?Math.floor(pose.x/2)+':'+Math.floor(pose.y/2):null;
+ if(old&&old.car===v&&old.pose===pose&&old.key===key)return;
+ if(old){const cell=grid.cells.get(old.key);cell?.delete(v.id);if(!cell?.size)grid.cells.delete(old.key);grid.cars.delete(v.id);}
+ if(!pose)return;
+ const record={car:v,pose,key,order};
+ let cell=grid.cells.get(key);if(!cell)grid.cells.set(key,cell=new Map());
+ cell.set(v.id,record);grid.cars.set(v.id,record);
+}
+function* nearbyParkingCars(pose,radius){
+ if(!trafficSpatial||!pose){yield* state.vehicles.values();return;}
+ if(!trafficSpatial.parkingGrid){
+  trafficSpatial.parkingGrid={cells:new Map(),cars:new Map(),orders:new WeakMap(),nextOrder:0};
+  for(const car of state.vehicles.values())updateParkingRoadSpatial(car);
+ }
+ const grid=trafficSpatial.parkingGrid,records=[];
+ for(let x=Math.floor((pose.x-radius)/2);x<=Math.floor((pose.x+radius)/2);x++)
+  for(let y=Math.floor((pose.y-radius)/2);y<=Math.floor((pose.y+radius)/2);y++)
+   for(const record of grid.cells.get(x+':'+y)?.values()||[])
+    if(state.vehicles.get(record.car.id)===record.car)records.push(record);
+ // Preserve original selection order when choosing a mutually blocked pair.
+ records.sort((a,b)=>a.order-b.order);
+ for(const record of records)yield record.car;
+}
 // Origin/destination membership includes cars before they acquire a lotPath.
 // Keep original vehicle iteration order and read live objects after transitions.
 function* parkingLotCars(buildingId){
@@ -4600,7 +4643,7 @@ function capsulesOverlap(p,q){
  const [a,b]=capsule(p),[c,d]=capsule(q);const cross=(p,q,r)=>(q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x);if(cross(a,b,c)*cross(a,b,d)<0&&cross(c,d,a)*cross(c,d,b)<0)return true;return Math.min(pointSegmentDistance(a,c,d),pointSegmentDistance(b,c,d),pointSegmentDistance(c,a,b),pointSegmentDistance(d,a,b))<.32;
 }
 function updateTrafficSpatial(v){
- indexParkingLotCar(v);
+ indexParkingLotCar(v);updateParkingRoadSpatial(v);
  if(!trafficSpatial)return;trafficSpatial.epoch++;const old=trafficSpatial.cars.get(v.id);if(old){const cell=trafficSpatial.cells.get(old.key);cell?.delete(v.id);if(!cell?.size)trafficSpatial.cells.delete(old.key);trafficSpatial.cars.delete(v.id);}
  if(!state.vehicles.has(v.id)||(!['driving','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath)&&!(v.phase==='stuck'&&v.heldPose)))return;const pose=vehiclePosition(v),key=Math.floor(pose.x/2)+':'+Math.floor(pose.y/2);let cell=trafficSpatial.cells.get(key);if(!cell)trafficSpatial.cells.set(key,cell=new Map());const record={id:v.id,pose,key};cell.set(v.id,record);trafficSpatial.cars.set(v.id,record);
 }
@@ -4862,7 +4905,7 @@ function emergencyRightReroute(v,alerts){
  // Check both logical lane reservations and physical bodies; even an instant
  // jump cannot overlap another car or intrude into the oncoming direction.
  if(!cellAvailable(node,direction,rightLane,v.id)||!cellAvailable(next,direction,rightLane,v.id))return false;
- for(const other of state.vehicles.values()){
+ for(const other of nearbyParkingCars(targetPose,1.5)){
   if(other.id===v.id)continue;
   const p=vehiclePosition(other);
   if(!p||Math.hypot(p.x-targetPose.x,p.y-targetPose.y)>1.5)continue;
@@ -4895,10 +4938,11 @@ function emergencyRightReroute(v,alerts){
  return true;
 }
 function advanceVehicles(realDt,gameDt){
- let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);for(const car of state.vehicles.values()){if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
+ let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);for(const car of state.vehicles.values()){if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,poseMemo:new WeakMap(),parkingGrid:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
  prepareParkingMerges(simDt);
  const emergencyAlerts=parkingGateAlerts();
  for(const v of [...state.vehicles.values()]){
+  try{
   if(!state.vehicles.has(v.id))continue;
   if(v.phase==='delivery_unload'){if(state.time>=(v.delivery?.until??Infinity))startDeliveryReturn(v);continue;}
   if(!Number.isFinite(v.lastMovedAt))v.lastMovedAt=state.time-Math.max(0,Number.isFinite(v.wait)?v.wait:0);
@@ -5032,6 +5076,7 @@ function advanceVehicles(realDt,gameDt){
    v.wait+=gameDt;v.stopReason=blocked;state.roads.get(v.path[v.pos]).wait=Math.min(10,state.roads.get(v.path[v.pos]).wait+realDt);
   }else{v.wait=0;v.stopReason=blocked||'';}
   updateTrafficSpatial(v);
+  }finally{updateParkingRoadSpatial(v);}
  }
  trafficSpatial=null;parkingMerges=[];
  for(const [key,res]of state.reservations){if(res.passes){res.passes=res.passes.filter(p=>p.until>=state.time&&state.vehicles.has(p.id));if(res.passes.length)res.id=res.passes[0].id;else state.reservations.delete(key);}else if(res.until<state.time||!state.vehicles.has(res.id))state.reservations.delete(key);}
