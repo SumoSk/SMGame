@@ -29,11 +29,10 @@ g.focusDemandShortage([{kind:'restaurant',waiting:100}]);
 assert(selected.at(-1).includes('restaurant'),'Changed highest shortage must win');
 assert(moves.at(-1).left>0,'Scroll horizontally');
 const after=moves.length;
-g.focusDemandShortage([{kind:'casino',waiting:0}]);
-assert.equal(after,moves.length,'No shortage: no movement');
-g.demandFocusState.lastAt=Date.now();
 g.focusDemandShortage([{kind:'restaurant',waiting:100}]);
 assert.equal(after,moves.length,'Do not scroll repeatedly for an unchanged priority');
+g.focusDemandShortage([{kind:'casino',waiting:0}]);
+assert.equal(after,moves.length,'No shortage: no movement');
 // Refreshing needs must remain safe in the minimal DOM test harness.
 assert.doesNotThrow(()=>g.updateCityAdvisor());
 console.log('PASS v2 demand focus: top priority, drag/hover hold, both axes, throttle and safe UI update');
