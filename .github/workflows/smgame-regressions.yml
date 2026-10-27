@@ -93,7 +93,6 @@ jobs:
       - run: node --check dist/game.js
       - run: node -r ./work/test-dom-compat.cjs work/test-travel-happiness.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-lane-change-safety.cjs
-      - run: node -r ./work/test-dom-compat.cjs work/test-demand-autofocus.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
   publish:
     needs: [new-building-models, lane-change-safety]
