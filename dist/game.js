@@ -2247,8 +2247,8 @@ const demandFollow={activePointer:false,hovered:false,holdUntil:0,lastFocusKey:'
 function demandScrollHost(){return document.querySelector('body>.bottom .city-control-mini .panel-content');}
 function initDemandAutoFocus(){
  const host=demandScrollHost();
- if(!host||host.dataset.cityAutoFocusReady)return;
- host.dataset.cityAutoFocusReady='1';
+ if(!host||typeof host.addEventListener!=='function'||host.dataset?.cityAutoFocusReady)return;
+ if(host.dataset)host.dataset.cityAutoFocusReady='1';
  const hold=()=>{demandFollow.holdUntil=Date.now()+20000;};
  host.addEventListener('pointerdown',()=>{demandFollow.activePointer=true;hold();},{passive:true});
  host.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse')demandFollow.hovered=true;},{passive:true});
@@ -2263,8 +2263,8 @@ function initDemandAutoFocus(){
 }
 function focusHighestCityDemand(needs){
  const host=demandScrollHost();
- if(!host||!needs.length||demandFollow.activePointer||demandFollow.hovered||Date.now()<demandFollow.holdUntil)return;
- if(host.closest('.tools-collapsed')||host.clientHeight<8||host.clientWidth<8)return;
+ if(!host||typeof host.querySelectorAll!=='function'||typeof host.getBoundingClientRect!=='function'||!needs.length||demandFollow.activePointer||demandFollow.hovered||Date.now()<demandFollow.holdUntil)return;
+ if(host.closest?.('.tools-collapsed')||!(host.clientHeight>=8)||!(host.clientWidth>=8))return;
  const ranked=needs.filter(r=>r.waiting>0).sort((a,b)=>b.waiting-a.waiting);
  if(!ranked.length){demandFollow.lastFocusKey='';return;}
  const best=ranked[0],now=Date.now();
@@ -2355,8 +2355,8 @@ function openCityAlertAction(item){
  if(target){category=target;selectTool('hand');}
 }
 function initCityAlertControls(){
- $('cityAdvisorAction')?.addEventListener('click',()=>{const item=cityAlerts.active;hideCityAlert();openCityAlertAction(item);});
- $('cityAdvisorDismiss')?.addEventListener('click',event=>{event.stopPropagation();hideCityAlert();cityAlerts.dismissUntil=Date.now()+90000;});
+ $('cityAdvisorAction')?.addEventListener?.('click',()=>{const item=cityAlerts.active;hideCityAlert();openCityAlertAction(item);});
+ $('cityAdvisorDismiss')?.addEventListener?.('click',event=>{event.stopPropagation();hideCityAlert();cityAlerts.dismissUntil=Date.now()+90000;});
 }
 
 function updateCityAdvisor(){
@@ -5995,6 +5995,6 @@ $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใ�
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
 if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({assistedBuildingPlacement,getDemolitionPreview,finishCanvasInteraction,get state(){return state;},get cam(){return cam;},get selected(){return selected;},get carStatusDiamondsVisible(){return carStatusDiamondsVisible;},get aiPinsVisible(){return aiPinsVisible;},toggleAIPinLabels,activateAISignalPin,updateAISignalPins,buyAISignal,openAISignalUpgrade,smartSignalStep,aiSignalQueuePressure,get graphicQuality(){return graphicQuality;},applyGraphicQuality,openGraphicsMenu,get canvasCarMarkerHits(){return canvasCarMarkerHits;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,CITIZEN_TRAITS,VEHICLE_TECHS,openVehicleUpgrade,syncCitizenVehicleTech,vehicleTechCounts,vehiclePosition,advanceSkyVehicle,citizenServicePreference,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalSlots,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
-initDemandAutoFocus();initCityAlertControls();window.setInterval(pulseCityAdvisor,1000);
+initDemandAutoFocus();initCityAlertControls();if(typeof window.setInterval==='function')window.setInterval(pulseCityAdvisor,1000);
 resize();startNewCity();requestAnimationFrame(frame);
 })();
