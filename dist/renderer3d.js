@@ -3176,27 +3176,36 @@ export class TrafficRenderer{
    return;
   }
 
-  // LUXURY RETAIL COLLECTION — three purpose-designed malls. The curved
-  // glazed atrium, shopfronts and roof gardens are actual game geometry.
-  // Site dimensions, rear parking half and both vehicle lanes are unchanged.
+  // APPLE-STYLE GLASS GALLERIA: the retail park is deliberately ONE storey
+  // for small/medium, TWO at large. Thin floating silver roofs, faceted
+  // curved transparent atrium, separate airy shop pavilions and roof gardens.
+  // No massive opaque cuboid, third storey, brand mark, moving light or
+  // dynamic shadow: static instanced low-poly meshes inside the original lot.
   if(t.kind==='mall'){
-   const tier=t.modelTier||1,W=t.plotWidth,H=t.plotHeight,P=t.parkingZoneDepth;
-   const cx=W/2,rear=P+.30,front=H-1.12,mid=(rear+front)/2;
-   const width=W-2.10,depth=front-rear,base=.24,step=2.04,slab=.18,roof=base+tier*step;
-   const cream='#eee9de',limestone='#d6cebb',bronze='#b69a67',dark='#263e41',glass='#59888d';
-   const atriumW=tier===1?1.52:tier===2?2.34:2.68;
-   const wingW=(width-atriumW)/2,wingX=atriumW/2+wingW/2;
-   const solid=(c,x,y,z,w,h,d,finish='stone',lit=false)=>block(c,x,y,z,w,h,d,finish,lit);
-   const beam=(c,x1,z1,x2,z2,y,w=.035,h=.045,finish='metal',lit=false)=>{
-    const p=point((x1+x2)/2,(z1+z2)/2),angle=Math.atan2(z2-z1,x2-x1);
-    batch.box(c,p.x-.5,y,p.y-.5,Math.hypot(x2-x1,z2-z1),h,w,turn-angle,id,lit,finish);
+   const tier=t.modelTier||1,floors=tier===3?2:1,W=t.plotWidth,H=t.plotHeight;
+   const P=t.parkingZoneDepth,cx=W/2;
+   const rear=P+.36,front=H-.88,mid=(rear+front)/2,depth=front-rear;
+   const ivory='#e5e9e6',silver='#c4d4d6',stone='#e6dfd5';
+   const dark='#314e5a',glass='#77b7c6',glass2='#87bfcc',bronze='#b69a67';
+   const slab=.14,unit=2.07,base=.22,ceiling=base+floors*unit;
+   const width=W-2.19,atriumW=tier===1?1.27:tier===2?2.00:2.24;
+   const gap=tier===1?.17:.32,wingW=(width-atriumW-2*gap)/2;
+   const wingX=atriumW*.5+gap+wingW*.5;
+   const solid=(c,x,y,z,w,h,d,finish='stone',lit=false)=>
+    block(c,x,y,z,w,h,d,finish,lit);
+   const low=this.graphicQuality==='low';
+   const glow=(c,x,y,z,w,h,d)=>solid(c,x,y,z,w,h,d,'glass',true);
+   const circle=(color,x,y,z,r,h,finish='stone',lit=false)=>{
+    const p=point(x,z);
+    batch.add(CYL_SMOOTH,color,p.x-.5,y,p.y-.5,r,h,r,0,turn,0,id,lit,finish);
    };
-   const planter=(x,z,y=base,w=.44,d=.36)=>{
-    solid('#a79c82',x,y+.13,z,w,.26,d);
-    solid('#485540',x,y+.27,z,w*.83,.045,d*.80);
-    solid('#658051',x,y+.36,z,w*.90,.18,d*.82);
-    solid('#90a565',x-.05,y+.46,z-.025,w*.63,.13,d*.60);
+   const planter=(x,z,y=.20,scale=.27)=>{
+    circle('#d8d7ce',x,y+.08,z,scale*2.1,.16);
+    circle('#8baf81',x,y+.23,z,scale*1.85,.18,'foliage');
+    circle('#76a474',x,y+.34,z,scale*1.6,.16,'foliage');
    };
+   const trim=(x,y,z,w,d,col=silver)=>solid(col,x,y,z,w,.065,d,'metal');
+   const trimLamp=(x,y,z,w,d,col='#ffe7bf')=>glow(col,x,y,z,w,.020,d);
    const letters={A:['010','101','111','101','101'],C:['111','100','100','100','111'],
     D:['110','101','101','101','110'],E:['111','100','110','100','111'],
     F:['111','100','110','100','100'],G:['111','100','101','101','111'],
@@ -3217,179 +3226,149 @@ export class TrafficRenderer{
      solid('#e3cf9c',x-(text.length*4-1)*cell/2+(i*4+col)*cell,y+(2-row)*cell,z+.032,cell*.76,cell*.80,.012,'metal');
     solid('#ffdfa2',x,y+h/2-.013,z+.028,w*.92,.014,.012,'glass',true);
    };
-   // Grounded stone forecourt and connected shallow steps, all within the
-   // building half. These are pedestrian surfaces, not a new vehicle route.
-   solid('#bdaba4',cx,.13,mid,width+.24,.22,depth+.24);
-   solid('#e6dfd5',cx,base+slab/2,mid,width,slab,depth);
-   solid('#bcb6a5',cx,.115,front+.35,width+.20,.19,.62);
-   solid('#ede6d6',cx,.21,front+.21,width,.13,.40);
-   for(let n=0;n<6;n++)solid('#b5aa91',cx-width*.46+n*width*.184,.283,front+.28,.018,.008,.32);
 
-   // Separate occupied wings frame a full-height atrium. Upper floors have
-   // real supporting walls/slabs and a rear bridge, leaving the central void.
-   for(let level=0;level<tier;level++){
-    const floor=base+level*step,inset=level*.10,face=front-inset,back=rear+inset;
-    const d=depth-inset*2,wallY=floor+slab+(step-slab)/2;
-    for(const side of[-1,1]){
-     const wx=cx+side*(wingX-inset*.5),w=wingW-inset;
-     const retreat=level===tier-1?(tier===3?(side>0?.48:.25):tier===2&&side>0?.27:0):0;
-     const wingFace=face-retreat,wingDepth=wingFace-back,wingMid=(wingFace+back)/2;
-     if(level)solid('#e6dfd5',wx,floor+slab/2,wingMid,w,slab,wingDepth);
-     // Opaque structural walls sit behind the display glazing, which has
-     // recess depth and pilasters rather than a repeated office window grid.
-     solid(cream,wx+side*(w/2-.09),wallY,wingMid,.18,step-slab,wingDepth);
-     solid(limestone,wx,wallY,back+.08,w-.18,step-slab,.16);
-     solid(dark,wx,floor+1.09,wingFace-.035,w-.11,1.32,.065,'glass');
-     const bays=tier===1?1:2,bayW=(w-.23)/bays;
-     for(let bay=0;bay<bays;bay++){
-      const x=wx-w/2+.115+(bay+.5)*bayW;
-      solid(glass,x,floor+1.06,wingFace+.012,bayW-.08,1.22,.045,'glass');
-      solid('#b9d3cc',x-bayW*.27,floor+1.17,wingFace+.042,.035,.90,.012,'glass');
-      solid('#d1e2d8',x+bayW*.19,floor+1.35,wingFace+.045,bayW*.31,.025,.013,'glass');
-      solid(bronze,x,floor+1.06,wingFace+.048,.022,1.24,.020,'metal');
-      // Boutique display plinth and a lit product silhouette at the window.
-      solid('#d7c9a9',x,floor+.57,wingFace+.058,bayW*.59,.16,.10);
-      solid('#e6b589',x,floor+.82,wingFace+.065,.13,.32,.07);
-      solid('#ffe7ba',x,floor+.48,wingFace+.065,bayW*.68,.025,.016,'glass',true);
-     }
-     solid(cream,wx,floor+step-.15,wingFace+.025,w+.06,.26,.23);
-     solid(bronze,wx,floor+step-.025,wingFace+.15,w+.10,.035,.025,'metal');
-     solid('#ffdfa3',wx,floor+step-.29,wingFace+.12,w*.96,.018,.026,'glass',true);
-     for(const edge of[-1,1]){
-      solid(cream,wx+edge*(w/2-.045),wallY,wingFace+.065,.11,step-slab,.22);
-      solid(bronze,wx+edge*(w/2-.045),wallY,wingFace+.18,.027,step-slab-.16,.025,'metal');
-     }
-     if(level===0||tier===3&&level===1)
-      label(level?'DINE':side<0?'ATELIER':'MAISON',wx,floor+1.69,wingFace+.16,Math.min(w-.18,1.70),.25);
-     if(tier===3&&level===2&&side>0){
-      solid(dark,wx,floor+1.02,wingFace+.093,w*.88,1.04,.055,'metal');
-      label('CINEMA',wx,floor+1.13,wingFace+.134,w*.78,.37);
-      for(let n=0;n<7;n++)solid('#d8bb87',wx-w*.35+n*w*.117,floor+.65,wingFace+.13,.05,.05,.018,'metal');
-     }else if(tier===2&&level===1&&side<0){
-      for(let n=0;n<10;n++)solid(bronze,wx-w*.44+n*w*.098,floor+1.12,wingFace+.10,.026,1.03,.11,'metal');
-     }
-     // Parking face has a glazed second entrance and shop ribbons; service
-     // doors and mullions keep this elevation readable from reverse cameras.
-     solid('#65898a',wx,floor+1.03,back-.017,w*.79,1.13,.040,'glass');
-     for(let k=0;k<3;k++){
-      const x=wx-w*.34+k*w*.34;
-      solid(bronze,x,floor+1.03,back-.045,.028,1.18,.028,'metal');
-      solid('#ffe4ae',x,floor+.64,back-.045,w*.18,.09,.017,'glass',true);
-     }
-     solid(cream,wx,floor+step-.14,back-.026,w+.03,.23,.13);
-     // Alternating tall stone fins and teal glazing replace blank side walls.
-     const outer=wx+side*w/2,panels=tier===3?5:3;
-     for(let k=0;k<panels;k++){
-      const z=back+(k+.5)*wingDepth/panels;
-      solid(glass,outer+side*.012,floor+1.04,z,.030,1.20,wingDepth/panels*.69,'glass');
-      solid('#adc9c7',outer+side*.033,floor+1.30,z,.018,.032,wingDepth/panels*.49,'glass');
-      solid('#ffdda5',outer+side*.036,floor+.56,z,.015,.025,wingDepth/panels*.59,'glass',true);
-      solid(limestone,outer+side*.04,wallY,z+wingDepth/panels*.40,.13,step-slab,wingDepth/panels*.12);
-      solid(bronze,outer+side*.112,wallY,z+wingDepth/panels*.40,.018,step-slab-.12,.036,'metal');
-     }
-     solid(cream,outer,floor+step-.12,wingMid,.20,.20,wingDepth+.08);
+   // Four footprint-safe landing slabs: no added roads, parking, gates or
+   // simulation changes. Pedestrian court shows clearly from bird's eye.
+   solid('#bdaba4',cx,.13,mid,width+.12,.21,depth+.13);
+   solid(stone,cx,base+slab*.5,mid,width,slab,depth);
+   solid('#c1c8c1',cx,.15,front+.17,width-.10,.095,.26);
+   for(let n=0;n<7;n++){
+    const x=cx-width*.44+n*width*.88/6;
+    solid(n%2?'#d9dfd7':'#e3e5dd',x,.207,front+.17,.15,.016,.25,'stone');
+   }
+   // Two retail wings are separate from the glazed atrium; different
+   // fore-aft positions and roof heights eliminate the old wide box.
+   for(const side of[-1,1]){
+    const x=cx+side*wingX;
+    const z=mid+(side>0?(tier===1?-.07:-.16):.13);
+    const d=depth-(tier===1?.19:.29),back=z-d*.5,face=z+d*.5;
+    const h=side>0&&tier===2?2.00:unit;
+    // Retail sales floors visible through lightly tinted glazing on all four
+    // faces; masonry only in a narrow rear service core.
+    solid('#d6e3e0',x,.31,z,wingW-.09,.07,d-.10);
+    solid('#d1d8d1',x,.91,back+.085,wingW-.17,1.25,.12,'stone');
+    for(const xx of[x-wingW*.46,x+wingW*.46]){
+     for(const zz of[back+.20,face-.17])
+      solid('#d8e3e1',xx,1.12,zz,.068,1.59,.070,'metal');
+     solid(glass2,xx,.98,z,.046,1.30,d-.26,'glass');
+     trim(xx,1.78,z,.048,d-.25);
+     trimLamp(xx,1.72,z,.017,d-.40);
     }
-    if(level)solid('#e6dfd5',cx,floor+slab/2,rear+.36,atriumW,slab,.52);
-   }
-
-   // Bow-front atrium: faceted curved glass, thin brass ribs and continuous
-   // floor-edge rings. Shape and entrance remain legible at the default zoom.
-   const arcZ=front-.14,bulge=tier===1?.23:.34,segments=10;
-   for(let k=0;k<segments;k++){
-    const a=-Math.PI/2+k*Math.PI/segments,beta=a+Math.PI/segments;
-    const ax=cx+Math.sin(a)*atriumW/2,az=arcZ+Math.cos(a)*bulge;
-    const bx=cx+Math.sin(beta)*atriumW/2,bz=arcZ+Math.cos(beta)*bulge;
-    for(let level=0;level<tier;level++){
-     const floor=base+level*step;
-     beam(k%3===1?'#82aeb0':'#547f87',ax,az,bx,bz,floor+1.08,.035,1.44,'glass');
-     beam('#c3dbd7',ax,az,bx,bz,floor+1.52,.020,.028,'glass');
-     beam(bronze,ax,az,bx,bz,floor+step-.15,.075,.12);
-     beam('#ffdfb3',ax,az,bx,bz,floor+step-.23,.028,.016,'glass',true);
+    for(const zz of[back+.08,face-.06]){
+     solid('#8ebdc7',x,1.04,zz,wingW-.20,1.31,.043,'glass');
+     for(let k=0;k<4;k++){
+      const xx=x-wingW*.37+(k+.5)*wingW*.74/4;
+      solid(silver,xx,1.10,zz+.029,.029,1.42,.033,'metal');
+      // Lit showcase pedestal with coloured products, no moving displays.
+      if(zz>z){
+       solid('#e8e8dd',xx,.47,zz+.07,wingW*.15,.08,.13);
+       solid(k%2?'#8dbaa8':'#88abbc',xx,.68,zz+.09,.12,.31,.065,'glass');
+       if(!low||k%2===0)glow('#ffe2ae',xx,.79,zz+.105,.105,.025,.011);
+      }
+     }
+     trim(x,1.74,zz,wingW-.07,.070);
+     if(!low)trimLamp(x,1.79,zz,wingW*.85,.026);
     }
-    const ribH=roof-base-.13;
-    solid(bronze,ax,base+ribH/2,az,.028,ribH,.035,'metal');
-   }
-   // Two-storey-plus atria have a visible internal balcony/bridge behind the
-   // central upper glazing. These accents do not create extra occupied floors.
-   for(let level=1;level<tier;level++){
-    const y=base+level*step;
-    solid('#d6c6a6',cx,y+.09,front-.29,atriumW,.12,.30);
-    solid('#a4c8c5',cx,y+.43,front-.10,atriumW,.42,.025,'glass');
-    solid(bronze,cx,y+.65,front-.085,atriumW,.035,.035,'metal');
-   }
-   // A broad champagne entrance canopy and slender planted forecourt make
-   // the front read as an inviting public destination, not an office lobby.
-   const entryW=atriumW+.48,canopyY=tier===3?2.22:tier===2?2.02:1.86,canopyZ=front+.27;
-   solid(dark,cx,canopyY,canopyZ,entryW,.13,.61,'metal');
-   solid('#d4c39e',cx,canopyY+.09,canopyZ,entryW+.08,.055,.63,'metal');
-   solid('#ffe7bb',cx,canopyY-.08,canopyZ+.25,entryW*.91,.024,.022,'glass',true);
-   for(const side of[-1,1]){
-    const x=cx+side*(entryW/2-.13);
-    solid(limestone,x,(base+canopyY)/2,front+.43,.105,canopyY-base,.105);
-    solid(bronze,x,1.12,front+.49,.027,1.26,.018,'metal');
-   }
-   solid('#375e67',cx,.99,front+.24,atriumW*.60,1.34,.04,'glass');
-   for(const side of[-1,1]){
-    solid('#a6caca',cx+side*atriumW*.15,.99,front+.266,atriumW*.28,1.27,.018,'glass');
-    solid(bronze,cx+side*.055,.99,front+.29,.024,.35,.022,'metal');
-   }
-   solid(bronze,cx,.99,front+.29,.028,1.32,.026,'metal');
-
-   // Separate roof wings, light parapets and real barrel-vault skylight.
-   const inset=(tier-1)*.10,rw=wingW-inset,rd=depth-inset*2;
-   for(const side of[-1,1]){
-    const wx=cx+side*(wingX-inset*.5);
-    const retreat=tier===3?(side>0?.48:.25):tier===2&&side>0?.27:0;
-    const roofMid=mid-retreat/2,roofDepth=rd-retreat;
-    solid('#dad5c7',wx,roof+.065,roofMid,rw+.10,.13,roofDepth+.10);
+    // Flying roof: a thin silver plane and curved end pieces, unlike heavy
+    // storey-wide wall boxes. Low profile for all types.
+    solid('#dce6e4',x,2.12,z,wingW+.19,.115,d+.13,'metal');
+    solid('#b9c8cc',x,2.20,z,wingW+.20,.047,d+.13,'metal');
+    for(const xx of[x-wingW*.49,x+wingW*.49])
+     circle('#b9c8cc',xx,2.19,z,.20,.055,'metal');
+    if(tier===1){
+     label(side<0?'STUDIO':'MARKET',x,1.65,face+.045,wingW*.91,.235);
+    }else if(tier===2){
+     label(side<0?'STUDIO':'GALLERY',x,1.65,face+.056,Math.min(wingW*.90,2.36),.245);
+    }else{
+     label(side<0?'GALLERY':'MARKET',x,1.65,face+.056,Math.min(wingW*.90,2.36),.25);
+    }
+    // Large: upper-floor gallery stays on separate thin independent wings.
+    // This is the ONLY upper level; there is no third tier or rooftop block.
+    if(floors===2){
+     solid(stone,x,2.24,z,wingW-.17,.14,d-.25,'stone');
+     solid('#d0d9d6',x,2.32,back+.14,wingW-.22,.08,.30);
+     for(const zz of[back+.08,face-.09]){
+      solid('#88bec9',x,3.11,zz,wingW-.18,1.38,.042,'glass');
+      for(let k=0;k<3;k++){
+       const xx=x-wingW*.34+k*wingW*.34;
+       solid(silver,xx,3.11,zz+.035,.033,1.43,.035,'metal');
+       glow('#ffe5bd',xx,2.65,zz+.050,.12,.18,.015);
+      }
+      trim(x,3.83,zz,wingW+.04,.095);
+     }
+     for(const xx of[x-wingW*.46,x+wingW*.46]){
+      solid(glass2,xx,3.12,z,.046,1.40,d-.20,'glass');
+      trim(xx,3.83,z,.06,d+.02);
+      for(let k=0;k<4;k++){
+       const zz=back+.28+k*(d-.56)/3;
+       solid('#c9d7d5',xx,3.12,zz,.060,1.36,.046,'metal');
+      }
+     }
+     solid('#e0e8e5',x,3.95,z,wingW+.14,.105,d+.12,'metal');
+     solid('#b1c7cc',x,4.035,z,wingW+.17,.045,d+.14,'metal');
+     trimLamp(x,3.91,face,wingW*.88,.025);
+    }
+    // Staggered corner trees, benches, roof-edge shrub planters.
+    const planterZ=Math.min(H-.51,front+.23);
+    planter(x,planterZ,.16,.20);
     for(const end of[-1,1]){
-     solid(cream,wx,roof+.18,roofMid+end*roofDepth/2,rw+.10,.17,.12);
-     solid(bronze,wx,roof+.275,roofMid+end*roofDepth/2,rw+.10,.025,.13,'metal');
-    }
-    solid(cream,wx+side*rw/2,roof+.18,roofMid,.12,.17,roofDepth);
-    solid('#708258',wx,roof+.17,roofMid,rw*.63,.09,roofDepth*.55);
-    planter(wx,roofMid+roofDepth*.23,roof+.13,Math.min(.65,rw*.60),.35);
-   }
-   const skylightD=depth*.62,skylightZ=mid,archH=tier===1?.33:.50;
-   for(let k=0;k<12;k++){
-    const a=Math.PI-k*Math.PI/12,beta=a-Math.PI/12;
-    const x1=cx+Math.cos(a)*atriumW*.48,y1=roof+.13+Math.sin(a)*archH;
-    const x2=cx+Math.cos(beta)*atriumW*.48,y2=roof+.13+Math.sin(beta)*archH;
-    const p=point((x1+x2)/2,skylightZ),angle=Math.atan2(y2-y1,x2-x1);
-    batch.add(BOX,k%3?'#729ca3':'#9bbabc',p.x-.5,(y1+y2)/2,p.y-.5,Math.hypot(x2-x1,y2-y1),.035,skylightD,0,turn,angle,id,false,'glass');
-    solid(bronze,x1,y1,skylightZ,.025,.035,skylightD+.04,'metal');
-   }
-   const title=tier===1?'GALLERIA':tier===2?'THE GALLERIA':'GRAND GALLERIA';
-   label(title,cx,roof-.29,front+.23,tier===1?2.78:tier===2?3.12:3.75,.33);
-   if(tier>=2){
-    // A taller limestone blade and close-spaced bronze screens articulate one
-    // corner; they anchor the building visually all the way down to the slab.
-    const x=1.27;
-    solid(limestone,x,(base+roof)/2,front-.23,.30,roof-base,.44);
-    for(let k=0;k<5;k++)solid(bronze,x-.16+k*.08,(base+roof)/2,front+.006,.024,roof-base-.20,.055,'metal');
-   }
-   if(tier===3){
-    // Roof dining pergola is supported on the roof slab; seating and planters
-    // fit inside the parapet, never over a driving aisle or parking bay.
-    const x=cx-wingX,z=mid-.55,w=1.40,d=1.65,y=roof+.15;
-    for(const sx of[-1,1])for(const sz of[-1,1])solid(bronze,x+sx*w/2,y+.38,z+sz*d/2,.045,.76,.045,'metal');
-    for(let k=0;k<7;k++)solid('#af946c',x,y+.78,z-d/2+k*d/6,w+.12,.045,.075,'wood');
-    solid('#e0d1b5',x,y+.30,z,.53,.055,.53);
-    solid(bronze,x,y+.15,z,.055,.30,.055,'metal');
-    for(const s of[-1,1]){
-     solid('#736951',x+s*.43,y+.22,z,.24,.045,.30,'wood');
-     solid('#736951',x+s*.53,y+.36,z,.045,.28,.30,'wood');
-     for(const a of[-1,1])solid(bronze,x+s*.43,y+.11,z+a*.10,.035,.22,.035,'metal');
-    }
-   }else if(tier===1){
-    // The boutique has a sheltered seating edge instead of an oversized
-    // tower feature competing with the little retail pavilion.
-    for(const x of[cx-1.65,cx+1.65]){
-     solid('#8d785b',x,.48,front+.36,.54,.08,.25,'wood');
-     for(const dx of[-.20,.20])solid(bronze,x+dx,.34,front+.36,.04,.26,.16,'metal');
+     const xx=x+end*wingW*.34;
+     solid('#b8a181',xx,.47,front+.13,.33,.045,.16,'wood');
+     solid('#9daead',xx,.31,front+.13,.033,.30,.15,'metal');
     }
    }
-   for(const x of[1.30,W-1.30]){planter(x,front+.35);planter(x,rear+.27);}
+   // Central lightweight curved cylindrical glazed atrium. A recognizable
+   // Apple-visitor-center motif, translated into a tiny game-friendly model.
+   const radius=Math.min(atriumW*.45,depth*.35),centerY=base+(floors===2?1.91:1.78)*.5;
+   circle('#87bac5',cx,centerY,mid,radius*2,centerY*2-.24,'glass');
+   const segments=12;
+   for(let k=0;k<segments;k++){
+    const a=k*Math.PI*2/segments;
+    const x=cx+radius*.97*Math.sin(a),z=mid+radius*.97*Math.cos(a);
+    solid(silver,x,centerY,z,.038,centerY*2-.24,.042,'metal');
+    trimLamp(x,.38,z,.065,.036,k%2?'#ffe8b8':'#cde9ec');
+   }
+   if(floors===2){
+    circle('#dee3dc',cx,2.24,mid,radius*1.89,.135,'stone');
+    for(let k=0;k<segments;k++){
+     const a=k*Math.PI*2/segments;
+     solid(silver,cx+radius*.97*Math.sin(a),3.20,mid+radius*.97*Math.cos(a),
+      .040,1.88,.044,'metal');
+     if(k%2===0)glow('#f6e0b4',cx+radius*.95*Math.sin(a),3.61,
+      mid+radius*.95*Math.cos(a),.055,.24,.056);
+    }
+    circle('#7fb7c6',cx,3.20,mid,radius*1.91,1.82,'glass');
+   }
+   // Roof above actual glass atrium is one thin flattened circular canopy.
+   const atriumTop=floors===2?4.14:2.22;
+   circle('#dce5e0',cx,atriumTop,mid,radius*2.37,.125,'metal');
+   circle('#bcced1',cx,atriumTop+.093,mid,radius*2.39,.058,'metal');
+   circle('#9cb5b9',cx,atriumTop+.133,mid,radius*1.84,.050,'glass');
+   // Slim glass barrel ribs are real pitched geometry. Window transparency
+   // remains on four sides and the skylight never adds an occupied storey.
+   const archTop=atriumTop+.25;
+   for(let k=0;k<8;k++){
+    const a=Math.PI-k*Math.PI/8,beta=a-Math.PI/8;
+    const x1=cx+Math.cos(a)*radius*.70,y1=archTop+Math.sin(a)*.18;
+    const x2=cx+Math.cos(beta)*radius*.70,y2=archTop+Math.sin(beta)*.18;
+    const p=point((x1+x2)*.5,mid);
+    batch.add(BOX,'#9bbac0',p.x-.5,(y1+y2)*.5,p.y-.5,
+     Math.hypot(x2-x1,y2-y1),.029,Math.min(1.00,depth*.27),
+     0,turn,Math.atan2(y2-y1,x2-x1),id,false,'glass');
+   }
+   // Open visitor plaza, low freestanding identity, four quiet spotlights.
+   solid('#d5ddd5',cx,.22,front+.21,atriumW*.88,.09,.26);
+   solid('#a8bec1',cx,.80,front+.30,atriumW*.74,.06,.08,'metal');
+   for(const dx of[-atriumW*.28,atriumW*.28])
+    solid(silver,cx+dx,.53,front+.30,.055,.59,.056,'metal');
+   label(tier===1?'MALL':tier===2?'GALLERIA':'GRANDGALLERIA',
+    cx,1.60,front+.25,Math.min(3.36,atriumW*.99),.29);
+   for(const x of[1.28,W-1.28]){
+    planter(x,rear+.31,.16,.21);
+    planter(x,front+.27,.16,.23);
+    solid('#c7d4ce',x,.77,front+.29,.04,1.18,.055,'metal');
+    glow('#ffe0b0',x,1.42,front+.29,.13,.13,.14);
+   }
    return;
   }
 
