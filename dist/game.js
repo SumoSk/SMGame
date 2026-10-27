@@ -1374,7 +1374,7 @@ function drawDeliveryTruckShape(x,y,angle,color,z,axles){
 }
 
 function drawIntercityRoadTrain(x,y,angle,color,z){
- ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+ ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.scale(.30,1);
  const outline='#1a313e',cargo='#f3f6f3',glass='#36576c';
  // Road train has a separate tractor plus two visible cargo bodies.
  for(const [cx,w] of [[-15.0,12.8],[-0.5,12.8]]){
@@ -4176,14 +4176,19 @@ function straightIntercityPath(fromGate,toGate){
  }
  cache.set(key,null);return null;
 }
-// The hourly quota is ten percent of residents IN TOTAL, not ten percent
-// per road direction. Each scheduled departure is spaced across the hour.
+// Two percent of residents per game hour IN TOTAL (across all four gates).
+// Trucks depart evenly within their hour without a simultaneous car limit.
+const INTERCITY_RATE=.02,INTERCITY_QUOTA_VERSION=2;
 function updateIntercityFreight(){
  const hour=Math.floor(state.time/60);
- if(state.intercityHour?.hour!==hour){
+ if(state.intercityHour?.hour!==hour||state.intercityHour?.quotaVersion!==INTERCITY_QUOTA_VERSION){
   const population=computeStats().pop;
-  const total=Math.max(0,Math.ceil(population*.10));
-  state.intercityHour={hour,total,next:0,offset:(hour%4+4)%4};
+  const planned=Math.max(0,Math.ceil(population*INTERCITY_RATE));
+  // A loaded 10% save may have already released more than today's new 2%
+  // quota: keep those recorded departures but do not release extra trucks.
+  const already=state.intercityHour?.hour===hour?state.intercityHour.next:0;
+  state.intercityHour={hour,total:Math.max(planned,already),next:already,
+   offset:(hour%4+4)%4,quotaVersion:INTERCITY_QUOTA_VERSION};
  }
  const plan=state.intercityHour;
  if(!plan.total)return;

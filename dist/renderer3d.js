@@ -241,7 +241,7 @@ const VEHICLE_STYLES=[
  [.745,.300,.076,-.020,.205,.075], // low orange-red F1 open-wheel racecar
  [.745,.300,.240,.22,.22,.175], // compact six-wheel delivery truck, F1 road footprint
  [.745,.300,.240,.22,.22,.175], // compact eight-wheel delivery truck, same footprint
- [2.46,.306,.30,.89,.44,.175]  // long two-trailer intercity road train (visual only)
+ [.745,.300,.30,.89,.44,.175]  // same length and width as the F1, two compact cargo trailers
 ];
 const VEHICLE_PALETTES=[
  ['#ffa52e','#27b8e5','#ff6470','#9bdc4e','#f7f8f5','#9774f0'],
@@ -288,6 +288,9 @@ function carGeometries(style){
  const metal=luxury?'#eadbb9':chromed?'#c7dbe2':'#9aaab4';
  const wheelR=(pickup||suv||van)?.083:sport?.069:.076;
  const box=(parts,color,x,y,z,l,h,w,rot=0)=>{
+  // Intercity tractor + both trailers share the F1's road footprint;
+  // compress only longitudinal positions/boxes, never the wheel shape.
+  if(roadTrain){x*=.30;l*=.30;}
   const geo=new THREE.BoxGeometry(l,h,w);
   if(rot)geo.rotateZ(rot);geo.translate(x,y,z);
   parts.push({color,geo});
@@ -295,7 +298,7 @@ function carGeometries(style){
  // SMCITY 4.2.1: custom F1-only silhouette (no saloon cabin, doors or roof).
  // This changes visual geometry only, never vehicle physics or collision rules.
  if(roadTrain){
-  // One tractor + TWO distinct long cargo bodies, visible at any yaw.
+  // Compact tractor + TWO distinct cargo bodies, all within an F1-length silhouette.
   // Pre-merged/instanced: no separate animated meshes for each trailer.
   const bodyWidth=width*.95;
   box(detail,'#263746',.01,.145,0,2.40,.04,width*.88);
@@ -331,11 +334,11 @@ function carGeometries(style){
   for(const axle of [-1.103,-.902,-.481,-.186,.650,.999]){
    for(const sign of [-1,1]){
     const zz=sign*.167;
-    const wheel=new THREE.CylinderGeometry(.078,.078,.055,12);
-    wheel.rotateX(Math.PI/2);wheel.translate(axle,.112,zz);
+    const wheel=new THREE.CylinderGeometry(.034,.034,.043,12);
+    wheel.rotateX(Math.PI/2);wheel.translate(axle*.30,.112,zz);
     detail.push({color:'#161f27',geo:wheel});
-    const rim=new THREE.CylinderGeometry(.041,.041,.059,12);
-    rim.rotateX(Math.PI/2);rim.translate(axle,.112,zz+sign*.006);
+    const rim=new THREE.CylinderGeometry(.022,.022,.047,12);
+    rim.rotateX(Math.PI/2);rim.translate(axle*.30,.112,zz+sign*.006);
     detail.push({color:'#b8cbd4',geo:rim});
    }
   }
