@@ -994,6 +994,48 @@ export class TrafficRenderer{
    batch.add(high?LEAF_FINE:LEAF,color,x+dx*scale,dy*scale,z+dz*scale,sx*scale,sy*scale,sz*scale,
     0,rotation,0,null,false,'foliage');
   };
+  // Eight additional large ornamental tree species, instanced and low-poly.
+  const exotic={oak:1,rain:1,willow:1,cherry:1,maple:1,jacaranda:1,cedar:1,cypress:1};
+  if(exotic[kind]){
+   const simple=detail==='standard'||this.graphicQuality==='low';
+   if(kind==='cedar'||kind==='cypress'){
+    const tall=kind==='cypress'?2.20:2.04,rad=kind==='cypress'?.27:.65;
+    twig(0,.04,0,0,tall,0,kind==='cypress'?.09:.14);
+    for(let i=0;i<(simple?3:5);i++){
+     const t=i/(simple?3:5),yy=.65+t*(tall-.66),rr=rad*(1-t*.75);
+     batch.add(CONE,i%2?'#356d4c':'#4e875d',x,yy*scale,z,
+      rr*scale,.86*scale,rr*scale,0,0,0,null,false,'foliage');
+    }
+    return;
+   }
+   const isRain=kind==='rain',isWillow=kind==='willow';
+   const canopyY=isRain?1.65:isWillow?1.76:1.53;
+   const crownR=isRain?.76:isWillow?.61:kind==='oak'?.67:.57;
+   const colors=kind==='cherry'?['#eea7c4','#f4c2d6','#d98eaf']:
+    kind==='maple'?['#cf743f','#e69b43','#b95d39']:
+    kind==='jacaranda'?['#8e78c4','#aa97dc','#766bb7']:
+    kind==='willow'?['#5a9b6c','#78b486','#4e8b61']:
+    kind==='oak'?['#447e50','#699b57','#39714b']:
+    ['#468056','#77a666','#4c905d'];
+   twig(0,.04,0,0,canopyY-.16,0,isRain?.17:.14);
+   for(const side of[-1,1]){
+    twig(0,canopyY-.65,0,side*.35,canopyY-.19,.08,.067);
+    if(!simple)twig(side*.3,canopyY-.22,.07,side*.64,canopyY-.02,.13,.034);
+   }
+   foliage(colors[0],0,canopyY,0,crownR*.95,.38,crownR*.90);
+   const clumps=simple?5:9;
+   for(let i=0;i<clumps;i++){
+    const a=i*2.39996,ring=crownR*(i===0?.16:.58+.15*hash(i,x));
+    foliage(colors[i%3],Math.cos(a)*ring,canopyY+.12+hash(i,z)*.13,
+     Math.sin(a)*ring,crownR*.53,.24,crownR*.52,a);
+   }
+   if(isWillow)for(let i=0;i<(simple?4:7);i++){
+    const a=i*TAU/(simple?4:7);
+    foliage(colors[i%3],Math.cos(a)*crownR*.89,canopyY-.38,
+     Math.sin(a)*crownR*.89,.14,.50,.16,a);
+   }
+   return;
+  }
   // Building-plot landscaping remains cardinally symmetric: rotating an
   // existing lot must not change its collision-free decorative silhouette.
   if(detail==='standard'){
@@ -1116,7 +1158,7 @@ export class TrafficRenderer{
  }
  for(const t of state.plantedTrees||[]){
   if(Math.abs(t.x-cellX*18)>span+3||Math.abs(t.y-cellZ*18)>span+3||!clear(t.x,t.y))continue;
-  const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:t.kind==='palm'?1.12:1.04;
+  const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:['oak','rain','willow','cherry','maple','jacaranda'].includes(t.kind)?1.24:['cedar','cypress'].includes(t.kind)?1.20:t.kind==='palm'?1.12:1.04;
   this.tree(b,t.x,t.y,scale,t.kind,(this.graphicQuality==='veryHigh'||Math.hypot(t.x-cam.x,t.y-cam.y)<27)?'near':'far');
  }
  this.treeGroup.add(b.build());
