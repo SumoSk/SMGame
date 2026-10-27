@@ -2117,26 +2117,46 @@ export class TrafficRenderer{
     for(const x of [.28,2.72])planter(x,1.12,.085);return;
    }
    if(t.kind==='casino'){
-    // Sci-fi casino: neon pylons, three physical playing cards and chip stacks.
-    block('#65657a',1.50,.10,.63,2.74,.14,1.12,'stone');
-    block('#282c48',1.50,.70,.61,2.43,1.07,.95,'metal');
-    block('#554b7a',1.50,1.26,.60,2.65,.14,1.04,'metal');
-    block('#65d6df',1.50,1.35,1.13,2.62,.035,.04,'glass',true);
-    for(const x of [.30,2.70]){
-     block('#9eabc0',x,.81,1.12,.13,1.19,.12,'metal');
-     block('#64dbe4',x,.82,1.19,.035,1.14,.018,'glass',true);
+    // Starter NOVA CASINO: three tiny architectural volumes, rather than a
+    // single solid box. Shared instanced geometry + cheap emissive accents.
+    block('#747e96',1.50,.13,.63,2.63,.14,1.10,'stone');
+    for(const xx of[.64,1.50,2.35])
+     block('#303a59',xx,.25,.62,.68,.12,.94,'metal');
+    // Left small roulette rotunda and mint-lit faceted cone roof.
+    local(CYL,'#434b75',.64,.81,.60,.56,.86,.56);
+    local(CONE,'#6d7ead',.64,1.43,.60,.65,.45,.65);
+    for(let i=0;i<4;i++){
+     const a=i*Math.PI/2;
+     local(BALL,i%2?'#eaa3ce':'#75d8dc',
+      .64+Math.cos(a)*.245,.93,.60+Math.sin(a)*.24,.09,.09,.09,0,0,0,true);
     }
-    pane(1.50,.68,1.12,1.26,.69,true,'#447b91');
-    badge('CASINO',1.50,1.23,1.15,1.50,'#453c69','#f1d4ee');
+    // Middle glass-front lobby with independent pale-blue canopy.
+    block('#6593a8',1.50,.77,.58,.64,.89,.77,'glass');
+    for(const xx of[1.18,1.82])
+     block('#d1dedc',xx,.77,.58,.07,1.02,.82,'metal');
+    block('#4d5f89',1.50,1.36,.58,.79,.12,.91,'metal');
+    block('#65dce4',1.50,1.45,1.00,.69,.048,.08,'glass',true);
+    // Right miniature slot-machine gallery with individual screens.
+    block('#41415f',2.35,.72,.58,.68,.88,.76,'metal');
+    for(const xx of[2.16,2.35,2.54]){
+     block('#63c7ce',xx,.84,1.005,.15,.30,.035,'glass',true);
+     block('#e3bc82',xx,.53,1.025,.12,.07,.075,'metal');
+    }
+    block('#a6b5c2',2.35,1.25,.58,.75,.12,.84,'metal');
+    for(const xx of[.31,2.70]){
+     block('#7b7a9d',xx,.78,1.03,.07,1.07,.08,'metal');
+     block('#e481c5',xx,1.37,1.04,.11,.14,.11,'glass',true);
+    }
+    badge('CASINO',1.50,1.13,1.075,.92,'#344761','#f6d8ed');
+    // Three physical playing cards over the lobby distinguish the icon.
     for(let n=0;n<3;n++){
-     const x=1.02+n*.48;
-     block('#eee9db',x,1.72,.60,.34,.48,.055,'stone');
-     block('#ba97b9',x,1.72,.563,.38,.52,.022,'metal');
-     for(let pip=0;pip<=n;pip++)local(BALL,n%2?'#b36687':'#3e4d69',x+(n===2?(pip-1)*.067:0),1.72+(n===1?(pip-.5)*.13:0),.638,.042,.045,.012);
+     const x=1.19+n*.31;
+     block('#eee9db',x,1.91,.61,.27,.41,.052,'stone');
+     block(n===1?'#ca6f91':'#4c5f90',x,1.91,.647,.13,.19,.020,'metal');
     }
-    for(const x of [.58,2.42])for(let n=0;n<4;n++){
-     pole(n%2?'#b47bb6':'#67c4ce',x,.23+n*.075,1.08,.13,.065,'metal');
-     pole('#e8dfce',x,.269+n*.075,1.08,.08,.012,'stone');
+    for(const xx of[.36,2.66])for(let n=0;n<4;n++){
+     pole(n%2?'#e282c2':'#67d3db',xx,.28+n*.095,.89,.09,.055,'metal');
+     pole('#f1e5d1',xx,.312+n*.095,.89,.055,.014,'stone');
     }
     return;
    }
