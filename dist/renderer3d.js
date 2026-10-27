@@ -2388,34 +2388,92 @@ export class TrafficRenderer{
     for(const zz of[7.35,8.17,9.03,9.91,10.80,11.68])
      block('#8daea8',5.05,.175,zz,.42,.015,.08,'stone');
 
-    // 1 / The compact working kitchen: blue gable, steel prep station,
-    // real stove burners, serving counter, vent and glass service hatch.
+    // 1 / Fairy-tale castle kitchen, upper dining gallery and three turrets.
+    // Disney-like storybook proportions, without brand characters or logos.
+    // All three spires remain inside the original back-left restaurant parcel.
     const kitchenBack=topZ-.91,kitchenFront=topZ+.95;
-    block('#e8ebe6',kitchenX,.76,kitchenBack,2.66,1.10,.09,'stone');
-    for(const xx of[kitchenX-1.30,kitchenX+1.30]){
-     block('#dce5e2',xx,.78,topZ,.07,1.16,1.88,'stone');
-     block(clearGlass,xx,1.49,topZ,.045,.36,1.53,'glass');
-     block('#4e7d90',xx,1.27,topZ,.052,.04,1.57,'metal');
+    const castleCream='#f3e8db',castlePink='#dfc8dd',castleShadow='#b6b2cb';
+    const castleBlue='#556da6',spireBlue='#677bc3',spireLilac='#8c7dbd';
+    const castleGold='#edcd83',windowBlue='#78b5c7';
+    // A narrow two-storey castle core: alternating bands make two levels
+    // legible instead of an undetailed tall cuboid.
+    block(castleCream,kitchenX,1.79,topZ,2.00,2.96,1.72,'stone');
+    block(castlePink,kitchenX,2.17,topZ,2.10,.095,1.86,'stone');
+    block(castleShadow,kitchenX,3.29,topZ,2.12,.13,1.86,'stone');
+    for(const side of[-1,1]){
+     const xx=kitchenX+side*1.035;
+     for(const zz of[topZ-.68,topZ+.68]){
+      block('#e5d4df',xx,1.55,zz,.13,2.48,.16,'stone');
+      block(castleGold,xx,2.96,zz,.16,.075,.18,'metal');
+     }
+     // Arcaded side glazing, one row per storey.
+     for(const yy of[1.30,2.60])for(const zz of[topZ-.48,topZ+.48]){
+      block(windowBlue,xx+side*.073,yy,zz,.033,.50,.32,'glass');
+      block(castleGold,xx+side*.093,yy+.30,zz,.025,.045,.34,'metal');
+     }
     }
-    roof(kitchenX,topZ,2.80,1.98,2.23,.38);
-    block('#8ca0a7',kitchenX-.18,.66,topZ-.36,1.70,.66,.40,'metal');
-    block('#d8e0db',kitchenX-.18,1.03,topZ-.36,1.78,.055,.46,'metal');
+    // Front show windows frame a central pointed castle entrance.
+    for(const xx of[kitchenX-.65,kitchenX+.65]){
+     for(const yy of[1.22,2.64]){
+      block(windowBlue,xx,yy,kitchenFront-.055,.29,.51,.045,'glass');
+      block(castleGold,xx,yy+.30,kitchenFront-.024,.34,.045,.067,'metal');
+      block(castleShadow,xx,yy,kitchenFront-.018,.032,.57,.061,'stone');
+     }
+    }
+    block('#69778f',kitchenX,1.25,kitchenFront-.022,.47,1.08,.055,'wood');
+    arch(kitchenX,kitchenFront+.018,.77,.64,1.24);
+    block(castleGold,kitchenX,1.94,kitchenFront+.049,.47,.055,.065,'metal');
+    for(let n=0;n<5;n++){
+     const xx=kitchenX-.80+n*.40;
+     block(castleCream,xx,3.44,kitchenFront-.026,.20,.26,.17,'stone');
+     block(castleGold,xx,3.585,kitchenFront-.014,.20,.027,.18,'metal');
+    }
+    // Sculptural pitched central roof, with blue ridgeline and gold crest.
+    roof(kitchenX,topZ,2.12,1.84,3.56,.47);
+    block(castleGold,kitchenX,4.08,topZ,.07,.05,1.66,'metal');
+
+    // Three independent round turrets and tapered pointed spires give the
+    // building its distinctive castle silhouette from all camera angles.
+    const turret=(xx,zz,r,baseHeight,roofColor)=>{
+     const p=point(xx,zz),shaftH=baseHeight-.29;
+     batch.add(CYL,castleCream,p.x-.5,.29+shaftH/2,p.y-.5,r*2,shaftH,r*2,0,0,0,id,false,'stone');
+     batch.add(CYL,castlePink,p.x-.5,baseHeight-.11,p.y-.5,r*2+.07,.13,r*2+.07,0,0,0,id,false,'stone');
+     for(let n=0;n<5;n++){
+      const a=n*2*Math.PI/5,ux=xx+Math.sin(a)*r*.80,uz=zz+Math.cos(a)*r*.80;
+      block(castleCream,ux,baseHeight+.065,uz,.10,.27,.10,'stone');
+     }
+     batch.add(CONE,roofColor,p.x-.5,baseHeight+.47,p.y-.5,r*2.65,.83,r*2.65,0,turn,0,id,false,'metal');
+     pole(castleGold,xx,baseHeight+.96,zz,.030,.25,'metal');
+     block('#ffe2a1',xx,baseHeight+1.105,zz,.16,.055,.095,'metal');
+     for(const yy of[1.28,2.55]){
+      block(windowBlue,xx,yy,zz+r+.035,.17,.39,.050,'glass');
+      block(castleGold,xx,yy+.22,zz+r+.065,.20,.045,.056,'metal');
+     }
+    };
+    turret(kitchenX-1.22,topZ+.70,.27,3.56,spireBlue);
+    turret(kitchenX+1.22,topZ+.70,.27,3.85,spireLilac);
+    turret(kitchenX+.82,topZ-.73,.22,3.28,spireBlue);
+    // Working restaurant kitchen remains on the ground floor, below the
+    // upper ornamental gallery — real hobs, prep, hood and serving pass.
+    block('#8ca0a7',kitchenX-.18,.67,topZ-.35,1.53,.63,.40,'metal');
+    block('#d8e0db',kitchenX-.18,1.03,topZ-.35,1.65,.055,.44,'metal');
     for(let i=0;i<6;i++){
-     const xx=kitchenX-.79+(i%3)*.57;
-     const zz=topZ-.46+Math.floor(i/3)*.20;
-     pole('#242d35',xx,1.073,zz,.064,.023,'metal');
-     if(i%2===0){pole('#9aaab0',xx,1.12,zz,.050,.070,'metal');pole('#d4dbd6',xx,1.16,zz,.055,.016,'metal');}
+     const xx=kitchenX-.78+(i%3)*.52,zz=topZ-.46+Math.floor(i/3)*.22;
+     pole('#242d35',xx,1.08,zz,.063,.023,'metal');
+     if(i%2===0) pole('#adbcc0',xx,1.15,zz,.050,.09,'metal');
     }
-    block('#6b8591',kitchenX,1.62,topZ-.50,1.24,.16,.42,'metal');
-    block('#d5e0dd',kitchenX,1.76,topZ-.50,1.35,.048,.47,'metal');
-    block('#6f8791',kitchenX,2.00,topZ-.51,.12,.45,.13,'metal');
-    block(oak,kitchenX,.69,kitchenFront+.02,2.53,.18,.18,'wood');
-    block(clearGlass,kitchenX,1.23,kitchenFront+.046,2.40,.75,.040,'glass');
-    block(ivoryFrame,kitchenX,1.65,kitchenFront+.058,2.61,.07,.10,'metal');
-    for(const xx of[kitchenX-.68,kitchenX,kitchenX+.68])
-     pendant(xx,topZ+.37,2.05);
-    block('#8da6ae',kitchenX-.78,2.77,topZ-.57,.19,.28,.20,'metal');
-    block('#d2dddc',kitchenX-.78,2.95,topZ-.57,.28,.05,.28,'metal');
+    block('#6b8591',kitchenX,1.62,topZ-.50,1.20,.16,.42,'metal');
+    block('#d5e0dd',kitchenX,1.77,topZ-.50,1.30,.048,.46,'metal');
+    block('#738995',kitchenX,2.08,topZ-.53,.12,.46,.14,'metal');
+    // Side-facing outdoor service hatch for waiting guests.
+    block(oak,kitchenX,.64,kitchenFront+.095,1.04,.12,.24,'wood');
+    block(clearGlass,kitchenX,1.01,kitchenFront+.125,1.06,.29,.041,'glass');
+    for(const xx of[kitchenX-.71,kitchenX+.71])
+     block(warmLamp,xx,1.91,kitchenFront+.114,.10,.15,.090,'glass',true);
+    // Lit small stained glass and gold floor separator identify level two.
+    for(const xx of[kitchenX-.55,kitchenX,kitchenX+.55])
+     block(xx===kitchenX?'#dba2bc':windowBlue,xx,2.81,kitchenBack-.045,.27,.38,.040,'glass',true);
+    block(castleGold,kitchenX,2.18,kitchenBack-.07,2.11,.045,.072,'metal');
 
     // 2 / Main open dining hall: an independent pitched pavilion rather
     // than kitchen's continuation; four visible furnished dining tables.
@@ -2434,23 +2492,49 @@ export class TrafficRenderer{
     for(const xx of[6.48,7.98])
      pendant(xx,topZ,2.13);
 
-    // 3 / Private dining: separate low glass pavilion, translucent facade,
-    // fine mullions and its own short hip-like roof. Two intimate tables.
-    for(const xx of[privateX-1.31,privateX+1.31]){
-     for(const zz of[bottomZ-.95,bottomZ+.96])
-      block('#e2ebe8',xx,1.16,zz,.08,1.90,.08,'metal');
-     block(clearGlass,xx,1.15,bottomZ,.05,1.38,1.74,'glass');
-     block(ivoryFrame,xx,1.80,bottomZ,.065,.07,1.85,'metal');
+    // 3 / FRONT-LEFT OUTDOOR BAR: the former private enclosed dining
+    // room is fully removed. Open wooden decking, island counter, stools,
+    // slatted canopy, wine racks, warm hanging bulbs and two dining tables.
+    const barWood='#bd9772',barDeck='#d9c3a4',barInk='#35516c';
+    floor(privateX,.205,bottomZ,2.80,2.08,barDeck);
+    for(let n=0;n<9;n++){
+     const xx=privateX-1.23+n*.305;
+     block(n%2?'#dbcbaf':'#cfb796',xx,.266,bottomZ,.26,.026,1.97,'wood');
     }
-    for(const zz of[bottomZ-.96,bottomZ+.96]){
-     block('#87b8c5',privateX,1.22,zz,2.46,1.27,.048,'glass');
-     block(ivoryFrame,privateX,1.89,zz,2.55,.080,.07,'metal');
-     for(const xx of[privateX-.72,privateX+.72])
-      block(ivoryFrame,xx,1.17,zz,.042,1.38,.07,'metal');
+    pergola(privateX,bottomZ,2.78,2.03,2.16);
+    // U-shaped open bar; narrow counter at rear frees the front for guests.
+    const barZ=bottomZ-.67;
+    block(barInk,privateX,.57,barZ,2.11,.59,.33,'wood');
+    block(barWood,privateX,.90,barZ+.035,2.26,.095,.43,'wood');
+    for(const xx of[privateX-1.05,privateX+1.05]){
+     block(barInk,xx,.64,barZ+.28,.15,.67,.64,'wood');
+     block(barWood,xx,.99,barZ+.29,.20,.06,.70,'wood');
     }
-    roof(privateX,bottomZ,2.75,2.02,2.12,.28);
-    for(const xx of[2.20,3.46])table(xx,bottomZ,.24,.65);
-    pendant(privateX,bottomZ,1.96);
+    // Bottles and glass display physically modelled, no live animations.
+    for(let i=0;i<6;i++){
+     const xx=privateX-.75+i*.30;
+     block(i%3===0?'#7c9b79':i%3===1?'#d0a072':'#85a8b7',
+      xx,1.25,barZ-.08,.12,.39,.12,'glass');
+     block(castleGold,xx,1.47,barZ-.08,.060,.055,.060,'metal');
+    }
+    for(const xx of[privateX-.67,privateX-.22,privateX+.23,privateX+.68]){
+     const p=point(xx,barZ+.49);
+     batch.add(CYL,barWood,p.x-.5,.68,p.y-.5,.28,.085,.28,0,0,0,id,false,'wood');
+     pole(barInk,xx,.39,barZ+.49,.027,.58,'metal');
+     pole('#e0c39b',xx,.18,barZ+.49,.10,.08,'wood');
+     block(barWood,xx,.91,barZ+.65,.27,.39,.075,'wood');
+    }
+    // Preserve both dining tables in this quadrant; patio capacity unchanged.
+    for(const xx of[2.18,3.49])table(xx,bottomZ+.63,.24,.65);
+    for(const xx of[privateX-.62,privateX+.62])
+     pendant(xx,bottomZ-.15,2.05);
+    sign('BAR',privateX,1.94,bottomZ-.97,1.54,.35);
+    for(const xx of[privateX-1.30,privateX+1.30]){
+     for(const zz of[bottomZ-.86,bottomZ+.90]){
+      flower(xx,zz,.19,.24);
+      block(warmLamp,xx,1.79,zz,.10,.12,.10,'glass',true);
+     }
+    }
 
     // 4 / The open courtyard: a real pergola with light passing between
     // beams, four tables, plant islands, independent low lanterns.
