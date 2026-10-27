@@ -241,7 +241,8 @@ const VEHICLE_STYLES=[
  [.745,.300,.076,-.020,.205,.075], // low orange-red F1 open-wheel racecar
  [.745,.300,.240,.22,.22,.175], // compact six-wheel delivery truck, F1 road footprint
  [.745,.300,.240,.22,.22,.175], // compact eight-wheel delivery truck, same footprint
- [.745,.300,.30,.89,.44,.175]  // same length and width as the F1, two compact cargo trailers
+ [.745,.300,.30,.89,.44,.175], // same length and width as the F1, two compact cargo trailers
+ [.745,.300,.30,.20,.20,.12]  // LOW-detail road train, created only for low preset
 ];
 const VEHICLE_PALETTES=[
  ['#ffa52e','#27b8e5','#ff6470','#9bdc4e','#f7f8f5','#9774f0'],
@@ -279,7 +280,7 @@ function carPaintFor(c,id,kind,fallback){
 // tint varies per citizen. No thousands of independent wheel/light meshes.
 function carGeometries(style){
  const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[style],paint=[],detail=[];
- const truck=style===10||style===11,roadTrain=style===12,compact=style===0,sedan=style===1,pickup=style===2,suv=style===3,
+ const truck=style===10||style===11,roadTrain=style===12,roadTrainLow=style===13,compact=style===0,sedan=style===1,pickup=style===2,suv=style===3,
   premium=style===4,sport=style===5||style===9,f1=style===9,luxury=style===6,
   van=style===7||style===8,taxi=style===8;
  const chromed=premium||luxury,front=length*.5,rear=-front;
@@ -297,7 +298,23 @@ function carGeometries(style){
  };
  // SMCITY 4.2.1: custom F1-only silhouette (no saloon cabin, doors or roof).
  // This changes visual geometry only, never vehicle physics or collision rules.
- if(roadTrain){
+ if(roadTrainLow){
+  // LOW preset: only three cargo/cab solids and minimal landmark trim.
+  // Stay inside the original F1 road envelope [-.3725,+.3725].
+  box(paint,'#ffffff',-.242,.325,0,.226,.25,.276); // rear trailer
+  box(paint,'#ffffff',.002,.325,0,.216,.25,.276); // forward trailer
+  box(paint,'#ffffff',.251,.247,0,.222,.191,.271); // tractor cab
+  box(detail,'#283e50',.364,.264,0,.008,.105,.212); // windshield
+  box(detail,'#253844',-.242,.166,0,.219,.025,.264); // rear chassis
+  box(detail,'#253844',.002,.166,0,.210,.025,.264); // front chassis
+  for(const sign of [-1,1]){
+   const side=sign*.144;
+   box(detail,'#b4dae2',-.242,.290,side,.184,.024,.010);
+   box(detail,'#b4dae2',.002,.290,side,.178,.024,.010);
+   for(const axle of [-.302,-.158,.058,.278])
+    box(detail,'#15232c',axle,.115,sign*.150,.056,.080,.036);
+  }
+ }else if(roadTrain){
   // Compact tractor + TWO distinct cargo bodies, all within an F1-length silhouette.
   // Pre-merged/instanced: no separate animated meshes for each trailer.
   const bodyWidth=width*.95;
@@ -6130,6 +6147,21 @@ export class TrafficRenderer{
    this.scene.remove(mesh);mesh.material.dispose();mesh.dispose();
   }
   const capacity=Math.max(32,2**Math.ceil(Math.log2(Math.max(1,needed))));
+  if(level==='roadTrainLow'){
+   // Reuse one lightweight, pre-merged model across all trucks: TWO instanced
+   // meshes only, no individual wheels, shadows, headlight spill or 3D effects.
+   this.lowRoadTrainModel??=carGeometries(13);
+   const body=new THREE.InstancedMesh(this.lowRoadTrainModel.body,
+    new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.79,metalness:0}),capacity);
+   const roof=new THREE.InstancedMesh(this.lowRoadTrainModel.trim,
+    new THREE.MeshStandardMaterial({vertexColors:true,roughness:.86,metalness:0}),capacity);
+   for(const mesh of [body,roof]){
+    mesh.frustumCulled=false;mesh.castShadow=false;mesh.receiveShadow=false;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(mesh);
+   }
+   const made={capacity,body,roof};
+   this.carLODSets.set(level,made);return made;
+  }
   const body=new THREE.InstancedMesh(BOX,new THREE.MeshStandardMaterial({
    color:'#ffffff',roughness:.66,metalness:.05
   }),capacity);
@@ -6165,13 +6197,22 @@ export class TrafficRenderer{
   for(let i=0;i<items.length;i++){
    const car=items[i],old=set.lastCars[i],moved=!this.sameCarPose(old,car),painted=!old||old.color!==car.color||old.kind!==car.kind;
    if(moved||!old||old.kind!==car.kind){
-    const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[car.kind];
-    dummy.position.set(car.x,.163+(car.altitude||0),car.z);dummy.rotation.set(0,-car.angle,0);dummy.scale.set(length,height*.82,width*.96);dummy.updateMatrix();
-    set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
-    if(set.roof){
-     const cos=Math.cos(car.angle),sin=Math.sin(car.angle);
-     dummy.position.set(car.x+cabinX*cos,.165+(car.altitude||0)+height*.5+cabinH*.39,car.z+cabinX*sin);
-     dummy.scale.set(cabinL,cabinH*.78,width*.80);dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
+    dummy.rotation.set(0,-car.angle,0);
+    if(level==='roadTrainLow'){
+     // Two trailer parts and a cab live in the SAME baked, low-poly geometry.
+     dummy.position.set(car.x,car.altitude||0,car.z);
+     dummy.scale.set(1,1,1);dummy.updateMatrix();
+     set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
+     set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
+    }else{
+     const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[car.kind];
+     dummy.position.set(car.x,.163+(car.altitude||0),car.z);dummy.scale.set(length,height*.82,width*.96);dummy.updateMatrix();
+     set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
+     if(set.roof){
+      const cos=Math.cos(car.angle),sin=Math.sin(car.angle);
+      dummy.position.set(car.x+cabinX*cos,.165+(car.altitude||0)+height*.5+cabinH*.39,car.z+cabinX*sin);
+      dummy.scale.set(cabinL,cabinH*.78,width*.80);dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
+     }
     }
    }
    if(painted){set.body.setColorAt(i,this.carTint.set(car.color));this.dirtyCarInstances(set.body.instanceColor,i);}
@@ -6204,7 +6245,7 @@ export class TrafficRenderer{
   this.carIndicatorHits=[];this.carLODStats={near:0,medium:0,far:0,culled:0};
  }
  cars(state,vehiclePosition,CATALOG,vehicleTimeliness=null,selected=null,showDiamonds=true){
-  const groups=VEHICLE_TYPES.map(()=>[]),medium=[],far=[],indicators=[],techEffects=[],warpPoints=[];
+  const groups=VEHICLE_TYPES.map(()=>[]),medium=[],far=[],roadTrainLow=[],indicators=[],techEffects=[],warpPoints=[];
   const frustum=this.carViewFrustum,point=this.carViewPoint,cam=this.cam;
   this.camera.updateMatrixWorld(true);
   frustum.setFromProjectionMatrix(this.carViewMatrix.multiplyMatrices(
@@ -6223,15 +6264,17 @@ export class TrafficRenderer{
    const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
    // Low uses the cheapest proxy at every distance, while preserving car picking.
-   const level=v?.kind==='intercity'&&distance<135?'near':v?.kind==='delivery'&&distance<70?'near':upgraded?'near':this.graphicQuality==='veryHigh'?'near':
+   const level=v?.kind==='intercity'&&this.graphicQuality==='low'?'roadTrainLow':
+    v?.kind==='intercity'&&distance<135?'near':v?.kind==='delivery'&&distance<70?'near':upgraded?'near':this.graphicQuality==='veryHigh'?'near':
     this.graphicQuality==='low'?'far':
     apparentLength>=22&&distance<=Math.max(24,12/Math.max(.1,cam?.z??1))
      ?'near':apparentLength>=10?'medium':'far';
    if(upgraded)techEffects.push({x,z,angle,altitude,tech,distance});
    if(level==='near')groups[kind].push(car);
    else if(level==='medium')medium.push(car);
+   else if(level==='roadTrainLow')roadTrainLow.push(car);
    else far.push(car);
-   this.carLODStats[level]++;
+   this.carLODStats[level==='roadTrainLow'?'far':level]++;
    const focused=selected?.kind==='vehicle'&&selected.id===v?.id||
     selected?.kind==='parked'&&selected.id===id;
    const status=showDiamonds?(vehicleTimeliness?.(v)||'green'):'green';
@@ -6255,6 +6298,7 @@ export class TrafficRenderer{
   this.updateCarIndicators(indicators,showDiamonds);
   this.updateSimpleCars('medium',medium);
   this.updateSimpleCars('far',far);
+  this.updateSimpleCars('roadTrainLow',roadTrainLow);
   for(let kind=0;kind<groups.length;kind++){
    const items=groups[kind],old=this.carSets.get(kind);
    if(!items.length){if(old){old.body.count=0;old.trim.count=0;old.headlights.count=0;old.taillights.count=0;old.lightSpill.count=0;}continue;}
