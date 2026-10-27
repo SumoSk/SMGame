@@ -6864,6 +6864,25 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
   height:22px;min-height:22px;max-height:22px
  }
 }
+
+/* PC-only mouse orbit hint next to the camera joystick, outside its clipped rail. */
+#cameraRotateHint{display:none}
+@media (min-width:1001px) and (pointer:fine){
+ #cameraRotateHint{
+  display:block;position:fixed;z-index:26;
+  top:calc(clamp(83px,14vh,142px) + 13px);
+  left:calc(77px + env(safe-area-inset-left,0px));
+  width:max-content;max-width:min(280px,calc(100vw - 90px));
+  padding:7px 10px;margin:0;
+  border:1px solid var(--smg-border,#91d8f8);border-radius:8px;
+  color:var(--smg-text,#194761);
+  background:linear-gradient(135deg,var(--smg-panel-top,#f6fcff),var(--smg-panel-bottom,#e7f5ff));
+  box-shadow:0 2px 8px var(--smg-aura,rgba(0,170,235,.18));
+  font:600 10px/1.2 "Noto Sans Thai",Tahoma,sans-serif;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  pointer-events:none;user-select:none;
+ }
+}
 </style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
@@ -6874,6 +6893,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  </div>
 </aside>
 
+<span id="cameraRotateHint" class="camera-rotate-hint" role="note">คลิกซ้ายและขวาพร้อมกันเพื่อหมุนจอ</span>
 <aside id="cityLeftRail" class="city-left-rail" aria-label="เครื่องมือด่วนด้านซ้าย">
  <div id="cameraJoystick" class="camera-joystick" role="group" aria-label="จอยควบคุมมุมกล้อง 3D">
   <button type="button" class="cam-dir cam-up" data-camera-direction="up" aria-label="เงยกล้อง มองจากมุมสูงขึ้น" title="มุมสูงขึ้น">▲</button>
