@@ -2368,7 +2368,7 @@ export class TrafficRenderer{
      block(k%2?slat:edge,x,y+.045,zz,w-.15,.050,.105,'metal');
     }
     for(const xx of[x-w*.27,x+w*.27])
-     nightLED('#ffe2af',xx,y-.055,z,.035,.033,d*.73,'essential');
+     block('#ffe2af',xx,y-.055,z,.035,.033,d*.73,'glass',true);
    };
    const roomFront=level===3?front-.58:front-.72,roomRear=rear+.12;
    // Keep the skyline close to street level; no full-height dining cube.
