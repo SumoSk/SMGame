@@ -72,6 +72,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: node work/test-dev-quick-login.cjs
       - run: npm run build
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
