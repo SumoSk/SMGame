@@ -226,7 +226,7 @@ function mountainHeight(x,z){
 // Eight original citizen vehicle classes + one dedicated VISUAL taxi variant.
 // Citizen trait weights are intentionally untouched; tourist taxi is not a
 // ninth random citizen class.
-const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van','touristTaxi','f1'];
+const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van','touristTaxi','f1','truck6','truck8'];
 const VEHICLE_WEIGHTS=[[26,36,20,10,4,1,1,2],[11,16,42,20,5,1,1,4],[7,12,11,24,33,6,5,2],[2,4,5,10,25,24,28,2]];
 const VEHICLE_STYLES=[
  [.49,.238,.125,-.028,.303,.118], // compact hatchback
@@ -238,7 +238,9 @@ const VEHICLE_STYLES=[
  [.735,.308,.164,-.080,.408,.186], // long luxury limousine
  [.690,.300,.162,-.019,.478,.218], // ordinary minivan
  [.690,.300,.162,-.019,.478,.218], // tourist taxi minivan
- [.745,.300,.076,-.020,.205,.075]  // low orange-red F1 open-wheel racecar
+ [.745,.300,.076,-.020,.205,.075], // low orange-red F1 open-wheel racecar
+ [.745,.300,.240,.22,.22,.175], // compact six-wheel delivery truck, F1 road footprint
+ [.745,.300,.240,.22,.22,.175]  // compact eight-wheel delivery truck, same footprint
 ];
 const VEHICLE_PALETTES=[
  ['#ffa52e','#27b8e5','#ff6470','#9bdc4e','#f7f8f5','#9774f0'],
@@ -250,9 +252,12 @@ const VEHICLE_PALETTES=[
  ['#172137','#f6f1e7','#273a5b','#b99b6d','#651f39','#c4dbe7'],
  ['#f4f5ee','#387fc0','#f2e1d0','#d95846','#6eafbb','#304867'],
  ['#ffd127'], // Bangkok-style yellow taxi van: tourists only.
- ['#fc442a','#fd7129','#fb5727'] // three red-orange F1 finishes
+ ['#fc442a','#fd7129','#fb5727'], // three red-orange F1 finishes
+ ['#19bac7','#f3f5ec'], // six-wheel freight
+ ['#f5b13f','#f3f5ec'] // eight-wheel freight
 ];
-function carClassFor(c,id,tech=null){
+function carClassFor(c,id,tech=null,v=null){
+ if(v?.kind==='delivery')return v.delivery?.axles===8?11:10;
  if(Object.hasOwn(VEHICLE_TECH_COLORS,tech))return 9;
  if(c?.tourist)return 8;
  const group=Math.max(0,Math.min(3,c?.profile?.trait??0)),weights=VEHICLE_WEIGHTS[group];
@@ -271,7 +276,7 @@ function carPaintFor(c,id,kind,fallback){
 // tint varies per citizen. No thousands of independent wheel/light meshes.
 function carGeometries(style){
  const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[style],paint=[],detail=[];
- const compact=style===0,sedan=style===1,pickup=style===2,suv=style===3,
+ const truck=style===10||style===11,compact=style===0,sedan=style===1,pickup=style===2,suv=style===3,
   premium=style===4,sport=style===5||style===9,f1=style===9,luxury=style===6,
   van=style===7||style===8,taxi=style===8;
  const chromed=premium||luxury,front=length*.5,rear=-front;
@@ -286,7 +291,43 @@ function carGeometries(style){
  };
  // SMCITY 4.2.1: custom F1-only silhouette (no saloon cabin, doors or roof).
  // This changes visual geometry only, never vehicle physics or collision rules.
- if(f1){
+ if(truck){
+  // Compact, honest 3D truck proportions: F1-length wheelbase envelope,
+  // a separate driver's cab and closed cargo body. Static instanced geometry.
+  box(detail,'#1e2d37',0,.115,0,.69,.035,width*.94);
+  box(paint,'#ffffff',-.146,.304,0,.438,.246,width*.94);
+  box(detail,'#e0edf0',-.146,.429,0,.425,.011,width*.91);
+  box(paint,'#ffffff',.251,.234,0,.231,.197,width*.91);
+  box(paint,'#ffffff',.241,.337,0,.216,.012,width*.89);
+  box(detail,'#254459',.365,.266,0,.012,.122,width*.73);
+  for(const sign of [-1,1]){
+   const side=sign*width*.48;
+   box(detail,'#315466',.270,.263,side,.121,.106,.010);
+   box(detail,'#b4e5e8',.236,.313,side+sign*.007,.091,.008,.012);
+   box(detail,'#eff6f6',.273,.193,side+sign*.01,.073,.009,.014);
+   // Cargo panel seams, refrigeration-like ribs, and corporate stripe.
+   for(const xx of [-.30,-.12,.06])box(detail,'#b9c8cb',xx,.305,side,.009,.22,.007);
+   box(detail,style===11?'#c87921':'#127b91',-.155,.282,side+sign*.006,.400,.031,.012);
+   box(detail,'#f8f0cb',.378,.190,sign*width*.31,.015,.032,.041);
+   box(detail,'#eb4b51',-.378,.211,sign*width*.34,.016,.041,.044);
+  }
+  box(detail,'#354b5a',.382,.155,0,.016,.050,width*.65);
+  box(detail,'#c7d7dd',.394,.156,0,.010,.026,width*.38);
+  box(detail,'#24303b',-.376,.172,0,.012,.045,width*.71);
+  const axles=style===11?[-.315,-.20,.162,.31]:[-.30,-.17,.30];
+  for(const xx of axles)for(const sign of [-1,1]){
+   const z=sign*.160;
+   const wheel=new THREE.CylinderGeometry(.062,.062,.047,12);
+   wheel.rotateX(Math.PI/2);wheel.translate(xx,.106,z);
+   detail.push({color:'#101820',geo:wheel});
+   const rim=new THREE.CylinderGeometry(.036,.036,.052,12);
+   rim.rotateX(Math.PI/2);rim.translate(xx,.106,z+sign*.005);
+   detail.push({color:'#c3d2da',geo:rim});
+   const hub=new THREE.CylinderGeometry(.011,.011,.053,10);
+   hub.rotateX(Math.PI/2);hub.translate(xx,.106,z+sign*.007);
+   detail.push({color:'#384e5a',geo:hub});
+  }
+ }else if(f1){
   const wedge=(parts,color,x0,x1,y0,y1,w0,w1)=>{
    const vertices=[
     x0,y0,-w0/2, x0,y0,w0/2, x1,y0,-w1/2, x1,y0,w1/2,
@@ -6124,12 +6165,12 @@ export class TrafficRenderer{
    }
    const tech=v?.vehicleTech??c?.vehicleTech??'normal';
    const upgraded=Object.hasOwn(VEHICLE_TECH_COLORS,tech);
-   const kind=carClassFor(c,id,tech),car={x,z,angle,color:upgraded?VEHICLE_TECH_COLORS[tech]:carPaintFor(c,id,kind,fallback),kind,altitude};
+   const kind=carClassFor(c,id,tech,v),car={x,z,angle,color:upgraded?VEHICLE_TECH_COLORS[tech]:carPaintFor(c,id,kind,fallback),kind,altitude};
    const apparentLength=VEHICLE_STYLES[kind][0]*pixelsPerUnit;
    const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
    // Low uses the cheapest proxy at every distance, while preserving car picking.
-   const level=upgraded?'near':this.graphicQuality==='veryHigh'?'near':
+   const level=v?.kind==='delivery'&&distance<70?'near':upgraded?'near':this.graphicQuality==='veryHigh'?'near':
     this.graphicQuality==='low'?'far':
     apparentLength>=22&&distance<=Math.max(24,12/Math.max(.1,cam?.z??1))
      ?'near':apparentLength>=10?'medium':'far';
@@ -6148,7 +6189,7 @@ export class TrafficRenderer{
    });
   };
   for(const v of state.vehicles.values()){
-   if(!['driving','stuck','parking_in','parking_out','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;
+   if(!['driving','stuck','parking_in','parking_out','delivery_unload','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;
    const p=vehiclePosition(v);if(p)add(p.x-.5,p.y-.5,Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),state.citizens.get(v.citizenId),v.citizenId??v.id,v.color,v,null,p.altitude||0);
   }
   for(const b of state.buildings.values())for(const id of b.parked){
