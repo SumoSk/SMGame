@@ -84,6 +84,7 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-pink-malls.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-purple-pubs.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-orange-factories.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-factory-night-effects.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-residential-homes.cjs
   lane-change-safety:
     runs-on: ubuntu-latest
