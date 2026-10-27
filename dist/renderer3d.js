@@ -718,7 +718,17 @@ class Batch{
  this.data.get(key).items.push({x,y,z,sx,sy,sz,rx,ry,rz,buildingId});
 }
  box(color,x,y,z,sx,sy,sz,ry=0,id=null,glow=false,finish='matte'){this.add(BOX,color,x,y,z,sx,sy,sz,0,ry,0,id,glow,finish);}
- build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,fine=false,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=new THREE.MeshStandardMaterial({color,roughness:glow?.4:roughness,metalness,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){material.emissive.set(color);material.emissiveIntensity=1.6;material.toneMapped=false;}
+ build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,fine=false,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=new THREE.MeshStandardMaterial({color,roughness:glow?.4:roughness,metalness,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){
+  material.emissive.set(color);material.emissiveIntensity=1.6;
+  material.toneMapped=false;
+  // Factory lighting uses additive batched emissive geometry rather than
+  // faint transparent paint. No actual scene point lights are needed.
+  if(finish.startsWith('factory-night-')){
+   material.blending=THREE.AdditiveBlending;
+   material.depthWrite=false;
+   material.emissiveIntensity=2.25;
+  }
+ }
  if(finish==='foliage'||finish==='bark'){
   material.roughness=finish==='foliage'?.95:.92;
   if(finish==='foliage')material.side=THREE.DoubleSide;
@@ -733,7 +743,7 @@ class Batch{
   };
   material.customProgramCacheKey=()=>finish==='bark'?'landscape-bark-v1':'landscape-foliage-v1';
  }
- const mesh=new THREE.InstancedMesh(geo,material,items.length);mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
+ const mesh=new THREE.InstancedMesh(geo,material,items.length);if(glow&&finish.startsWith('factory-night-'))mesh.renderOrder=2;mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
 
 export class TrafficRenderer{
@@ -852,7 +862,9 @@ export class TrafficRenderer{
     if(!mesh.userData.nightGlow)return;
     mesh.visible=glow>.015&&(this.graphicQuality!=='low'||!mesh.userData.factoryNightTier||
      mesh.userData.factoryNightTier==='essential');
-    mesh.material.opacity=.78*glow;mesh.material.emissiveIntensity=.70+glow*.55;
+    const factoryLED=!!mesh.userData.factoryNightTier;
+    mesh.material.opacity=(factoryLED?.98:.78)*glow;
+    mesh.material.emissiveIntensity=factoryLED?2.0+glow*.55:.70+glow*.55;
    });
    if(this.streetGlow)this.streetGlow.material.opacity=.24*glow;
    this.lastGlow=glow;
@@ -861,7 +873,7 @@ export class TrafficRenderer{
   // updated; no point lights, geometry rebuilds or per-vehicle calculations.
   if(glow>.015&&this.graphicQuality!=='low'&&this.factoryNightPulseMeshes){
    const wave=.81+.19*Math.sin(performance.now()*.001*2.6);
-   for(const mesh of this.factoryNightPulseMeshes)mesh.material.opacity=glow*.70*wave;
+   for(const mesh of this.factoryNightPulseMeshes)mesh.material.opacity=glow*.93*wave;
   }
   this.rain.visible=air.rain>.025;
   if(this.rain.visible){
@@ -1507,7 +1519,7 @@ export class TrafficRenderer{
       const a=k*Math.PI/6,x=coreX+Math.cos(a)*rad*.94;
       const z=coreZ+Math.sin(a)*rad*.94,p=point(x,z);
       batch.add(BOX,'#66dfed',p.x-.5,floorY+.86,p.y-.5,
-       rad*.49,.032,.049,0,turn+a+Math.PI/2,0,id,true,'factory-night-reactor');
+       rad*.49,.053,.066,0,turn+a+Math.PI/2,0,id,true,'factory-night-essential');
      }
     }
     const rooftop=bottom+2*storey;
@@ -1525,9 +1537,19 @@ export class TrafficRenderer{
      batch.add(BOX,color,p.x-.5,y,p.y-.5,length,width,.054,
       0,turn,a+Math.PI/2,id,true,'factory-night-'+grade);
     };
-    // Outer ring is cheap, and remains legible in the Low quality preset.
+    // Outer reactor ring is Low-friendly and readable from the main façade.
     for(let k=0;k<12;k++)
      arcSegment(.345,k,k%3===0?'#d4fbff':'#69e4f2','essential',.159,.066);
+    // Exterior cyan markers wrap all 360 degrees of the round office:
+    // visible even from the rear or side camera, in every graphics preset.
+    for(let floor=0;floor<2;floor++){
+     const yy=bottom+floor*storey+.55;
+     for(let k=0;k<8;k++){
+      const a=k*Math.PI/4;
+      nightLED('#72f0ff',coreX+Math.cos(a)*rad*.98,yy,
+       coreZ+Math.sin(a)*rad*.98,.21,.096,.085,'essential');
+     }
+    }
     // High-quality reactor: inner ring plus radial luminous energy spokes.
     for(let k=0;k<12;k++)
      arcSegment(.226,k,k%3===0?'#e2fcff':'#4acdea','reactor',.104,.052);
@@ -5923,6 +5945,9 @@ export class TrafficRenderer{
   this.createFactoryEffects(batch.factoryEffects||[]);
   this.lastBuildingDetailLevel=null;
   this.lastNightVisibility=-1;
+  // All newly constructed LED instanced meshes start invisible. A factory
+  // added/rotated in steady darkness needs a forced glow visibility refresh.
+  this.lastGlow=-1;
  }
  updateGrandSignals(){}
 
