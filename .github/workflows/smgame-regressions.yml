@@ -83,6 +83,7 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-architecture-collection.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-detailed-facades.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-blue-restaurants.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-casinos.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-yellow-shops.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-pink-malls.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-purple-pubs.cjs
