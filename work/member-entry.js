@@ -112,6 +112,51 @@ if (gate) {
     tab.addEventListener('click', () => setMode(tab.dataset.memberMode)));
   $('memberClose').addEventListener('click', closeMember);
   $('memberBack').addEventListener('click', closeMember);
+  // The public ♙ icon only reopens a previously authenticated creator
+  // session. It cannot sign in by email alone or grant developer privileges.
+  $('memberDevQuick')?.addEventListener('click', async () => {
+    if (busy || savingPending) return;
+    busy = true;
+    const view = memberView, quick = $('memberDevQuick');
+    quick.disabled = true;
+    setNotice('กำลังเปิดบัญชีผู้สร้าง…');
+    try {
+      // getUser verifies the saved session with Supabase Auth; relying on
+      // user/email stored in browser state would let guests impersonate Dev.
+      const { data, error } = await auth.auth.getUser();
+      if (view !== memberView) return;
+      const verified = data?.user;
+      if (error || String(verified?.email || '').toLowerCase() !== 'sumoskb@hotmail.com') {
+        setMode('login');
+        $('memberEmail').value = 'sumoskb@hotmail.com';
+        setNotice('อุปกรณ์นี้ยังไม่มีเซสชัน Dev กรุณาเข้าสู่ระบบครั้งแรกค่ะ', true);
+        return;
+      }
+      // Developer rights are separately checked by the server-side
+      // smgame-creator-presence function, never awarded by the UI.
+      const permission = await creatorRequest('access');
+      if (view !== memberView) return;
+      if (permission.developer !== true) {
+        setNotice('บัญชีนี้ไม่ได้รับสิทธิ์ผู้สร้างค่ะ', true);
+        return;
+      }
+      setUser(verified);
+      if (pendingSave) {
+        await persistPendingSave();
+        return;
+      }
+      setLocked(false);
+      // Refresh the existing server-enforced creator UI permission before
+      // opening its dashboard, retaining all previous controls and records.
+      await window.SMGameCreatorAuthRefresh?.();
+      if (window.SMGameCreatorCanOpen) window.SMGameCreatorOpen?.();
+    } catch {
+      if (view === memberView) setNotice('เปิดบัญชี Dev อัตโนมัติไม่ได้ กรุณาเข้าสู่ระบบตามปกติค่ะ', true);
+    } finally {
+      busy = false;
+      quick.disabled = false;
+    }
+  });
   // The login overlay fills the viewport. Only a direct hit on that overlay,
   // not a click on the form card or its fields, may dismiss it.
   gate.addEventListener('click', event => { if (event.target === gate) closeMember(); });
