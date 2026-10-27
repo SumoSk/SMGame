@@ -89,6 +89,10 @@
      // 0.94-radius roof, not the old small 0.35-radius badge.
      const roofRadius=Math.min((t.plotWidth-2.27-.94)/3*.32,.82)+.12;
      assert(.820/roofRadius>.85,'reactor logo fills at least 85 percent of round roof radius');
+     const daylightLogo=local.filter(p=>p.finish==='night-reactor-base');
+     assert.equal(daylightLogo.length,25,'24 daylight-visible solid arc segments and permanent reactor core');
+     assert(daylightLogo.every(p=>p.y>=rooftop+.29&&p.y<rooftop+.38),
+      'roof emblem remains visible in daylight and stays flat above rooftop');
      const white=local.filter(p=>p.color==='#f4ffff'&&p.glow);
      assert(white[0].y>rooftop+.40&&Math.hypot(white[0].u-cx,white[0].v-cz)<.005,
       'reactor logo white core must be at the very top rather than the facade');
