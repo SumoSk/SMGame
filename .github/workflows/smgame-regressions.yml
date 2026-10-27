@@ -104,6 +104,7 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-travel-happiness.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-lane-change-safety.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
+      - run: node work/test-performance.cjs
   publish:
     needs: [new-building-models, lane-change-safety]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
