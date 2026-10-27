@@ -1535,8 +1535,14 @@ export class TrafficRenderer{
     const arcSegment=(radius,k,color,grade,length,width=.066)=>{
      const a=k*Math.PI/6,u=coreX+Math.cos(a)*radius,v=coreZ+Math.sin(a)*radius;
      const p=point(u,v);
+     // Daylight-visible solid logo frame directly underneath each LED arc:
+     // the big round emblem stays recognizable even when night lamps are off.
+     // This is normal batched metal, not a point light or separate scene mesh.
+     batch.add(BOX,grade==='essential'?'#38859a':'#527d89',
+      p.x-.5,logoY-.001,p.y-.5,length+.013,.040,.082,
+      0,turn-a-Math.PI/2,0,id,false,'night-reactor-base');
      // A tangent rectangle in the horizontal X/Z plane traces the rooftop
-     // circular logo at every building rotation; no billboard or PointLight.
+     // illuminated logo at every building rotation.
      batch.add(BOX,color,p.x-.5,logoY+(grade==='essential'?.040:.074),p.y-.5,
       length,width,.070,0,turn-a-Math.PI/2,0,id,true,'factory-night-'+grade);
     };
@@ -1563,6 +1569,7 @@ export class TrafficRenderer{
       .205,.037,.055,0,turn-a,0,id,true,'factory-night-reactor');
     }
     // White-hot reactor center on top is deliberately visible even in Low.
+    block('#b6d5d8',coreX,logoY+.003,coreZ,.28,.072,.28,'night-reactor-base');
     nightLED('#68daee',coreX,logoY+.064,coreZ,.350,.052,.350,'reactor');
     nightLED('#f4ffff',coreX,logoY+.112,coreZ,.235,.063,.235,'essential');
     // Static illuminated crown ribs; omitted for Low quality.
