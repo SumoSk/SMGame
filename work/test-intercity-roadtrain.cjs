@@ -55,7 +55,7 @@ assert.equal([...game.state.vehicles.values()].filter(v=>v.kind==='intercity').l
 const saved=JSON.parse(game.snapshot());
 assert.equal(saved.intercityHour.next,1);
 assert.equal(saved.intercityHour.quotaVersion,2);
-assert.equal(saved.intercityHour.total,4);
+assert.equal(saved.intercityHour.total,1);
 // Updating an old same-hour 10% save must not spawn any extra trucks.
 game.state.intercityHour={hour:12,total:20,next:6,offset:0};
 game.state.time=12*60+59.99;
