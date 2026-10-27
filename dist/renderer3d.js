@@ -1363,10 +1363,21 @@ export class TrafficRenderer{
    const width=t.plotWidth,height=t.plotHeight,center=width*.5;
    const back=starter?.17:t.parkingZoneDepth+.30;
    const front=starter?1.26:height-.57;
-   const left=starter?.30:.94;
-   const hallRight=starter?2.17:width-2.27;
+   // Large factory only: the THREE manufacturing halls have a combined
+   // 80%-sized footprint, centred on the original three-hall group.
+   // Leave the parking plot, forecourt, two front access gates, site slab,
+   // separate glass admin office, silos and vehicle/simulation logic intact.
+   const hallScale=level===3?.80:1;
+   const originalHallLeft=starter?.30:.94;
+   const originalHallRight=starter?2.17:width-2.27;
+   const originalHallBack=back+.095,originalHallFront=front-.13;
+   const hallCenterX=(originalHallLeft+originalHallRight)*.5;
+   const hallCenterZ=(originalHallBack+originalHallFront)*.5;
+   const left=hallCenterX+(originalHallLeft-hallCenterX)*hallScale;
+   const hallRight=hallCenterX+(originalHallRight-hallCenterX)*hallScale;
    const hallW=hallRight-left,halfDepth=front-back;
-   const hallBack=back+.095,hallFront=front-.13;
+   const hallBack=hallCenterZ+(originalHallBack-hallCenterZ)*hallScale;
+   const hallFront=hallCenterZ+(originalHallFront-hallCenterZ)*hallScale;
    const hallD=hallFront-hallBack,hallZ=(hallBack+hallFront)*.5;
    const spans=starter?1:level===3?3:2,spanW=hallW/spans;
    const eave=[1.17,2.06,2.69,3.40][level];
