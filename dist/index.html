@@ -269,8 +269,31 @@
 /* One-line read-only demand notice: existing simulation code is untouched. */
 body>.bottom>#cityAdvisor{display:none!important}
 body>.bottom>#cityAdvisorTicker[hidden]{display:none!important}
-body>.bottom>#cityAdvisorTicker{max-width:min(490px,calc(100vw - 22px))}
-body>.bottom>#cityAdvisorTicker .city-advisor-action{cursor:default}
+body>.bottom>#cityAdvisorTicker{
+ max-width:min(490px,calc(100vw - 22px));
+ height:34px;min-height:34px;max-height:34px;
+ padding:4px 5px;margin-bottom:7px;
+ border-radius:10px;align-items:center;
+ font:600 9px/1.2 "Noto Sans Thai",Tahoma,sans-serif;
+}
+body>.bottom>#cityAdvisorTicker .city-advisor-action{
+ height:24px;min-height:24px;max-height:24px;
+ padding:3px 7px;align-items:center;cursor:default
+}
+body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
+ height:24px;min-height:24px;max-height:24px;
+ display:grid;place-items:center
+}
+@media(max-width:500px){
+ body>.bottom>#cityAdvisorTicker{
+  height:30px;min-height:30px;max-height:30px;
+  padding:3px 5px;margin-bottom:6px;border-radius:8px
+ }
+ body>.bottom>#cityAdvisorTicker .city-advisor-action,
+ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
+  height:22px;min-height:22px;max-height:22px
+ }
+}
 </style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
