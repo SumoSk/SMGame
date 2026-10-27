@@ -20,6 +20,7 @@ jobs:
       - run: npm ci
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
+      - run: node work/test-night-delivery.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mission-dashboard.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-travel-log.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-landscaping.cjs
