@@ -75,7 +75,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const plot=g.CATALOG.factory_large;
  const building={key:'factory_large',id:899,x:31,y:42,rotation:1,
   parked:new Set(),parkingSlots:Array(plot.parkingCapacity).fill(null)};
- renderer.scene=new THREE.Scene();
+ renderer.scene=new THREE.Scene();renderer.scene.background=new THREE.Color('#1a2941');
  renderer.buildingGroup=new THREE.Group();
  renderer.lampGroup=new THREE.Group();
  renderer.roadGroup=new THREE.Group();
