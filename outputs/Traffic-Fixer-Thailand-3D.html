@@ -6826,15 +6826,17 @@ body>.bottom>.city-advisor-mini button:focus-visible{outline:2px solid var(--smg
 
 </style>
 <style id="smcity-welcome-style">
-/* Welcome poster lives above the rendered city, inside dynamically measured play area. */
-#smcityWelcome{position:fixed;inset:12px;z-index:420;display:flex;justify-content:center;align-items:center;pointer-events:none;isolation:isolate}
+/* v4.3.2: only the welcome POSTER floats above the game.
+   No fullscreen dimmer, opaque card/background, border or dark drop shadow.
+   Intrinsic 3:2 image dimensions determine height: no letterbox bars. */
+#smcityWelcome{position:fixed;inset:12px;z-index:420;display:flex;justify-content:center;align-items:center;pointer-events:none;isolation:isolate;background:transparent}
 #smcityWelcome[hidden]{display:none!important}
-#smcityWelcome::before{content:"";position:absolute;inset:0;background:rgba(4,18,36,.17);pointer-events:none}
-#smcityWelcome .smcity-welcome-card{position:relative;width:min(900px,calc(100% - 20px));max-width:100%;max-height:100%;aspect-ratio:3/2;border:2px solid rgba(83,223,255,.8);border-radius:16px;background:#063565;box-shadow:0 16px 46px rgba(2,12,27,.5);pointer-events:auto}
-#smcityWelcome .smcity-welcome-image{display:block;width:100%;height:100%;object-fit:contain;border-radius:14px;cursor:pointer}
-#smcityWelcome .smcity-welcome-close{position:absolute;top:0;right:0;transform:translate(28%,-28%);width:39px;height:39px;display:grid;place-items:center;padding:0;border:2px solid #a9eeff;border-radius:50%;background:#073a70;color:#fff;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 3px 12px #001b3f;z-index:1}
+#smcityWelcome::before{content:none!important;display:none!important}
+#smcityWelcome .smcity-welcome-card{position:relative;width:min(900px,calc(100% - 20px));max-width:100%;max-height:100%;height:auto;aspect-ratio:auto;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible;pointer-events:auto}
+#smcityWelcome .smcity-welcome-image{display:block;width:100%;height:auto;max-height:100%;object-fit:contain;border-radius:12px;cursor:pointer}
+#smcityWelcome .smcity-welcome-close{position:absolute;top:0;right:0;transform:translate(28%,-28%);width:39px;height:39px;display:grid;place-items:center;padding:0;border:2px solid #a9eeff;border-radius:50%;background:#073a70;color:#fff;font-size:28px;line-height:1;cursor:pointer;box-shadow:none;z-index:1}
 #smcityWelcome .smcity-welcome-close:hover,#smcityWelcome .smcity-welcome-close:focus-visible{background:#0a5caa;outline:2px solid #fff;outline-offset:2px}
-@media(max-width:600px){#smcityWelcome .smcity-welcome-card{border-width:1px;border-radius:10px}#smcityWelcome .smcity-welcome-image{border-radius:9px}#smcityWelcome .smcity-welcome-close{width:32px;height:32px;font-size:23px;transform:translate(12%,-12%)}}
+@media(max-width:600px){#smcityWelcome .smcity-welcome-image{border-radius:9px}#smcityWelcome .smcity-welcome-close{width:32px;height:32px;font-size:23px;transform:translate(12%,-12%)}}
 
 /* One-line read-only demand notice: existing simulation code is untouched. */
 body>.bottom>#cityAdvisor{display:none!important}
