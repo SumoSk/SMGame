@@ -54,10 +54,10 @@ if (gate) {
     setNotice('');
   }
 
-  function setUser(next) {
+  function setUser(next, creatorRefresh = true) {
     user = next || null;
     window.SMGameOnAuthChanged?.(!!user);
-    setTimeout(() => window.SMGameCreatorAuthRefresh?.(), 0);
+    if (creatorRefresh) setTimeout(() => window.SMGameCreatorAuthRefresh?.(), 0);
   }
   function closeMember() {
     memberView++;
@@ -140,7 +140,7 @@ if (gate) {
         setNotice('บัญชีนี้ไม่ได้รับสิทธิ์ผู้สร้างค่ะ', true);
         return;
       }
-      setUser(verified);
+      setUser(verified, false);
       if (pendingSave) {
         await persistPendingSave();
         return;
