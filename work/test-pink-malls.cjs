@@ -6,7 +6,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  const {game:g}=new Function('require',boot+';return boot();')(require);
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
  const source=fs.readFileSync('dist/renderer3d.js','utf8')
-  .replace(/import \\* as THREE from '[^']+';/,'')
+  .replace(/import \* as THREE from '[^']+';/,'')
   .replace('export class TrafficRenderer','class TrafficRenderer');
  const {TrafficRenderer,Batch}=new Function('THREE',source+';return {TrafficRenderer,Batch};')(THREE);
  const renderer=Object.create(TrafficRenderer.prototype);
