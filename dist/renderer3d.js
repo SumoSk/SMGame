@@ -1526,22 +1526,25 @@ export class TrafficRenderer{
     disc('#4b6570',rooftop+.06,rad+.12,.15);
     disc('#c3d4d3',rooftop+.16,rad*.86,.055);
     disc('#436f81',rooftop+.205,rad*.51,.08);
-    // Arc-reactor-inspired faceplate: a visibly luminous DOUBLE RING.
-    // Low keeps 12 broad outer cyan segments + bright white core; Medium/High
-    // show 12 additional blue/white inner segments with a subtle night pulse.
-    // The ring is mounted on the existing round office, not a point light.
-    const faceZ=coreZ+rad+.075,centerY=bottom+storey*.96;
-    const arcSegment=(radius,k,color,grade,length,width=.062)=>{
-     const a=k*Math.PI/6,x=coreX+Math.cos(a)*radius,y=centerY+Math.sin(a)*radius;
-     const p=point(x,faceZ+(grade==='essential'?.040:.078));
-     batch.add(BOX,color,p.x-.5,y,p.y-.5,length,width,.054,
-      0,turn,a+Math.PI/2,id,true,'factory-night-'+grade);
+    // ARC REACTOR LOGO — now on the VERY TOP of the circular control tower,
+    // lying flat on the roof and facing the overhead gameplay camera.
+    // Move the WHOLE emblem (outer/inner rings, spokes, core) from the front
+    // facade to the rooftop; preserve its night lighting and Low LOD.
+    const logoY=rooftop+.350;
+    disc('#203c50',logoY-.074,rad*.60,.10); // elevated dark emblem mounting
+    const arcSegment=(radius,k,color,grade,length,width=.066)=>{
+     const a=k*Math.PI/6,u=coreX+Math.cos(a)*radius,v=coreZ+Math.sin(a)*radius;
+     const p=point(u,v);
+     // A tangent rectangle in the horizontal X/Z plane traces the rooftop
+     // circular logo at every building rotation; no billboard or PointLight.
+     batch.add(BOX,color,p.x-.5,logoY+(grade==='essential'?.040:.074),p.y-.5,
+      length,width,.070,0,turn-a-Math.PI/2,0,id,true,'factory-night-'+grade);
     };
-    // Outer reactor ring is Low-friendly and readable from the main façade.
+    // The Low graphics preset keeps a bright complete outer circle on top.
     for(let k=0;k<12;k++)
-     arcSegment(.345,k,k%3===0?'#d4fbff':'#69e4f2','essential',.159,.066);
-    // Exterior cyan markers wrap all 360 degrees of the round office:
-    // visible even from the rear or side camera, in every graphics preset.
+     arcSegment(.350,k,k%3===0?'#d4fbff':'#69e4f2','essential',.176,.072);
+    // The two-storey control room retains thin all-angle façade markers:
+    // these are separate from the rooftop emblem and still visible in Low.
     for(let floor=0;floor<2;floor++){
      const yy=bottom+floor*storey+.55;
      for(let k=0;k<8;k++){
@@ -1550,18 +1553,18 @@ export class TrafficRenderer{
        coreZ+Math.sin(a)*rad*.98,.21,.096,.085,'essential');
      }
     }
-    // High-quality reactor: inner ring plus radial luminous energy spokes.
+    // Medium/High: smaller pulsing inner ring and eight reactor energy spokes.
     for(let k=0;k<12;k++)
-     arcSegment(.226,k,k%3===0?'#e2fcff':'#4acdea','reactor',.104,.052);
+     arcSegment(.221,k,k%3===0?'#e2fcff':'#4acdea','reactor',.108,.054);
     for(let k=0;k<8;k++){
-     const a=k*Math.PI/4,x=coreX+Math.cos(a)*.143;
-     const y=centerY+Math.sin(a)*.143,p=point(x,faceZ+.108);
-     batch.add(BOX,'#a3efff',p.x-.5,y,p.y-.5,.087,.024,.048,
-      0,turn,a,id,true,'factory-night-reactor');
+     const a=k*Math.PI/4,u=coreX+Math.cos(a)*.134,v=coreZ+Math.sin(a)*.134;
+     const p=point(u,v);
+     batch.add(BOX,'#a3efff',p.x-.5,logoY+.091,p.y-.5,
+      .090,.037,.045,0,turn-a,0,id,true,'factory-night-reactor');
     }
-    // A white hot heart + cyan halo persist in Low without 3D light sources.
-    nightLED('#68daee',coreX,centerY,faceZ+.075,.222,.222,.034,'reactor');
-    nightLED('#f4ffff',coreX,centerY,faceZ+.125,.142,.142,.047,'essential');
+    // White-hot reactor center on top is deliberately visible even in Low.
+    nightLED('#68daee',coreX,logoY+.064,coreZ,.230,.052,.230,'reactor');
+    nightLED('#f4ffff',coreX,logoY+.112,coreZ,.155,.063,.155,'essential');
     // Static illuminated crown ribs; omitted for Low quality.
     for(let k=0;k<8;k++){
      const a=k*Math.PI/4;
