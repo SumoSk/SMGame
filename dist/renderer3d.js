@@ -1330,6 +1330,181 @@ export class TrafficRenderer{
     if(hash(x+id,y)>.42)block('#ffe0ac',x,y-h*.12,v+.047,w/count*.64,h*.36,.013,'glass',true);
    }
   };
+
+  // MODERN FACTORY CAMPUS — a new lightweight architectural model for ALL
+  // four factory tiers. Uses only the pre-existing building half of each lot.
+  // Completely independent of parking, frontage nodes, roads and production
+  // game logic; no new physics bodies or visitor/parking reservations.
+  if(t.kind==='factory'){
+   const starter=!!t.starterTier,level=starter?0:t.modelTier||tier;
+   const width=t.plotWidth,height=t.plotHeight,center=width*.5;
+   const back=starter?.17:t.parkingZoneDepth+.30;
+   const front=starter?1.26:height-.57;
+   const left=starter?.30:.94;
+   const hallRight=starter?2.17:width-2.27;
+   const hallW=hallRight-left,halfDepth=front-back;
+   const hallBack=back+.095,hallFront=front-.13;
+   const hallD=hallFront-hallBack,hallZ=(hallBack+hallFront)*.5;
+   const spans=starter?1:level===3?3:2,spanW=hallW/spans;
+   const eave=[1.17,2.06,2.69,3.40][level];
+   const rise=[.29,.38,.44,.53][level];
+   const steel='#7e9298',white='#e7eeeb',bone='#d1dedb',slate='#475e69',
+    roofBlue='#607b89',solar='#25435d',solarTrim='#9dbbc4',glass='#7baebd',
+    amber='#f6dca8',pale='#c7d4d0',wood='#b99062',asphalt='#aab8b2';
+   // A low rectangular plot slab is an outline, not a giant solid building.
+   block('#c7d0c8',center,.095,(back+front)*.5,width-(starter?.48:1.43),.075,halfDepth,'stone');
+   block('#9aada9',center,.145,front-.11,width-(starter?.59:1.55),.035,.17,'stone');
+   // Cargo hall: distinct pitched roof bays, exposed portals and translucent
+   // clerestories. There is deliberately NO tall opaque cuboid underneath.
+   for(let bay=0;bay<spans;bay++){
+    const x=left+spanW*(bay+.5),half=spanW*.5;
+    const low=hallBack+.04,high=hallFront-.04,zmid=(low+high)*.5;
+    const depth=high-low;
+    for(const edge of[x-half+.055,x+half-.055]){
+     block(white,edge,(eave+.23)*.5,zmid,.092,eave-.23,depth,'metal');
+     block('#a6bcc1',edge,eave-.42,zmid,.11,.25,depth-.10,'glass');
+     for(let k=0;k<(starter?2:4);k++){
+      const zz=low+.20+k*(depth-.40)/(starter?1:3);
+      block('#98acb2',edge,.58,zz,.108,.90,.042,'metal');
+     }
+    }
+    // The far and near gables are made of slim struts, with visible space
+    // between support members and an open loading door underneath.
+    for(const zz of[low,high]){
+     block(white,x,eave-.26,zz,spanW-.06,.40,.075,'metal');
+     block('#607882',x,eave-.60,zz,spanW-.20,.13,.055,'glass');
+     for(const xx of[x-half+.08,x+half-.08]){
+      block(white,xx,(eave-.38)*.5,zz,.090,eave-.38,.085,'metal');
+      block('#556e79',xx,1.04,zz,.12,.24,.10,'metal');
+     }
+    }
+    // Thin, actual two-slope roof panels. Arrays on EVERY sloping face are
+    // recognisable from the overhead camera and remain in the factory parcel.
+    const slope=Math.atan2(rise,half),slopeLen=Math.hypot(half,rise);
+    for(const side of[-1,1]){
+     const xx=x+side*half*.50,yy=eave+rise*.50;
+     const p=point(xx,zmid),tilt=-side*slope;
+     batch.add(BOX,bay%2?'#dbe4e2':'#edf0eb',p.x-.5,yy,p.y-.5,
+      slopeLen+.025,.075,depth+.05,0,turn,tilt,id,false,'metal');
+     // One large blue array per roof face, inset from gutters & ridge.
+     const sx=x+side*half*.53,sz=zmid,ps=point(sx,sz);
+     batch.add(BOX,solar,ps.x-.5,yy+.067,ps.y-.5,
+      slopeLen*.68,.025,depth*.68,0,turn,tilt,id,false,'glass');
+     const n=starter?2:level===3?5:4;
+     for(let k=1;k<n;k++){
+      const zz=zmid-depth*.34+k*depth*.68/n,q=point(sx,zz);
+      batch.add(BOX,solarTrim,q.x-.5,yy+.085,q.y-.5,
+       slopeLen*.70,.008,.014,0,turn,tilt,id,false,'metal');
+     }
+     // Edge gasket frames distinguish solar panels from plain glass roofs.
+     for(const zz of[zmid-depth*.35,zmid+depth*.35]){
+      const q=point(sx,zz);
+      batch.add(BOX,'#c2d5d9',q.x-.5,yy+.082,q.y-.5,
+       slopeLen*.71,.011,.022,0,turn,tilt,id,false,'metal');
+     }
+    }
+    block('#ccd8d5',x,eave+rise+.030,zmid,.092,.068,depth+.12,'metal');
+    // Upper loading shutter, open below. The machinery behind it is visible.
+    block('#556f79',x,eave-.45,high+.035,spanW*.67,.25,.070,'metal');
+    for(let k=0;k<3;k++)
+     block('#c3d0ce',x,eave-.52+k*.069,high+.079,spanW*.62,.017,.018,'metal');
+    for(const side of[-1,1])
+     block('#b4a078',x+side*spanW*.38,.71,high+.06,.070,.54,.06,'metal');
+    // Small interior conveyor belts, stacked goods and fabrication tools.
+    const machineZ=starter?hallZ:hallBack+depth*.39;
+    block('#4f626b',x,.35,machineZ,spanW*.47,.29,Math.min(.68,depth*.31),'metal');
+    block('#9bb1b4',x,.53,machineZ,spanW*.42,.057,Math.min(.59,depth*.28),'metal');
+    block('#efb774',x-.15,.69,machineZ-.06,spanW*.16,.23,.22,'metal');
+    block('#4a6873',x+.16,.74,machineZ+.10,spanW*.14,.37,.24,'metal');
+    block('#acbdbe',x+.16,.96,machineZ+.15,spanW*.12,.07,.15,'glass');
+    // Forklift and wood crate palette, both STATIC model props.
+    if(!starter){
+     const fx=x-spanW*.20,fz=high-.52;
+     block('#e6a952',fx,.32,fz,.30,.23,.41,'metal');
+     block('#5b6c70',fx,.57,fz-.14,.15,.28,.16,'metal');
+     block('#303f48',fx+.20,.52,fz+.11,.026,.62,.041,'metal');
+     block('#b58c5e',fx+.25,.27,fz+.12,.30,.22,.27,'wood');
+     for(const dx of[-.12,.12])for(const dz of[-.16,.16])
+      block('#2b3b44',fx+dx,.19,fz+dz,.072,.11,.07,'metal');
+     for(const dz of[high-.22,high-.43])
+      block(wood,x+spanW*.23,.37,dz,.38,.31,.24,'wood');
+    }
+    // Limited animation records; these are visual effects, never traffic.
+    const record=(kind,u,y,v,extra={})=>{
+     const p=point(u,v);
+     (batch.factoryEffects??=[]).push({kind,id,x:p.x-.5,y,z:p.y-.5,turn,tier:Math.max(1,level),...extra});
+    };
+    if(!starter){
+     record('weld',x,.86,machineZ+.08);
+     record('fan',x,eave+rise+.12,hallBack+depth*.24,{radius:.14});
+    }
+    // Bright under-eave lights, without expensive per-building point lights.
+    block(amber,x,eave-.79,high+.085,spanW*.36,.055,.035,'glass',true);
+   }
+   // Administrative office is a distinct LOW-volume front wing: clear glass
+   // bands, small square entrance, parapet, not one bulky factory box.
+   const adminX=starter?2.48:width-1.39,adminW=starter?.43:1.24;
+   const adminZ=starter?.88:front-1.18,adminD=starter?.67:1.78;
+   const floors=level>=2?2:1,adminH=starter?.89:level===1?1.42:2.28;
+   block('#d8e1dd',adminX,.20,adminZ,adminW,.19,adminD,'stone');
+   for(const side of[-1,1]){
+    const xx=adminX+side*adminW*.47;
+    block(white,xx,adminH*.53+.21,adminZ,.065,adminH,adminD,'stone');
+   }
+   for(const zz of[adminZ-adminD*.47,adminZ+adminD*.47])
+    block(white,adminX,adminH*.53+.21,zz,adminW,.10,.070,'metal');
+   for(let floor=0;floor<floors;floor++){
+    const yy=.65+floor*(adminH/floors);
+    block(glass,adminX,yy,adminZ+adminD*.47,.84*adminW,.53, .036,'glass');
+    block('#376074',adminX,yy+.01,adminZ+adminD*.50,.035,.53,.034,'metal');
+    block('#b5cbd1',adminX,yy+.27,adminZ+adminD*.50,adminW*.84,.042,.026,'metal');
+    if(floor<floors-1)block(white,adminX,yy+.42,adminZ,adminW,.10,adminD,'metal');
+   }
+   block('#e5ebe7',adminX,adminH+.32,adminZ,adminW+.12,.12,adminD+.08,'stone');
+   if(!starter){
+    for(const side of[-1,1]){
+     const dx=adminX+side*adminW*.35;
+     block('#b3c9cd',dx,adminH+.39,adminZ-.32,.11,.055,.31,'glass');
+    }
+    block('#456a79',adminX,.56,adminZ+adminD*.52,.38,.70,.043,'glass');
+    block('#fbdda5',adminX,.84,adminZ+adminD*.56,.31,.07,.025,'glass',true);
+   }
+   // Silver silos and external service pipes occupy the side utility strip.
+   // Starter uses one miniature tank; medium/large use three separated tanks.
+   const tankCount=starter?1:level===1?1:level===2?2:3;
+   const tankX=starter?2.48:width-1.30;
+   const tankBack=starter?.35:back+.54;
+   const tankStep=starter?.33:level===3?1.05:1.23;
+   const tankHeight=starter?.48:level===1?1.29:level===2?1.89:2.27;
+   const tankRadius=starter?.11:level===1?.24:.265;
+   for(let n=0;n<tankCount;n++){
+    const z=tankBack+n*tankStep,y=.22+tankHeight*.5;
+    const p=point(tankX,z);
+    batch.add(CYL,'#bdcbca',p.x-.5,y,p.y-.5,
+     tankRadius*2,tankHeight,tankRadius*2,0,0,0,id,false,'metal');
+    batch.add(CYL,'#6f8a93',p.x-.5,.23+tankHeight,p.y-.5,
+     tankRadius*2+.045,.07,tankRadius*2+.045,0,0,0,id,false,'metal');
+    block('#587680',tankX,.70,z+tankRadius+.02,.11,.17,.047,'metal');
+    if(!starter){
+     block('#8da7b1',tankX+.31,1.15,z,.047,.053,.32,'metal');
+     block('#7d979c',tankX+.28,1.05,z,.028,.72,.035,'metal');
+    }
+   }
+   if(!starter){
+    // A few pallets and pipe manifold mark the service area behind the
+    // office; leave the north parking parcel and driveways entirely intact.
+    block('#9babb1',tankX,.44,tankBack+.27,.080,.045,.59,'metal');
+    block('#637d89',tankX,.35,tankBack+.53,.045,.30,.05,'metal');
+    block('#b18a63',adminX,.22,front-.19,.34,.20,.22,'wood');
+    block(amber,adminX,.41,front-.18,.16,.06,.04,'glass',true);
+    // Industrial steam and cargo animation stay visible but bounded.
+    const p=point(tankX,tankBack);
+    (batch.factoryEffects??=[]).push({kind:'steam',id,x:p.x-.5,y:.27+tankHeight,z:p.y-.5,turn,tier:level});
+    const q=point(adminX,front-.25);
+    (batch.factoryEffects??=[]).push({kind:'cargo',id,x:q.x-.5,y:.52,z:q.y-.5,turn,tier:level,distance:.23});
+   }
+   return;
+  }
   // STARTER REAR/SIDE ELEVATIONS. Place the visible glass, handles and trims
   // along each wall's OUTWARD normal; front-facing panes disappear in rear walls.
   if(t.starterTier){
@@ -3020,529 +3195,6 @@ export class TrafficRenderer{
     }
    }
    // No solid building box, visible 3D details from all directions.
-   return;
-  }
-
-  // ORANGE FACTORY PROGRAM. Not a scaled box: every tier has a visibly
-  // different real 3D production program, while preserving parking, roads,
-  // jobs and the existing half-plot land allocation.
-  // Small = Thai machine workshop / medium = assembly-line works /
-  // large = smart industrial production campus with elevated control deck.
-  if(t.kind==='factory'){
-   const tier=t.modelTier||1,W=t.plotWidth,P=t.parkingZoneDepth;
-   const L=.86,R=W-.86,cx=W/2,B=P+.36,F=t.plotHeight-.76,D=F-B,cz=(B+F)/2;
-   const orange='#ee8c37',burnt='#be602b',amber='#f7b454',dark='#4b545c';
-   const steel='#809399',pale='#d9ddda',charcoal='#313a43',concrete='#babbb2';
-   const cyan='#83ccd3',cream='#f2ddad',blue='#4c7785',green='#73aa81';
-   const tile=(x,y,z,w,d,color=concrete)=>block(color,x,y,z,w,.075,d,'stone');
-   const strut=(x,z,y=0,h=2.22)=>block('#677780',x,y+.22+h/2,z,.076,h,.078,'metal');
-   const cyl=(color,x,y,z,r,h,glow=false)=>{
-    const p=point(x,z);batch.add(CYL,color,p.x-.5,y,p.y-.5,r,h,r,0,0,0,id,glow,'metal');
-   };
-   const tube=(x,z,y=0,h=1.65,r=.13)=>{
-    cyl('#89969a',x,y+.21+h*.5,z,r,h);
-    cyl(orange,x,y+.25+h,z,r+.055,.13);
-    cyl('#53646d',x,y+.32+h,z,r*.62,.12);
-   };
-   const beacon=(x,z,y=1.72,color=amber)=>{
-    block('#63717b',x,y-.08,z,.14,.10,.14,'metal');
-    block(color,x,y,z,.13,.11,.13,'glass',true);
-    block('#65757c',x,y+.09,z,.16,.043,.16,'metal');
-   };
-   const crate=(x,z,y=0,content=false)=>{
-    block('#a5855d',x,y+.24,z,.44,.11,.39,'wood');
-    block('#d3a46e',x,y+.46,z,.40,.31,.35,'wood');
-    for(const dx of[-.15,.15])
-     block('#906e4f',x+dx,y+.47,z+.182,.036,.32,.032,'wood');
-    if(content){
-     for(let k=0;k<3;k++)
-      block(k%2?'#78998e':'#a6bab2',x-.11+k*.115,y+.68,z,.095,.12,.22,'metal');
-    }
-   };
-   const pallet=(x,z,y=0)=>{
-    tile(x,y+.24,z,.75,.60,'#8e765d');
-    for(const xx of[x-.26,x+.26])
-     block('#6d6658',xx,y+.15,z,.07,.13,.55,'wood');
-    for(const xx of[x-.19,x+.19])
-     block('#d2a56b',xx,y+.45,z,.30,.37,.43,'wood');
-    for(const z0 of[z-.24,z+.24])
-     block('#a57954',x,y+.55,z0,.68,.065,.05,'wood');
-   };
-   const conveyor=(x,z,length=2.10,width=.76,y=0)=>{
-    tile(x,y+.34,z,width+.19,length+.09,charcoal);
-    tile(x,y+.48,z,width+.05,length,'#98a4a5');
-    for(const xx of[x-width*.40,x+width*.40]){
-     block('#53646d',xx,y+.49,z,.052,.23,length+.08,'metal');
-     for(const zz of[z-length*.39,z+length*.39])
-      block('#54636d',xx,y+.21,zz,.045,.42,.045,'metal');
-    }
-    const n=Math.max(8,Math.floor(length/.12));
-    for(let i=0;i<n;i++){
-     const zz=z-length*.46+i*length*.92/(n-1);
-     block(i%2?'#c3cdcc':'#89999a',x,y+.528,zz,width*.78,.041,.050,'metal');
-    }
-    for(const v of[-.31,.20])
-     block('#c8914a',x,y+.76,z+v,.45,.36,.34,'wood');
-   };
-   const workbench=(x,z,y=0)=>{
-    tile(x,y+.70,z,.94,.50,'#a6b6b6');
-    block('#667a84',x,y+.58,z,.88,.18,.45,'metal');
-    for(const xx of[x-.37,x+.37]){
-     block('#526670',xx,y+.34,z,.053,.51,.042,'metal');
-     block('#d5e1df',xx,y+.91,z+.17,.075,.18,.085,'metal');
-    }
-    for(let i=0;i<3;i++)
-     block('#a56a38',x-.27+i*.26,y+.81,z-.11,.18,.11,.14,'wood');
-    cyl('#343d43',x+.22,y+.83,z+.13,.11,.055);
-   };
-   const machine=(x,z,y=0,style=0)=>{
-    // Real punch press / lathe / milling robot, with separated toolhead,
-    // clamp, safety guards, control panel, gears and animated-like lights.
-    tile(x,y+.25,z,1.01,.95,'#7d8c90');
-    block(style%2?steel:dark,x,y+.55,z-.12,.88,.57,.56,'metal');
-    block(orange,x,y+.99,z-.28,.91,.34,.22,'metal');
-    block('#e0e5e0',x,y+.88,z-.17,.54,.055,.36,'metal');
-    block('#3e4b54',x,y+.78,z+.24,.72,.36,.25,'metal');
-    for(const side of[-1,1]){
-     const xx=x+side*.43;
-     block('#b5d9d6',xx,y+.96,z+.12,.047,.78,.34,'glass');
-     block('#7b8f92',xx,y+.56,z+.09,.048,.09,.50,'metal');
-    }
-    block(orange,x,y+1.19,z-.04,.16,.31,.18,'metal');
-    cyl('#bdcfcd',x,y+1.01,z+.10,.11,.08);
-    block('#536876',x+.32,y+1.05,z+.28,.17,.34,.13,'metal');
-    block('#9de5d8',x+.32,y+1.11,z+.36,.12,.15,.025,'glass',true);
-    beacon(x-.34,z-.37,y+1.41,style%2?cyan:amber);
-   };
-   const robot=(x,z,y=0,orientation=1)=>{
-    cyl('#444f59',x,y+.34,z,.29,.29);
-    cyl('#d8b088',x,y+.53,z,.18,.14);
-    block(orange,x,y+.88,z,.28,.64,.23,'metal');
-    block('#ba6b34',x+orientation*.22,y+1.18,z+.03,.47,.17,.22,'metal');
-    block('#f2b562',x+orientation*.44,y+1.00,z+.10,.20,.47,.18,'metal');
-    block('#53636b',x+orientation*.44,y+.71,z+.12,.10,.20,.19,'metal');
-    for(const shift of[-.065,.065]){
-     block('#b1c7c5',x+orientation*.44+shift,y+.61,z+.19,.035,.18,.16,'metal');
-    }
-    cyl('#5f7181',x+orientation*.17,y+1.20,z+.04,.105,.10);
-    beacon(x,z,y+1.45,amber);
-   };
-   const fence=(x,z,y,w,direction='u')=>{
-    if(direction==='u'){
-     block('#8ca8aa',x,y+.28,z,w,.52,.046,'glass');
-     block('#566d77',x,y+.57,z,w+.03,.045,.050,'metal');
-     for(const dx of[-w*.41,0,w*.41])
-      block('#6c8992',x+dx,y+.28,z,.03,.54,.05,'metal');
-    }else{
-     block('#8ca8aa',x,y+.28,z,.046,.52,w,'glass');
-     block('#566d77',x,y+.57,z,.05,.045,w+.03,'metal');
-     for(const dz of[-w*.40,0,w*.40])
-      block('#6c8992',x,y+.28,z+dz,.05,.54,.03,'metal');
-    }
-   };
-   const hopper=(x,z,r=.34,h=1.33)=>{
-    cyl('#73878d',x,.30+h/2,z,r,h);
-    cyl('#e0dfd5',x,.28+h,z,r+.05,.08);
-    cyl(orange,x,.36,z,r+.04,.08);
-    for(const dx of[-r*.64,r*.64]){
-     block('#52666d',x+dx,.56,z,.042,.61,.045,'metal');
-    }
-    block('#8eacac',x,.69,z+r*.93,.36,.15,.21,'metal');
-    beacon(x,z,.45+h);
-   };
-   const tank=(x,z,r=.37,h=1.83)=>{
-    cyl('#b9c7c9',x,.25+h/2,z,r,h);
-    cyl('#778d92',x,.23+h,z,r+.025,.11);
-    cyl(orange,x,.30+h,z,r+.09,.075);
-    for(const y of[.61,.95,1.33])
-     cyl('#899fa3',x,y,z,r+.015,.055);
-    for(const dx of[-r*.56,r*.56]){
-     block('#71898e',x+dx,.33,z,.05,.20,.06,'metal');
-    }
-    block('#4a777f',x,.98,z+r*.92,.20,.17,.12,'metal');
-   };
-   const lightRail=(x,z,w,y=2.55)=>{
-    block('#4b6167',x,y,z,w,.070,.12,'metal');
-    const n=Math.max(5,Math.ceil(w/.35));
-    for(let i=0;i<n;i++){
-     const xx=x-w*.45+i*w*.90/(n-1);
-     block('#e4debf',xx,y-.12,z,.13,.050,.12,'glass',true);
-     block('#64747b',xx,y+.08,z,.018,.15,.019,'metal');
-    }
-   };
-   const signChars={
-    A:['010','101','111','101','101'],B:['110','101','110','101','110'],
-    C:['111','100','100','100','111'],D:['110','101','101','101','110'],
-    E:['111','100','110','100','111'],F:['111','100','110','100','100'],
-    G:['111','100','101','101','111'],H:['101','101','111','101','101'],
-    I:['111','010','010','010','111'],L:['100','100','100','100','111'],
-    M:['101','111','111','101','101'],N:['101','111','111','111','101'],
-    O:['111','101','101','101','111'],P:['110','101','110','100','100'],
-    R:['110','101','110','101','101'],S:['111','100','111','001','111'],
-    T:['111','010','010','010','010'],U:['101','101','101','101','111'],
-    W:['101','101','111','111','101'],Y:['101','101','010','010','010']};
-   const sign=(str,x,y,z,w)=>{
-    const chars=str.replace(/[^A-Z]/g,''),cell=Math.min(.075,w/(chars.length*4+2));
-    block('#4f5a60',x,y,z,w,.41,.085,'metal');
-    block(orange,x,y+.22,z+.052,w+.05,.042,.063,'metal');
-    block('#ffe1a1',x,y+.17,z+.052,w*.92,.025,.022,'glass',true);
-    for(let i=0;i<chars.length;i++)for(let row=0;row<5;row++)
-     for(let c=0;c<3;c++)if(signChars[chars[i]]?.[row]?.[c]==='1'){
-      const xx=x-(chars.length*4-1)*cell/2+(i*4+c)*cell;
-      block(cream,xx,y+(2-row)*cell,z+.060,cell*.72,cell*.77,.018,'metal');
-     }
-   };
-   // Industrial concrete with striped OSHA-like pedestrian safety markings.
-   tile(cx,.13,cz,W-1.79,D+.17,'#b5b5ac');
-   tile(cx,.20,F-.20,W-2.04,.25,'#d0bc9e');
-   for(const x of[L+.08,R-.08]){
-    block('#ddaf58',x,.22,cz,.105,.03,D-.15,'stone');
-    for(let i=0;i<3;i++){
-     const zz=B+.24+i*(D-.45)/2;
-     block('#7c8d82',x,.34,zz,.18,.19,.19,'stone');
-     block(green,x,.49,zz,.16,.16,.17,'stone');
-    }
-   }
-   if(tier===1){
-    // SMALL THAI WORKSHOP: one open fabrication hall, low corrugated canopy
-    // over the rear machines only, welding stations and visible yard.
-    const z=B+.94;
-    for(const xx of[1.42,6.57])for(const zz of[B+.37,B+1.33])
-     strut(xx,zz,.02,1.87);
-    tile(cx,2.18,B+.39,5.13,.84,'#65717b');
-    for(let i=0;i<14;i++){
-     const x=1.64+i*.36;
-     block(i%3===0?orange:'#819298',x,2.24,B+.40,.044,.025,.72,'metal');
-    }
-    block('#596971',cx,1.97,B+.17,5.21,.30,.084,'metal');
-    for(let j=0;j<7;j++){
-     const xx=1.75+j*.75;
-     block('#a8bbc1',xx,1.98,B+.226,.23,.17,.019,'glass');
-    }
-    machine(2.25,z,0,1);
-    workbench(4.11,z+.14);
-    machine(5.66,z+.03,0,0);
-    for(const xx of[2.21,5.82]){
-     tube(xx,B+.23,0,1.36,.088);
-     beacon(xx,B+.23,1.73);
-    }
-    // Two independent welding islands: welding mask, vise and orange
-    // sparks interpreted as light rather than costly particle simulation.
-    for(const xx of[2.56,5.55]){
-     block('#485760',xx,.39,F-.52,.57,.22,.41,'metal');
-     block(orange,xx,.58,F-.52,.37,.14,.28,'metal');
-     block('#ffe7ab',xx,.75,F-.49,.12,.09,.14,'glass',true);
-     for(let j=0;j<3;j++)
-      block('#eab963',xx-.10+j*.09,.78,F-.31,.025,.045,.027,'glass',true);
-    }
-    pallet(1.26,F-.46);
-    crate(6.73,F-.38,0,true);
-    // Hand trolley and workshop side awning are actual meshes.
-    block('#505b60',4.29,.35,F-.40,.68,.12,.49,'metal');
-    block('#d7aa6c',4.29,.55,F-.40,.59,.29,.39,'wood');
-    for(const dx of[-.29,.29])cyl('#48545a',4.29+dx,.24,F-.13,.11,.060);
-    block('#849394',4.60,.69,F-.40,.038,.64,.040,'metal');
-    for(const xx of[2.12,5.87]){
-     block(orange,xx,1.18,F-.19,.080,.70,.12,'metal');
-     beacon(xx,F-.20,1.60);
-    }
-    sign('WORKS',cx,2.62,F-.21,2.18);
-    block(orange,cx,2.41,F-.25,2.44,.11,.19,'metal');
-   }else if(tier===2){
-    // MEDIUM: single tall ASSEMBLY PLANT with twin long production
-    // lines, overhead crane, forklift, paint booth and a SMALL,
-    // genuinely elevated operations deck to observe production.
-    const lineD=D-1.42,mid=B+.47+lineD/2;
-    conveyor(2.46,mid,lineD,.72);
-    conveyor(5.47,mid,lineD,.72);
-    for(const [x,z,side] of[[1.68,B+1.27,1],[3.22,B+2.71,-1],
-      [4.66,B+1.45,1],[6.44,B+3.68,-1]]){
-     robot(x,z,0,side);
-    }
-    machine(3.83,B+.99,0,1);
-    hopper(6.34,B+.70,.28,1.24);
-    for(const x of[1.32,6.67]){
-     for(const z of[B+.32,F-.70])strut(x,z,.14,2.82);
-     block(orange,x,3.21,cz,.095,.13,D-.55,'metal');
-    }
-    // Gantry spans two assembly belts and supports a hanging hook.
-    for(const z of[B+1.17,F-1.08]){
-     block('#53636d',cx,3.24,z,5.40,.18,.22,'metal');
-     for(let i=0;i<10;i++)
-      block(i%2?amber:orange,1.50+i*.55,3.38,z,.080,.09,.23,'metal');
-    }
-    block('#a7b4b3',cx,2.82,cz,.42,.51,.33,'metal');
-    pole('#55616a',cx,2.43,cz,.039,.47,'metal');
-    block(orange,cx,2.14,cz,.35,.15,.18,'metal');
-    // Paint/packing booth uses GLASS and equipment, not closed box.
-    const paintX=6.31,paintZ=F-.60;
-    tile(paintX,.29,paintZ,.85,.73,'#53656b');
-    for(const xx of[paintX-.37,paintX+.37]){
-     block('#87b8be',xx,.94,paintZ,.033,1.20,.64,'glass');
-     block('#b7c2c1',xx,1.58,paintZ,.052,.09,.73,'metal');
-    }
-    block('#77a5b3',paintX,.52,paintZ,.55,.24,.34,'metal');
-    block(orange,paintX,1.57,paintZ,.89,.09,.74,'metal');
-    for(const zz of[paintZ-.26,paintZ+.26])
-     beacon(paintX,zz,1.77,cyan);
-    // Overlook/control OFFICE mezzanine occupies only 2.0 x 1.04,
-    // no ceiling covering the open assembly production lines.
-    const officeX=2.35,officeZ=B+.67,deck=2.10;
-    tile(officeX,deck,officeZ,1.94,.99,'#cbd1cf');
-    for(const dx of[-.85,.85])strut(officeX+dx,officeZ+.38,.14,deck-.34);
-    fence(officeX,officeZ+.49,deck,1.85);
-    block('#d0d8d8',officeX,deck+.52,officeZ-.35,1.91,.74,.08,'stone');
-    for(let k=0;k<3;k++){
-     const x=officeX-.59+k*.59;
-     block('#8ebfc7',x,deck+.53,officeZ-.29,.47,.57,.025,'glass');
-     block('#e5cc9b',x,deck+.93,officeZ-.28,.42,.050,.034,'glass',true);
-    }
-    block('#677780',officeX,deck+.24,officeZ,.88,.33,.42,'metal');
-    block(cyan,officeX,deck+.50,officeZ+.21,.31,.17,.024,'glass',true);
-    for(let i=0;i<11;i++){
-     const p=(i+.5)/11;
-     block(i%2?'#d3d6d1':'#81999c',1.51,.31+(deck-.31)*p,
-      F-.47-p*1.85,.52,.075,.20,'metal');
-    }
-    // Front receiving dock & pallet staging with warning marking.
-    for(const xx of[2.12,6.24]){
-     pallet(xx,F-.54);
-     block('#efba66',xx,.23,F-.21,.90,.035,.08,'stone');
-    }
-    for(const x of[1.14,6.84])tube(x,B+.47,0,2.02,.13);
-    sign('ASSEMBLY',cx,3.81,F-.25,3.12);
-    block(orange,cx,3.55,F-.31,3.42,.12,.21,'metal');
-   }else{
-    // LARGE: 3 production lanes, four robots, storage silos, loading
-    // dock, skylight trusses, suspended smart-control gallery with real
-    // workstations. Open in all directions and no solid cuboid shell.
-    const zmid=cz+.18,run=D-1.44;
-    for(const x of[2.48,5.49,8.50]){
-     conveyor(x,zmid,run,.82);
-     for(const zz of[zmid-run*.29,zmid+run*.28]){
-      block('#adb9b3',x,.92,zz,.53,.10,.49,'metal');
-      block(orange,x,1.06,zz,.37,.17,.29,'metal');
-      block('#ffe4b3',x,1.16,zz,.10,.07,.14,'glass',true);
-     }
-    }
-    for(const [x,z,sgn] of[
-     [1.58,B+1.12,1],[3.56,B+3.04,-1],
-     [4.54,B+1.37,1],[6.43,B+3.23,-1],
-     [7.62,B+1.44,1],[9.36,B+3.13,-1]
-    ])robot(x,z,0,sgn);
-    for(const [x,z] of[[1.52,B+.47],[9.51,B+.51]]){
-     tank(x,z,.33,1.52);
-     tube(x,z+.70,0,3.13,.105);
-    }
-    hopper(5.54,B+.77,.35,1.55);
-    for(const x of[1.27,9.70]){
-     for(const z of[B+.29,F-.58])
-      strut(x,z,.10,3.87);
-     block('#73818b',x,4.18,cz,.13,.14,D-.45,'metal');
-    }
-    // Tall ventilated lattice roof only on perimeter: keeps all
-    // production belts and orange robots visible from game camera.
-    for(const z of[B+.31,B+2.53,F-.65]){
-     block('#536874',cx,4.24,z,W-2.50,.13,.18,'metal');
-     for(let i=0;i<13;i++){
-      const x=L+.62+i*(W-3.02)/12;
-      block(i%3===0?orange:'#9ca9a8',x,4.30,z,.061,.11,.24,'metal');
-     }
-    }
-    lightRail(cx,B+1.02,W-3.18,4.04);
-    lightRail(cx,F-1.10,W-3.18,4.04);
-    // Transparent elevated control bridge is ACTUAL floor 2,
-    // partial and restricted to the rear ~one-third.
-    const deck=2.53,deckZ=B+.61,deckW=6.95;
-    tile(cx,deck,deckZ,deckW,1.08,'#bac7c5');
-    fence(cx,deckZ+.56,deck,deckW-.14);
-    for(const x of[cx-deckW*.44,cx+deckW*.44]){
-     strut(x,deckZ+.40,.16,deck-.34);
-     strut(x,deckZ-.38,.16,deck-.34);
-     beacon(x,deckZ+.45,deck+.77,cyan);
-    }
-    for(const x of[cx-2.55,cx-.86,cx+.85,cx+2.55]){
-     block('#70858a',x,deck+.42,deckZ-.10,1.12,.57,.54,'metal');
-     block('#d7deda',x,deck+.75,deckZ-.10,1.15,.07,.57,'stone');
-     block('#91c9cf',x,deck+.93,deckZ-.22,.64,.27,.033,'glass',true);
-     block('#50626a',x,deck+.34,deckZ+.28,.35,.36,.31,'metal');
-     block('#9ce4d6',x,deck+.56,deckZ+.42,.21,.17,.024,'glass',true);
-    }
-    // High orange winged main entrance, separate glass inspection bays.
-    for(const x of[1.62,9.38]){
-     tile(x,.25,F-.47,1.10,.62,'#73858b');
-     for(const zz of[F-.66,F-.29])
-      crate(x,zz,0,zz<F-.50);
-     block(orange,x,1.61,F-.31,1.29,.095,.20,'metal');
-     for(const dx of[-.49,.49]){
-      block('#87b9bc',x+dx,.89,F-.40,.04,1.28,.39,'glass');
-      beacon(x+dx,F-.42,1.72,cyan);
-     }
-    }
-    for(const xx of[3.28,7.74]){
-     pallet(xx,F-.50);
-     block(amber,xx,.23,F-.17,.84,.043,.09,'stone');
-    }
-    // Front lifts and deliberately offset pipes give each elevation
-    // a distinct silhouette from ALL 4 rotations.
-    for(const x of[2.65,8.39]){
-     block('#5b707a',x,1.61,F-.28,.062,2.28,.083,'metal');
-     block('#8cbcc3',x,1.51,F-.19,.055,1.77,.034,'glass');
-     beacon(x,F-.30,2.86);
-    }
-    sign('SMART FACTORY',cx,4.68,F-.25,3.82);
-    block(orange,cx,4.42,F-.34,4.15,.17,.23,'metal');
-    for(let i=0;i<11;i++){
-     const x=cx-1.85+i*.37;
-     block(i%2?amber:orange,x,4.54,F-.22,.10,.046,.17,'glass',true);
-    }
-   }
-   // Enclosed production halls replace the yard-like silhouette. Broad,
-   // open loading portals retain a view of the machines at street level.
-   const shellL=1.08,shellR=W-1.08,shellW=shellR-shellL;
-   const shellBack=B+.10,shellFront=F-.12,shellD=shellFront-shellBack,shellZ=(shellBack+shellFront)/2;
-   const eave=tier===1?2.16:tier===2?3.48:4.32,rise=tier===1?.48:.46;
-   const bays=tier===1?1:tier===2?2:3,bayW=shellW/bays;
-   const record=(kind,u,y,v,extra={})=>{
-    const p=point(u,v);(batch.factoryEffects??=[]).push({kind,id,x:p.x-.5,y,z:p.y-.5,turn,tier,...extra});
-   };
-   // Part-raised rear loading shutters expose the production floor while
-   // retaining the insulated upper wall, clerestory and structural columns.
-   // Every part stays on the building side of the existing parking boundary.
-   const rearDoorTop=tier===1?1.72:tier===2?2.30:3.00;
-   const rearRoll=tier===1?.28:tier===2?.36:.42;
-   block('#a4b1ae',cx,(eave+rearDoorTop)/2,shellBack,shellW,eave-rearDoorTop,.12,'metal');
-   block('#577d86',cx,eave-.46,shellBack-.073,shellW-.28,.44,.035,'glass');
-   for(let k=0;k<Math.floor(shellW/.28);k++){
-    const x=shellL+.13+k*.28;
-    block('#d5dcd7',x,(eave+rearDoorTop)/2,shellBack-.074,.020,eave-rearDoorTop,.022,'metal');
-   }
-   for(let bay=0;bay<bays;bay++){
-    const x=shellL+(bay+.5)*bayW,doorW=bayW-.28;
-    for(const side of[-1,1]){
-     const post=x+side*bayW/2;
-     block('#b4c2bf',post,(rearDoorTop+.25)/2,shellBack,.12,rearDoorTop-.25,.16,'metal');
-     block(burnt,post,.48,shellBack-.10,.14,.45,.07,'metal');
-     block('#efbb63',post,1.05,shellBack-.10,.14,.12,.022,'metal');
-    }
-    block('#72898f',x,rearDoorTop-rearRoll/2,shellBack-.025,doorW,rearRoll,.075,'metal');
-    for(let j=0;j<5;j++)block('#b6c9c8',x,rearDoorTop-rearRoll+(j+.5)*rearRoll/5,shellBack-.073,doorW,.019,.023,'metal');
-    block(orange,x,rearDoorTop-rearRoll-.025,shellBack-.077,doorW,.055,.075,'metal');
-    block('#526a73',x,rearDoorTop+.055,shellBack-.08,doorW+.08,.14,.18,'metal');
-    block('#ffe3b1',x,rearDoorTop-.075,shellBack-.124,doorW*.83,.025,.026,'glass',true);
-    block('#cebfa4',x,.255,shellBack+.06,doorW,.025,.25,'stone');
-   }
-   for(const side of[-1,1]){
-    const x=side<0?shellL:shellR;
-    block('#8d9fa2',x,(eave+.25)/2,shellZ,.12,eave-.25,shellD,'metal');
-    block(burnt,x+side*.07,.51,shellZ,.065,.48,shellD,'metal');
-    block('#6f9da5',x+side*.074,eave-.46,shellZ,.036,.44,shellD-.23,'glass');
-    block('#d1e4df',x+side*.095,eave-.35,shellZ,.015,.035,shellD-.38,'glass');
-    const n=Math.max(5,Math.ceil(shellD/.36));
-    for(let k=0;k<n;k++){
-     const z=shellBack+.14+k*(shellD-.28)/(n-1);
-     block('#c2cecb',x+side*.074,(eave+.25)/2,z,.032,eave-.25,.027,'metal');
-    }
-    block(orange,x+side*.09,eave-.025,shellZ,.16,.17,shellD+.12,'metal');
-    // External distribution pipes, clamps and service cabinet.
-    block('#718d95',x+side*.12,1.02,shellZ,.065,.065,shellD*.80,'metal');
-    block('#d7ddcf',x+side*.13,1.03,shellBack+.54,.13,.15,.07,'metal');
-    block('#465d66',x+side*.12,.68,shellFront-.44,.16,.52,.40,'metal');
-   }
-   // Standing-seam gabled roofs, rooflights and ridge vent caps. Roof panels
-   // are attached to the halls rather than hovering above an open courtyard.
-   for(let bay=0;bay<bays;bay++){
-    const x=shellL+(bay+.5)*bayW,half=bayW/2,angle=Math.atan2(rise,half),length=Math.hypot(half,rise);
-    for(const side of[-1,1]){
-     const p=point(x+side*half/2,shellZ),slope=-side*angle;
-     batch.add(BOX,bay%2?'#637b84':'#61717a',p.x-.5,eave+rise/2,p.y-.5,length+.055,.075,shellD+.18,0,turn,slope,id,false,'metal');
-     const strips=Math.max(5,Math.round(shellD/.34));
-     for(let k=0;k<strips;k++){
-      const z=shellBack-.01+k*(shellD+.02)/(strips-1),q=point(x+side*half/2,z);
-      batch.add(BOX,'#97a9ab',q.x-.5,eave+rise/2+.046,q.y-.5,length+.04,.018,.022,0,turn,slope,id,false,'metal');
-     }
-     const rooflightX=x+side*half*.47,rooflightZ=shellZ+.05,rooflightY=eave+rise*.53+.065;
-     const q=point(rooflightX,rooflightZ);
-     batch.add(BOX,'#89b8c0',q.x-.5,rooflightY,q.y-.5,length*.51,.035,shellD*.50,0,turn,slope,id,false,'glass');
-     for(const end of[-1,1]){
-      const z=rooflightZ+end*shellD*.25,v=point(rooflightX,z);
-      batch.add(BOX,'#cbdad7',v.x-.5,rooflightY+.026,v.y-.5,length*.55,.025,.035,0,turn,slope,id,false,'metal');
-     }
-     // Orange gable outline ties each ridge visually to its loading bay.
-     const q2=point(x+side*half/2,shellFront+.10);
-     batch.add(BOX,orange,q2.x-.5,eave+rise/2,q2.y-.5,length+.09,.12,.10,0,turn,slope,id,false,'metal');
-    }
-    block('#c5d1cd',x,eave+rise+.075,shellZ,.15,.13,shellD+.20,'metal');
-    block('#465e67',x,eave+rise+.16,shellZ,.27,.065,shellD*.44,'metal');
-    for(let k=0;k<5;k++)block('#81999e',x,eave+rise+.16,shellZ-shellD*.18+k*shellD*.09,.28,.07,.025,'metal');
-    // Raised roof ventilator with rotating three-blade impeller.
-    const ventX=x,ventZ=shellBack+shellD*.30,ventY=eave+rise+.24;
-    cyl('#aebebb',ventX,ventY,ventZ,.23,.15);
-    cyl('#3c5059',ventX,ventY+.09,ventZ,.18,.04);
-    record('fan',ventX,ventY+.13,ventZ,{radius:.17});
-    // Front portal is a rolled-up shutter, not a painted door on a solid box.
-    const doorW=Math.min(tier===1?2.35:2.30,bayW-.35),portalX=tier===1?cx:x;
-    const doorTop=tier===1?1.76:2.17,headerH=eave-doorTop;
-    block('#aebcba',portalX,doorTop+headerH/2,shellFront,bayW-.11,headerH,.12,'metal');
-    block('#455c65',portalX,doorTop-.12,shellFront+.075,doorW,.25,.16,'metal');
-    for(let k=0;k<4;k++)block('#a6b6b5',portalX,doorTop-.22+k*.055,shellFront+.16,doorW,.025,.025,'metal');
-    for(const sign of[-1,1]){
-     const postX=portalX+sign*(doorW/2+.075);
-     block('#c8d1ca',postX,(doorTop+.25)/2,shellFront+.02,.12,doorTop-.25,.17,'metal');
-     for(let k=0;k<7;k++)block(k%2?'#343e43':'#f3bd58',postX,.38+k*.16,shellFront+.115,.13,.12,.025,'metal');
-    }
-    block('#ffe4b2',portalX,doorTop+.04,shellFront+.09,doorW*.88,.025,.035,'glass',true);
-    record('beacon',portalX+doorW*.42,doorTop+.17,shellFront+.115);
-   }
-   // A pair of open fabrication doorways under the small single-span roof.
-   // The half-height glazing makes the workshop enclosed without hiding work.
-   if(tier===1){
-    for(const side of[-1,1]){
-     const x=cx+side*2.05;
-     block('#adbcba',x,1.13,shellFront,.86,1.74,.12,'metal');
-     block('#65949e',x,1.26,shellFront+.076,.64,.67,.025,'glass');
-     block('#d4e5dd',x,1.39,shellFront+.095,.54,.035,.013,'glass');
-    }
-   }
-   // Process stacks emerge from the rear service roof. Pale steam is an
-   // animated visual cue only; it does not add pollution or alter gameplay.
-   const stacks=tier===1?[1.72]:[1.72,W-1.72];
-   const stackTop=tier===1?3.10:tier===2?4.39:5.35;
-   for(const x of stacks){
-    const z=shellBack+.42;
-    cyl('#8ca3a8',x,(stackTop+.24)/2,z,.12,stackTop-.24);
-    for(const y of[stackTop-.49,stackTop-.27])cyl(orange,x,y,z,.135,.08);
-    cyl('#425b65',x,stackTop,z,.17,.10);cyl('#d1dad0',x,stackTop+.07,z,.14,.035);
-    record('steam',x,stackTop+.10,z);
-   }
-   // Blue process pipe links, a boiler module and a safety/inspection board.
-   if(tier>=2){
-    const x=W-1.63,z=shellBack+.78;
-    block('#527e91',x,1.19,z,.41,1.66,.46,'metal');
-    block('#bccdce',x,1.19,z+.25,.23,.38,.025,'glass');
-    block('#46798c',cx,eave-.73,shellBack+.24,shellW-.51,.10,.10,'metal');
-    for(const xx of[cx-shellW*.37,cx+shellW*.37])block('#c8d3cc',xx,eave-.73,shellBack+.24,.08,.18,.16,'metal');
-   }
-   // Visible loading equipment and genuine work effects at the open portal.
-   const weldX=tier===1?2.56:tier===2?2.46:2.48,weldZ=tier===1?F-.49:tier===2?F-.97:F-.60;
-   record('weld',weldX,tier===3?1.17:.80,weldZ);
-   if(tier>=2){
-    record('weld',tier===2?5.47:8.50,tier===3?1.17:.80,weldZ);
-    record('cargo',tier===2?5.47:5.49,.69,tier===2?F-1.30:F-.89,{distance:.50});
-   }
-   if(tier>=2){
-    const x=tier===2?4.14:5.51,z=F-.57;
-    block('#384f5b',x,.39,z,.53,.29,.47,'metal');
-    block(orange,x,.60,z-.13,.56,.29,.24,'metal');
-    block('#283d47',x,.89,z-.12,.065,.37,.065,'metal');
-    block('#b4c7c8',x,.97,z-.10,.49,.055,.40,'metal');
-    for(const side of[-1,1])for(const end of[-1,1])block('#2d383e',x+side*.27,.27,z+end*.14,.11,.18,.13,'metal');
-    for(const side of[-1,1])block('#aabcc0',x+side*.13,.25,z+.31,.06,.045,.33,'metal');
-    record('beacon',x,1.05,z-.10);
-   }
-
-   // Factory is strictly visual. Parked cars, driveways and employee jobs
-   // remain managed by the original traffic/game logic.
    return;
   }
 
