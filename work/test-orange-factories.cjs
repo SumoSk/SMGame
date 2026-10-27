@@ -59,16 +59,34 @@
     assert(local.filter(p=>Math.abs(p.rz)>.06&&p.sx>.4&&p.sz>.35).length>=spec.roofs*4,'gabled pitched roofing');
     assert(local.filter(p=>p.glow).length>=(spec.tier?4:1),'functional exterior lights');
     assert(count('#e6a952')===(spec.tier?spec.roofs:0),'non-moving forklifts in each loading bay');
+    // Exactly the LARGE factory has an extra TWO-STOREY round office
+    // above its middle manufacturing bay. Other factory sizes stay unchanged.
+    const reactorBands=local.filter(p=>p.color==='#66dfed'&&p.glow);
+    const roundFloorPanels=local.filter(p=>p.color==='#629bad'||p.color==='#76bbcb');
+    const high=Math.max(...local.map(p=>p.y+p.sy*.5));
+    if(spec.key==='factory_large'){
+     assert.equal(reactorBands.length,24,'two glowing control-floor rings (12 segments each)');
+     assert.equal(roundFloorPanels.length,24,'two floors of panoramic round office glass');
+     assert(high>5.8&&high<6.6,'two-level circular office adds height above three production bays');
+     const tower=local.filter(p=>p.color==='#66dfed'&&p.glow);
+     assert(tower.every(p=>p.v>=t.parkingZoneDepth+.3&&p.v<t.plotHeight-.6),'tower stays entirely inside factory half of plot');
+     assert(local.filter(p=>p.color==='#c7faff'&&p.glow).length===1,'central arc reactor glows');
+    }else{
+     assert.equal(reactorBands.length,0,'only largest factory may have tall round office');
+     assert.equal(roundFloorPanels.length,0,'no added office floor on smaller models');
+    }
     const signature={
      items:items.length,colors:new Set(items.map(p=>p.color)).size,
      roofPanels:count('#25435d'),silos:count('#bdcbca'),
-     glows:local.filter(p=>p.glow).length
+     glows:local.filter(p=>p.glow).length,
+     roundOfficeLevels:reactorBands.length/12
     };
     if(baseline)assert.deepEqual(signature,baseline,spec.key+' rotation mutated architecture complexity');
     else baseline=signature;
+    const effectKinds=new Set(batch.factoryEffects?.map(p=>p.kind)||[]);
+    assert(!effectKinds.has('cargo'),spec.key+' must not show moving boxes at offices');
     if(spec.tier){
-     const effectKinds=new Set(batch.factoryEffects?.map(p=>p.kind)||[]);
-     for(const k of['steam','fan','weld','cargo'])
+     for(const k of['steam','fan','weld'])
       assert(effectKinds.has(k),spec.key+' still needs bounded '+k+' factory effect');
     }
    }
@@ -103,5 +121,8 @@
   renderer.updateFactoryEffects(state,cam,2.1);
   assert.equal(renderer.factoryFx.steam.count+renderer.factoryFx.parts.count+renderer.factoryFx.sparks.count,0,'demolished factory leaves no effect');
   assert.deepEqual([g.CATALOG.home_grand.plotWidth,g.CATALOG.home_grand.plotHeight,g.CATALOG.home_grand.parkingCapacity],[11,13,60],'unrelated home unaffected');
+  const source=fs.readFileSync('dist/renderer3d.js','utf8');
+  assert(!source.includes("kind:'cargo'"),'removed moving cargo spawn for all factory models');
+  assert(!source.includes("p.kind==='cargo'"),'removed obsolete sliding cargo renderer');
   console.log(JSON.stringify({passed:true,modernFactoryTiers:summary,rotations:16,parkingUnchanged:true}));
  })().catch(e=>{console.error(e);process.exitCode=1;});
