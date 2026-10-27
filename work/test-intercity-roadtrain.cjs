@@ -23,8 +23,8 @@ for(let i=0;i<4;i++){
   assert.equal(game.state.roads.get(node)?.type,'large','never enters smaller roads');
  }
 }
-// 40 resident citizens => 4 road trains per hour, shared across all four
-// directions rather than multiplied by four.
+// 40 resident citizens => ceil(40*2%) = 1 road train per hour in total.
+// All 4 straight expressway corridors are independently verified above.
 const home=game.buildBuilding('home_large',170,140,true);
 assert(home,'home near main highway');
 for(let i=0;i<40;i++){
@@ -35,14 +35,14 @@ assert.equal(game.computeStats().pop,40);
 const start=12*60;
 game.state.time=start;
 game.updateIntercityFreight();
-assert.equal(game.state.intercityHour.total,4);
+assert.equal(game.state.intercityHour.total,1);
 assert.equal(game.state.intercityHour.next,0);
 game.state.time=start+59.9;
 game.updateIntercityFreight();
 const trains=[...game.state.vehicles.values()].filter(v=>v.kind==='intercity');
-assert.equal(trains.length,4);
-assert.equal(game.state.intercityHour.next,4);
-assert.equal(new Set(trains.map(v=>v.intercity.fromIndex)).size,4);
+assert.equal(trains.length,1);
+assert.equal(game.state.intercityHour.next,1);
+assert.equal(new Set(trains.map(v=>v.intercity.fromIndex)).size,1);
 for(const v of trains){
  assert.equal(v.path.length,300);
  const entry=game.xy(v.path[0]),exit=game.xy(v.path.at(-1));
@@ -51,16 +51,27 @@ for(const v of trains){
 }
 // The very same 60-minute bucket never reissues trips (including saved games).
 game.updateIntercityFreight();
-assert.equal([...game.state.vehicles.values()].filter(v=>v.kind==='intercity').length,4);
+assert.equal([...game.state.vehicles.values()].filter(v=>v.kind==='intercity').length,1);
 const saved=JSON.parse(game.snapshot());
-assert.equal(saved.intercityHour.next,4);
+assert.equal(saved.intercityHour.next,1);
+assert.equal(saved.intercityHour.quotaVersion,2);
 assert.equal(saved.intercityHour.total,4);
+// Updating an old same-hour 10% save must not spawn any extra trucks.
+game.state.intercityHour={hour:12,total:20,next:6,offset:0};
+game.state.time=12*60+59.99;
+game.updateIntercityFreight();
+assert.equal(game.state.intercityHour.total,6);
+assert.equal(game.state.intercityHour.next,6);
+// The displayed long truck model must not exceed the F1 longitudinal scale.
+const visual=fs.readFileSync('dist/renderer3d.js','utf8');
+assert(visual.includes("[.745,.300,.30"),'Road train length matches F1');
+assert(visual.includes("if(roadTrain){x*=.30;l*=.30;}"),'3D trailer segments are compressed into F1 footprint');
+assert(fs.readFileSync('dist/game.js','utf8').includes('ctx.scale(.30,1)'), '2D fallback is equally compact');
 // A disconnected expressway must not produce a detour via local streets.
 const broken=trains[0].path[70],next=trains[0].path[71];
 game.state.roads.get(broken).links.delete(next);
 game.state.version++;
 assert.equal(game.straightIntercityPath(trains[0].fromGate,trains[0].toGate),null);
-const visual=fs.readFileSync('dist/renderer3d.js','utf8');
 assert(visual.includes("'roadTrain'"),'dedicated vehicle class');
 assert(visual.includes('roadTrain=style===12'),'two-trailer visual model');
 assert(visual.includes("v?.kind==='intercity'"),'road train uses its own 3D model');
