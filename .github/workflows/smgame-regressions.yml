@@ -128,8 +128,8 @@ jobs:
         run: |
           git fetch origin main gh-pages
           git checkout -B gh-pages origin/gh-pages
-          git checkout origin/main -- index.html dist/member.js dist/game.js dist/renderer3d.js dist/style.css dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
-          git add index.html dist/member.js dist/game.js dist/renderer3d.js dist/style.css dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
+          git checkout origin/main -- index.html package.json package-lock.json dist/member.js dist/game.js dist/renderer3d.js dist/style.css dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
+          git add index.html package.json package-lock.json dist/member.js dist/game.js dist/renderer3d.js dist/style.css dist/bootstrap.js dist/index.html dist/qa.html dist/qa-tourism.html outputs/Traffic-Fixer-Thailand-3D.html
           if ! git diff --cached --quiet; then
             git commit -m "publish: verified SMCITY release"
             git push origin HEAD:gh-pages
