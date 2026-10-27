@@ -1,0 +1,50 @@
+// Smoke/regression checks for bounded overnight freight, separate from citizens.
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const noop=()=>{};let game;
+const elements=new Map();
+function node(id){if(!elements.has(id)){const classes=new Set(['hidden']);elements.set(id,{textContent:'',innerHTML:'',value:'',style:{},children:[],classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),contains:x=>classes.has(x),toggle:noop},addEventListener:noop,setAttribute:noop,querySelectorAll:()=>[],showModal:noop,close:noop,getContext:()=>new Proxy({},{get:()=>noop}),setPointerCapture:noop});}return elements.get(id);}
+const localStorage={getItem:()=>null,setItem:noop};
+const context={document:{getElementById:node,querySelector:()=>node('dummy'),querySelectorAll:()=>[]},window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:x=>game=x},innerWidth:1280,innerHeight:800,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage,console};
+vm.createContext(context);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),context);
+assert.equal(game.deliveryNightAt(21*60+59),null);
+assert.equal(game.deliveryNightAt(22*60),0);
+assert.equal(game.deliveryNightAt(1440+4*60+59),0);
+assert.equal(game.deliveryNightAt(1440+5*60),null);
+game.reset();game.state.money=1e8;
+const build=(key,x)=>{const b=game.buildBuilding(key,x,148-game.CATALOG[key].plotHeight,true);assert(b,'Could not create '+key);return b;};
+const shop=build('shop_starter',171),food=build('restaurant_starter',197),hotel=build('hotel_starter',223),mall=build('mall_starter',249);
+const mallCatalog=game.CATALOG.mall_starter;
+const originalCapacity=mallCatalog.service;
+mallCatalog.service=60;
+let plan=game.buildDeliveryRun(0);
+assert(plan.plan.length>=4,'Each destination receives at least one order');
+assert(plan.plan.some(job=>job.axles===8),'Large mall dispatch uses eight wheels');
+assert(plan.plan.some(job=>job.axles===6),'Small shops use six wheels');
+assert(plan.plan.every(job=>job.at>=1320&&job.at<1740),'All releases are between 22:00 and 05:00');
+assert(plan.plan.every(job=>[shop.id,food.id,hotel.id,mall.id].includes(job.buildingId)));
+mallCatalog.service=originalCapacity;
+game.state.time=23*60+15;
+game.updateNightDeliveries();
+assert(game.state.deliveryRun&&game.state.deliveryRun.night===0);
+const trucks=[...game.state.vehicles.values()].filter(v=>v.kind==='delivery');
+assert(trucks.length>0,'Scheduled night freight should enter via the city gates');
+assert(trucks.length<=18,'Active freight cap prevents bursts');
+assert(trucks.every(v=>v.delivery&&[6,8].includes(v.delivery.axles)&&v.citizenId==null));
+const target=trucks[0],dest=target.toId,amount=target.delivery.units;
+game.arrive(target,true);
+assert.equal(target.phase,'delivery_unload');
+assert.equal(game.state.deliveryRun.delivered[dest],amount);
+const consumed=game.state.deliveryRun.next;
+const snapshot=JSON.parse(game.snapshot());
+assert.equal(snapshot.deliveryRun.next,consumed,'Dispatch progress is saved');
+game.startDeliveryReturn(target);
+assert(!game.state.vehicles.has(target.id)||target.delivery.stage==='outbound');
+if(game.state.vehicles.has(target.id)){
+ assert.equal(target.toId,null,'Return trip goes to an external gate');
+ assert(target.path.length>1);
+}
+game.state.time=1440+5*60;
+const before=game.state.deliveryRun.next;
+game.updateNightDeliveries();
+assert.equal(game.state.deliveryRun.next,before,'No new trucks after 05:00');
+console.log('Night delivery regression checks passed');
