@@ -2370,6 +2370,114 @@ export class TrafficRenderer{
     for(const xx of[x-w*.27,x+w*.27])
      block('#ffe2af',xx,y-.055,z,.035,.033,d*.73,'glass',true);
    };
+
+   // BLUE DINING VILLAGE — restaurant_large only. Four distinct low-profile
+   // modules inside the original front building parcel. No old second storey,
+   // no wide opaque facade or whole-lot ceiling. Small/medium stay unchanged.
+   if(level===3){
+    const kitchenX=2.83,pavilionX=7.23,privateX=2.83,courtyardX=7.23;
+    const topZ=rear+1.25,bottomZ=rear+3.74;
+    const ivoryFrame='#e0e8e5',clearGlass='#88bac3',warmLamp='#ffe2ad';
+    const slab=(x,z,w,d,col)=>floor(x,.16,z,w,d,col);
+    // Four separate foundations, one pedestrian axis, visible green gaps.
+    slab(kitchenX,topZ,3.02,2.22,'#9eafb0');
+    slab(pavilionX,topZ,3.23,2.22,'#b8cac5');
+    slab(privateX,bottomZ,3.02,2.26,'#cbd2c9');
+    slab(courtyardX,bottomZ,3.23,2.26,'#d0c8ad');
+    floor(5.05,.105,9.34,.52,4.82,'#d8cfb9');
+    for(const zz of[7.35,8.17,9.03,9.91,10.80,11.68])
+     block('#8daea8',5.05,.175,zz,.42,.015,.08,'stone');
+
+    // 1 / The compact working kitchen: blue gable, steel prep station,
+    // real stove burners, serving counter, vent and glass service hatch.
+    const kitchenBack=topZ-.91,kitchenFront=topZ+.95;
+    block('#e8ebe6',kitchenX,.76,kitchenBack,2.66,1.10,.09,'stone');
+    for(const xx of[kitchenX-1.30,kitchenX+1.30]){
+     block('#dce5e2',xx,.78,topZ,.07,1.16,1.88,'stone');
+     block(clearGlass,xx,1.49,topZ,.045,.36,1.53,'glass');
+     block('#4e7d90',xx,1.27,topZ,.052,.04,1.57,'metal');
+    }
+    roof(kitchenX,topZ,2.80,1.98,2.23,.38);
+    block('#8ca0a7',kitchenX-.18,.66,topZ-.36,1.70,.66,.40,'metal');
+    block('#d8e0db',kitchenX-.18,1.03,topZ-.36,1.78,.055,.46,'metal');
+    for(let i=0;i<6;i++){
+     const xx=kitchenX-.79+(i%3)*.57;
+     const zz=topZ-.46+Math.floor(i/3)*.20;
+     pole('#242d35',xx,1.073,zz,.064,.023,'metal');
+     if(i%2===0){pole('#9aaab0',xx,1.12,zz,.050,.070,'metal');pole('#d4dbd6',xx,1.16,zz,.055,.016,'metal');}
+    }
+    block('#6b8591',kitchenX,1.62,topZ-.50,1.24,.16,.42,'metal');
+    block('#d5e0dd',kitchenX,1.76,topZ-.50,1.35,.048,.47,'metal');
+    block('#6f8791',kitchenX,2.00,topZ-.51,.12,.45,.13,'metal');
+    block(oak,kitchenX,.69,kitchenFront+.02,2.53,.18,.18,'wood');
+    block(clearGlass,kitchenX,1.23,kitchenFront+.046,2.40,.75,.040,'glass');
+    block(ivoryFrame,kitchenX,1.65,kitchenFront+.058,2.61,.07,.10,'metal');
+    for(const xx of[kitchenX-.68,kitchenX,kitchenX+.68])
+     pendant(xx,topZ+.37,2.05);
+    block('#8da6ae',kitchenX-.78,2.77,topZ-.57,.19,.28,.20,'metal');
+    block('#d2dddc',kitchenX-.78,2.95,topZ-.57,.28,.05,.28,'metal');
+
+    // 2 / Main open dining hall: an independent pitched pavilion rather
+    // than kitchen's continuation; four visible furnished dining tables.
+    for(const xx of[pavilionX-1.44,pavilionX+1.44])
+     for(const zz of[topZ-.95,topZ+.96])
+      block(ivoryFrame,xx,1.28,zz,.086,2.08,.086,'metal');
+    roof(pavilionX,topZ,3.02,2.05,2.36,.32);
+    for(const xx of[pavilionX-1.42,pavilionX+1.42]){
+     for(const zz of[topZ-.43,topZ+.45]){
+      block(clearGlass,xx,.68,zz,.045,.64,.75,'glass');
+      block(ivoryFrame,xx,1.04,zz,.063,.048,.79,'metal');
+     }
+    }
+    for(const xx of[6.48,7.98])for(const zz of[topZ-.53,topZ+.52])
+     table(xx,zz,.24,.69);
+    for(const xx of[6.48,7.98])
+     pendant(xx,topZ,2.13);
+
+    // 3 / Private dining: separate low glass pavilion, translucent facade,
+    // fine mullions and its own short hip-like roof. Two intimate tables.
+    for(const xx of[privateX-1.31,privateX+1.31]){
+     for(const zz of[bottomZ-.95,bottomZ+.96])
+      block('#e2ebe8',xx,1.16,zz,.08,1.90,.08,'metal');
+     block(clearGlass,xx,1.15,bottomZ,.05,1.38,1.74,'glass');
+     block(ivoryFrame,xx,1.80,bottomZ,.065,.07,1.85,'metal');
+    }
+    for(const zz of[bottomZ-.96,bottomZ+.96]){
+     block('#87b8c5',privateX,1.22,zz,2.46,1.27,.048,'glass');
+     block(ivoryFrame,privateX,1.89,zz,2.55,.080,.07,'metal');
+     for(const xx of[privateX-.72,privateX+.72])
+      block(ivoryFrame,xx,1.17,zz,.042,1.38,.07,'metal');
+    }
+    roof(privateX,bottomZ,2.75,2.02,2.12,.28);
+    for(const xx of[2.20,3.46])table(xx,bottomZ,.24,.65);
+    pendant(privateX,bottomZ,1.96);
+
+    // 4 / The open courtyard: a real pergola with light passing between
+    // beams, four tables, plant islands, independent low lanterns.
+    pergola(courtyardX,bottomZ,3.03,2.09,2.17);
+    for(const xx of[6.46,7.98])for(const zz of[bottomZ-.53,bottomZ+.53])
+     table(xx,zz,.24,.66);
+    for(const xx of[courtyardX-1.44,courtyardX+1.44]){
+     for(const zz of[bottomZ-.94,bottomZ+.95]){
+      flower(xx,zz,.19,.29);
+      block('#476f87',xx,.64,zz,.032,.71,.032,'metal');
+      block(warmLamp,xx,.99,zz,.14,.15,.13,'glass',true);
+     }
+    }
+
+    // Shared entrance and wayfinding join the four sub-buildings without
+    // turning them into one connected blue block.
+    for(const xx of[4.48,5.61])
+     block('#d5e1dd',xx,1.02,front+.025,.075,1.50,.075,'metal');
+    sign('BLUE DINING',5.045,1.85,front+.048,2.91,.36);
+    block('#b2c1bc',5.05,.16,front+.20,.72,.065,.34,'stone');
+    for(const xx of[1.35,4.28,5.63,8.86]){
+     flower(xx,front-.12,.19,.28);
+     block('#d8e9e7',xx,.76,front-.10,.052,.98,.057,'metal');
+     block(warmLamp,xx,1.26,front-.10,.16,.13,.16,'glass',true);
+    }
+    return;
+   }
    const roomFront=level===3?front-.58:front-.72,roomRear=rear+.12;
    // Keep the skyline close to street level; no full-height dining cube.
    const eave=level===3?3.90:level===2?2.32:2.18;
