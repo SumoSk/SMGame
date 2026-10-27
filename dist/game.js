@@ -2591,7 +2591,22 @@ function renderCitizenDashboard(force=false){
    '<p class="citizen-note">“ความคิด/ความกังวล” ประเมินจากความสุข ปัญหาล่าสุด งาน และการเดินทางของตัวละคร ไม่ใช่คำพูดหรือความคิดเห็นจริงของประชาชน</p>');
  const body=$('citizensDashboardBody'),scroll=body.scrollTop;body.innerHTML=html;body.scrollTop=scroll;
 }
-const TREE_KINDS=[{key:'shade',name:'ต้นไม้พุ่มกลม',icon:'🌳'},{key:'palm',name:'ต้นปาล์ม',icon:'🌴'},{key:'flower',name:'ไม้ดอก',icon:'🌸'},{key:'pine',name:'ต้นสน',icon:'🌲'},{key:'shrub',name:'ไม้พุ่ม',icon:'🌿'},{key:'banyan',name:'ต้นไม้ใหญ่',icon:'🌳'}];
+const TREE_KINDS=[
+ {key:'shade',name:'ต้นไม้พุ่มกลม',icon:'🌳'},
+ {key:'palm',name:'ต้นปาล์ม',icon:'🌴'},
+ {key:'flower',name:'ไม้ดอก',icon:'🌸'},
+ {key:'pine',name:'ต้นสน',icon:'🌲'},
+ {key:'shrub',name:'ไม้พุ่ม',icon:'🌿'},
+ {key:'banyan',name:'ไทรใหญ่',icon:'🌳'},
+ {key:'oak',name:'โอ๊กยักษ์',icon:'🌳'},
+ {key:'rain',name:'จามจุรีร่มใหญ่',icon:'🌳'},
+ {key:'willow',name:'หลิวห้อย',icon:'🌿'},
+ {key:'cherry',name:'ซากุระชมพู',icon:'🌸'},
+ {key:'maple',name:'เมเปิลสีส้ม',icon:'🍁'},
+ {key:'jacaranda',name:'ศรีตรังม่วง',icon:'💜'},
+ {key:'cedar',name:'สนซีดาร์ใหญ่',icon:'🌲'},
+ {key:'cypress',name:'ไซเปรสสูง',icon:'🌲'}
+];
 let currentTreeKind='shade';
 function landscapeClear(x,y){
  const xx=Math.floor(x),yy=Math.floor(y);
