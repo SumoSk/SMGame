@@ -53,11 +53,31 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const source=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
  const {TrafficRenderer,Batch}=new Function('THREE',source+';return {TrafficRenderer,Batch};')(THREE);
  const r=Object.create(TrafficRenderer.prototype);r.treeGroup=new THREE.Group();r.buildKey='tree-test';r.treeKey='';
- for(const kind of ['shade','palm','flower','pine','shrub','banyan']){
+ assert(g.TREE_KINDS.length>=14,'decorative tree panel must include diverse ornamental species');
+ for(const kind of g.TREE_KINDS.map(t=>t.key)){
   const batch=new Batch();r.tree(batch,190,190,1,kind);
   assert(batch.data.size>=2,kind+' has no useful geometry');
   for(const record of batch.data.values())for(const t of record.items)assert([t.x,t.y,t.z,t.sx,t.sy,t.sz].every(Number.isFinite),kind+' invalid geometry');
  }
+ // All park tiers get big flower trees, conifers, palms and rounded
+ // canopies, with the same plot/capacity data and no simulation mutations.
+ r.parking={lotPoint:g.lotPoint,parkingVisuals:()=>[]};
+ for(const key of ['park_small','park_medium','park_large']){
+  const plot=g.CATALOG[key],b={key,id:733,x:40,y:44,rotation:0,
+   parked:new Set(),parkingSlots:Array(plot.parkingCapacity).fill(null)};
+  const batch=new Batch();r.building(batch,b,g.CATALOG,g.KINDS);
+  const items=[...batch.data.values()].flatMap(group=>group.items.map(i=>({...i,color:group.color})));
+  for(const color of ['#eda5bf','#3c7c52','#62a66d','#6fa56b'])
+   assert(items.some(i=>i.color===color),key+' missing a signature flower, pine, palm or round shade tree: '+color);
+  assert(items.length<500,key+' landscaping must be instanced and inexpensive');
+ }
+ r.graphicQuality='low';
+ for(const kind of ['cherry','jacaranda','cedar','oak','willow']){
+  const testBatch=new Batch();r.tree(testBatch,190,190,1.25,kind,'near');
+  const count=[...testBatch.data.values()].reduce((n,g)=>n+g.items.length,0);
+  assert(count>=4&&count<=16,kind+' Low should use simplified large-tree foliage');
+ }
+ r.graphicQuality=undefined;
  r.trees(g.state,{x:190,y:190});assert(r.treeGroup.children.length>0);
  g.plantLandscape(190,190,'shade');const key=r.treeKey;r.trees(g.state,{x:190,y:190});assert.notEqual(r.treeKey,key,'tree cache must react to planting');
  console.log(JSON.stringify({passed:true,species:6,saveCompatibility:true,roadExclusion:true,automaticExclusions:true,cacheInvalidation:true}));
