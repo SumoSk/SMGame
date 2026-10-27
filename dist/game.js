@@ -823,7 +823,7 @@ function parkingVisuals(b){
 function drawParking2D(b){for(const r of parkingVisuals(b)){const points=[[r.u-r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v+r.h/2],[r.u-r.w/2,r.v+r.h/2]].map(([u,v])=>{const p=lotPoint(b,u,v);return screen(p.x-.5,p.y-.5);});poly(points,r.color);}for(const cid of b.parked||[]){if(parkingIsMoving(cid))continue;const i=parkingSpace(b,cid),p=parkingSlotPose(b,i);if(p){const q=screen(p.x,p.y);drawTechCarShape(q[0],q[1],p.angle,citizenCarColor(cid),cam.z,state.citizens.get(cid)?.vehicleTech);}}}
 
 const runtimeErrors=[];for(const type of ['error','unhandledrejection'])window.addEventListener(type,e=>{runtimeErrors.push({at:new Date().toISOString(),message:String(e.message||e.reason?.stack||e.reason||type).slice(0,4000)});if(runtimeErrors.length>20)runtimeErrors.shift();});
-let state,cam={x:150,y:150,z:1.25,angle:Math.PI*.2,elevation:Math.atan2(86,90)},view={w:innerWidth,h:innerHeight,dpr:1},tool='hand',category='roads',selected=null,hover=null,drag=null,pendingRoadPreview=null,pendingDemolitionPreview=null,roadPreviewCache=null,movingBuildingId=null,constructionAnchor=null,heat=false,debug=false,last=0,uiTick=0,news=[],toastTimer,follow=null;
+let state,cam={x:150,y:150,z:1.25,angle:Math.PI/4,elevation:Math.PI*50/180},view={w:innerWidth,h:innerHeight,dpr:1},tool='hand',category='roads',selected=null,hover=null,drag=null,pendingRoadPreview=null,pendingDemolitionPreview=null,roadPreviewCache=null,movingBuildingId=null,constructionAnchor=null,heat=false,debug=false,last=0,uiTick=0,news=[],toastTimer,follow=null;
 const id=(x,y)=>y*W+x,xy=i=>[i%W,Math.floor(i/W)],valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function reset(city='phuket'){
 if(travelRecording)travelLogStop('เปลี่ยนหรือโหลดเมือง');
@@ -833,7 +833,7 @@ state={city,money:500000,vehicleTechLevels:freshVehicleTechLevels(),time:360,inc
 state.plantedTrees=[];state.hiddenAutoTrees=[];state.landscapeVersion=0;missionAutoClose();state.missionStats=newMissionStats();
 for(let n=0;n<300;n++){state.roads.set(id(150,n),{type:'large',main:true,links:new Set(),load:0,wait:0});state.roads.set(id(n,150),{type:'large',main:true,links:new Set(),load:0,wait:0});}
 for(let n=0;n<299;n++){link(id(150,n),id(150,n+1));link(id(n,150),id(n+1,150));}
-state.gates=[id(150,0),id(299,150),id(150,299),id(0,150)];rebuildFootprint();cam={x:149,y:149,z:innerWidth<700?.94:1.24,angle:Math.PI*.2,elevation:Math.atan2(86,90)};selected=null;follow=null;news=[];tool='hand';movingBuildingId=null;$('cancelMoveBuilding').hidden=true;hideCitizenDashboard();hideTouristDashboard();touristSearch='';touristPage=0;touristDashboardAt=0;touristFilter='all';citizenFilter='all';citizenSearch='';citizenPage=0;if($('citizenSearch'))$('citizenSearch').value='';$('inspector').classList.add('hidden');$('cityName').textContent=CITIES[city].name;$('citySub').textContent=CITIES[city].sub;$('mapLabel').innerHTML=CITIES[city].en+'<small>THAILAND · สร้างเมืองในแบบคุณ</small>';addNews('เริ่มเมืองใหม่ เชื่อมถนน สร้างบ้าน และสร้างงาน');updateUI();renderTools();}
+state.gates=[id(150,0),id(299,150),id(150,299),id(0,150)];rebuildFootprint();cam={x:149,y:149,z:innerWidth<700?.94:1.24,angle:Math.PI/4,elevation:Math.PI*50/180};selected=null;follow=null;news=[];tool='hand';movingBuildingId=null;$('cancelMoveBuilding').hidden=true;hideCitizenDashboard();hideTouristDashboard();touristSearch='';touristPage=0;touristDashboardAt=0;touristFilter='all';citizenFilter='all';citizenSearch='';citizenPage=0;if($('citizenSearch'))$('citizenSearch').value='';$('inspector').classList.add('hidden');$('cityName').textContent=CITIES[city].name;$('citySub').textContent=CITIES[city].sub;$('mapLabel').innerHTML=CITIES[city].en+'<small>THAILAND · สร้างเมืองในแบบคุณ</small>';addNews('เริ่มเมืองใหม่ เชื่อมถนน สร้างบ้าน และสร้างงาน');updateUI();renderTools();}
 // New-city preset only. reset() remains the empty simulation initializer used
 // by save loading; saved roads, buildings, citizens and camera are restored as-is.
 function startNewCity(city='phuket'){
@@ -886,7 +886,7 @@ function startNewCity(city='phuket'){
  // Keep the original zoom, angle and elevation. Pan halfway between the village
  // and main junction so that the longer approach remains visible at startup.
  const cameraFocusY=138.5-approachExtension/2;
- cam={x:169.5,y:cameraFocusY,z:innerWidth<700?1.25:innerWidth<1100?1.65:2.05,angle:Math.PI*.2,elevation:Math.atan2(86,90)};
+ cam={x:169.5,y:cameraFocusY,z:innerWidth<700?1.25:innerWidth<1100?1.65:2.05,angle:Math.PI/4,elevation:Math.PI*50/180};
  // Frame the village above the bottom controls rather than behind them.
  if(renderer3d)renderer3d.updateCamera(cam);
  const anchor=world(innerWidth*.5,innerHeight*(innerWidth<700?.29:.34));
@@ -5012,7 +5012,7 @@ function inspectAt(x,y){const marker=renderer3d?.pickVehicleMarker?.(x,y)||canva
  if(renderer3d){const hit=renderer3d.pickBuilding(x,y);if(hit!=null){selected={kind:'building',id:hit};renderInspector();return;}}const p=world(x,y),ix=Math.floor(p[0]),iy=Math.floor(p[1]);if(!valid(ix,iy))return;const b=state.buildGrid[id(ix,iy)];if(b>=0)selected={kind:'building',id:b};else{const i=owner(id(ix,iy));if(state.roads.has(i))selected={kind:'road',id:i};else{selected=null;$('inspector').classList.add('hidden');return;}}renderInspector();}
 // Compact five-way 3D camera joystick. 3D pick/world projection already uses
 // the live camera matrix, so construction and selection follow the rotated view.
-const cameraDefaultAngle=Math.PI*.2,cameraDefaultElevation=Math.atan2(86,90);
+const cameraDefaultAngle=Math.PI/4,cameraDefaultElevation=Math.PI*50/180;
 let cameraJoystickHold=null;
 function nudgeCamera(direction,amount=1){
  if(!renderer3d)return;
@@ -5055,64 +5055,56 @@ function initCameraJoystick(){
 }
 initCameraJoystick();
 
-// Compact touch-only vertical zoom slider; the existing mouse wheel stays unchanged.
-const cameraZoomRail=$('cameraZoomRail'),cameraZoomTrack=$('cameraZoomTrack'),cameraZoomThumb=$('cameraZoomThumb');
-const cameraZoomMin=.22,cameraZoomMax=5.2;
-let cameraZoomPointer=null,cameraZoomLast=NaN;
-const clampZoom=value=>Math.max(cameraZoomMin,Math.min(cameraZoomMax,value));
-const zoomFraction=()=>Math.max(0,Math.min(1,Math.log(clampZoom(cam.z)/cameraZoomMin)/Math.log(cameraZoomMax/cameraZoomMin)));
-function syncCameraZoomRail(){
- if(!cameraZoomTrack||!cameraZoomThumb||cam.z===cameraZoomLast)return;
- cameraZoomLast=cam.z;
- const fraction=zoomFraction();
- cameraZoomThumb.style.top=(8+(1-fraction)*84)+'%';
- cameraZoomTrack.setAttribute('aria-valuenow',String(Math.round(fraction*100)));
+// Right-edge slider controls elevation; pinch zoom is a separate map gesture.
+const cameraPitchRail=$('cameraPitchRail'),cameraPitchTrack=$('cameraPitchTrack'),cameraPitchThumb=$('cameraPitchThumb');
+const cameraPitchMin=Math.PI*35/180,cameraPitchMax=Math.PI*78/180;
+let cameraPitchPointer=null,cameraPitchLast=NaN;
+const pitchFraction=()=>Math.max(0,Math.min(1,((cam.elevation??cameraDefaultElevation)-cameraPitchMin)/(cameraPitchMax-cameraPitchMin)));
+function syncCameraPitchRail(){
+ if(!cameraPitchTrack||!cameraPitchThumb||cam.elevation===cameraPitchLast)return;
+ cameraPitchLast=cam.elevation;
+ const fraction=pitchFraction();
+ cameraPitchThumb.style.top=(8+(1-fraction)*84)+'%';
+ cameraPitchTrack.setAttribute('aria-valuenow',String(Math.round(cam.elevation*180/Math.PI)));
 }
-function setCameraZoomFraction(fraction){
+function setCameraPitchFraction(fraction){
  if(!renderer3d)return;
- fraction=Math.max(0,Math.min(1,fraction));
- const next=clampZoom(cameraZoomMin*Math.pow(cameraZoomMax/cameraZoomMin,fraction));
- if(Math.abs(cam.z-next)<1e-8)return;
- cam.z=next;renderer3d.updateCamera(cam);syncCameraZoomRail();
+ const next=clampCameraElevation(cameraPitchMin+Math.max(0,Math.min(1,fraction))*(cameraPitchMax-cameraPitchMin));
+ if(Math.abs(cam.elevation-next)<1e-8)return;
+ cam.elevation=next;renderer3d.updateCamera(cam);syncCameraPitchRail();
 }
-function initCameraZoomRail(){
- if(!cameraZoomRail||!cameraZoomTrack||!cameraZoomThumb)return;
- if(!renderer3d)return;
- cameraZoomRail.hidden=false;
+function initCameraPitchRail(){
+ if(!cameraPitchRail||!cameraPitchTrack||!cameraPitchThumb||!renderer3d)return;
+ cameraPitchRail.hidden=false;
  const fractionAt=y=>{
-  const rect=cameraZoomTrack.getBoundingClientRect();
-  if(!rect.height)return zoomFraction();
-  return (rect.bottom-y-rect.height*.08)/(rect.height*.84);
+  const rect=cameraPitchTrack.getBoundingClientRect();
+  return rect.height?(rect.bottom-y-rect.height*.08)/(rect.height*.84):pitchFraction();
  };
- cameraZoomTrack.addEventListener('pointerdown',event=>{
+ cameraPitchTrack.addEventListener('pointerdown',event=>{
   if(event.button!=null&&event.button!==0)return;
   event.preventDefault();event.stopPropagation();
-  cameraZoomPointer=event.pointerId;
-  cameraZoomTrack.setPointerCapture?.(event.pointerId);
-  setCameraZoomFraction(fractionAt(event.clientY));
+  cameraPitchPointer=event.pointerId;cameraPitchTrack.setPointerCapture?.(event.pointerId);
+  setCameraPitchFraction(fractionAt(event.clientY));
  });
- cameraZoomTrack.addEventListener('pointermove',event=>{
-  if(cameraZoomPointer!==event.pointerId)return;
-  event.preventDefault();
-  setCameraZoomFraction(fractionAt(event.clientY));
+ cameraPitchTrack.addEventListener('pointermove',event=>{
+  if(cameraPitchPointer!==event.pointerId)return;
+  event.preventDefault();setCameraPitchFraction(fractionAt(event.clientY));
  });
- const end=event=>{if(cameraZoomPointer===event.pointerId)cameraZoomPointer=null;};
- cameraZoomTrack.addEventListener('pointerup',end);
- cameraZoomTrack.addEventListener('pointercancel',end);
- cameraZoomTrack.addEventListener('lostpointercapture',end);
- cameraZoomTrack.addEventListener('keydown',event=>{
-  const current=zoomFraction();
-  const value=event.key==='ArrowUp'||event.key==='ArrowRight'?current+.04:
-   event.key==='ArrowDown'||event.key==='ArrowLeft'?current-.04:
+ const end=event=>{if(cameraPitchPointer===event.pointerId)cameraPitchPointer=null;};
+ cameraPitchTrack.addEventListener('pointerup',end);
+ cameraPitchTrack.addEventListener('pointercancel',end);
+ cameraPitchTrack.addEventListener('lostpointercapture',end);
+ cameraPitchTrack.addEventListener('keydown',event=>{
+  const value=event.key==='ArrowUp'||event.key==='ArrowRight'?pitchFraction()+.04:
+   event.key==='ArrowDown'||event.key==='ArrowLeft'?pitchFraction()-.04:
    event.key==='Home'?0:event.key==='End'?1:null;
   if(value===null)return;
-  event.preventDefault();setCameraZoomFraction(value);
+  event.preventDefault();setCameraPitchFraction(value);
  });
- $('cameraZoomReset').onclick=resetCameraAngle;
- syncCameraZoomRail();
+ $('cameraPitchReset').onclick=resetCameraAngle;syncCameraPitchRail();
 }
-initCameraZoomRail();
-function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)tick(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();syncCameraZoomRail();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
+initCameraPitchRail();
+function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)tick(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();syncCameraPitchRail();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
 window.addEventListener('resize',resize);
 $('categories').onclick=()=>{}; // Redundant group row retired; construction tabs are direct.
 $('subcategories').onclick=e=>{
@@ -5223,7 +5215,7 @@ function beginMouseOrbit(event){
 }
 function moveMouseOrbit(event){
  const dx=event.clientX-mouseOrbit.x,dy=event.clientY-mouseOrbit.y;
- cam.angle=(cam.angle??cameraDefaultAngle)-dx*.006;
+ cam.angle=(cam.angle??cameraDefaultAngle)-dx*.0085;
  cam.elevation=clampCameraElevation((cam.elevation??cameraDefaultElevation)+dy*.004);
  mouseOrbit={x:event.clientX,y:event.clientY};renderer3d.updateCamera(cam);
 }
@@ -5237,20 +5229,39 @@ function beginTouchOrbit(){
 function moveTouchOrbit(){
  const a=pointers.get(pinch.ids[0]),b=pointers.get(pinch.ids[1]);if(!a||!b||!renderer3d)return;
  const dxA=a.x-pinch.a.x,dyA=a.y-pinch.a.y,dxB=b.x-pinch.b.x,dyB=b.y-pinch.b.y;
- const lengthA=Math.hypot(dxA,dyA),lengthB=Math.hypot(dxB,dyB);
- const parallel=lengthA>4&&lengthB>4&&(dxA*dxB+dyA*dyB)/(lengthA*lengthB)>.65;
- const rotation=Math.atan2(b.y-a.y,b.x-a.x)-pinch.rotation;
- const twist=Math.atan2(Math.sin(rotation),Math.cos(rotation));
- // On touchscreens, zoom is exclusively controlled by the right-side slider.
- // Pinching fingers neither zooms nor switches gesture mode.
- if(!pinch.mode){
-  if(!parallel&&Math.abs(twist)<.06)return;
-  pinch.mode='orbit';
- }
+ const movedA=Math.hypot(dxA,dyA),movedB=Math.hypot(dxB,dyB);
  const centerX=(a.x+b.x)/2,centerY=(a.y+b.y)/2;
- // Match finger direction: dragging left rotates the camera left.
- cam.angle=pinch.angle+twist-(parallel?(centerX-pinch.x)*.006:0);
- cam.elevation=clampCameraElevation(pinch.elevation+(parallel?(centerY-pinch.y)*.004:0));
+ const distance=Math.max(12,Math.hypot(b.x-a.x,b.y-a.y));
+ const difference=Math.abs(distance-pinch.distance);
+ const delta=Math.atan2(b.y-a.y,b.x-a.x)-pinch.rotation;
+ const twist=Math.atan2(Math.sin(delta),Math.cos(delta));
+ const centroidMove=Math.hypot(centerX-pinch.x,centerY-pinch.y);
+ // Each finger reports asynchronously; avoid a zoom misfire on the first drag.
+ if(!pinch.mode){
+  const bothMoved=movedA>3&&movedB>3;
+  const similarity=bothMoved?(dxA*dxB+dyA*dyB)/(movedA*movedB):0;
+  const dragging=bothMoved&&similarity>.72&&centroidMove>6&&difference<Math.max(18,centroidMove*.55);
+  const spreading=bothMoved&&difference>Math.max(8,pinch.distance*.045)&&
+   (similarity<.35||difference>centroidMove*1.15);
+  const anchoredSpread=!bothMoved&&difference>Math.max(60,pinch.distance*.35)&&Math.abs(twist)<.10;
+  const twisting=bothMoved&&Math.abs(twist)>.08&&difference<Math.max(20,pinch.distance*.15);
+  if(dragging){pinch.mode='orbit';pinch.orbitKind='drag';}
+  else if(spreading||anchoredSpread)pinch.mode='zoom';
+  else if(twisting){pinch.mode='orbit';pinch.orbitKind='twist';}
+  else return;
+ }
+ if(pinch.mode==='zoom'){
+  // Lock the pinch: spreading fingers never affects yaw or pitch.
+  const next=Math.max(.22,Math.min(5.2,pinch.z*distance/pinch.distance));
+  if(Math.abs(cam.z-next)<1e-7)return;
+  cam.z=next;
+ }else if(pinch.orbitKind==='twist'){
+  cam.angle=pinch.angle+twist;
+ }else{
+  // 0.0085 rad/px: 42% faster left-right rotation, without twist noise.
+  cam.angle=pinch.angle-(centerX-pinch.x)*.0085;
+  cam.elevation=clampCameraElevation(pinch.elevation+(centerY-pinch.y)*.004);
+ }
  renderer3d.updateCamera(cam);
 }
 const ignoredTouchPointers=new Set(),doubleTapDelay=320,doubleTapRadius=44;
