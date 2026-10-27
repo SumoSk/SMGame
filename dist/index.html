@@ -312,7 +312,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-action{cursor:default}
 <aside id="citizensDashboard" class="citizens-dashboard hidden" aria-label="แดชบอร์ดชีวิตประชาชน"><div class="citizens-top"><div class="sm-panel-title"><h2>ชีวิตประชาชน <span id="citizenDashDay"></span></h2></div><button id="closeCitizensDashboard" class="citizens-close" aria-label="ปิดแดชบอร์ดประชาชน">×</button></div><div class="citizens-toolbar"><label for="citizenSearch">ค้นหาประชาชน</label><input id="citizenSearch" type="search" placeholder="ชื่อหรือหมายเลขประชาชน" autocomplete="off"><div id="citizenFilters" class="citizens-filters" role="group" aria-label="กรองประชาชน"></div></div><div id="citizensDashboardBody" class="citizens-dashboard-body" aria-live="polite"></div></aside>
 <aside id="touristsDashboard" class="citizens-dashboard tourists-dashboard hidden" aria-label="นักท่องเที่ยวในเมือง"><div class="citizens-top"><div class="sm-panel-title"><h2>นักท่องเที่ยว</h2></div><button id="closeTouristsDashboard" class="citizens-close" aria-label="ปิดรายชื่อนักท่องเที่ยว">×</button></div><div class="citizens-toolbar"><label for="touristSearch">ค้นหานักท่องเที่ยว</label><input id="touristSearch" type="search" placeholder="ชื่อหรือหมายเลขนักท่องเที่ยว" autocomplete="off"><div id="touristFilters" class="citizens-filters" role="group" aria-label="กรองสถานะนักท่องเที่ยว"></div></div><div id="touristsDashboardBody" class="citizens-dashboard-body" aria-live="polite"></div></aside>
 <div class="map-caption"><span class="compass">N ↑</span><span id="mapLabel">PHUKET ISLAND<small>อ่าวไทย · อันดามัน</small></span></div>
-<div class="bottom"><details id="cityAdvisor" class="city-advisor" open><summary><span class="advisor-avatar" aria-hidden="true">อ</span><span><small>ที่ปรึกษาเมือง</small><strong id="advisorHeadline">มาดูเมืองของเรากันค่ะ</strong></span><span class="advisor-chevron" aria-hidden="true">⌄</span></summary><div class="advisor-body"><p id="advisorOverview"></p><div class="advisor-columns"><section><h3>สิ่งที่ไปได้ดี</h3><ul id="advisorGood"></ul></section><section><h3>เรื่องที่ควรดูแล</h3><ul id="advisorProblems"></ul></section></div><div class="advisor-next"><h3>ทำอะไรก่อนดี</h3><ol id="advisorNext"></ol></div></div></details><div id="cityAdvisorTicker" class="city-advisor-mini" role="status" aria-live="polite" aria-atomic="true" hidden><span class="city-advisor-action"><span class="city-advisor-spark" aria-hidden="true">✦</span><span id="cityAdvisorTickerMessage" class="city-advisor-text"></span></span><button type="button" id="cityAdvisorTickerDismiss" class="city-advisor-dismiss" aria-label="ปิดคำแนะนำชั่วคราว" title="ซ่อนคำแนะนำชั่วคราว">×</button></div><span id="hint" class="ui-legacy-hidden" hidden aria-hidden="true"></span><section id="cityCommandBar" class="city-command-bar" aria-label="เวลา ความเร็ว และการแสดงผลเมือง"><div class="dock-head"><div class="dock-timebar"><div class="dock-clock" aria-label="วัน วันที่ และเวลาในเกม"><span id="day">วันจันทร์ · วันที่ 1</span><strong id="clock">06:00</strong></div><div class="dock-speed"><div class="playback"><button id="pause" title="หยุดหรือเล่นต่อ">Ⅱ</button><button data-speed="1" class="active">1×</button><button data-speed="2">2×</button><button data-speed="5">5×</button><button data-speed="10">10×</button><button data-speed="20">20×</button><button id="skip" type="button" aria-label="ข้ามไปเช้าวันใหม่" title="ข้ามไปเช้าวันใหม่"><span class="skip-day-label">ข้ามวัน</span> <span aria-hidden="true">↠</span></button></div><span id="status">ทุกการเดินทาง เริ่มจากเมืองที่คุณสร้าง</span><span class="edition">THAILAND / SANDBOX</span></div></div><span class="dock-display-actions" role="group" aria-label="ตัวเลือกการแสดงผล"><button id="toggleBuildingLabels" type="button" class="is-hidden toggle-building-labels" aria-pressed="true" aria-label="เปิดป้ายอาคารบนแผนที่" title="ซ่อนหรือแสดงชื่อและตัวเลขบนป้ายอาคาร"><span class="toggle-building-labels-icon" aria-hidden="true">▣</span> <span id="toggleBuildingLabelsText">เปิดป้าย</span></button><button id="toggleCarDiamonds" type="button" class="is-hidden toggle-car-diamonds" aria-pressed="true" aria-label="แสดงสถานะรถใกล้สายหรือสายแล้ว" title="แสดงสถานะรถ · 😥 ใกล้สาย · 😡 สายแล้ว"><span class="toggle-car-diamonds-icon" aria-hidden="true">😥</span> <span id="toggleCarDiamondsText">สถานะรถ</span></button><button id="toggleAIPins" type="button" class="is-hidden toggle-ai-pins" aria-pressed="true" aria-label="แสดงปุ่ม AI ที่ทางแยก" title="ซ่อนหรือแสดงปุ่ม AI ที่ทางแยก"><span class="toggle-ai-pins-icon" aria-hidden="true">✦</span> <span id="toggleAIPinsText">เปิด AI</span></button><button id="toggleEyeComfort" type="button" class="toggle-eye-comfort" aria-pressed="false" aria-label="เปิดธีมดำตัวหนังสือขาว" title="สลับธีมดำ / ธีมปกติ"><span aria-hidden="true">◐</span> <span class="command-theme-label">ขาว/ดำ</span></button></span><button id="toggleDock" type="button" class="toggle-dock" aria-controls="dockBody" aria-expanded="true" aria-label="หุบแถบเครื่องมือ"><span id="toggleDockIcon" aria-hidden="true">⌄</span> <span id="toggleDockText">หุบเครื่องมือ</span></button></div></section><div class="control-deck" aria-label="แผงควบคุมเมือง">
+<div class="bottom"><details id="cityAdvisor" class="city-advisor" open><summary><span class="advisor-avatar" aria-hidden="true">อ</span><span><small>ที่ปรึกษาเมือง</small><strong id="advisorHeadline">มาดูเมืองของเรากันค่ะ</strong></span><span class="advisor-chevron" aria-hidden="true">⌄</span></summary><div class="advisor-body"><p id="advisorOverview"></p><div class="advisor-columns"><section><h3>สิ่งที่ไปได้ดี</h3><ul id="advisorGood"></ul></section><section><h3>เรื่องที่ควรดูแล</h3><ul id="advisorProblems"></ul></section></div><div class="advisor-next"><h3>ทำอะไรก่อนดี</h3><ol id="advisorNext"></ol></div></div></details><div id="cityAdvisorTicker" class="city-advisor-mini is-visible" role="status" aria-live="polite" aria-atomic="true"><span class="city-advisor-action"><span class="city-advisor-spark" aria-hidden="true">✦</span><span id="cityAdvisorTickerMessage" class="city-advisor-text">ผู้ช่วยเมือง: กำลังตรวจความต้องการ</span></span><button type="button" id="cityAdvisorTickerDismiss" class="city-advisor-dismiss" aria-label="ปิดคำแนะนำชั่วคราว" title="ซ่อนคำแนะนำชั่วคราว">×</button></div><span id="hint" class="ui-legacy-hidden" hidden aria-hidden="true"></span><section id="cityCommandBar" class="city-command-bar" aria-label="เวลา ความเร็ว และการแสดงผลเมือง"><div class="dock-head"><div class="dock-timebar"><div class="dock-clock" aria-label="วัน วันที่ และเวลาในเกม"><span id="day">วันจันทร์ · วันที่ 1</span><strong id="clock">06:00</strong></div><div class="dock-speed"><div class="playback"><button id="pause" title="หยุดหรือเล่นต่อ">Ⅱ</button><button data-speed="1" class="active">1×</button><button data-speed="2">2×</button><button data-speed="5">5×</button><button data-speed="10">10×</button><button data-speed="20">20×</button><button id="skip" type="button" aria-label="ข้ามไปเช้าวันใหม่" title="ข้ามไปเช้าวันใหม่"><span class="skip-day-label">ข้ามวัน</span> <span aria-hidden="true">↠</span></button></div><span id="status">ทุกการเดินทาง เริ่มจากเมืองที่คุณสร้าง</span><span class="edition">THAILAND / SANDBOX</span></div></div><span class="dock-display-actions" role="group" aria-label="ตัวเลือกการแสดงผล"><button id="toggleBuildingLabels" type="button" class="is-hidden toggle-building-labels" aria-pressed="true" aria-label="เปิดป้ายอาคารบนแผนที่" title="ซ่อนหรือแสดงชื่อและตัวเลขบนป้ายอาคาร"><span class="toggle-building-labels-icon" aria-hidden="true">▣</span> <span id="toggleBuildingLabelsText">เปิดป้าย</span></button><button id="toggleCarDiamonds" type="button" class="is-hidden toggle-car-diamonds" aria-pressed="true" aria-label="แสดงสถานะรถใกล้สายหรือสายแล้ว" title="แสดงสถานะรถ · 😥 ใกล้สาย · 😡 สายแล้ว"><span class="toggle-car-diamonds-icon" aria-hidden="true">😥</span> <span id="toggleCarDiamondsText">สถานะรถ</span></button><button id="toggleAIPins" type="button" class="is-hidden toggle-ai-pins" aria-pressed="true" aria-label="แสดงปุ่ม AI ที่ทางแยก" title="ซ่อนหรือแสดงปุ่ม AI ที่ทางแยก"><span class="toggle-ai-pins-icon" aria-hidden="true">✦</span> <span id="toggleAIPinsText">เปิด AI</span></button><button id="toggleEyeComfort" type="button" class="toggle-eye-comfort" aria-pressed="false" aria-label="เปิดธีมดำตัวหนังสือขาว" title="สลับธีมดำ / ธีมปกติ"><span aria-hidden="true">◐</span> <span class="command-theme-label">ขาว/ดำ</span></button></span><button id="toggleDock" type="button" class="toggle-dock" aria-controls="dockBody" aria-expanded="true" aria-label="หุบแถบเครื่องมือ"><span id="toggleDockIcon" aria-hidden="true">⌄</span> <span id="toggleDockText">หุบเครื่องมือ</span></button></div></section><div class="control-deck" aria-label="แผงควบคุมเมือง">
  <section class="city-dashboard" aria-label="ภาพรวมเมือง">
   <div class="dashboard-heading"><div class="dashboard-title" aria-label="SMCITY เวอร์ชัน 4.3.1"><strong>SMCITY</strong><small>v4.3.1</small></div><div class="dashboard-actions"><button type="button" id="help" aria-label="วิธีเล่น" title="วิธีเล่น" hidden>?</button></div></div>
   <div class="stats dashboard-stats" aria-label="ตัวชี้วัดของเมือง"><button type="button" class="city-metric metric-money" data-inspect="money" aria-label="งบประมาณ — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 9h20M17 14h.01"/></svg></span><span class="metric-text"><small>งบประมาณ</small><strong id="money">฿500,000</strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-population" data-inspect="population" aria-label="ประชาชน — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M2.5 20v-2a6.5 6.5 0 0 1 13 0v2M17 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 2.5 4.5V20"/></svg></span><span class="metric-text"><small>ประชาชน :</small><strong id="population">0 <span class="metric-delta" data-change="flat" title="เปลี่ยนแปลงสุทธิตั้งแต่เริ่มวัน">(0)</span></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-tourists" data-inspect="tourists" aria-label="นักท่องเที่ยว — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="14" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2M4 12h16M9 11v3m6-3v3"/></svg></span><span class="metric-text"><small>นักท่องเที่ยว :</small><strong id="tourists">0 <span class="metric-delta" data-change="flat" title="เปลี่ยนแปลงสุทธิตั้งแต่เริ่มวัน">(0)</span></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-happiness" data-inspect="happiness" aria-label="ความสุข — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c2.5 3 5.5 3 8 0M8 9h.01M16 9h.01"/></svg></span><span class="metric-text"><small>ความสุข :</small><strong id="happy">100<em>%</em></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-traffic" data-inspect="traffic" aria-label="การจราจร — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="3"/><circle cx="12" cy="7" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="17" r="1"/></svg></span><span class="metric-text"><small>จราจร :</small><strong id="flow">100<em>%</em></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button></div>
@@ -417,44 +417,51 @@ body>.bottom>#cityAdvisorTicker .city-advisor-action{cursor:default}
 
 <script id="smcity-demand-notice-script">
 (function(){
- // Isolated display-only assistant. Reads already-rendered demand rows.
- // Never calls the simulation, changes a demand row, or scrolls any panel.
+ // Read-only notice. The live game produces the data; this UI never runs game functions.
  const box=document.getElementById('cityAdvisorTicker');
  const label=document.getElementById('cityAdvisorTickerMessage');
  const close=document.getElementById('cityAdvisorTickerDismiss');
  if(!box||!label||!close)return;
- let visibleUntil=0,nextAlertAt=0,snoozedUntil=0,broken=false;
- const descriptions={home:'เพิ่มบ้านพัก',work:'เพิ่มงาน',shop:'เพิ่มร้านค้า',restaurant:'เพิ่มร้านอาหาร',mall:'เพิ่มห้าง',park:'เพิ่มสวนสาธารณะ',pub:'เพิ่มสถานบันเทิง',casino:'เพิ่มคาสิโน',hotel:'เพิ่มโรงแรม'};
- const hide=()=>{box.classList.remove('is-visible');box.hidden=true;visibleUntil=0;};
- close.addEventListener('click',function(){
-  hide();snoozedUntil=Date.now()+90000;nextAlertAt=snoozedUntil;
- });
- function check(){
-  if(broken||document.hidden)return;
-  const now=Date.now();
-  if(visibleUntil&&now>=visibleUntil)hide();
-  if(now<nextAlertAt||now<snoozedUntil)return;
-  let priority=null;
-  const rows=document.querySelectorAll('#demand .mini-need.shortage');
-  for(const row of rows){
-   const value=Number((row.querySelector('.mini-need-missing')?.textContent||'').replace(/,/g,''));
-   if(!Number.isFinite(value)||value>=0)continue;
-   const missing=Math.min(999999999,Math.abs(value));
-   const kind=row.getAttribute('data-need-kind')||'';
-   const title=row.querySelector('span')?.textContent?.trim()||'บริการ';
-   if(!priority||missing>priority.missing)priority={missing,kind,title};
-  }
-  if(!priority){if(visibleUntil)hide();nextAlertAt=now+15000;return;}
-  label.textContent='ผู้ช่วยเมือง: '+priority.title+' ขาด '+priority.missing.toLocaleString('th-TH')+' — '+(descriptions[priority.kind]||'เพิ่มความจุ');
-  box.hidden=false;box.classList.add('is-visible');
-  visibleUntil=now+6500;nextAlertAt=now+35000;
+ const suggestions={home:'เพิ่มบ้านพัก',work:'เพิ่มงาน',shop:'เพิ่มร้านค้า',restaurant:'เพิ่มร้านอาหาร',mall:'เพิ่มห้าง',park:'เพิ่มสวนสาธารณะ',pub:'เพิ่มสถานบันเทิง',casino:'เพิ่มคาสิโน',hotel:'เพิ่มโรงแรม'};
+ let snoozedUntil=0,failed=false;
+ function show(message){
+  if(label.textContent!==message)label.textContent=message;
+  if(box.hidden)box.hidden=false;
+  if(!box.classList.contains('is-visible'))box.classList.add('is-visible');
  }
- // A small independent 4-second UI check, with a fail-closed guard.
- const timer=window.setInterval(function(){
-  if(broken)return;
-  try{check()}catch(_){broken=true;hide();window.clearInterval(timer);}
- },4000);
- window.addEventListener('pagehide',()=>window.clearInterval(timer),{once:true});
+ function hide(){box.classList.remove('is-visible');box.hidden=true;}
+ close.addEventListener('click',function(){
+  snoozedUntil=Date.now()+90000;
+  hide();
+ });
+ function refresh(){
+  if(failed||document.hidden||Date.now()<snoozedUntil)return;
+  const rows=document.querySelectorAll('#demand .mini-need[data-need-kind]');
+  if(!rows.length){
+   show('ผู้ช่วยเมือง: กำลังตรวจความต้องการ');
+   return;
+  }
+  let greatest=null;
+  for(const row of rows){
+   const text=row.querySelector('.mini-need-missing')?.textContent||'';
+   const value=Number(text.replace(/[,\\s]/g,''));
+   if(!Number.isFinite(value)||value>=0)continue;
+   const missing=Math.abs(value),kind=row.getAttribute('data-need-kind')||'';
+   const title=row.querySelector('span')?.textContent?.trim()||'บริการ';
+   if(!greatest||missing>greatest.missing)greatest={missing,kind,title};
+  }
+  if(greatest)show('ผู้ช่วยเมือง: '+greatest.title+' ขาด '+greatest.missing.toLocaleString('th-TH')+' — '+(suggestions[greatest.kind]||'เพิ่มความจุ'));
+  else show('ผู้ช่วยเมือง: ความต้องการทุกหมวดสมดุล');
+ }
+ // 8s DOM-only polling; persistent one-line status avoids invisible alerts.
+ function safeRefresh(){
+  try{refresh()}catch(error){failed=true;hide();console.warn('Demand notice unavailable:',error);}
+ }
+ const startTimer=window.setTimeout(safeRefresh,1200);
+ const refreshTimer=window.setInterval(safeRefresh,8000);
+ window.addEventListener('pagehide',function(){
+  window.clearTimeout(startTimer);window.clearInterval(refreshTimer);
+ },{once:true});
 })();
 </script>
 <script type="module" src="bootstrap.js?v=5ca1cccf5606"></script></body></html>
