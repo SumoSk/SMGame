@@ -226,7 +226,7 @@ function mountainHeight(x,z){
 // Eight original citizen vehicle classes + one dedicated VISUAL taxi variant.
 // Citizen trait weights are intentionally untouched; tourist taxi is not a
 // ninth random citizen class.
-const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van','touristTaxi','f1','truck6','truck8'];
+const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van','touristTaxi','f1','truck6','truck8','roadTrain'];
 const VEHICLE_WEIGHTS=[[26,36,20,10,4,1,1,2],[11,16,42,20,5,1,1,4],[7,12,11,24,33,6,5,2],[2,4,5,10,25,24,28,2]];
 const VEHICLE_STYLES=[
  [.49,.238,.125,-.028,.303,.118], // compact hatchback
@@ -240,7 +240,8 @@ const VEHICLE_STYLES=[
  [.690,.300,.162,-.019,.478,.218], // tourist taxi minivan
  [.745,.300,.076,-.020,.205,.075], // low orange-red F1 open-wheel racecar
  [.745,.300,.240,.22,.22,.175], // compact six-wheel delivery truck, F1 road footprint
- [.745,.300,.240,.22,.22,.175]  // compact eight-wheel delivery truck, same footprint
+ [.745,.300,.240,.22,.22,.175], // compact eight-wheel delivery truck, same footprint
+ [2.46,.306,.30,.89,.44,.175]  // long two-trailer intercity road train (visual only)
 ];
 const VEHICLE_PALETTES=[
  ['#ffa52e','#27b8e5','#ff6470','#9bdc4e','#f7f8f5','#9774f0'],
@@ -254,9 +255,11 @@ const VEHICLE_PALETTES=[
  ['#ffd127'], // Bangkok-style yellow taxi van: tourists only.
  ['#fc442a','#fd7129','#fb5727'], // three red-orange F1 finishes
  ['#19bac7','#f3f5ec'], // six-wheel freight
- ['#f5b13f','#f3f5ec'] // eight-wheel freight
+ ['#f5b13f','#f3f5ec'], // eight-wheel freight
+ ['#e9f1fc','#f4c75f','#6ccce0','#f6eee1'] // intercity two-trailer road train
 ];
 function carClassFor(c,id,tech=null,v=null){
+ if(v?.kind==='intercity')return 12;
  if(v?.kind==='delivery')return v.delivery?.axles===8?11:10;
  if(Object.hasOwn(VEHICLE_TECH_COLORS,tech))return 9;
  if(c?.tourist)return 8;
@@ -276,7 +279,7 @@ function carPaintFor(c,id,kind,fallback){
 // tint varies per citizen. No thousands of independent wheel/light meshes.
 function carGeometries(style){
  const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[style],paint=[],detail=[];
- const truck=style===10||style===11,compact=style===0,sedan=style===1,pickup=style===2,suv=style===3,
+ const truck=style===10||style===11,roadTrain=style===12,compact=style===0,sedan=style===1,pickup=style===2,suv=style===3,
   premium=style===4,sport=style===5||style===9,f1=style===9,luxury=style===6,
   van=style===7||style===8,taxi=style===8;
  const chromed=premium||luxury,front=length*.5,rear=-front;
@@ -291,7 +294,54 @@ function carGeometries(style){
  };
  // SMCITY 4.2.1: custom F1-only silhouette (no saloon cabin, doors or roof).
  // This changes visual geometry only, never vehicle physics or collision rules.
- if(truck){
+ if(roadTrain){
+  // One tractor + TWO distinct long cargo bodies, visible at any yaw.
+  // Pre-merged/instanced: no separate animated meshes for each trailer.
+  const bodyWidth=width*.95;
+  box(detail,'#263746',.01,.145,0,2.40,.04,width*.88);
+  // Tractor forward (+X)
+  box(paint,'#ffffff',.922,.260,0,.560,.275,width*.94);
+  box(paint,'#ffffff',.903,.409,0,.515,.018,width*.90);
+  box(detail,'#254353',1.209,.294,0,.015,.155,width*.71);
+  for(const sign of [-1,1]){
+   box(detail,'#37657c',.976,.297,sign*width*.485,.21,.143,.012);
+   box(detail,'#e7eef1',.993,.393,sign*width*.42,.28,.014,.010);
+   box(detail,'#172d3b',.66,.312,sign*width*.52,.04,.092,.042);
+   box(detail,'#fff2c2',1.215,.197,sign*.107,.022,.043,.050);
+  }
+  // First and second trailer bodies are separated by a real open coupling.
+  for(const [center,tint] of [[.174,'#2b83ac'],[-.746,'#486779']]){
+   box(paint,'#ffffff',center,.356,0,.805,.362,bodyWidth);
+   box(detail,'#edf6f7',center,.543,0,.784,.015,bodyWidth*.96);
+   for(const sign of [-1,1]){
+    const side=sign*width*.47;
+    box(detail,tint,center,.310,side+sign*.006,.675,.071,.013);
+    for(const xx of [center-.260,center,center+.260])
+     box(detail,'#a9bec7',xx,.355,side,.008,.34,.010);
+    box(detail,'#dce5e8',center,.523,side,.73,.009,.012);
+   }
+   box(detail,'#ced8df',center-.395,.340,0,.012,.295,bodyWidth*.88);
+  }
+  // Articulated couplings and turntables, visually separated by gaps.
+  for(const x of [-.285,.635]){
+   box(detail,'#1b2734',x,.151,0,.145,.057,.120);
+   box(detail,'#c5cdd0',x,.185,0,.080,.028,.086);
+  }
+  // Multiple physical wheel pairs; high contrast even at normal game zoom.
+  for(const axle of [-1.103,-.902,-.481,-.186,.650,.999]){
+   for(const sign of [-1,1]){
+    const zz=sign*.167;
+    const wheel=new THREE.CylinderGeometry(.078,.078,.055,12);
+    wheel.rotateX(Math.PI/2);wheel.translate(axle,.112,zz);
+    detail.push({color:'#161f27',geo:wheel});
+    const rim=new THREE.CylinderGeometry(.041,.041,.059,12);
+    rim.rotateX(Math.PI/2);rim.translate(axle,.112,zz+sign*.006);
+    detail.push({color:'#b8cbd4',geo:rim});
+   }
+  }
+  box(detail,'#fb4c53',-1.162,.285,0,.022,.069,width*.82);
+  box(detail,'#f4eac2',1.239,.159,0,.015,.033,width*.70);
+ }else if(truck){
   // Compact, honest 3D truck proportions: F1-length wheelbase envelope,
   // a separate driver's cab and closed cargo body. Static instanced geometry.
   box(detail,'#1e2d37',0,.115,0,.69,.035,width*.94);
@@ -6170,7 +6220,7 @@ export class TrafficRenderer{
    const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
    // Low uses the cheapest proxy at every distance, while preserving car picking.
-   const level=v?.kind==='delivery'&&distance<70?'near':upgraded?'near':this.graphicQuality==='veryHigh'?'near':
+   const level=v?.kind==='intercity'&&distance<135?'near':v?.kind==='delivery'&&distance<70?'near':upgraded?'near':this.graphicQuality==='veryHigh'?'near':
     this.graphicQuality==='low'?'far':
     apparentLength>=22&&distance<=Math.max(24,12/Math.max(.1,cam?.z??1))
      ?'near':apparentLength>=10?'medium':'far';
