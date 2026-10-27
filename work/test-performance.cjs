@@ -36,7 +36,7 @@ function boot(source=fs.readFileSync('dist/game.js','utf8')){
  // Compare admission decisions with the original implementation, including
  // duplicate requests and cars at equal distances in the same lane.
  const current=fs.readFileSync('dist/game.js','utf8');
- const queueCode=current.slice(current.indexOf('function queueAllows('),current.indexOf('function signalRequired(',current.indexOf('function queueAllows(')));
+ const queueCode=current.slice(current.indexOf('function queueIndex('),current.indexOf('function signalRequired(',current.indexOf('function queueAllows(')));
  const reference="function queueAllows(v,pos,connector,precheckedExit=null){\n const node=v.path[pos],queue=state.junctionQueues?.get(node);if(!queue)return true;\n const own=queue.find(q=>q.id===v.id&&q.pos===pos);if(!own)return true;\n const eligible=q=>{const car=state.vehicles.get(q.id);return car&&(!signalRequired(node)||signalAllows(node,q.connector.incoming,q.connector.laneIn))&&(q.id===v.id&&precheckedExit!==null?precheckedExit:junctionExitAvailable(car,q.pos))&&!queue.some(front=>front.id!==q.id&&front.connector.incoming===q.connector.incoming&&front.connector.laneIn===q.connector.laneIn&&front.distance<q.distance-.01);};\n if(!eligible(own))return false;const priority=junctionPriority(own,node);\n for(const other of queue){if(other.id===v.id||!eligible(other)||!connectorsConflict(connector,other.connector))continue;const p=junctionPriority(other,node);if(p<priority||p===priority&&(other.at<own.at||other.at===own.at&&(other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id)))return false;}\n return true;\n}\n";
  let seed=17;const rand=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);
  for(let trial=0;trial<500;trial++){
@@ -46,6 +46,10 @@ function boot(source=fs.readFileSync('dist/game.js','utf8')){
   const compile=code=>new Function(...Object.keys(deps),code+'return queueAllows;')(...Object.values(deps));
   const before=compile(reference),after=compile(queueCode);
   for(const q of queue){const v={id:q.id,path:[]};v.path[q.pos]=1;assert.equal(after(v,q.pos,q.connector,true),before(v,q.pos,q.connector,true));}
+  assert(queue._index,'lane-head index is constructed once');
+  const indexed=queue._index;
+  for(const q of queue){const v={id:q.id,path:[]};v.path[q.pos]=1;after(v,q.pos,q.connector,true);}
+  assert.strictEqual(queue._index,indexed,'followers reuse indexed heads');
  }
  function trafficTrace(source){
   const game=boot(source.replace('function computePhysicalTrafficLimit(v,plan,s,lookahead){','function computePhysicalTrafficLimit(v,plan,s,lookahead){state.physicalQueries=(state.physicalQueries||0)+1;'));
