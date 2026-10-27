@@ -46,7 +46,19 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 
    assert(items.filter(p=>p.color==='#f1ddaf'&&!p.glow).length>50,'daylight restaurant lettering absent');
    assert(items.filter(p=>p.glow).length>8,'warm dining lights missing');
-   if(size==='large')assert.equal(dining.filter(p=>p.y>3).length,4,'four genuine upper-floor dining tables');
+   if(size==='large'){
+    assert.equal(dining.filter(p=>p.y>2).length,0,
+     'new large restaurant moves all ten dining tables into four low-profile ground zones');
+    // These islands identify the four distinct structures and the shared path,
+    // not a single wide restaurant block or a floating second floor.
+    for(const color of ['#9eafb0','#b8cac5','#cbd2c9','#d0c8ad'])
+     assert.equal(items.filter(p=>p.color===color).length,1,
+      'missing a separate kitchen, main dining, private dining or courtyard foundation: '+color);
+    assert(items.filter(p=>p.color==='#8daea8').length===6,'shared pedestrian axis absent');
+    assert(items.filter(p=>p.color==='#567f99').length>=3,'open courtyard lattice missing');
+    assert(Math.max(...items.map(p=>p.y+p.sy*.5))<3.20,
+     'large restaurant has rebuilt an oversized second-floor block');
+   }
    const result={instances:items.length,tables:dining.length,lights:items.filter(p=>p.glow).length};
    if(signature)assert.deepEqual(result,signature,'rotation changes restaurant');else signature=result;
   }
