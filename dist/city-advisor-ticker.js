@@ -13,7 +13,7 @@
   const seen = new Map();
   let active = null, shownUntil = 0, lastHidden = 0, lastRead = 0;
   const number = value => {
-    const match = String(value || '').replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);
+    const match = String(value || '').replace(/,/g,'').replace(/[−–]/g,'-').match(/-?\d+(?:\.\d+)?/);
     return match ? Number(match[0]) : NaN;
   };
 
