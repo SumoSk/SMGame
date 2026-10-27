@@ -3384,7 +3384,7 @@ export class TrafficRenderer{
     cx,1.60,front+.25,Math.min(3.36,atriumW*.99),.29);
    for(const x of[1.28,W-1.28]){
     planter(x,rear+.31,.16,.21);
-    planter(x,front+.27,.16,.23);
+    planter(x,front+.21,.16,.23);
     solid('#c7d4ce',x,.77,front+.29,.04,1.18,.055,'metal');
     glow('#ffe0b0',x,1.42,front+.29,.13,.13,.14);
    }
