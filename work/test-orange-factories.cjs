@@ -84,9 +84,16 @@
   const state={speed:1,buildings:new Map([[1100,b]])},cam={x:28,y:45,z:1};
   renderer.updateFactoryEffects(state,cam,1);
   renderer.updateFactoryEffects(state,cam,1.09);
-  assert(renderer.factoryFx.steam.count>0&&renderer.factoryFx.parts.count>0&&renderer.factoryFx.sparks.count>0,'factory animated cues');
+  assert(renderer.factoryFx.steam.count>0&&renderer.factoryFx.parts.count>0,'factory animated cues');
+  // Welding sparks pulse intermittently; a single arbitrary frame can be dark.
+  let sawSparks=renderer.factoryFx.sparks.count>0;
+  for(let i=0;i<65&&!sawSparks;i++){
+   renderer.updateFactoryEffects(state,cam,1.17+i*.08);
+   sawSparks=renderer.factoryFx.sparks.count>0;
+  }
+  assert(sawSparks,'factory weld sparks eventually illuminate');
   const positions=renderer.factoryFx.parts.instanceMatrix.array.slice();
-  renderer.updateFactoryEffects(state,cam,1.18);
+  renderer.updateFactoryEffects(state,cam,6.50);
   assert(positions.some((x,i)=>x!==renderer.factoryFx.parts.instanceMatrix.array[i]),'factory effect should animate');
   state.speed=0;
   const freeze=renderer.factoryFxTime;
