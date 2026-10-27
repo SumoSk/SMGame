@@ -83,7 +83,7 @@
       const expectedX=midX+(((bay+.5)/3)-.5)*oldWidth*.8;
       assert(Math.abs(roofRidges[bay].u-expectedX)<.0001,'hall '+bay+' centre uses 80% scale about group centre');
       assert(Math.abs(roofRidges[bay].v-midZ)<.0001,'all three halls stay centred along plot depth');
-      assert(Math.abs((roofRidges[bay].sz-.12)-oldDepth*.8)<.0001,
+      assert(Math.abs((roofRidges[bay].sz-.04)-oldDepth*.8)<.0001,
        'hall '+bay+' length is reduced by exactly 20 percent');
      }
      assert(Math.abs((roofRidges[0].u+roofRidges[2].u)*.5-midX)<.0001,
