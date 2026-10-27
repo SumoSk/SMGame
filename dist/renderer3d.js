@@ -4380,9 +4380,33 @@ export class TrafficRenderer{
       [courtLeft,parkStart+parkDepth*.20,'shade',1.53],
       [courtRight,parkStart+parkDepth*.20,'cherry',1.55]
     ];
-    for(const [x,z,kind,scale] of trees) {
+    for(const [x,z,kind,scale] of trees){
+      // Local-space symmetric crowns keep all four plot rotations identical.
+      // Unlike natural world trees, architectural trees must rotate with lots.
+      const pine=kind==='pine'||kind==='cedar',palm=kind==='palm';
+      const crown=kind==='cherry'?'#eda5bf':kind==='jacaranda'?'#a38ad3':
+       kind==='flower'?'#df91ad':kind==='shade'?'#6fa56b':'#4c8e61';
+      const h=(pine?1.65:palm?1.39:1.17)*scale;
+      pole('#937855',x,.17+h*.5,z,.085*scale,h,'bark');
       const p=point(x,z);
-      this.tree(batch,p.x-.5,p.y-.5,scale,kind,'standard');
+      if(pine){
+        for(let k=0;k<3;k++)batch.add(CONE,k===1?'#3c7c52':'#568b5c',
+          p.x-.5,h*(.47+k*.25),p.y-.5,
+          (.60-k*.12)*scale,.73*scale,(.60-k*.12)*scale,
+          0,0,0,id,false,'foliage');
+      }else if(palm){
+        for(let k=0;k<8;k++)batch.add(PALM_FROND,k%2?'#62a66d':'#83ba7c',
+          p.x-.5,h+.15*scale,p.y-.5,.84*scale,scale,scale,
+          0,k*TAU/8,0,id,false,'foliage');
+      }else{
+        batch.add(BALL,crown,p.x-.5,h+.18*scale,p.y-.5,
+          .92*scale,.59*scale,.92*scale,0,0,0,id,false,'foliage');
+        for(const [dx,dz] of [[-.39,0],[.39,0],[0,-.39],[0,.39]]){
+          const q=point(x+dx*scale,z+dz*scale);
+          batch.add(BALL,crown,q.x-.5,h+.13*scale,q.y-.5,
+            .59*scale,.48*scale,.59*scale,0,0,0,id,false,'foliage');
+        }
+      }
     }
     // Alternating rose borders and spherical sculpted hedges along walking
     // paths give it the density of a curated ornamental botanic garden.
