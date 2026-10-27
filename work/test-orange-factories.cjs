@@ -59,32 +59,40 @@
     assert(local.filter(p=>Math.abs(p.rz)>.06&&p.sx>.4&&p.sz>.35).length>=spec.roofs*4,'gabled pitched roofing');
     assert(local.filter(p=>p.glow).length>=(spec.tier?4:1),'functional exterior lights');
     assert(count('#e6a952')===(spec.tier?spec.roofs:0),'non-moving forklifts in each loading bay');
-    // Exactly the LARGE factory has an extra TWO-STOREY round office
+    // Exactly the LARGE factory has a ONE-STOREY round office
     // above its middle manufacturing bay. Other factory sizes stay unchanged.
     const reactorBands=local.filter(p=>p.color==='#66dfed'&&p.glow);
     const roundFloorPanels=local.filter(p=>p.color==='#629bad'||p.color==='#76bbcb');
     const high=Math.max(...local.map(p=>p.y+p.sy*.5));
     if(spec.key==='factory_large'){
-     assert.equal(reactorBands.length,24,'two glowing control-floor rings (12 segments each)');
-     assert.equal(roundFloorPanels.length,24,'two floors of panoramic round office glass');
-     assert(high>5.8&&high<6.6,'two-level circular office adds height above three production bays');
+     assert.equal(reactorBands.length,12,'one glowing control-floor ring of 12 segments');
+     assert.equal(roundFloorPanels.length,12,'one storey of panoramic circular-office glass');
+     assert(high>5.2&&high<5.7,'circular office reduced one full storey while keeping rooftop reactor');
      const tower=local.filter(p=>p.color==='#66dfed'&&p.glow);
      assert(tower.every(p=>p.v>=t.parkingZoneDepth+.3&&p.v<t.plotHeight-.6),'tower stays entirely inside factory half of plot');
      assert(local.filter(p=>p.color==='#f4ffff'&&p.glow).length===1,'central arc reactor white-hot core glows');
      assert.equal(local.filter(p=>p.color==='#d4fbff'||p.color==='#69e4f2').length,12,'all 12 visible outer arc reactor segments are present');
      assert.equal(local.filter(p=>p.color==='#e2fcff'||p.color==='#4acdea').length,12,'12 inner high-quality reactor ring segments');
      // The complete emblem must be on the ROOF, not on the old front wall.
-     const eave=3.40,rise=.53,rooftop=eave+rise+.11+2*.91;
+     const eave=3.40,rise=.53,rooftop=eave+rise+.11+.91;
      const cx=(.94+(t.plotWidth-2.27))*.5;
      const cz=((t.parkingZoneDepth+.30+.095)+(t.plotHeight-.57-.13))*.5;
      const outer=local.filter(p=>p.color==='#d4fbff'||p.color==='#69e4f2');
      const inner=local.filter(p=>p.color==='#e2fcff'||p.color==='#4acdea');
      assert([...outer,...inner].every(p=>p.y>rooftop+.32),
       'all arc reactor logo ring lights must be at the top of circular control tower');
-     assert(outer.every(p=>Math.abs(Math.hypot(p.u-cx,p.v-cz)-.350)<.005),
+     assert(outer.every(p=>Math.abs(Math.hypot(p.u-cx,p.v-cz)-.820)<.005),
       'outer reactor circle must be centred on the rooftop');
-     assert(inner.every(p=>Math.abs(Math.hypot(p.u-cx,p.v-cz)-.221)<.005),
+     assert(inner.every(p=>Math.abs(Math.hypot(p.u-cx,p.v-cz)-.515)<.005),
       'inner reactor circle must be centred on the rooftop');
+     // Larger-than-before: the 0.82-radius logo covers 87% of the
+     // 0.94-radius roof, not the old small 0.35-radius badge.
+     const roofRadius=Math.min((t.plotWidth-2.27-.94)/3*.32,.82)+.12;
+     assert(.820/roofRadius>.85,'reactor logo fills at least 85 percent of round roof radius');
+     const daylightLogo=local.filter(p=>p.finish==='night-reactor-base');
+     assert.equal(daylightLogo.length,25,'24 daylight-visible solid arc segments and permanent reactor core');
+     assert(daylightLogo.every(p=>p.y>=rooftop+.29&&p.y<rooftop+.38),
+      'roof emblem remains visible in daylight and stays flat above rooftop');
      const white=local.filter(p=>p.color==='#f4ffff'&&p.glow);
      assert(white[0].y>rooftop+.40&&Math.hypot(white[0].u-cx,white[0].v-cz)<.005,
       'reactor logo white core must be at the very top rather than the facade');

@@ -1482,8 +1482,8 @@ export class TrafficRenderer{
     if(!starter)nightLED('#92d9e7',x,.68,machineZ,.19,.027,.17);
    }
    // LARGE FACTORY ONLY: the central one of three production bays grows
-   // TWO additional levels. Round, glazed control rooms and a glowing arc-
-   // reactor-inspired ring replace the previous boxy central skyline.
+   // ONE additional level above the center production hall. The large glowing
+   // rooftop arc reactor covers nearly the entire round roof, not a small badge.
    // This is purely visual; it is not another functional building or vehicle.
    if(level===3){
     const coreX=left+spanW*1.5,coreZ=hallZ,rad=Math.min(spanW*.32,.82);
@@ -1494,15 +1494,15 @@ export class TrafficRenderer{
       0,turn,0,id,glow,glow?'glass':'metal');
     };
     // Slender structural stilts actually touch the middle production hall;
-    // the 2-level round office does not float over the gabled roof.
+    // the one-level round office does not float over the gabled roof.
     for(let k=0;k<8;k++){
      const a=k*Math.PI/4,x=coreX+Math.cos(a)*rad*.84,z=coreZ+Math.sin(a)*rad*.84;
      block('#77939d',x,bottom-.32,z,.068,.75,.068,'metal');
     }
     disc('#465d68',bottom,rad+.115,.16);
-    // Separate glass levels, each with its own floor, panoramic windows
-    // and angular mullions forming a cylinder without a giant solid box.
-    for(let floor=0;floor<2;floor++){
+    // One transparent upper storey with 12-sided panoramic glass, retaining
+    // its own floor, support mullions and a luminous perimeter band.
+    for(let floor=0;floor<1;floor++){
      const floorY=bottom+floor*storey;
      disc('#d8e1dc',floorY+.08,rad+.06,.095);
      for(let k=0;k<12;k++){
@@ -1514,7 +1514,7 @@ export class TrafficRenderer{
       block('#c9d8d6',x,floorY+.48,z,.043,.81,.048,'metal');
       block('#b9d0d4',x,floorY+.81,z,.14,.024,.054,'metal');
      }
-     // A glowing cyan band makes the TWO floors readable at gameplay zoom.
+     // A single continuous cyan band outlines the one upper storey.
      for(let k=0;k<12;k++){
       const a=k*Math.PI/6,x=coreX+Math.cos(a)*rad*.94;
       const z=coreZ+Math.sin(a)*rad*.94,p=point(x,z);
@@ -1522,7 +1522,7 @@ export class TrafficRenderer{
        rad*.49,.053,.066,0,turn+a+Math.PI/2,0,id,true,'factory-night-essential');
      }
     }
-    const rooftop=bottom+2*storey;
+    const rooftop=bottom+storey;
     disc('#4b6570',rooftop+.06,rad+.12,.15);
     disc('#c3d4d3',rooftop+.16,rad*.86,.055);
     disc('#436f81',rooftop+.205,rad*.51,.08);
@@ -1531,21 +1531,27 @@ export class TrafficRenderer{
     // Move the WHOLE emblem (outer/inner rings, spokes, core) from the front
     // facade to the rooftop; preserve its night lighting and Low LOD.
     const logoY=rooftop+.350;
-    disc('#203c50',logoY-.074,rad*.60,.10); // elevated dark emblem mounting
+    disc('#203c50',logoY-.074,rad+ .075,.10); // nearly full-width reactor mounting
     const arcSegment=(radius,k,color,grade,length,width=.066)=>{
      const a=k*Math.PI/6,u=coreX+Math.cos(a)*radius,v=coreZ+Math.sin(a)*radius;
      const p=point(u,v);
+     // Daylight-visible solid logo frame directly underneath each LED arc:
+     // the big round emblem stays recognizable even when night lamps are off.
+     // This is normal batched metal, not a point light or separate scene mesh.
+     batch.add(BOX,grade==='essential'?'#38859a':'#527d89',
+      p.x-.5,logoY-.001,p.y-.5,length+.013,.040,.082,
+      0,turn-a-Math.PI/2,0,id,false,'night-reactor-base');
      // A tangent rectangle in the horizontal X/Z plane traces the rooftop
-     // circular logo at every building rotation; no billboard or PointLight.
+     // illuminated logo at every building rotation.
      batch.add(BOX,color,p.x-.5,logoY+(grade==='essential'?.040:.074),p.y-.5,
       length,width,.070,0,turn-a-Math.PI/2,0,id,true,'factory-night-'+grade);
     };
     // The Low graphics preset keeps a bright complete outer circle on top.
     for(let k=0;k<12;k++)
-     arcSegment(.350,k,k%3===0?'#d4fbff':'#69e4f2','essential',.176,.072);
-    // The two-storey control room retains thin all-angle façade markers:
+     arcSegment(.820,k,k%3===0?'#d4fbff':'#69e4f2','essential',.427,.082);
+    // The one-storey control room retains thin all-angle façade markers:
     // these are separate from the rooftop emblem and still visible in Low.
-    for(let floor=0;floor<2;floor++){
+    for(let floor=0;floor<1;floor++){
      const yy=bottom+floor*storey+.55;
      for(let k=0;k<8;k++){
       const a=k*Math.PI/4;
@@ -1555,16 +1561,17 @@ export class TrafficRenderer{
     }
     // Medium/High: smaller pulsing inner ring and eight reactor energy spokes.
     for(let k=0;k<12;k++)
-     arcSegment(.221,k,k%3===0?'#e2fcff':'#4acdea','reactor',.108,.054);
+     arcSegment(.515,k,k%3===0?'#e2fcff':'#4acdea','reactor',.270,.064);
     for(let k=0;k<8;k++){
-     const a=k*Math.PI/4,u=coreX+Math.cos(a)*.134,v=coreZ+Math.sin(a)*.134;
+     const a=k*Math.PI/4,u=coreX+Math.cos(a)*.320,v=coreZ+Math.sin(a)*.320;
      const p=point(u,v);
      batch.add(BOX,'#a3efff',p.x-.5,logoY+.091,p.y-.5,
-      .090,.037,.045,0,turn-a,0,id,true,'factory-night-reactor');
+      .205,.037,.055,0,turn-a,0,id,true,'factory-night-reactor');
     }
     // White-hot reactor center on top is deliberately visible even in Low.
-    nightLED('#68daee',coreX,logoY+.064,coreZ,.230,.052,.230,'reactor');
-    nightLED('#f4ffff',coreX,logoY+.112,coreZ,.155,.063,.155,'essential');
+    block('#b6d5d8',coreX,logoY+.003,coreZ,.28,.072,.28,'night-reactor-base');
+    nightLED('#68daee',coreX,logoY+.064,coreZ,.350,.052,.350,'reactor');
+    nightLED('#f4ffff',coreX,logoY+.112,coreZ,.235,.063,.235,'essential');
     // Static illuminated crown ribs; omitted for Low quality.
     for(let k=0;k<8;k++){
      const a=k*Math.PI/4;
@@ -1572,7 +1579,7 @@ export class TrafficRenderer{
       coreZ+Math.sin(a)*rad*.85,.062,.027,.068);
     }
     // Two slim horizontal walkways signal a human-occupied control tower.
-    for(const h of[bottom+.13,bottom+storey+.13])
+    for(const h of[bottom+.13])
      block('#9ebcc6',coreX,h,coreZ+rad*.75,rad*.80,.045,.11,'metal');
    }
    // Administrative office is a distinct LOW-volume front wing: clear glass
