@@ -2019,8 +2019,8 @@ export class TrafficRenderer{
      block(wood,x,.33,z+.31,w*.67,.055,.22,'wood');
     }
     const p=point(1.50,.59);
-    batch.add(CYL_SMOOTH,'#76afbe',p.x-.5,.87,p.y-.5,.70,1.05,.70,0,turn,0,id,false,'glass');
-    batch.add(CYL_SMOOTH,'#d9e3df',p.x-.5,1.47,p.y-.5,.98,.11,.98,0,turn,0,id,false,'metal');
+    batch.add(CYL_SMOOTH,'#76afbe',p.x-.5,.87,p.y-.5,.35,1.05,.35,0,turn,0,id,false,'glass');
+    batch.add(CYL_SMOOTH,'#d9e3df',p.x-.5,1.47,p.y-.5,.55,.11,.55,0,turn,0,id,false,'metal');
     for(let n=0;n<8;n++){
      const a=n*Math.PI/4;
      const xx=1.5+.34*Math.cos(a),zz=.59+.34*Math.sin(a);
@@ -3219,9 +3219,9 @@ export class TrafficRenderer{
     batch.add(CYL_SMOOTH,color,p.x-.5,y,p.y-.5,r,h,r,0,turn,0,id,lit,finish);
    };
    const planter=(x,z,y=.20,scale=.27)=>{
-    circle('#d8d7ce',x,y+.08,z,scale*2.1,.16);
-    circle('#8baf81',x,y+.23,z,scale*1.85,.18,'foliage');
-    circle('#76a474',x,y+.34,z,scale*1.6,.16,'foliage');
+    circle('#d8d7ce',x,y+.08,z,scale*1.05,.16);
+    circle('#8baf81',x,y+.23,z,scale*.94,.18,'foliage');
+    circle('#76a474',x,y+.34,z,scale*.84,.16,'foliage');
    };
    const trim=(x,y,z,w,d,col=silver)=>solid(col,x,y,z,w,.065,d,'metal');
    const trimLamp=(x,y,z,w,d,col='#ffe7bf')=>glow(col,x,y,z,w,.020,d);
@@ -3339,7 +3339,7 @@ export class TrafficRenderer{
    // Central lightweight curved cylindrical glazed atrium. A recognizable
    // Apple-visitor-center motif, translated into a tiny game-friendly model.
    const radius=Math.min(atriumW*.45,depth*.35),centerY=base+(floors===2?1.91:1.78)*.5;
-   circle('#87bac5',cx,centerY,mid,radius*2,centerY*2-.24,'glass');
+   circle('#87bac5',cx,centerY,mid,radius*.98,centerY*2-.24,'glass');
    const segments=12;
    for(let k=0;k<segments;k++){
     const a=k*Math.PI*2/segments;
@@ -3348,7 +3348,7 @@ export class TrafficRenderer{
     trimLamp(x,.38,z,.065,.036,k%2?'#ffe8b8':'#cde9ec');
    }
    if(floors===2){
-    circle('#dee3dc',cx,2.24,mid,radius*1.89,.135,'stone');
+    circle('#dee3dc',cx,2.24,mid,radius*.93,.135,'stone');
     for(let k=0;k<segments;k++){
      const a=k*Math.PI*2/segments;
      solid(silver,cx+radius*.97*Math.sin(a),3.20,mid+radius*.97*Math.cos(a),
@@ -3356,13 +3356,13 @@ export class TrafficRenderer{
      if(k%2===0)glow('#f6e0b4',cx+radius*.95*Math.sin(a),3.61,
       mid+radius*.95*Math.cos(a),.055,.24,.056);
     }
-    circle('#7fb7c6',cx,3.20,mid,radius*1.91,1.82,'glass');
+    circle('#7fb7c6',cx,3.20,mid,radius*.97,1.82,'glass');
    }
    // Roof above actual glass atrium is one thin flattened circular canopy.
    const atriumTop=floors===2?4.14:2.22;
-   circle('#dce5e0',cx,atriumTop,mid,radius*2.37,.125,'metal');
-   circle('#bcced1',cx,atriumTop+.093,mid,radius*2.39,.058,'metal');
-   circle('#9cb5b9',cx,atriumTop+.133,mid,radius*1.84,.050,'glass');
+   circle('#dce5e0',cx,atriumTop,mid,radius*1.16,.125,'metal');
+   circle('#bcced1',cx,atriumTop+.093,mid,radius*1.18,.058,'metal');
+   circle('#9cb5b9',cx,atriumTop+.133,mid,radius*.94,.050,'glass');
    // Slim glass barrel ribs are real pitched geometry. Window transparency
    // remains on four sides and the skylight never adds an occupied storey.
    const archTop=atriumTop+.25;
