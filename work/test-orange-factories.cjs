@@ -70,7 +70,9 @@
      assert(high>5.8&&high<6.6,'two-level circular office adds height above three production bays');
      const tower=local.filter(p=>p.color==='#66dfed'&&p.glow);
      assert(tower.every(p=>p.v>=t.parkingZoneDepth+.3&&p.v<t.plotHeight-.6),'tower stays entirely inside factory half of plot');
-     assert(local.filter(p=>p.color==='#c7faff'&&p.glow).length===1,'central arc reactor glows');
+     assert(local.filter(p=>p.color==='#f4ffff'&&p.glow).length===1,'central arc reactor white-hot core glows');
+     assert.equal(local.filter(p=>p.color==='#d4fbff'||p.color==='#69e4f2').length,12,'all 12 visible outer arc reactor segments are present');
+     assert.equal(local.filter(p=>p.color==='#e2fcff'||p.color==='#4acdea').length,12,'12 inner high-quality reactor ring segments');
     }else{
      assert.equal(reactorBands.length,0,'only largest factory may have tall round office');
      assert.equal(roundFloorPanels.length,0,'no added office floor on smaller models');
