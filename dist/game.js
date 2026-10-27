@@ -4098,7 +4098,7 @@ function advanceSkyVehicle(v){
 
 // Scheduled, bounded night freight. One order means one truck visiting one
 // building and then leaving through a city gate. No cargo inventory per frame.
-const DELIVERY_START=22*60,DELIVERY_END=29*60,DELIVERY_MAX_ACTIVE=18;
+const DELIVERY_START=22*60,DELIVERY_END=29*60,DELIVERY_SCHEDULE_VERSION=2;
 const DELIVERY_KINDS=new Set(['shop','restaurant','hotel','mall']);
 function deliveryNightAt(time){
  const day=Math.floor(time/1440),minute=time-day*1440;
@@ -4121,13 +4121,17 @@ function buildDeliveryRun(night){
  jobs.sort((a,b)=>habitRandom(a.buildingId+17*a.units+a.axles,night,211)-
                     habitRandom(b.buildingId+17*b.units+b.axles,night,211)||
                     a.buildingId-b.buildingId||a.axles-b.axles);
- // Fourteen half-hour windows, each with a small deterministic release jitter.
+ // Split the exact job count over 7 hours. Differences between hourly
+ // totals are at most one job, with departures evenly spaced within the hour.
+ // No simultaneous truck cap: every connected building gets every planned run.
+ const hours=(DELIVERY_END-DELIVERY_START)/60,nightStart=night*1440+DELIVERY_START;
  for(let i=0;i<jobs.length;i++){
-  const slot=Math.min(13,Math.floor(i*14/jobs.length));
-  jobs[i].at=night*1440+DELIVERY_START+slot*30+
-   3+Math.floor(habitRandom(jobs[i].buildingId,night,i+219)*21);
+  const hour=Math.floor(i*hours/jobs.length);
+  const first=Math.ceil(hour*jobs.length/hours);
+  const count=Math.ceil((hour+1)*jobs.length/hours)-first;
+  jobs[i].at=nightStart+hour*60+(i-first+.5)*60/count;
  }
- return{night,plan:jobs,next:0,delivered:{}};
+ return{night,plan:jobs,next:0,delivered:{},scheduleVersion:DELIVERY_SCHEDULE_VERSION};
 }
 function updateNightDeliveries(){
  const night=deliveryNightAt(state.time);
@@ -4135,14 +4139,20 @@ function updateNightDeliveries(){
  if(state.deliveryRun?.night!==night)state.deliveryRun=buildDeliveryRun(night);
  const run=state.deliveryRun,now=state.time;
  if(now>=night*1440+DELIVERY_END)return;
- let active=0;
- for(const v of state.vehicles.values())if(v.kind==='delivery')active++;
- // A missed or disconnected address consumes its scheduled attempt, rather
- // than forcing route searches repeatedly on every animation frame.
- let attempts=0;
- while(run.next<run.plan.length&&attempts<2&&active<DELIVERY_MAX_ACTIVE){
+ // Older saves retain already dispatched jobs. Rebalance the remaining
+ // dispatches across the rest of this night without repeating past orders.
+ if(run.scheduleVersion!==DELIVERY_SCHEDULE_VERSION){
+  const remaining=run.plan.length-run.next;
+  const end=night*1440+DELIVERY_END,span=Math.max(0,end-now);
+  for(let i=run.next;i<run.plan.length;i++)
+   run.plan[i].at=Math.min(end-.0001,now+(i-run.next+.5)*span/remaining);
+  run.scheduleVersion=DELIVERY_SCHEDULE_VERSION;
+ }
+ // Release every order due at this game time. Traffic density is determined by
+ // building demand, not an arbitrary active-vehicle or per-frame quota.
+ while(run.next<run.plan.length){
   const order=run.plan[run.next];if(order.at>now)break;
-  run.next++;attempts++;
+  run.next++;
   const b=state.buildings.get(order.buildingId);
   if(!b||!DELIVERY_KINDS.has(CATALOG[b.key]?.kind))continue;
   const entry=b.access?.find(a=>a.entry)?.node;
@@ -4155,7 +4165,6 @@ function updateNightDeliveries(){
    if(!truck)break;
    truck.delivery={night,axles:order.axles,units:order.units,stage:'inbound'};
    truck.color=order.axles===8?'#f5b13f':'#19bac7';
-   active++;
    break;
   }
  }
