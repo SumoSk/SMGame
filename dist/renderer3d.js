@@ -2082,6 +2082,16 @@ export class TrafficRenderer{
     block('#c4d6c2',2.63,.51,.625,.23,.24,.02,'glass');
     badge('PARK',1.50,1.02,.14,.81,'#527853','#e5e6b9');
     for(const x of [1.03,1.97])pole('#796c51',x,.53,.14,.023,.90,'wood');
+    // Tiny starter park: two deliberately prominent canopy trees behind
+    // the pathway, plus bright flowerbeds and a low sculpted hedge.
+    for(const [x,k] of [[.82,'cherry'],[2.18,'pine']]){
+      const p=point(x,.55);
+      this.tree(batch,p.x-.5,p.y-.5,1.06,k,'standard');
+    }
+    for(const xx of[.49,1.12,1.85,2.52]){
+      block('#7ca66e',xx,.21,1.04,.23,.16,.19,'foliage');
+      block(xx<1.5?'#e7a9c2':'#e6c08e',xx,.33,1.04,.12,.10,.12,'stone');
+    }
     for(const x of [.30,.94,1.99,2.75])planter(x,.76,.075);return;
    }
    if(t.kind==='pub'){
@@ -4303,6 +4313,68 @@ export class TrafficRenderer{
     }
    }
    if(family==='park'){
+    // GRAND BOTANICAL PARK: showy flower trees, tall pines, palms and rounded
+    // topiary dominate every tier. Trees share cheap instanced geometry,
+    // not dynamically shaded leaves or animated spotlights.
+    const pw=W-2.0,parkStart=baseV+.34,parkDepth=Math.min(availableDepth-.77,availableDepth>=6?5.10:2.75);
+    const low=this.graphicQuality==='low';
+    const flowers=['cherry','jacaranda','flower'],evergreens=['pine','cedar','palm'],rounds=['shade','banyan','oak'];
+    const courtLeft=u-pw*.30,courtRight=u+pw*.30;
+    const trees=level===1?[
+      [courtLeft,parkStart+parkDepth*.78,'cherry',1.32],
+      [courtRight,parkStart+parkDepth*.78,'pine',1.36],
+      [courtLeft,parkStart+parkDepth*.18,'palm',1.28],
+      [courtRight,parkStart+parkDepth*.18,'shade',1.30]
+    ]:level===2?[
+      [courtLeft,parkStart+parkDepth*.82,'cherry',1.50],
+      [courtRight,parkStart+parkDepth*.82,'pine',1.53],
+      [courtLeft,parkStart+parkDepth*.49,'palm',1.43],
+      [courtRight,parkStart+parkDepth*.49,'jacaranda',1.48],
+      [courtLeft,parkStart+parkDepth*.15,'shade',1.41],
+      [courtRight,parkStart+parkDepth*.15,'flower',1.39]
+    ]:[
+      [courtLeft,parkStart+parkDepth*.86,'cherry',1.58],
+      [courtRight,parkStart+parkDepth*.86,'cedar',1.60],
+      [courtLeft,parkStart+parkDepth*.65,'palm',1.52],
+      [courtRight,parkStart+parkDepth*.65,'jacaranda',1.55],
+      [courtLeft,parkStart+parkDepth*.42,'flower',1.53],
+      [courtRight,parkStart+parkDepth*.42,'pine',1.57],
+      [courtLeft,parkStart+parkDepth*.20,'shade',1.53],
+      [courtRight,parkStart+parkDepth*.20,'cherry',1.55]
+    ];
+    for(const [x,z,kind,scale] of trees) {
+      const p=point(x,z);
+      this.tree(batch,p.x-.5,p.y-.5,scale,kind,'standard');
+    }
+    // Alternating rose borders and spherical sculpted hedges along walking
+    // paths give it the density of a curated ornamental botanic garden.
+    const borderN=level===1?5:level===2?8:12;
+    for(let k=0;k<borderN;k++){
+      const z=parkStart+.22+(k+.5)*(parkDepth-.40)/borderN;
+      const x=u+(k%2?-.50:.50);
+      block(k%3===0?'#e8b4c8':k%3===1?'#e7c17c':'#b2a2d8',
+       x,.37,z,.18,.13,.25,'stone');
+      block('#698d5e',x,.25,z,.23,.16,.28,'foliage');
+    }
+    // Ornate gateway, clipped circular topiary, sculptural pergola posts,
+    // and gold-tinted low-poly glow (no realtime point lights).
+    for(const side of[-1,1]){
+      const x=u+side*pw*.42,frontZ=parkStart+parkDepth-.22;
+      block('#e3dbca',x,.88,frontZ,.16,1.47,.16,'stone');
+      block('#dabd84',x,1.67,frontZ,.22,.12,.22,'metal');
+      block('#ffe6a8',x,1.76,frontZ,.11,.11,.11,'glass',true);
+      const p=point(x,parkStart+.29);
+      batch.add(CYL,'#6d945d',p.x-.5,.69,p.y-.5,.37,.64,.37,0,0,0,id,false,'foliage');
+      batch.add(BALL,'#91b878',p.x-.5,1.09,p.y-.5,.57,.49,.57,0,0,0,id,false,'foliage');
+    }
+    block('#e1d8c0',u,1.71,parkStart+parkDepth-.22,pw*.74,.14,.18,'stone');
+    for(const x of[u-pw*.21,u+pw*.21])for(const z of[parkStart+.15,parkStart+parkDepth*.94]){
+      block('#879e9d',x,.28,z,.10,.24,.10,'stone');
+      block('#e0c48d',x,.46,z,.15,.07,.15,'metal');
+      block('#ffe4b2',x,.52,z,.10,.06,.10,'glass',true);
+    }
+    // Pavilion gardens still use the legacy fountain, paths and terraces.
+    // All extra decorations are deterministic, static and instanced.
     // Four-way promenade, illuminated fountain and ascending pavilion; the
     // largest tier has a stepped pond and more shaded gazebos.
     const pw=W-2.0,parkStart=baseV+.34,parkDepth=Math.min(availableDepth-.77,availableDepth>=6?5.10:2.75);
