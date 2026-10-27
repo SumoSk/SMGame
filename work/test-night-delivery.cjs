@@ -1,4 +1,4 @@
-// Smoke/regression checks for bounded overnight freight, separate from citizens.
+// Smoke/regression checks for hourly, demand-based overnight freight.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const noop=()=>{};let game;
 const elements=new Map();
@@ -21,6 +21,10 @@ assert(plan.plan.length>=4,'Each destination receives at least one order');
 assert(plan.plan.some(job=>job.axles===8),'Large mall dispatch uses eight wheels');
 assert(plan.plan.some(job=>job.axles===6),'Small shops use six wheels');
 assert(plan.plan.every(job=>job.at>=1320&&job.at<1740),'All releases are between 22:00 and 05:00');
+const byHour=Array(7).fill(0);
+for(const job of plan.plan)byHour[Math.floor((job.at-1320)/60)]++;
+assert(Math.max(...byHour)-Math.min(...byHour)<=1,'Exact dispatch count is balanced across seven hours');
+assert(plan.plan.every((job,i)=>!i||job.at>=plan.plan[i-1].at),'Departure times are ordered');
 assert(plan.plan.every(job=>[shop.id,food.id,hotel.id,mall.id].includes(job.buildingId)));
 mallCatalog.service=originalCapacity;
 game.state.time=23*60+15;
@@ -28,7 +32,7 @@ game.updateNightDeliveries();
 assert(game.state.deliveryRun&&game.state.deliveryRun.night===0);
 const trucks=[...game.state.vehicles.values()].filter(v=>v.kind==='delivery');
 assert(trucks.length>0,'Scheduled night freight should enter via the city gates');
-assert(trucks.length<=18,'Active freight cap prevents bursts');
+assert(plan.plan.length>0,'Dispatches are based on real building demand');
 assert(trucks.every(v=>v.delivery&&[6,8].includes(v.delivery.axles)&&v.citizenId==null));
 const target=trucks[0],dest=target.toId,amount=target.delivery.units;
 game.arrive(target,true);
@@ -47,4 +51,23 @@ game.state.time=1440+5*60;
 const before=game.state.deliveryRun.next;
 game.updateNightDeliveries();
 assert.equal(game.state.deliveryRun.next,before,'No new trucks after 05:00');
+// A busy mall must dispatch every planned trip, even with >18 trucks active.
+mallCatalog.service=950;
+const heavy=game.buildDeliveryRun(1);
+assert(heavy.plan.length>18,'High demand should require more than 18 deliveries');
+game.state.deliveryRun=heavy;
+game.state.time=2*1440+5*60-.001;
+game.updateNightDeliveries();
+assert.equal(game.state.deliveryRun.next,heavy.plan.length,'All due jobs dispatched before 05:00');
+const dispatched=[...game.state.vehicles.values()].filter(v=>v.kind==='delivery'&&v.delivery?.night===1);
+assert(dispatched.length>18,'The old 18-truck cap is gone');
+mallCatalog.service=originalCapacity;
+// Migrating a previous save cannot repeat its already-dispatched orders.
+const oldRun=game.buildDeliveryRun(2);
+oldRun.scheduleVersion=undefined;oldRun.next=2;
+game.state.deliveryRun=oldRun;
+game.state.time=2*1440+22*60+1;
+game.updateNightDeliveries();
+assert.equal(oldRun.scheduleVersion,2);
+assert.equal(oldRun.next,2,'Existing saved dispatches stay consumed');
 console.log('Night delivery regression checks passed');
