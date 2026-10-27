@@ -237,12 +237,13 @@ const VEHICLE_STYLES=[
  [.615,.285,.104,-.077,.272,.089], // low sport coupe
  [.735,.308,.164,-.080,.408,.186], // long luxury limousine
  [.690,.300,.162,-.019,.478,.218], // ordinary minivan
- [.690,.300,.162,-.019,.478,.218], // tourist taxi minivan
+ [.615,.274,.133,-.042,.337,.135], // four-door yellow tourist TAXI sedan
  [.745,.300,.076,-.020,.205,.075], // low orange-red F1 open-wheel racecar
  [.745,.300,.240,.22,.22,.175], // compact six-wheel delivery truck, F1 road footprint
  [.745,.300,.240,.22,.22,.175], // compact eight-wheel delivery truck, same footprint
  [.745,.300,.30,.89,.44,.175], // same length and width as the F1, two compact cargo trailers
- [.745,.300,.30,.20,.20,.12]  // LOW-detail road train, created only for low preset
+ [.745,.300,.30,.20,.20,.12], // LOW-detail road train, created only for low preset
+ [.615,.274,.133,-.042,.337,.135] // low-poly yellow taxi sedan with roof sign
 ];
 const VEHICLE_PALETTES=[
  ['#ffa52e','#27b8e5','#ff6470','#9bdc4e','#f7f8f5','#9774f0'],
@@ -280,9 +281,10 @@ function carPaintFor(c,id,kind,fallback){
 // tint varies per citizen. No thousands of independent wheel/light meshes.
 function carGeometries(style){
  const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[style],paint=[],detail=[];
- const truck=style===10||style===11,roadTrain=style===12,roadTrainLow=style===13,compact=style===0,sedan=style===1,pickup=style===2,suv=style===3,
+ const truck=style===10||style===11,roadTrain=style===12,roadTrainLow=style===13,taxiLow=style===14,
+  compact=style===0,sedan=style===1||style===8,pickup=style===2,suv=style===3,
   premium=style===4,sport=style===5||style===9,f1=style===9,luxury=style===6,
-  van=style===7||style===8,taxi=style===8;
+  van=style===7,taxi=style===8;
  const chromed=premium||luxury,front=length*.5,rear=-front;
  const top=.165+height*.5,roofY=top+cabinH*.49,roofTop=roofY+cabinH*.5;
  const glass=taxi?'#264653':'#263e54',windshield='#739aa9';
@@ -298,7 +300,35 @@ function carGeometries(style){
  };
  // SMCITY 4.2.1: custom F1-only silhouette (no saloon cabin, doors or roof).
  // This changes visual geometry only, never vehicle physics or collision rules.
- if(roadTrainLow){
+ if(taxiLow){
+  // Dedicated lightweight four-door taxi: three solid silhouettes (bonnet,
+  // sedan cabin, separate rear boot) + iconic roof TAXI sign and window slabs.
+  // Geometry is baked once and GPU-instanced for all tourist vehicles on Low.
+  box(paint,'#ffffff',0,.169,0,.600,.106,.263);
+  box(paint,'#ffffff',-.026,.274,0,.330,.125,.224);
+  box(paint,'#ffffff',-.237,.224,0,.132,.052,.239); // rear boot
+  box(paint,'#ffffff',.234,.219,0,.126,.044,.237); // long front hood
+  box(detail,'#274353',-.026,.292,0,.322,.073,.227); // window cabin
+  box(detail,'#223c4c',.143,.292,0,.015,.073,.210); // windshield
+  box(detail,'#425b67',-.197,.289,0,.012,.070,.206); // rear window
+  box(paint,'#ffffff',-.026,.361,0,.282,.014,.220); // yellow roofline
+  box(detail,'#f8faf5',-.026,.402,0,.117,.051,.090); // TAXI rooftop placard
+  box(detail,'#182a36',-.026,.412,.048,.091,.023,.006); // sign lettering at game scale
+  box(detail,'#182a36',-.026,.412,-.048,.091,.023,.006);
+  box(detail,'#162735',.298,.178,0,.014,.054,.156); // grille
+  box(detail,'#d54546',-.307,.202,0,.011,.031,.219); // taillights
+  for(const sign of [-1,1]){
+   const side=sign*.133;
+   box(detail,'#192b35',-.026,.203,side,.018,.067,.007); // two-door gap
+   box(detail,'#354b55',-.026,.295,sign*.116,.009,.067,.009); // B-pillar
+   // Visible black checkerboard stripe across both passenger doors.
+   for(let i=0;i<6;i++)
+    box(detail,'#243342',-.185+i*.056,.218+(i%2)*.020,side+sign*.005,.027,.014,.009);
+   for(const xx of [-.186,.184])
+    box(detail,'#17232c',xx,.112,sign*.144,.093,.098,.053); // chunky low-poly wheels
+   box(detail,'#fff2cb',.309,.212,sign*.085,.010,.033,.050);
+  }
+ }else if(roadTrainLow){
   // LOW preset: only three cargo/cab solids and minimal landmark trim.
   // Stay inside the original F1 road envelope [-.3725,+.3725].
   box(paint,'#ffffff',-.242,.325,0,.226,.25,.276); // rear trailer
@@ -619,12 +649,22 @@ function carGeometries(style){
   box(detail,'#b9cbd0',rear-.033,.136,0,.015,.022,width*.54);
  }
  if(taxi){
-  // Tourist-only taxi roof sign and black/yellow side chequers.
-  box(detail,'#f9fcf9',cabinX+.04,roofTop+.047,0,.108,.052,.139);
-  box(detail,'#1d2a31',cabinX+.04,roofTop+.075,0,.089,.017,.134);
-  box(detail,'#f6eabc',cabinX+.04,roofTop+.087,0,.050,.010,.075);
-  for(const sign of [-1,1])for(let k=0;k<5;k++)
-   box(detail,k%2?'#1b3035':'#fbf7e6',cabinX-.045+k*.033,.160,sign*width*.493,.026,.025,.011);
+  // High/medium taxi: true four-door sedan shell from the normal sedan
+  // branch, yellow paint, black checker strip, dark window pillars and
+  // a luminous TAXI roof placard. No change to road/collision dimensions.
+  box(detail,'#fff9e2',cabinX,roofTop+.043,0,.116,.060,.150);
+  box(detail,'#172b39',cabinX,roofTop+.050,.077,.096,.033,.006);
+  box(detail,'#172b39',cabinX,roofTop+.050,-.077,.096,.033,.006);
+  box(detail,'#fff5cc',cabinX,roofTop+.084,0,.105,.013,.113);
+  for(const sign of [-1,1]){
+   const side=sign*width*.493;
+   // Four passenger doors, checked stripe and two distinct door handles.
+   box(detail,'#2e4350',cabinX,top-.045,side,.010,.091,.009);
+   for(const xx of [cabinX-.112,cabinX+.080])
+    box(detail,'#263b48',xx,.165,side+sign*.005,.040,.010,.010);
+   for(let k=0;k<8;k++)
+    box(detail,'#142a35',rear+.112+k*.057,.207+(k%2)*.022,side+sign*.008,.028,.019,.012);
+  }
  }
  }
  const merge=parts=>{
@@ -6147,13 +6187,15 @@ export class TrafficRenderer{
    this.scene.remove(mesh);mesh.material.dispose();mesh.dispose();
   }
   const capacity=Math.max(32,2**Math.ceil(Math.log2(Math.max(1,needed))));
-  if(level==='roadTrainLow'){
-   // Reuse one lightweight, pre-merged model across all trucks: TWO instanced
-   // meshes only, no individual wheels, shadows, headlight spill or 3D effects.
-   this.lowRoadTrainModel??=carGeometries(13);
-   const body=new THREE.InstancedMesh(this.lowRoadTrainModel.body,
+  if(level==='roadTrainLow'||level==='taxiLow'){
+   // Both special Low-poly fleets share the efficient two-mesh instancing
+   // path; each type keeps its own cached premerged geometry.
+   const lowModel=level==='taxiLow'
+    ?(this.lowTaxiModel??=carGeometries(14))
+    :(this.lowRoadTrainModel??=carGeometries(13));
+   const body=new THREE.InstancedMesh(lowModel.body,
     new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.79,metalness:0}),capacity);
-   const roof=new THREE.InstancedMesh(this.lowRoadTrainModel.trim,
+   const roof=new THREE.InstancedMesh(lowModel.trim,
     new THREE.MeshStandardMaterial({vertexColors:true,roughness:.86,metalness:0}),capacity);
    for(const mesh of [body,roof]){
     mesh.frustumCulled=false;mesh.castShadow=false;mesh.receiveShadow=false;
@@ -6198,8 +6240,8 @@ export class TrafficRenderer{
    const car=items[i],old=set.lastCars[i],moved=!this.sameCarPose(old,car),painted=!old||old.color!==car.color||old.kind!==car.kind;
    if(moved||!old||old.kind!==car.kind){
     dummy.rotation.set(0,-car.angle,0);
-    if(level==='roadTrainLow'){
-     // Two trailer parts and a cab live in the SAME baked, low-poly geometry.
+    if(level==='roadTrainLow'||level==='taxiLow'){
+     // Dedicated low vehicle body + detail live in baked, instanced geometry.
      dummy.position.set(car.x,car.altitude||0,car.z);
      dummy.scale.set(1,1,1);dummy.updateMatrix();
      set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
@@ -6245,7 +6287,7 @@ export class TrafficRenderer{
   this.carIndicatorHits=[];this.carLODStats={near:0,medium:0,far:0,culled:0};
  }
  cars(state,vehiclePosition,CATALOG,vehicleTimeliness=null,selected=null,showDiamonds=true){
-  const groups=VEHICLE_TYPES.map(()=>[]),medium=[],far=[],roadTrainLow=[],indicators=[],techEffects=[],warpPoints=[];
+  const groups=VEHICLE_TYPES.map(()=>[]),medium=[],far=[],roadTrainLow=[],taxiLow=[],indicators=[],techEffects=[],warpPoints=[];
   const frustum=this.carViewFrustum,point=this.carViewPoint,cam=this.cam;
   this.camera.updateMatrixWorld(true);
   frustum.setFromProjectionMatrix(this.carViewMatrix.multiplyMatrices(
@@ -6265,6 +6307,9 @@ export class TrafficRenderer{
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
    // Low uses the cheapest proxy at every distance, while preserving car picking.
    const level=v?.kind==='intercity'&&this.graphicQuality==='low'?'roadTrainLow':
+    kind===8&&this.graphicQuality==='low'?'taxiLow':
+    kind===8&&this.graphicQuality==='medium'&&distance>65?'taxiLow':
+    kind===8?'near':
     v?.kind==='intercity'&&distance<135?'near':v?.kind==='delivery'&&distance<70?'near':upgraded?'near':this.graphicQuality==='veryHigh'?'near':
     this.graphicQuality==='low'?'far':
     apparentLength>=22&&distance<=Math.max(24,12/Math.max(.1,cam?.z??1))
@@ -6273,8 +6318,9 @@ export class TrafficRenderer{
    if(level==='near')groups[kind].push(car);
    else if(level==='medium')medium.push(car);
    else if(level==='roadTrainLow')roadTrainLow.push(car);
+   else if(level==='taxiLow')taxiLow.push(car);
    else far.push(car);
-   this.carLODStats[level==='roadTrainLow'?'far':level]++;
+   this.carLODStats[level==='roadTrainLow'||level==='taxiLow'?'far':level]++;
    const focused=selected?.kind==='vehicle'&&selected.id===v?.id||
     selected?.kind==='parked'&&selected.id===id;
    const status=showDiamonds?(vehicleTimeliness?.(v)||'green'):'green';
@@ -6299,6 +6345,7 @@ export class TrafficRenderer{
   this.updateSimpleCars('medium',medium);
   this.updateSimpleCars('far',far);
   this.updateSimpleCars('roadTrainLow',roadTrainLow);
+  this.updateSimpleCars('taxiLow',taxiLow);
   for(let kind=0;kind<groups.length;kind++){
    const items=groups[kind],old=this.carSets.get(kind);
    if(!items.length){if(old){old.body.count=0;old.trim.count=0;old.headlights.count=0;old.taillights.count=0;old.lightSpill.count=0;}continue;}
