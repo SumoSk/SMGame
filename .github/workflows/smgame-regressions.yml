@@ -23,6 +23,7 @@ jobs:
       - run: node work/test-night-delivery.cjs
       - run: node work/test-intercity-roadtrain.cjs
       - run: node work/test-roadtrain-low-poly.cjs
+      - run: node work/test-tourist-taxi-model.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mission-dashboard.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-travel-log.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-landscaping.cjs

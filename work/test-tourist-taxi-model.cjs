@@ -1,0 +1,31 @@
+// Tourist taxi model regression: preserve existing citizen routing, and make
+// the yellow four-door sedan distinct at high, medium and low graphics presets.
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const r=fs.readFileSync('dist/renderer3d.js','utf8');
+const g=fs.readFileSync('dist/game.js','utf8');
+assert(r.includes("[.615,.274,.133,-.042,.337,.135], // four-door yellow tourist TAXI sedan"),'tourist taxi is sedan sized');
+assert(r.includes('sedan=style===1||style===8'),'tourist taxi uses the four-door sedan body');
+assert(r.includes('van=style===7,taxi=style===8'),'tourist taxi is NOT rendered as a van');
+assert(r.includes("if(c?.tourist)return 8"),'tourists still get the taxi type');
+assert(r.includes("if(c?.tourist)return '#ffd127'"),'taxi retains bright yellow paint');
+assert(r.includes("if(taxi){\n  // High/medium taxi"),'high and medium use detailed taxi trim');
+assert(r.includes("Small black TAXI lettering is baked"),'roof sign has TAXI text on its sides');
+assert(r.includes('Four passenger doors, checked stripe'),'taxi has doors and recognizable checks');
+assert(r.includes("const truck=style===10||style===11,roadTrain=style===12,roadTrainLow=style===13,taxiLow=style===14"),'separate low-poly taxi geometry exists');
+assert(r.includes("this.lowTaxiModel??=carGeometries(14)"),'only one low model built and shared');
+assert(r.includes("kind===8&&this.graphicQuality==='low'?'taxiLow'"),'Low quality uses custom taxi geometry');
+assert(r.includes("kind===8&&this.graphicQuality==='medium'&&distance>65?'taxiLow'"),'Medium preserves sign at a distance');
+assert(r.includes("kind===8?'near'"),'High detail and nearby medium use detailed taxi');
+assert(r.includes("this.updateSimpleCars('taxiLow',taxiLow);"),'low-poly taxi batch participates in rendering');
+assert(r.includes("if(level==='roadTrainLow'||level==='taxiLow')"),'two-mesh instanced Low vehicle path');
+const a=r.indexOf('if(taxiLow){\n  // Dedicated lightweight four-door taxi');
+const b=r.indexOf('}else if(roadTrainLow){',a);
+assert(a>0&&b>a,'low-poly sedan is a separate geometry branch');
+const low=r.slice(a,b);
+assert(low.includes('TAXI rooftop placard'),'low version keeps visible taxi sign');
+assert(low.includes('Visible black checkerboard stripe'),'low version keeps side checks');
+assert(!low.includes('CylinderGeometry'),'low version replaces curved wheels with boxes');
+assert(g.includes('function drawTouristTaxiShape('),'fallback 2D taxi renderer exists');
+assert(g.includes("else if(state.citizens.get(v.citizenId)?.tourist)drawTouristTaxiShape("),'2D draw routes only tourist cars into taxi model');
+assert(g.includes("ctx.fillText('TAXI',0,0)"),'fallback taxi roof has readable lettering');
+console.log('Tourist taxi sedan High/Medium/Low visual regression passed');

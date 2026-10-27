@@ -1391,6 +1391,25 @@ function drawIntercityRoadTrain(x,y,angle,color,z){
   ctx.fillRect((xx-.6)*z,sy*2.15*z,1.2*z,.9*z);
  ctx.restore();
 }
+
+function drawTouristTaxiShape(x,y,angle,z){
+ ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+ // Sedan taxi silhouette, consistent with high and low 3D model.
+ ctx.fillStyle='#ffd127';ctx.beginPath();ctx.roundRect(-5.3*z,-2.25*z,10.6*z,4.5*z,1.2*z);ctx.fill();
+ ctx.fillStyle='#2b4b61';ctx.fillRect(-1.6*z,-1.85*z,3.25*z,3.7*z);
+ ctx.fillStyle='#ffd127';ctx.fillRect(-.20*z,-1.86*z,.40*z,3.72*z);
+ ctx.fillStyle='#20303c';ctx.fillRect(1.0*z,-1.58*z,.65*z,3.15*z);
+ ctx.fillStyle='#16232b';for(const side of [-1,1])for(const xx of [-3.1,3.0])
+  ctx.fillRect((xx-.7)*z,(side*2.2-.45)*z,1.4*z,.9*z);
+ for(const side of [-1,1])for(let i=0;i<6;i++){
+  ctx.fillStyle='#142633';ctx.fillRect((-2.35+i*.65)*z,(side*1.99-(i%2)*.30)*z,.38*z,.28*z);
+ }
+ ctx.fillStyle='#fffdf0';ctx.fillRect(-.65*z,-1.40*z,1.3*z,2.8*z);
+ ctx.fillStyle='#18313f';ctx.font=`${Math.max(3,3*z)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('TAXI',0,0);
+ ctx.fillStyle='#fff3c7';ctx.fillRect(5.1*z,-1.64*z,.38*z,1.0*z);ctx.fillRect(5.1*z,.64*z,.38*z,1.0*z);
+ ctx.fillStyle='#f54b4f';ctx.fillRect(-5.4*z,-1.64*z,.40*z,1.0*z);ctx.fillRect(-5.4*z,.64*z,.40*z,1.0*z);
+ ctx.restore();
+}
 function drawVehicles(){for(const v of state.vehicles.values()){
  if(v.phase==='gate_waiting'||v.phase==='departing'&&!v.lotPath)continue;
  const pos=vehiclePosition(v);if(!pos)continue;
@@ -1403,6 +1422,7 @@ function drawVehicles(){for(const v of state.vehicles.values()){
  }
  if(v.kind==='delivery')drawDeliveryTruckShape(p[0],p[1],pos.angle,v.color,cam.z,v.delivery?.axles||6);
  else if(v.kind==='intercity')drawIntercityRoadTrain(p[0],p[1],pos.angle,v.color,cam.z);
+ else if(state.citizens.get(v.citizenId)?.tourist)drawTouristTaxiShape(p[0],p[1],pos.angle,cam.z);
  else drawTechCarShape(p[0],p[1],pos.angle,v.color,cam.z,v.vehicleTech);
 }}
 // Lane geometry is immutable during a trip. It is rebuilt only after a route or
