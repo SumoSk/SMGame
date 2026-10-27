@@ -4509,26 +4509,57 @@ function junctionPriority(request,node){
  // Long waits become first-come-first-served, but never override a red light.
   return state.time-request.at>=Math.min(signalCycle(node),18)?-1:priority;
 }
-function queueAllows(v,pos,connector,precheckedExit=null){
- const node=v.path[pos],queue=state.junctionQueues?.get(node);if(!queue)return true;
- const own=queue.find(q=>q.id===v.id&&q.pos===pos);if(!own)return true;
- // Find the first two distinct cars per lane once, instead of rescanning
- // the entire queue for every competing movement. Exclude the car itself.
- const lanes=new Map();
+// v4.4.2: one lane-head index per queue per simulation step, not per vehicle.
+function queueIndex(queue){
+ if(queue._index)return queue._index;
+ const lanes=new Map(),byId=new Map();
  for(const q of queue){
   const key=q.connector.incoming+':'+q.connector.laneIn;
   let lane=lanes.get(key);if(!lane)lanes.set(key,lane=new Map());
   lane.set(q.id,Math.min(lane.get(q.id)??Infinity,q.distance));
+  const idKey=q.id+':'+q.pos;if(!byId.has(idKey))byId.set(idKey,q);
  }
  const fronts=new Map();
  for(const [key,lane]of lanes){
   let first=null,second=null;
-  for(const [id,distance]of lane){const item={id,distance};if(!first||distance<first.distance){second=first;first=item;}else if(!second||distance<second.distance)second=item;}
+  for(const [id,distance]of lane){
+   const item={id,distance};
+   if(!first||distance<first.distance){second=first;first=item;}
+   else if(!second||distance<second.distance)second=item;
+  }
   fronts.set(key,{first,second});
  }
- const eligible=q=>{const car=state.vehicles.get(q.id),heads=fronts.get(q.connector.incoming+':'+q.connector.laneIn),front=heads.first?.id===q.id?heads.second:heads.first;return car&&(!signalRequired(node)||signalAllows(node,q.connector.incoming,q.connector.laneIn))&&(q.id===v.id&&precheckedExit!==null?precheckedExit:junctionExitAvailable(car,q.pos))&&!(front&&front.distance<q.distance-.01);};
- if(!eligible(own))return false;const priority=junctionPriority(own,node);
- for(const other of queue){if(other.id===v.id||!eligible(other)||!connectorsConflict(connector,other.connector))continue;const p=junctionPriority(other,node);if(p<priority||p===priority&&(other.at<own.at||other.at===own.at&&(other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id)))return false;}
+ return queue._index={fronts,byId};
+}
+// Followers inherit their lane-head ordering; only eligible vehicles need
+// repeated live exit and conflict checks. Turning cars retain own movement rights.
+function queuedBehindLeader(v,pos,connector){
+ const queue=state.junctionQueues?.get(v.path[pos]);if(!queue)return false;
+ const {fronts,byId}=queueIndex(queue),own=byId.get(v.id+':'+pos);
+ if(!own)return false;
+ const heads=fronts.get(connector.incoming+':'+connector.laneIn);
+ const front=heads?.first?.id===v.id?heads.second:heads?.first;
+ return !!front&&front.distance<own.distance-.01;
+}
+function queueAllows(v,pos,connector,precheckedExit=null){
+ const node=v.path[pos],queue=state.junctionQueues?.get(node);if(!queue)return true;
+ const {fronts,byId}=queueIndex(queue),own=byId.get(v.id+':'+pos);
+ if(!own)return true;
+ const eligible=q=>{
+  const car=state.vehicles.get(q.id),heads=fronts.get(q.connector.incoming+':'+q.connector.laneIn);
+  const front=heads.first?.id===q.id?heads.second:heads.first;
+  return car&&(!signalRequired(node)||signalAllows(node,q.connector.incoming,q.connector.laneIn))&&
+   (q.id===v.id&&precheckedExit!==null?precheckedExit:junctionExitAvailable(car,q.pos))&&
+   !(front&&front.distance<q.distance-.01);
+ };
+ if(!eligible(own))return false;
+ const priority=junctionPriority(own,node);
+ for(const other of queue){
+  if(other.id===v.id||!eligible(other)||!connectorsConflict(connector,other.connector))continue;
+  const p=junctionPriority(other,node);
+  if(p<priority||p===priority&&(other.at<own.at||other.at===own.at&&
+   (other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id)))return false;
+ }
  return true;
 }
 function signalRequired(node){return junction(node)>=3;}
@@ -4562,6 +4593,9 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
  for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos)))return false;}}
  // Exit clearance is dynamic: check on EVERY admission attempt, never cache
  // across simulation steps. Reuse this read-only result within this attempt.
+ // A queued follower cannot pass the head of its lane. Avoid the expensive
+ // downstream exit scan until its turn without weakening collision checks.
+ if(!ignoreSignal&&queuedBehindLeader(v,pos,connector))return false;
  const exitAvailable=junctionExitAvailable(v,pos);
  if(!exitAvailable)return false;
  if(!ignoreSignal&&!queueAllows(v,pos,connector,true))return false;
@@ -5082,7 +5116,16 @@ function advanceVehicles(realDt,gameDt){
     state.roads.get(v.path[v.pos]).load=Math.min(1.2,state.roads.get(v.path[v.pos]).load+.15);
     refreshMotionReservations(v,plan,s);
     if(v.pos===v.path.length-1){arrive(v);break;}
-   }else if(step<1e-10||s>=gate.limit-1e-9){blocked=gate.reason;v.speed=0;break;}
+   }else if(step<1e-10||s>=gate.limit-1e-9){
+    blocked=gate.reason;
+    // Keep velocity from actual rolling progress when following a moving car.
+    // A truly stopped car, red light or occupied junction still stops at zero.
+    const rolled=s-initial;
+    v.speed=rolled>1e-7&&simDt>1e-8&&
+      (blocked==='เว้นระยะรถ'||blocked==='รถคันหน้าขวาง')
+      ?Math.min(v.speed,rolled/simDt):0;
+    break;
+   }
   }
   if(!state.vehicles.has(v.id)||v.phase==='parking_in')continue;
   refreshMotionReservations(v,plan,s);
