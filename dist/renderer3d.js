@@ -1998,23 +1998,42 @@ export class TrafficRenderer{
     block('#ffe3b1',1.60,.98,1.10,.065,.11,.06,'glass',true);return;
    }
    if(t.kind==='mall'){
-    // Ivory/brass boutique galleria, with an offset round glazed atrium.
-    block('#d2c6b1',1.50,.11,.63,2.74,.16,1.12,'stone');
-    block('#eae1d1',1.04,.91,.60,1.55,1.51,.99,'stone');
-    block('#b69c70',1.04,.44,1.12,1.62,.10,.10,'metal');
-    for(const x of [.40,1.04,1.68])block(ivory,x,.74,1.13,.075,1.24,.095,'stone');
-    pane(.72,.80,1.10,.44,.83,true,'#628b90');
-    pane(1.35,.80,1.10,.44,.83,true,'#628b90');
-    for(const x of [.58,1.10,1.58])pane(x,1.39,1.10,.32,.25,false,'#6d9496');
-    pole('#628f9c',2.21,.92,.64,.46,1.52,'glass');
-    pole('#d7c6a0',2.21,1.72,.64,.49,.09,'metal');
-    pole('#9ab2ad',2.21,1.80,.64,.37,.07,'glass');
-    for(const x of [1.90,2.21,2.52])block(gold,x,.91,1.075,.025,1.43,.035,'metal');
-    block(ivory,2.74,1.01,.66,.12,1.72,1.04,'stone');
-    block(gold,2.78,1.02,1.19,.035,1.70,.025,'metal');
-    block('#f3eadb',1.03,1.72,.60,1.68,.12,1.08,'stone');
-    badge('MALL',1.05,1.84,1.12,1.06,'#977c50','#fff3d0');
-    for(const x of [.36,1.71,2.67])planter(x,1.14,.08);return;
+    // Starter one-floor glass micro-pavilion: two independent boutique wings,
+    // a rounded central lobby and a single floating silver canopy, Apple-like
+    // not a solid full-width retail cuboid. Existing 3x3 plot unaffected.
+    const pale='#e4ebe8',metal='#bfcfd0',tint='#79b5c3',wood='#b6a17e';
+    block('#d2d6cd',1.50,.11,.63,2.67,.16,1.09,'stone');
+    block('#e5e9e3',1.50,.20,.63,2.54,.04,.98,'stone');
+    for(const [x,w,z] of [[.77,.79,.65],[2.23,.78,.52]]){
+     block(tint,x,.86,z,w,1.08,.82,'glass');
+     for(const xx of[x-w*.44,x+w*.44]){
+      block(metal,xx,.89,z,.050,1.18,.84,'metal');
+      block('#ffe1b1',xx,.37,z,.041,.022,.60,'glass',true);
+     }
+     for(const zz of[z-.37,z+.37]){
+      block(pale,x,1.38,zz,w+.12,.060,.080,'metal');
+      block('#9bc1c8',x,.90,zz,w-.10,1.01,.035,'glass');
+     }
+     block('#dee8e4',x,1.50,z,w+.15,.075,.95,'metal');
+     block(metal,x,1.565,z,w+.17,.045,.97,'metal');
+     block(wood,x,.33,z+.31,w*.67,.055,.22,'wood');
+    }
+    const p=point(1.50,.59);
+    batch.add(CYL_SMOOTH,'#76afbe',p.x-.5,.87,p.y-.5,.70,1.05,.70,0,turn,0,id,false,'glass');
+    batch.add(CYL_SMOOTH,'#d9e3df',p.x-.5,1.47,p.y-.5,.98,.11,.98,0,turn,0,id,false,'metal');
+    for(let n=0;n<8;n++){
+     const a=n*Math.PI/4;
+     const xx=1.5+.34*Math.cos(a),zz=.59+.34*Math.sin(a);
+     block(pale,xx,.91,zz,.027,1.10,.025,'metal');
+     if(n%2===0)block('#ffe2b9',xx,.45,zz,.035,.11,.033,'glass',true);
+    }
+    for(const xx of[.39,2.61]){
+     planter(xx,1.13,.105);
+     block('#ffe1b5',xx,1.19,1.09,.11,.13,.10,'glass',true);
+    }
+    block('#ccd7d3',1.50,.16,1.16,.58,.07,.18,'stone');
+    badge('MALL',1.50,1.21,1.142,.72,'#536c76','#e9eee8');
+    return;
    }
    if(t.kind==='office'){
     // Teal glass office: tall slim slab, a low side wing and roof solar array.
