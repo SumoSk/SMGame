@@ -54,6 +54,9 @@
     assert.equal(local.filter(p=>p.sy>1.40&&p.sx*p.sz>3).length,0,'no solid giant cuboid halls');
     const count=c=>local.filter(p=>p.color===c).length;
     assert(count('#25435d')>=spec.roofs*2,'each pitched roof face has blue solar panels');
+    const workshopFloors=local.filter(p=>p.color==='#62777c');
+    assert.equal(workshopFloors.length,spec.roofs,'one industrial floor per production hall');
+    assert(workshopFloors.every(p=>p.y<.21&&p.sy<.10),'workshop floor sits beneath machinery');
     assert(count('#7baebd')>=1,'a separate glass administration wing');
     assert(count('#bdcbca')>=spec.tanks,'silver vertical process silos');
     assert(local.filter(p=>Math.abs(p.rz)>.06&&p.sx>.4&&p.sz>.35).length>=spec.roofs*4,'gabled pitched roofing');
@@ -65,6 +68,10 @@
     const roundFloorPanels=local.filter(p=>p.color==='#629bad'||p.color==='#76bbcb');
     const high=Math.max(...local.map(p=>p.y+p.sy*.5));
     if(spec.key==='factory_large'){
+     assert(local.filter(p=>p.color==='#80aeb9').length>=5,
+      'the office-side manufacturing bay has enclosed glazed partitions');
+     assert.equal(local.filter(p=>p.color==='#b99a6e').length,2,
+      'the enclosed half-bay contains two workstations');
      // The THREE production hall structures are each exactly 80% of their
      // original plan-area dimensions. Their common centre is unchanged.
      // None of the parking footprint, entrance/exit routing or lot geometry
