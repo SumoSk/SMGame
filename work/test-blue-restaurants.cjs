@@ -56,8 +56,24 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
       'missing a separate kitchen, main dining, private dining or courtyard foundation: '+color);
     assert(items.filter(p=>p.color==='#8daea8').length===6,'shared pedestrian axis absent');
     assert(items.filter(p=>p.color==='#567f99').length>=3,'open courtyard lattice missing');
-    assert(Math.max(...items.map(p=>p.y+p.sy*.5))<3.20,
-     'large restaurant has rebuilt an oversized second-floor block');
+    // Only the LARGE restaurant now has a slim, actual two-floor fantasy
+    // castle with three pointed towers. The earlier blocky upper restaurant
+    // is still forbidden; tall shapes must be identifiable castle elements.
+    assert(items.filter(p=>p.color==='#677bc3'||p.color==='#8c7dbd').length>=3,
+     'storybook castle needs three blue/lilac pointed spires');
+    assert(items.some(p=>p.color==='#dfc8dd'&&p.y>2),
+     'castle upper floor and decorative facade are missing');
+    assert(items.filter(p=>p.color==='#78b5c7').length>=8,
+     'castle must have visible windows on both floors');
+    const height=Math.max(...items.map(p=>p.y+p.sy*.5));
+    assert(height>4.70&&height<5.60,
+     'castle must be two floors with tapered towers, not a giant single box');
+    assert(items.some(p=>p.color==='#bd9772'&&p.y>.7),
+     'front-left outdoor bar needs a real counter and stools');
+    assert(items.filter(p=>p.color==='#d9c3a4').length===1,
+     'outdoor bar needs its own wood patio without a former enclosed room');
+    assert(items.filter(p=>p.color==='#567f99').length>=6,
+     'outdoor bar and main courtyard each need open slatted rooflines');
    }
    const result={instances:items.length,tables:dining.length,lights:items.filter(p=>p.glow).length};
    if(signature)assert.deepEqual(result,signature,'rotation changes restaurant');else signature=result;
