@@ -653,8 +653,26 @@ function carGeometries(style){
   // branch, yellow paint, black checker strip, dark window pillars and
   // a luminous TAXI roof placard. No change to road/collision dimensions.
   box(detail,'#fff9e2',cabinX,roofTop+.043,0,.116,.060,.150);
-  box(detail,'#172b39',cabinX,roofTop+.050,.077,.096,.033,.006);
-  box(detail,'#172b39',cabinX,roofTop+.050,-.077,.096,.033,.006);
+  // Small black TAXI lettering is baked into each side of the sign.
+  // Geometry is generated once, then all tourist cars share the same mesh.
+  for(const sign of [-1,1]){
+   const zz=sign*.079,cy=roofTop+.051;
+   const stroke=(dx,dy,l,h,rot=0)=>
+    box(detail,'#172b39',cabinX+dx,cy+dy,zz,l,h,.006,rot);
+   // T
+   stroke(-.039,.011,.019,.004);stroke(-.039,0,.004,.022);
+   // A
+   stroke(-.013,0,.004,.025,-.27);
+   stroke(-.002,0,.004,.025,.27);
+   stroke(-.007,-.004,.016,.004);
+   // X
+   stroke(.018,0,.004,.027,-.61);
+   stroke(.018,0,.004,.027,.61);
+   // I
+   stroke(.042,0,.004,.024);
+   stroke(.042,.011,.014,.004);
+   stroke(.042,-.011,.014,.004);
+  }
   box(detail,'#fff5cc',cabinX,roofTop+.084,0,.105,.013,.113);
   for(const sign of [-1,1]){
    const side=sign*width*.493;
