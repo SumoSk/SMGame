@@ -5234,17 +5234,39 @@ $('citizensDashboardBody').onclick=e=>{
 };$('pause').onclick=()=>{state.speed=state.speed?0:1;updateUI();};document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{state.speed=+b.dataset.speed;updateUI();});$('closeInspector').onclick=()=>{selected=null;$('inspector').classList.add('hidden');follow=null;};document.querySelectorAll('[data-inspect]').forEach(b=>b.onclick=()=>{selected={kind:b.dataset.inspect};renderInspector();});
 let pointers=new Map(),pinch=null,pendingTap=null,lastTap=null;
 let mouseOrbit=null,mouseChordHeld=false,mouseRightPending=false;
+// Count completed two-button mouse rotations, not frames or stationary clicks.
+// This is UI-only onboarding, persisted per browser and independent of city saves.
+const ORBIT_HINT_KEY='smcity-camera-mouse-rotations-v1';
+let orbitHintCount=0,orbitHintTravel=0;
+try{
+ const saved=Number(localStorage.getItem(ORBIT_HINT_KEY));
+ if(Number.isFinite(saved))orbitHintCount=Math.max(0,Math.min(3,Math.floor(saved)));
+}catch{}
+function syncMouseOrbitHint(){
+ const hint=$('cameraRotateHint');
+ if(hint)hint.hidden=orbitHintCount>=3;
+}
+function finishMouseOrbitHint(){
+ if(orbitHintTravel>=14&&orbitHintCount<3){
+  orbitHintCount++;
+  try{localStorage.setItem(ORBIT_HINT_KEY,String(orbitHintCount));}catch{}
+  syncMouseOrbitHint();
+ }
+ orbitHintTravel=0;
+}
+syncMouseOrbitHint();
 const clampCameraElevation=value=>Math.max(Math.PI*35/180,Math.min(Math.PI*78/180,value));
 function beginMouseOrbit(event){
  if(!renderer3d)return false;
  event.preventDefault?.();clearPendingTap();drag=null;hover=null;follow=null;mouseRightPending=false;
- if(!mouseOrbit)mouseOrbit={x:event.clientX,y:event.clientY};
+ if(!mouseOrbit){mouseOrbit={x:event.clientX,y:event.clientY};orbitHintTravel=0;}
  mouseChordHeld=true;
  if(event.pointerId!=null){canvas.setPointerCapture(event.pointerId);pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});}
  return true;
 }
 function moveMouseOrbit(event){
  const dx=event.clientX-mouseOrbit.x,dy=event.clientY-mouseOrbit.y;
+ if(orbitHintCount<3)orbitHintTravel+=Math.hypot(dx,dy);
  cam.angle=(cam.angle??cameraDefaultAngle)-dx*.0085;
  cam.elevation=clampCameraElevation((cam.elevation??cameraDefaultElevation)+dy*.004);
  mouseOrbit={x:event.clientX,y:event.clientY};renderer3d.updateCamera(cam);
@@ -5296,13 +5318,13 @@ function moveTouchOrbit(){
 }
 const ignoredTouchPointers=new Set(),doubleTapDelay=320,doubleTapRadius=44;
 function clearPendingTap(perform=false){if(!pendingTap)return;clearTimeout(pendingTap.timer);const action=pendingTap.action;pendingTap=null;lastTap=null;if(perform)action();}
-function cancelInteraction(){clearPendingTap();for(const pointerId of pointers.keys())if(canvas.hasPointerCapture?.(pointerId))canvas.releasePointerCapture(pointerId);pointers.clear();pinch=null;mouseOrbit=null;mouseChordHeld=false;mouseRightPending=false;drag=null;hover=null;selected=null;follow=null;selectTool('hand');$('inspector').classList.add('hidden');}
+function cancelInteraction(){clearPendingTap();for(const pointerId of pointers.keys())if(canvas.hasPointerCapture?.(pointerId))canvas.releasePointerCapture(pointerId);pointers.clear();pinch=null;mouseOrbit=null;mouseChordHeld=false;mouseRightPending=false;orbitHintTravel=0;drag=null;hover=null;selected=null;follow=null;selectTool('hand');$('inspector').classList.add('hidden');}
 canvas.addEventListener('mousedown',e=>{
  if((e.buttons&3)===3&&beginMouseOrbit(e))return;
  if(e.button===2)e.preventDefault();
 });
 canvas.addEventListener('mouseup',e=>{
- if(mouseChordHeld){drag=null;mouseOrbit=null;if(!e.buttons){mouseChordHeld=false;mouseRightPending=false;}return;}
+ if(mouseChordHeld){if((e.buttons&3)!==3)finishMouseOrbitHint();drag=null;mouseOrbit=null;if(!e.buttons){mouseChordHeld=false;mouseRightPending=false;}return;}
  if(e.button===2&&mouseRightPending){e.preventDefault();cancelInteraction();}
 });
 function demolitionBuildingAt(clientX,clientY){
@@ -5362,7 +5384,7 @@ function finishCanvasInteraction(d,x,y,activeTool){
  else{const p=world(x,y),ix=Math.floor(p[0]),iy=Math.floor(p[1]);if(!valid(ix,iy))return;if(tool==='eraseBuilding')demolishBuilding(state.buildings.get(state.buildGrid[id(ix,iy)]),false,{x,y});}
 }
 canvas.addEventListener('pointerup',e=>{
- if(e.pointerType!=='touch'&&mouseChordHeld){e.preventDefault();drag=null;mouseOrbit=null;if(!e.buttons){mouseChordHeld=false;mouseRightPending=false;pointers.delete(e.pointerId);}return;}
+ if(e.pointerType!=='touch'&&mouseChordHeld){if((e.buttons&3)!==3)finishMouseOrbitHint();e.preventDefault();drag=null;mouseOrbit=null;if(!e.buttons){mouseChordHeld=false;mouseRightPending=false;pointers.delete(e.pointerId);}return;}
  if(e.pointerType!=='touch'&&e.button===2&&mouseRightPending){e.preventDefault();cancelInteraction();return;}
  pointers.delete(e.pointerId);if(ignoredTouchPointers.delete(e.pointerId))return;
  if(pinch){if(pointers.size===0)pinch=null;drag=null;return;}
@@ -5374,7 +5396,7 @@ canvas.addEventListener('pointerup',e=>{
  if(e.pointerType==='touch'&&!d.moved){lastTap={x,y,at:Date.now()};pendingTap={action,timer:setTimeout(()=>{pendingTap=null;lastTap=null;action();},doubleTapDelay)};return;}
  action();
 });
-canvas.addEventListener('pointercancel',e=>{ignoredTouchPointers.delete(e.pointerId);pointers.delete(e.pointerId);drag=null;pinch=null;mouseOrbit=null;mouseChordHeld=false;mouseRightPending=false;});canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('pointerleave',()=>hover=null);
+canvas.addEventListener('pointercancel',e=>{ignoredTouchPointers.delete(e.pointerId);pointers.delete(e.pointerId);drag=null;pinch=null;mouseOrbit=null;mouseChordHeld=false;mouseRightPending=false;orbitHintTravel=0;});canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('pointerleave',()=>hover=null);
 canvas.addEventListener('wheel',e=>{e.preventDefault();const before=world(e.clientX,e.clientY);cam.z=Math.max(.22,Math.min(5.2,cam.z*(e.deltaY<0?1.12:.89)));if(renderer3d)renderer3d.updateCamera(cam);const after=world(e.clientX,e.clientY);cam.x+=before[0]-after[0];cam.y+=before[1]-after[1];},{passive:false});
 // Close nonmodal city panels when the user touches anywhere else.
 // Do not consume the pointer event: map and toolbar remain immediately usable.
