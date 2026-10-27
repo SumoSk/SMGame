@@ -1,4 +1,4 @@
 import { TrafficRenderer } from './renderer3d.js?v=b8b6fc49eb35';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
-await import('./game.js?v=432-city-advisor');
+await import('./game.js?v=285fa2651cf9');
 await import('./member.js?v=464355c2f43c');
