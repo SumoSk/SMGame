@@ -1390,7 +1390,7 @@ export class TrafficRenderer{
    const nightLED=(color,u,y,v,w,h,d,grade='detail')=>
     block(color,u,y,v,w,h,d,'factory-night-'+grade,true);
    // A low rectangular plot slab is an outline, not a giant solid building.
-   block('#c7d0c8',center,.095,(back+front)*.5,width-(starter?.48:1.43),.075,halfDepth,'stone');
+   block('#87958f',center,.095,(back+front)*.5,width-(starter?.48:1.43),.075,halfDepth,'stone');
    block('#9aada9',center,.145,front-.11,width-(starter?.59:1.55),.035,.17,'stone');
    // Cargo hall: distinct pitched roof bays, exposed portals and translucent
    // clerestories. There is deliberately NO tall opaque cuboid underneath.
