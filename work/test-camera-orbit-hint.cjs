@@ -18,13 +18,13 @@ const document={getElementById:id=>id==='cameraRotateHint'?hint:null};
 const get=Function('localStorage','document','canvas','renderer3d','cam',
  'cameraDefaultAngle','cameraDefaultElevation','clearPendingTap',
  "const $=id=>document.getElementById(id);let drag=null,hover=null,follow=null,pointers=new Map();"+segment+
- 'return {beginMouseOrbit,moveMouseOrbit,finishMouseOrbitHint,getCount:()=>orbitHintCount};');
+ 'return {beginMouseOrbit,moveMouseOrbit,finishMouseOrbitHint,getCount:()=>orbitHintCount,release:()=>{finishMouseOrbitHint();mouseOrbit=null;mouseChordHeld=false;}};');
 let instance=get(localStorage,document,canvas,view,camera,Math.PI/4,Math.PI/3,()=>{});
 assert.equal(instance.getCount(),0);assert.equal(hint.hidden,false);
 function gesture(distance){
  instance.beginMouseOrbit({clientX:10,clientY:10,buttons:3,preventDefault(){}});
  if(distance>0)instance.moveMouseOrbit({clientX:10+distance,clientY:10,buttons:3});
- instance.finishMouseOrbitHint();
+ instance.release();
  // Browser delivers both pointerup and mouseup; second completion must not count.
  instance.finishMouseOrbitHint();
 }
