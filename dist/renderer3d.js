@@ -3226,6 +3226,12 @@ export class TrafficRenderer{
    };
    const trim=(x,y,z,w,d,col=silver)=>solid(col,x,y,z,w,.065,d,'metal');
    const trimLamp=(x,y,z,w,d,col='#ffe7bf')=>glow(col,x,y,z,w,.020,d);
+   // Premium nighttime styling: actual luminous instanced strips and niches,
+   // not real point lights, shadows, reflections or animated particles.
+   // Runtime LOD keeps essentials visible in Low, hides detail meshes.
+   const mallLED=(c,x,y,z,w,h,d,grade='detail')=>
+    solid(c,x,y,z,w,h,d,'mall-night-'+grade,true);
+   const warm='#ffe5b6',ice='#c9edf3',champagne='#ffd69c';
    const letters={A:['010','101','111','101','101'],C:['111','100','100','100','111'],
     D:['110','101','101','101','110'],E:['111','100','110','100','111'],
     F:['111','100','110','100','100'],G:['111','100','101','101','111'],
@@ -3288,6 +3294,11 @@ export class TrafficRenderer{
      }
      trim(x,1.74,zz,wingW-.07,.070);
      if(!low)trimLamp(x,1.79,zz,wingW*.85,.026);
+     // Warm display illumination behind transparent storefronts; bronze
+     // cornice and thin ice-blue frame are legible in the evening.
+     mallLED(warm,x,1.55,zz+(zz>z?.064:-.064),wingW*.77,.026,.019,'essential');
+     if(!low)mallLED(ice,x,1.83,zz+(zz>z?.045:-.045),
+      wingW*.87,.019,.019);
     }
     // Flying roof: a thin silver plane and curved end pieces, unlike heavy
     // storey-wide wall boxes. Low profile for all types.
@@ -3295,6 +3306,22 @@ export class TrafficRenderer{
     solid('#b9c8cc',x,2.20,z,wingW+.20,.047,d+.13,'metal');
     for(const xx of[x-wingW*.49,x+wingW*.49])
      circle('#b9c8cc',xx,2.19,z,.20,.055,'metal');
+    // Edge-lit floating canopy. The warm inner soffit stays in Low,
+    // while the longer cyan roof crown is optional in High/Medium.
+    mallLED(warm,x,2.025,face-.09,wingW*.85,.024,.028,'essential');
+    mallLED(champagne,x,2.025,back+.10,wingW*.72,.024,.028,'essential');
+    if(!low){
+     mallLED(ice,x,2.247,face-.055,wingW*.87,.021,.026);
+     for(const sx of[-1,1])
+      mallLED(ice,x+sx*wingW*.48,2.246,z,.027,.021,d*.70);
+    }
+    // Matte metal mullions catch refined warm edge illumination without
+    // turning the whole transparent facade into an opaque light wall.
+    for(const sx of[-1,1]){
+     const xx=x+sx*wingW*.43;
+     mallLED(champagne,xx,1.23,face+.021,.022,.79,.022,'essential');
+     if(!low)mallLED(ice,xx,1.02,back-.040,.020,.85,.021);
+    }
     if(tier===1){
      label(side<0?'STUDIO':'MARKET',x,1.65,face+.045,wingW*.91,.235);
     }else if(tier===2){
@@ -3327,6 +3354,16 @@ export class TrafficRenderer{
      solid('#e0e8e5',x,3.95,z,wingW+.14,.105,d+.12,'metal');
      solid('#b1c7cc',x,4.035,z,wingW+.17,.045,d+.14,'metal');
      trimLamp(x,3.91,face,wingW*.88,.025);
+     // Elegant second-floor ribbons, preserving the two-storey roof limit.
+     mallLED(warm,x,3.902,face-.080,wingW*.81,.023,.031,'essential');
+     mallLED(champagne,x,2.348,face+.038,wingW*.76,.019,.023,'essential');
+     if(!low){
+      mallLED(ice,x,4.071,face-.072,wingW*.87,.020,.025);
+      mallLED(ice,x,3.918,back+.12,wingW*.66,.020,.024);
+     }
+     for(const sx of[-1,1])
+      mallLED(warm,x+sx*wingW*.41,3.29,face-.056,.022,.66,.019,
+       sx<0?'essential':'detail');
     }
     // Staggered corner trees, benches, roof-edge shrub planters.
     const planterZ=Math.min(H-.51,front+.23);
@@ -3347,6 +3384,10 @@ export class TrafficRenderer{
     const x=cx+radius*.97*Math.sin(a),z=mid+radius*.97*Math.cos(a);
     solid(silver,x,centerY,z,.038,centerY*2-.24,.042,'metal');
     trimLamp(x,.38,z,.065,.036,k%2?'#ffe8b8':'#cde9ec');
+    // Vertical seams on curved glass become a restrained illuminated crown.
+    // A one-in-three essential rhythm survives quality downgrades.
+    if(k%3===0)mallLED(warm,x,centerY,z,.022,centerY*.91,.022,'essential');
+    else if(!low)mallLED(ice,x,centerY*.83+.12,z,.017,centerY*.63,.018);
    }
    if(floors===2){
     circle('#dee3dc',cx,2.24,mid,radius*.93,.135,'stone');
@@ -3364,6 +3405,14 @@ export class TrafficRenderer{
    circle('#dce5e0',cx,atriumTop,mid,radius*1.16,.125,'metal');
    circle('#bcced1',cx,atriumTop+.093,mid,radius*1.18,.058,'metal');
    circle('#9cb5b9',cx,atriumTop+.133,mid,radius*.94,.050,'glass');
+   // Discrete gold halo under the circular glass canopy. Using sixteen
+   // grouped emissive segments avoids dynamic lights or a custom shader.
+   for(let k=0;k<(low?8:16);k++){
+    const n=low?8:16,a=k*Math.PI*2/n;
+    const x=cx+radius*.88*Math.sin(a),z=mid+radius*.88*Math.cos(a);
+    mallLED(k%2?warm:champagne,x,atriumTop-.080,z,.085,.020,.034,
+     k%2?'detail':'essential');
+   }
    // Slim glass barrel ribs are real pitched geometry. Window transparency
    // remains on four sides and the skylight never adds an occupied storey.
    const archTop=atriumTop+.25;
@@ -3383,11 +3432,21 @@ export class TrafficRenderer{
     solid(silver,cx+dx,.53,front+.30,.055,.59,.056,'metal');
    label(tier===1?'MALL':tier===2?'GALLERIA':'GRANDGALLERIA',
     cx,1.60,front+.25,Math.min(3.36,atriumW*.99),.29);
+   // Main pedestrian entrance gets a champagne-lit awning and path
+   // markers; entirely within the original frontage reserve.
+   mallLED(warm,cx,1.69,front+.29,atriumW*.67,.026,.025,'essential');
+   mallLED(ice,cx,.31,front+.24,atriumW*.61,.018,.023,'essential');
+   if(!low)for(const dx of[-atriumW*.28,atriumW*.28]){
+    mallLED(champagne,cx+dx,.69,front+.333,.027,.49,.027);
+   }
    for(const x of[1.28,W-1.28]){
     planter(x,rear+.31,.16,.21);
     planter(x,front+.21,.16,.23);
     solid('#c7d4ce',x,.77,front+.29,.04,1.18,.055,'metal');
     glow('#ffe0b0',x,1.42,front+.29,.13,.13,.14);
+    // Landscape lighting: compact bollard and warm shrub uplight, no spill.
+    mallLED(warm,x,.46,front+.16,.115,.030,.090,'essential');
+    if(!low)mallLED(ice,x,.37,rear+.31,.060,.025,.060);
    }
    return;
   }
