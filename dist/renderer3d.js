@@ -3825,6 +3825,10 @@ export class TrafficRenderer{
   // All physical meshes remain in the pre-existing 8x13 parcel's front 50%.
   // No changes to 40 parking bays, 40 residents, routing, roads or home_grand.
   if(b.key==='home_dual'){
+   // Only condo architecture is inset; the painted parking/street network
+   // is untouched. Track the batch positions to avoid transforming any
+   // pre-existing parking geometry that happens to use the same material.
+   const preHouseItems=new Map([...batch.data].map(([key,val])=>[key,val.items.length]));
    const W=t.plotWidth,H=t.plotHeight,parking=t.parkingZoneDepth;
    const ivory='#f1f0e9',bone='#dfdfd7',white='#f8f7f1',cream='#e6e1d4';
    const silver='#a7b4b4',dark='#53656e',blue='#72b9cb';
@@ -4075,7 +4079,23 @@ export class TrafficRenderer{
    block(teal,4,2.76,12.18,3.35,.060,.13,'metal');
    block('#4a737c',4,2.23,12.19,2.13,.37,.12,'metal');
    block(light,4,2.27,12.26,1.80,.18,.023,'glass',true);
-   // Leave entire pool, deck and trees uncovered from the game camera.
+   // Geometric setback protects all four road-facing sides including
+   // rotated plots. Compress the entire condo compound around its own
+   // 8x13 building-half centre, without moving the underlying 40 stalls.
+   const insetX=.95,insetZ=.94,midU=W*.5,midV=(parking+H)*.5;
+   for(const [key,group] of batch.data){
+    const from=preHouseItems.get(key)||0;
+    for(let i=from;i<group.items.length;i++){
+     const item=group.items[i],dx=item.x-b.x,dz=item.z-b.y,rot=b.rotation||0;
+     const u=rot===0?dx:rot===1?dz:rot===2?W-dx:W-dz;
+     const v=rot===0?dz:rot===1?H-dx:rot===2?H-dz:dx;
+     const dest=point(midU+(u-midU)*insetX,midV+(v-midV)*insetZ);
+     item.x=dest.x-.5;item.z=dest.y-.5;
+     item.sx*=insetX;item.sz*=insetZ;
+    }
+   }
+   // Leave the pool, deck and trees visible; original garage/lot remains
+   // completely independent of the presentation-only setback.
    return;
   }
 
