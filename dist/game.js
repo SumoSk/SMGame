@@ -6041,7 +6041,46 @@ window.SMGameOnCloudSaved=()=>toast('บันทึกเกมออนไล�
 // After guest registration and the first cloud save, show the regular Save/Load panel.
 // Share the same entry point with registered players to avoid duplicate menus.
 window.SMGameOpenSaveDialog=()=>openCloudSaveDialog();
+let cloudSaveOperation=null;
+function showCloudSaveStatus(operation){
+ const saving=operation.status==='saving',success=operation.status==='success';
+ const heading=saving?'กำลังบันทึก':success?'บันทึกสำเร็จ':'บันทึกไม่สำเร็จ';
+ operation.revision=modal('<div class="save-workspace"><section class="cloud-save-status '+operation.status+'" role="status" aria-live="polite" aria-busy="'+saving+'">'+
+  '<span class="cloud-save-symbol" aria-hidden="true">'+(saving?'◌':success?'✓':'!')+'</span><h2>'+heading+'</h2><strong>'+escapeSaveText(operation.name)+'</strong>'+
+  '<p id="cloudSaveStateText">'+(saving?'กำลังเตรียมและส่งข้อมูลเมือง…':success?'เซิร์ฟเวอร์ยืนยันว่าบันทึกเมืองแล้วค่ะ':escapeSaveText(operation.error||'กรุณาลองอีกครั้งค่ะ'))+'</p>'+
+  (saving?'<p>เมืองขนาดใหญ่อาจใช้เวลาสักครู่ กรุณาอย่ารีเฟรชหรือปิดหน้านี้ระหว่างบันทึกค่ะ</p>':'')+'</section><div class="actions">'+
+  (!saving&&!success?'<button id="cloudSaveRetry" class="primary">ลองบันทึกอีกครั้ง</button>':'')+
+  (!saving?'<button id="cloudSaveList" class="'+(success?'primary':'')+'">ดูรายการเซฟ</button>':'')+
+  '<button id="cloudSaveBack">'+(saving?'กลับไปเล่นระหว่างรอ':'กลับไปเล่น')+'</button></div></div>');
+ $('cloudSaveBack').onclick=closeModal;
+ if(!saving)$('cloudSaveList').onclick=openCloudSaveDialog;
+ if(!saving&&!success)$('cloudSaveRetry').onclick=()=>saveCloudCity(operation.name,operation.slotId,operation);
+}
+async function saveCloudCity(name,slotId,retry=null){
+ if(cloudSaveOperation?.status==='saving'){showCloudSaveStatus(cloudSaveOperation);return false;}
+ const api=window.SMGameAccount,accountId=api?.user?.id;
+ if(!accountId){toast('กรุณาเข้าสู่ระบบก่อนบันทึกค่ะ');return false;}
+ if(retry&&retry.accountId!==accountId){toast('กรุณาใช้บัญชีเดิมเพื่อลองบันทึกอีกครั้งค่ะ');return false;}
+ const operation={name,slotId,accountId,status:'saving',serialized:retry?.serialized||null,error:''};
+ cloudSaveOperation=operation;showCloudSaveStatus(operation);
+ try{
+  // Paint the waiting state before serializing a large city on the main thread.
+  if(typeof window.requestAnimationFrame==='function')await new Promise(resolve=>window.requestAnimationFrame(()=>setTimeout(resolve,0)));
+  if(api.user?.id!==accountId)throw Error('บัญชีผู้ใช้เปลี่ยน กรุณาเข้าสู่ระบบอีกครั้งค่ะ');
+  operation.serialized??=snapshot();
+  if(dialogRevision===operation.revision)$('cloudSaveStateText').textContent='กำลังบันทึกเมืองบนเซิร์ฟเวอร์…';
+  await api.save(name,slotId,operation.serialized);
+  operation.status='success';
+  if(dialogRevision===operation.revision)showCloudSaveStatus(operation);
+  toast('บันทึกสำเร็จ: '+name);return true;
+ }catch(error){
+  console.error('Cloud save failed:',error);operation.status='error';operation.error=error?.message||'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ กรุณาลองอีกครั้งค่ะ';
+  if(dialogRevision===operation.revision)showCloudSaveStatus(operation);
+  toast('บันทึกไม่สำเร็จ: '+operation.error);return false;
+ }
+}
 async function openCloudSaveDialog(){
+ if(cloudSaveOperation?.status==='saving'){showCloudSaveStatus(cloudSaveOperation);return;}
  const api=window.SMGameAccount;
  if(!api?.user){if(api?.openPanel)api.openPanel();else if(api?.requestSaveLogin)api.requestSaveLogin(snapshot(),'');else toast('กรุณาเข้าสู่ระบบก่อนเซฟค่ะ');return;}
  const accountId=api.user.id;
@@ -6067,9 +6106,8 @@ async function openCloudSaveDialog(){
  $('onlineCreate').onclick=async()=>{
   const button=$('onlineCreate'),error=$('onlineSaveError'),name=$('onlineSaveName').value.trim().slice(0,80);
   if(!name){error.textContent='กรุณาตั้งชื่อเซฟค่ะ';return;}
-  const revision=dialogRevision;button.disabled=true;error.textContent='กำลังบันทึกออนไลน์…';
-  try{await api.save(name,newSlotId,snapshot());toast('บันทึกเซฟออนไลน์แล้วค่ะ');if(dialogRevision===revision)await openCloudSaveDialog();}
-  catch(e){console.error('Online save failed:',e);error.textContent='บันทึกไม่สำเร็จ: '+(e.message||'กรุณาลองใหม่');}
+  button.disabled=true;
+  try{await saveCloudCity(name,newSlotId);}
   finally{button.disabled=false;}
  };
  slots.forEach((slot,i)=>{
@@ -6084,8 +6122,7 @@ async function openCloudSaveDialog(){
   };
   $('onlineOverwrite'+i).onclick=()=>{
    confirmAction('เขียนทับ “'+escapeSaveText(slot.name)+'”','เซฟออนไลน์เดิมจะถูกแทนที่ด้วยเมืองที่กำลังเล่น',async()=>{
-    const revision=dialogRevision;try{await api.save(slot.name,slot.id,snapshot());toast('เขียนทับเซฟออนไลน์แล้วค่ะ');if(dialogRevision===revision)await openCloudSaveDialog();}
-    catch(e){console.error('Cloud overwrite failed:',e);toast('เขียนทับเซฟออนไลน์ไม่สำเร็จค่ะ');}
+    await saveCloudCity(slot.name,slot.id);
    });
   };
   $('onlineDelete'+i).onclick=()=>{

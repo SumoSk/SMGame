@@ -6618,3 +6618,12 @@ body>.bottom .city-control-mini .demand-scroll-thumb{
 #tools .tool:has(.tool-quota-count) .tool-name{padding-right:19px}
 #tools .tool .tool-quota{display:block;max-width:160px;white-space:normal;font-size:10px;line-height:1.35;color:#28663e;margin-top:3px}
 #tools .tool .tool-quota.is-locked{color:#87551f}
+.cloud-save-status{text-align:center;padding:18px 12px;min-height:160px}
+.cloud-save-status .cloud-save-symbol{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:50%;font-size:28px;background:#e5eef9;color:#28609c}
+.cloud-save-status.saving .cloud-save-symbol{animation:cloud-save-spin 1s linear infinite}
+.cloud-save-status.success .cloud-save-symbol{background:#d9f2e3;color:#24643b}
+.cloud-save-status.error .cloud-save-symbol{background:#f9dddd;color:#a23030}
+.cloud-save-status h2{margin:12px 0 8px!important}
+.cloud-save-status p{line-height:1.6!important;overflow-wrap:anywhere}
+@keyframes cloud-save-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.cloud-save-status.saving .cloud-save-symbol{animation:none}}
