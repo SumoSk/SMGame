@@ -4505,26 +4505,40 @@ function prepareJunctionQueues(){
 }
 // Only reorder vehicles already sharing a green incoming lane. Their
 // leader moves first, so followers observe its current-frame position.
+// Front-to-back vehicle updates on a GREEN incoming road corridor.
+// A single lane's leader releases space first; following cars read its live
+// position in the same step. Work is O(vehicles + green approach lengths)
+// and is disabled altogether when there are no active green queues.
 function queueOrderedVehicles(){
- // No green junction queue: preserve the original O(N) hot loop exactly.
  if(!state.junctionQueues?.size)return [...state.vehicles.values()];
- const cars=[...state.vehicles.values()],positions=new Map();
- for(let i=0;i<cars.length;i++)positions.set(cars[i].id,i);
- const used=new Set();
- for(const [node,queue] of state.junctionQueues||[]){
-  const lanes=new Map();
-  for(const q of queue){
-   const key=node+':'+q.connector.incoming+':'+q.connector.laneIn;
-   let group=lanes.get(key);if(!group)lanes.set(key,group=[]);
-   group.push(q);
+ const cars=[...state.vehicles.values()],corridors=new Map();
+ for(const [node,requests]of state.junctionQueues){
+  const point=xy(node);
+  for(const q of requests){
+   const d=q.connector.incoming,l=q.connector.laneIn;
+   const fixed=(d&1)?point[0]:point[1],at=point[0]*DIR[d][0]+point[1]*DIR[d][1];
+   const key=d+':'+l+':'+fixed;
+   let row=corridors.get(key);
+   if(!row)corridors.set(key,row={nodes:[],members:[]});
+   if(!row.nodes.includes(at))row.nodes.push(at);
   }
-  for(const list of lanes.values()){
-   const active=list.filter(q=>positions.has(q.id)&&!used.has(q.id));
-   if(active.length<2)continue;
-   const slots=active.map(q=>positions.get(q.id)).sort((a,b)=>a-b);
-   active.sort((a,b)=>a.distance-b.distance||a.id-b.id);
-   for(let n=0;n<slots.length;n++){cars[slots[n]]=state.vehicles.get(active[n].id);used.add(active[n].id);}
-  }
+ }
+ if(!corridors.size)return cars;
+ for(let i=0;i<cars.length;i++){
+  const v=cars[i];
+  if(v.phase!=='driving'||v.path?.length<2)continue;
+  const d=motionDirection(v.path,v.pos),node=v.path[v.pos],point=xy(node);
+  const fixed=(d&1)?point[0]:point[1],lane=v.lane??plannedLane(v,v.pos);
+  const row=corridors.get(d+':'+lane+':'+fixed);
+  if(!row)continue;
+  const at=point[0]*DIR[d][0]+point[1]*DIR[d][1]+Math.max(0,Math.min(1,v.progress||0));
+  if(row.nodes.some(nodeAt=>nodeAt-at>=-2&&nodeAt-at<=20))row.members.push({index:i,along:at,id:v.id});
+ }
+ for(const row of corridors.values()){
+  if(row.members.length<2)continue;
+  const slots=row.members.map(m=>m.index).sort((a,b)=>a-b);
+  row.members.sort((a,b)=>b.along-a.along||a.id-b.id);
+  for(let j=0;j<slots.length;j++)cars[slots[j]]=state.vehicles.get(row.members[j].id);
  }
  return cars;
 }
