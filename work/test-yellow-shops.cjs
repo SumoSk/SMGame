@@ -151,7 +151,15 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
   'starter high red rooftop seven missing');
  assert(starter.some(p=>p.finish==='shop-brand-essential'&&p.color==='#006940'&&p.y>1.7),
   'starter main rooftop identity invisible in Low');
- assert(Math.max(...starter.map(p=>p.y+p.sy*.5))<2.1,'starter remains a single storey');
+ // A freestanding billboard is taller than the one-storey shop.
+ // Check the building height separately from the sign, plus its readability.
+ const shopBody=starter.filter(p=>p.finish!=='shop-brand-essential');
+ assert(Math.max(...shopBody.map(p=>p.y+p.sy*.5))<2.1,'starter remains a single storey');
+ const brand=starter.filter(p=>p.finish==='shop-brand-essential');
+ assert(brand.some(p=>p.color==='#006940'&&p.sx>=1.3&&p.sy>=.8),
+  'starter rooftop billboard must be large and upright');
+ assert(brand.filter(p=>p.color==='#006940'&&p.sx<.05&&p.sy<.05).length>=40,
+  'starter ELEVEN lettering must have readable individual strokes');
  console.log(JSON.stringify({passed:true,shops:4,rotations:12,parkingPreserved:true,
   rearHalfCompressed:true,parkingMovedTowardStore:true,
   lowQualityLighting:true,sevenElevenBranding:true,solarRoofs:true,roofSignsLow:true,models:rows}));
