@@ -207,7 +207,7 @@
   const left=(source.match(/^\s*/)||[''])[0],right=(source.match(/\s*$/)||[''])[0],word=source.slice(left.length,source.length-right.length);
   if(!word)return source;
   if(cache.has(word))return left+cache.get(word)+right;
-  let english=naturalMessage(word)??exact.get(word);
+  let english=exact.get(word)??naturalMessage(word);
   if(english==null){
    english=word;
    for(const [th,en] of ordered)if(english.includes(th))english=english.split(th).join(en);
