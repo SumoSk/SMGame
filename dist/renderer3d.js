@@ -2972,6 +2972,10 @@ export class TrafficRenderer{
   // campus; one/two floors only. Zero physics, extra lights or simulations.
   if(t.kind==='shop'){
    const level=t.modelTier||1,W=t.plotWidth,H=t.plotHeight,P=t.parkingZoneDepth;
+   // Track only new shop architecture. Parking/asphalt is already in Batch
+   // and must NOT be scaled or moved by this visual-only operation.
+   const shopStart=level===3?new Map([...batch.data].map(([key,val])=>
+    [key,val.items.length])):null;
    const low=this.graphicQuality==='low',cx=W*.5;
    const rear=P+.39,front=H-.79,usableW=W-1.82,usableD=front-rear;
    const white='#f3f5f0',silver='#c6d3ce',green='#006940';
@@ -3169,6 +3173,25 @@ export class TrafficRenderer{
     base(x,.60,front-.15,.19,.12,.19,'#87ab7c','foliage');
     led(cream,x,.70,front-.15,.055,.050,.048,'essential');
    }
+   // The rear HALF of every large-store pavilion is now only 50% deep.
+   // Keep the front entrance, 7-ELEVEN crests, solar roofs and storefront
+   // face pinned in place. Re-map both ENDPOINTS of long roof/wall pieces
+   // so they shrink exactly without creating gaps or overlapping parking.
+   if(shopStart){
+    const hinge=10.20,fold=v=>v>=hinge?v:hinge-(hinge-v)*.50;
+    for(const [key,group] of batch.data){
+     const first=shopStart.get(key)||0;
+     for(let i=first;i<group.items.length;i++){
+      const mesh=group.items[i],dx=mesh.x-b.x,dz=mesh.z-b.y;
+      const rot=b.rotation||0;
+      const u=rot===0?dx:rot===1?dz:rot===2?W-dx:W-dz;
+      const v=rot===0?dz:rot===1?H-dx:rot===2?H-dz:dx;
+      const rear=fold(v-mesh.sz*.5),front=fold(v+mesh.sz*.5);
+      const p=point(u,(rear+front)*.5);
+      mesh.x=p.x-.5;mesh.z=p.y-.5;mesh.sz=front-rear;
+     }
+    }
+   }
    return;
   }
 
@@ -3250,6 +3273,10 @@ export class TrafficRenderer{
    // Original front-lot grounding, pedestrian entrance and back-edge setback.
    block('#bdaba4',mid,.13,9.46,9.10,.21,5.72,'stone');
    block(ivory,mid,.29,9.46,9.00,.14,5.62,'stone');
+   // Keep parking, original ground plaza, fountain, pylon and public
+   // forecourt fixed. Only scale the BUILDING meshes created between
+   // these two batch snapshots, including roof, glazing, signs, terraces.
+   const mallBuildingStart=new Map([...batch.data].map(([key,g])=>[key,g.items.length]));
    // Main entrance: double-height glass atrium, deep champagne/wood frame.
    // Unlike the old circular pavilion, this reads like CENTRAL's front hall.
    block('#c1d0d0',mid,.36,9.35,2.86,.12,4.86,'stone');
@@ -3411,6 +3438,7 @@ export class TrafficRenderer{
     block('#80bdcb',u,4.302,v,.46,.025,.36,'glass');
     edge(u,4.326,v,.48,.029,white);
    }
+   const mallBuildingEnd=new Map([...batch.data].map(([key,g])=>[key,g.items.length]));
    // Brand pylon at the front-left, located on the pedestrian court only.
    block('#a67d58',1.15,1.04,11.91,.43,1.54,.34,'wood');
    block(white,1.15,2.25,11.91,.64,2.14,.37,'metal');
@@ -3438,6 +3466,23 @@ export class TrafficRenderer{
     led('#c4ebef',u,.28,12.34,.25,.018,.036);
    // Lightweight planted rear screening stays in front of parking lanes.
    if(!low)for(const u of[1.35,9.65])shrub(u,6.92,.17);
+   // Uniformly scale the Central mall architecture to 80% around its
+   // footprint centre (not the whole building parcel). 3D scale includes
+   // height. No changes to gates, 60 real stalls, lot paint or saved plots.
+   // The same model works under all four parcel rotations.
+   const scale=.80,pivotU=mid,pivotV=9.46;
+   for(const [key,g] of batch.data){
+    const begin=mallBuildingStart.get(key)||0;
+    const end=mallBuildingEnd.get(key)||0;
+    for(let i=begin;i<end;i++){
+     const item=g.items[i],dx=item.x-b.x,dz=item.z-b.y,rot=b.rotation||0;
+     const u=rot===0?dx:rot===1?dz:rot===2?W-dx:W-dz;
+     const v=rot===0?dz:rot===1?H-dx:rot===2?H-dz:dx;
+     const p=point(pivotU+(u-pivotU)*scale,pivotV+(v-pivotV)*scale);
+     item.x=p.x-.5;item.z=p.y-.5;item.y*=scale;
+     item.sx*=scale;item.sy*=scale;item.sz*=scale;
+    }
+   }
    return;
   }
 
