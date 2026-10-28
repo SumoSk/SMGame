@@ -91,6 +91,15 @@ for(const t of Object.values(CATALOG)){
   t.frontageEntranceU=+(t.plotWidth*.275).toFixed(2);
   t.frontageExitU=+(t.plotWidth-t.frontageEntranceU).toFixed(2);
   t.frontageV=t.plotHeight-.57;t.parkingLayout=null;
+  // Large 7-Eleven: pull BOTH 40-slot parking banks 0.70 plot-units
+  // toward the shortened rear shop building. Preserve all 40 real slots,
+  // entrance/exit road connections, row clearances and saved slot indices.
+  // This is the SIMULATION geometry: the lot paint and vehicle waypoints
+  // both derive from the same aisle coordinates.
+  if(t.key==='shop_large'){
+   t.parkingRearAisle+=.70;
+   t.parkingAisle+=.70;
+  }
  }
 }
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
