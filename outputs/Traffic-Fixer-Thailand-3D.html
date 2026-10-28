@@ -6958,7 +6958,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
 /* SMCITY Unified Popup System | 2026-10-28
    Shared visual tokens for dialogs, the member gate, daily report and action notices.
    Pure CSS: no extra render loop, listeners, or changes to game state. */
-#dialog, #missionDailyAuto, dialog.member-gate .member-card {
+#dialog, #missionDailyAuto, dialog.member-gate .member-card, #smcityCreator {
   --sm-pop-surface:#fbfcfa;
   --sm-pop-card:#ffffff;
   --sm-pop-raised:#f1f6f2;
@@ -6978,7 +6978,8 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
 }
 :root.smcity-gray-ui #dialog,
 :root.smcity-gray-ui #missionDailyAuto,
-:root.smcity-gray-ui dialog.member-gate .member-card {
+:root.smcity-gray-ui dialog.member-gate .member-card,
+:root.smcity-gray-ui #smcityCreator {
   --sm-pop-surface:#15191b;
   --sm-pop-card:#202629;
   --sm-pop-raised:#252e2b;
@@ -7408,6 +7409,78 @@ dialog.member-gate .member-card .member-back {
   font:600 12px/1.5 'Noto Sans Thai',Tahoma,sans-serif!important;
 }
 :root.smcity-gray-ui #toast {--sm-pop-primary:#9cdec0;--sm-pop-on-primary:#183426}
+
+/* Creator/admin dialog is generated separately by member.js; match its injected
+   rules with explicit theme tokens and stronger declarations. */
+#smcityCreator[open] {
+  background:var(--sm-pop-surface)!important;
+  color:var(--sm-pop-ink)!important;
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:18px!important;
+  box-shadow:var(--sm-pop-shadow)!important;
+  font:400 13px/1.65 'Noto Sans Thai',Tahoma,sans-serif!important;
+  animation:smcity-pop-enter .16s ease-out both;
+}
+#smcityCreator::backdrop {
+  background:rgba(7,22,19,.46)!important;
+  backdrop-filter:none!important;
+}
+#smcityCreator .cr-head {
+  padding-bottom:14px!important;
+  border-bottom:1px solid var(--sm-pop-line)!important;
+}
+#smcityCreator :is(h2,h3) {color:var(--sm-pop-ink)!important}
+#smcityCreator h2 {font-size:20px!important;line-height:1.35!important;font-weight:700!important}
+#smcityCreator h3 {font-size:14px!important;line-height:1.4!important}
+#smcityCreator :is(p,small,.cr-toolbar span) {color:var(--sm-pop-muted)!important}
+#smcityCreator .cr-stat,
+#smcityCreator .cr-table-box {
+  background:var(--sm-pop-card)!important;
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:11px!important;
+  color:var(--sm-pop-ink)!important;
+}
+#smcityCreator .cr-stat b {font-size:clamp(18px,2.8vw,25px)!important;color:var(--sm-pop-ink)!important}
+#smcityCreator :is(th,td) {border-color:var(--sm-pop-line)!important;color:var(--sm-pop-ink)!important}
+#smcityCreator th {background:var(--sm-pop-raised)!important;font-weight:700!important}
+#smcityCreator button {
+  min-height:38px!important;
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:10px!important;
+  background:var(--sm-pop-card)!important;
+  color:var(--sm-pop-ink)!important;
+  font:650 12px/1.4 'Noto Sans Thai',Tahoma,sans-serif!important;
+  transition:background-color .15s ease!important;
+}
+#smcityCreator button:hover:not(:disabled) {background:var(--sm-pop-hover)!important}
+#smcityCreator .cr-toolbar button {
+  background:var(--sm-pop-primary)!important;
+  border-color:var(--sm-pop-primary)!important;
+  color:var(--sm-pop-on-primary)!important;
+}
+#smcityCreator #creatorClose {width:36px;height:36px;padding:0!important;flex:none}
+#smcityCreator :is(input,select) {
+  font:400 13px/1.5 'Noto Sans Thai',Tahoma,sans-serif!important;
+  background:var(--sm-pop-card)!important;
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:10px!important;
+  color:var(--sm-pop-ink)!important;
+}
+#smcityCreator :is(button,input,select):focus-visible {
+  outline:2px solid var(--sm-pop-primary)!important;
+  outline-offset:2px;
+}
+@media(max-width:700px) {
+  #smcityCreator[open]{max-width:calc(100vw - 20px)!important}
+  #smcityCreator .cr-wrap{gap:12px;padding:14px}
+  #smcityCreator .cr-stat{padding:10px}
+  #smcityCreator :is(input,select){font-size:16px!important}
+}
+@media(prefers-reduced-motion:reduce) {
+  #smcityCreator[open]{animation:none!important}
+  #smcityCreator button{transition:none!important}
+}
+
 /* Mobile/iPad readability; keep large reports scrollable, never make overlay wider than screen. */
 @media(max-width:700px) {
   #dialog[open]:not(.construction-confirm) {max-width:calc(100vw - 20px)!important}
