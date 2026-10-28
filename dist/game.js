@@ -4487,8 +4487,99 @@ function connectorsConflict(a,b){
 function clearVehicleReservations(v){
  for(const [key,r]of state.reservations){if(r.passes){r.passes=r.passes.filter(p=>p.id!==v.id);if(!r.passes.length)state.reservations.delete(key);else r.id=r.passes[0].id;}else if(r.id===v.id)state.reservations.delete(key);}
 }
+
+ // Transient junction permits: issued ONLY in the all-red clearance between
+ // fixed-time green approaches. The permit owns its conflict zone and
+ // downstream exit BEFORE green; use is instant on green, with no re-scan.
+ // Smart/manual signals retain their original live admission algorithm.
+const preclearanceTickets=new Map();
+let preclearanceCandidates=new Map();
+function upcomingClearanceGreen(node){
+ const setting=signalSettings(node);
+ if(setting.mode!=='auto'||setting.holdUntil>state.time)return null;
+ const slots=signalSlots(node);let elapsed=signalProgress(node);
+ for(let k=0;k<slots.length;k++){
+  elapsed-=signalDuration(setting,slots[k]);
+  if(elapsed<0)return null;
+  elapsed-=SIGNAL_YELLOW_MINUTES;
+  if(elapsed<0)return null;
+  if(elapsed<SIGNAL_CLEAR_MINUTES){
+   const remaining=SIGNAL_CLEAR_MINUTES-elapsed;
+   return remaining<=.65?{incoming:slots[(k+1)%slots.length].incoming,remaining}:null;
+  }
+  elapsed-=SIGNAL_CLEAR_MINUTES;
+ }
+ return null;
+}
+function discardPreclearanceTicket(ticket){
+ const v=ticket.car,id=ticket.id;
+ const lock=state.reservations.get('junction:'+ticket.node);
+ if(lock?.passes){
+  lock.passes=lock.passes.filter(p=>p.id!==id||!p.pending);
+  if(!lock.passes.length)state.reservations.delete('junction:'+ticket.node);
+  else lock.id=lock.passes[0].id;
+ }
+ for(const key of ticket.keys){
+  const claim=state.reservations.get(key);
+  if(claim?.pending&&claim.id===id)state.reservations.delete(key);
+ }
+ if(preclearanceTickets.get(id)===ticket)preclearanceTickets.delete(id);
+}
+function validPreclearanceTicket(ticket){
+ const v=ticket.car;
+ return state.vehicles.get(ticket.id)===v&&v.phase==='driving'&&
+  v.path===ticket.path&&state.version===ticket.version&&
+  plannedLane(v,ticket.pos-1)===ticket.lane&&
+  signalSettings(ticket.node).mode==='auto'&&
+  signalCycle(ticket.node)===ticket.cycle&&
+  state.time<=ticket.until&&
+  (upcomingClearanceGreen(ticket.node)?.incoming===ticket.incoming||
+   signalAllows(ticket.node,ticket.incoming,ticket.lane));
+}
+function cleanupPreclearanceTickets(){
+ for(const ticket of preclearanceTickets.values())
+  if(!validPreclearanceTicket(ticket))discardPreclearanceTicket(ticket);
+}
+function preclearedAdmission(v,pos,ignoreSignal=false){
+ if(ignoreSignal)return false;
+ const t=preclearanceTickets.get(v.id);
+ return !!t&&t.car===v&&t.node===v.path[pos]&&t.pos===pos&&
+  state.version===t.version&&v.path===t.path&&
+  signalAllows(t.node,t.incoming,t.lane)&&
+  plannedLane(v,pos-1)===t.lane&&state.time<=t.until;
+}
+function preparePreclearancePermits(){
+ // At most one exclusive permit per junction; this intentionally avoids
+ // speculative parallel intersection reservations and extra car scans.
+ for(const request of preclearanceCandidates.values()){
+  const {v,pos,node,incoming,lane,remaining}=request;
+  if(state.reservations.has('junction:'+node)||preclearanceTickets.has(v.id))continue;
+  if(v.phase!=='driving'||state.vehicles.get(v.id)!==v||
+    !upcomingClearanceGreen(node)||!junctionExitAvailable(v,pos))continue;
+  const keys=[];
+  let free=true;
+  for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionReservation);k++){
+   if(k>pos&&signalRequired(v.path[k]))break;
+   const next=k+1<v.path.length?v.path[k+1]:v.path[Math.max(0,k-1)];
+   const d=k+1<v.path.length?dir(v.path[k],next):dir(next,v.path[k]);
+   const key=occKey(v.path[k],d,plannedLane(v,k));
+   const claim=state.reservations.get(key),occupant=state.occ.get(key);
+   if(claim&&claim.id!==v.id||occupant&&occupant!==v.id){free=false;break;}
+   keys.push(key);
+  }
+  if(!free)continue;
+  const until=state.time+remaining+1.1;
+  const ticket={id:v.id,car:v,node,pos,path:v.path,version:state.version,
+    lane,incoming,until,cycle:signalCycle(node),keys};
+  state.reservations.set('junction:'+node,{id:v.id,passes:[{id:v.id,pos,until,pending:true}]});
+  for(const key of keys)state.reservations.set(key,{id:v.id,until,pending:true});
+  preclearanceTickets.set(v.id,ticket);
+ }
+}
+
 function prepareJunctionQueues(){
- state.junctionQueues=new Map();
+ state.junctionQueues=new Map();preclearanceCandidates=new Map();
+ const clearances=new Map();
  for(const v of state.vehicles.values()){
   if(v.phase!=='driving'||!v.path?.length)continue;
   const plan=motionPlan(v),s=motionDistance(v,plan);if(!v.junctionQueueSince)v.junctionQueueSince={};
@@ -4497,7 +4588,17 @@ function prepareJunctionQueues(){
    // Red approaches retain their original queue arrival time, but cannot
    // compete for entry. Defer expensive connector sampling and intersection
    // competition until the approach turns green; all its lanes turn green together.
-   if(!signalAllows(g.node,motionDirection(v.path,g.pos-1)))continue;
+   if(!signalAllows(g.node,motionDirection(v.path,g.pos-1))){
+    let clear=clearances.get(g.node);
+    if(clear===undefined){clear=upcomingClearanceGreen(g.node)||null;clearances.set(g.node,clear);}
+    const incoming=motionDirection(v.path,g.pos-1),lane=plannedLane(v,g.pos-1);
+    if(clear?.incoming===incoming){
+     const candidate=preclearanceCandidates.get(g.node);
+     if(!candidate||g.stop-s<candidate.distance)
+      preclearanceCandidates.set(g.node,{v,pos:g.pos,node:g.node,incoming,lane,remaining:clear.remaining,distance:g.stop-s});
+    }
+    continue;
+   }
    const connector=junctionConnector(v,g.pos),request={id:v.id,pos:g.pos,at:v.junctionQueueSince[key],distance:g.stop-s,connector};let queue=state.junctionQueues.get(g.node);if(!queue)state.junctionQueues.set(g.node,queue=[]);queue.push(request);
   }
   for(const key of Object.keys(v.junctionQueueSince))if(!activeKeys.has(key))delete v.junctionQueueSince[key];
@@ -4628,6 +4729,9 @@ function junctionExitAvailable(v,pos){
 function intersectionAllowed(v,pos,ignoreSignal=false){
  if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
  const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return false;
+ // The already-claimed physical junction corridor makes the first green
+ // admission O(1), rather than a second full conflict/exit/queue scan.
+ if(preclearedAdmission(v,pos,ignoreSignal))return true;
  const connector=junctionConnector(v,pos),lock=state.reservations.get('junction:'+i);
  for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos)))return false;}}
  // Exit clearance is dynamic: check on EVERY admission attempt, never cache
@@ -4643,9 +4747,11 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
 function ownsJunctionPass(v,pos){return v.junctionPasses?.some(p=>p.pos===pos&&p.node===v.path[pos]);}
 function reserveIntersection(v,pos){
  const i=v.path[pos];if(junction(i)<3)return;
+ const pending=preclearanceTickets.get(v.id);
+ if(pending?.car===v&&pending.node===i&&pending.pos===pos)preclearanceTickets.delete(v.id);
  if(!v.junctionPasses)v.junctionPasses=[];
  if(!ownsJunctionPass(v,pos))v.junctionPasses.push({pos,node:i});
- const key='junction:'+i,lock=state.reservations.get(key)||{passes:[]};if(!lock.passes)lock.passes=[];const pass=lock.passes.find(p=>p.id===v.id);if(pass){pass.until=state.time+30;pass.pos=pos;}else lock.passes.push({id:v.id,pos,until:state.time+30});lock.id=lock.passes[0].id;lock.until=state.time+30;state.reservations.set(key,lock);
+ const key='junction:'+i,lock=state.reservations.get(key)||{passes:[]};if(!lock.passes)lock.passes=[];const pass=lock.passes.find(p=>p.id===v.id);if(pass){pass.until=state.time+30;pass.pos=pos;pass.pending=false;}else lock.passes.push({id:v.id,pos,until:state.time+30});lock.id=lock.passes[0].id;lock.until=state.time+30;state.reservations.set(key,lock);
  for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionReservation);k++){
   // Reserve this connector only, never an independent downstream junction.
   if(k>pos&&signalRequired(v.path[k]))break;
@@ -5049,6 +5155,8 @@ function advanceVehicles(realDt,gameDt){
  let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);for(const car of state.vehicles.values()){if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,poseMemo:new WeakMap(),parkingGrid:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
  prepareParkingMerges(simDt);
  const emergencyAlerts=parkingGateAlerts();
+ cleanupPreclearanceTickets();
+ preparePreclearancePermits();
  for(const v of queueOrderedVehicles()){
   try{
   if(!state.vehicles.has(v.id))continue;

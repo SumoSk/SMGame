@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - feature/platoon-follow-performance-20261028
+      - feature/precleared-junction-permits-20261028
       - feature/smcity-1.4-landscaping-20261022
   pull_request:
 permissions:
@@ -111,10 +112,10 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
       - run: node work/test-performance.cjs
       - name: Benchmark current against v4.4.2
-        if: github.ref == 'refs/heads/feature/platoon-follow-performance-20261028'
+        if: (github.ref == 'refs/heads/feature/platoon-follow-performance-20261028' || github.ref == 'refs/heads/feature/precleared-junction-permits-20261028')
         run: node work/test-platoon-performance.cjs
   green-platoon-safety:
-    if: github.ref == 'refs/heads/feature/platoon-follow-performance-20261028'
+    if: (github.ref == 'refs/heads/feature/platoon-follow-performance-20261028' || github.ref == 'refs/heads/feature/precleared-junction-permits-20261028')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
