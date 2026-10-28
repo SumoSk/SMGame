@@ -4506,6 +4506,8 @@ function prepareJunctionQueues(){
 // Only reorder vehicles already sharing a green incoming lane. Their
 // leader moves first, so followers observe its current-frame position.
 function queueOrderedVehicles(){
+ // No green junction queue: preserve the original O(N) hot loop exactly.
+ if(!state.junctionQueues?.size)return [...state.vehicles.values()];
  const cars=[...state.vehicles.values()],positions=new Map();
  for(let i=0;i<cars.length;i++)positions.set(cars[i].id,i);
  const used=new Set();
