@@ -90,6 +90,17 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     assert(floors.some(i=>uv({x:i.x,y:i.y,z:i.z})[1]+i.sz/2>11.2),
      'front shop entrances must not move backward');
     assert(hi>3.5&&hi<4.2,'only the main large shop reaches two floors');
+    // The compressed building had left a bare 1.5+ cell gap from parking.
+    // The rear-to-parking surface must now be flush and continuous, yet
+    // never displace the 40 real stalls or the vehicle aisles.
+    const apron=items.filter(i=>i.color==='#cbd1cb'&&i.sy<.08);
+    assert.equal(apron.length,1,'large store needs ONE joined rear parking walkway');
+    const rearEdge=uv({x:apron[0].x,y:apron[0].y,z:apron[0].z})[1]-apron[0].sz/2;
+    const frontEdge=uv({x:apron[0].x,y:apron[0].y,z:apron[0].z})[1]+apron[0].sz/2;
+    assert(rearEdge>=6.44&&rearEdge<=6.55,'walkway must start directly after parking');
+    assert(frontEdge>8.3,'walkway must reach shortened rear store walls');
+    assert(items.filter(i=>i.color==='#e7e7df'&&i.y<.20).length===1,
+     'one continuous contrasting shop pedestrian route is required');
     assert(items.filter(i=>i.color==='#e8e8df'&&i.y>2).length>=1,
      'large should have real upper level');
    }else assert(hi<2.65,'small and medium must remain one-floor');
