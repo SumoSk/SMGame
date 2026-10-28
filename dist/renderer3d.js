@@ -3209,6 +3209,14 @@ export class TrafficRenderer{
     // concrete retail box. All customer aisles are visible inside.
     base(x,.28,z,w-.08,.12,d-.08,'#e9e7df');
     base(x,.97,back+.078,w-.11,1.35,.12,'#d7dfd6');
+    // Rear loading shutter, wall ventilation and security lighting.
+    base(x,.76,back+.01,Math.min(.5,w*.34),.8,.036,'#788e91','metal');
+    base(x,.76,back-.019,Math.min(.43,w*.28),.67,.019,'#b2c4c2','metal');
+    led('#ffe4b2',x,1.45,back-.051,.13,.05,.03,'essential');
+    if(!low)for(const dx of[-w*.32,w*.32]){
+     base(x+dx,1.24,back-.018,.21,.20,.043,'#81989a','metal');
+     for(let j=0;j<3;j++)base(x+dx,1.18+j*.055,back-.045,.16,.012,.018,'#dce5df','metal');
+    }
     for(const xx of[x-w*.47,x+w*.47]){
      base(xx,1.09,z,.064,1.52,d-.14,silver,'metal');
      base(xx,1.02,z,.042,1.27,d-.28,tint,'glass');
@@ -3589,6 +3597,14 @@ export class TrafficRenderer{
    for(const u of[4.40,6.60])
     led('#c4ebef',u,.28,12.34,.25,.018,.036);
    // Lightweight planted rear screening stays in front of parking lanes.
+   // Service entrances on rear facade; all included in existing scale pass.
+   for(const u of[2.05,5.5,8.95]){
+    block('#637b80',u,.7,7.2,.69,.92,.046,'metal');
+    block('#b3c5c1',u,.69,7.166,.55,.77,.02,'metal');
+    led(warm,u,1.38,7.12,.14,.054,.03,'essential');
+    if(!low)for(let j=0;j<4;j++)block('#71898b',u-.22+j*.15,1.06,7.126,.041,.13,.02,'metal');
+   }
+   // Lightweight planted rear screening stays in front of parking lanes.
    if(!low)for(const u of[1.35,9.65])shrub(u,6.92,.17);
    // Uniformly scale the Central mall architecture to 80% around its
    // footprint centre (not the whole building parcel). 3D scale includes
@@ -3874,6 +3890,16 @@ export class TrafficRenderer{
    // markers; entirely within the original frontage reserve.
    mallLED(warm,cx,1.69,front+.29,atriumW*.67,.026,.025,'essential');
    mallLED(ice,cx,.31,front+.24,atriumW*.61,.018,.023,'essential');
+   if(!low)for(const dx of[-atriumW*.28,atriumW*.28]){
+   // Gallery wings: compact rear loading shutters with warm service lights.
+   for(const side of[-1,1]){
+    const sx=cx+side*wingX,rz=rear+.26;
+    solid('#748d92',sx,.77,rz-.10,Math.min(.6,wingW*.58),.81,.043,'metal');
+    solid('#b3c6c3',sx,.77,rz-.13,Math.min(.5,wingW*.48),.69,.02,'metal');
+    mallLED(warm,sx,1.45,rz-.16,.13,.046,.027,'essential');
+    if(!low)for(const dx of[-wingW*.34,wingW*.34])
+     solid('#829a9c',sx+dx,1.14,rz-.11,.17,.18,.039,'metal');
+   }
    if(!low)for(const dx of[-atriumW*.28,atriumW*.28]){
     mallLED(champagne,cx+dx,.69,front+.333,.027,.49,.027);
    }
