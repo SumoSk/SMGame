@@ -22,11 +22,16 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
   assert.equal(slots.length,t.parkingCapacity,key+' slots');
   assert.equal(new Set(slots.map(x=>x.index)).size,slots.length,'unique parking spaces '+key);
   if(t.plannedParking){
+   if(key!=='shop_large'){
    assert.equal(t.parkingZoneDepth,t.buildingZoneDepth,key+' true 50/50 land split');
    assert.equal(t.parkingZoneDepth,t.plotHeight/2,key+' half plot depth');
    const area=banks=>Math.max(6,Math.ceil(2.33+Math.ceil(t.parkingCapacity/(2*banks))*.55))*(banks===1?8:13);
    assert.equal(t.plotWidth*t.plotHeight,Math.min(area(1),area(2)),key+' minimum safe parking-first plot');
    assert.equal(t.parkingRows,t.plotHeight===8?1:2,key+' matching number of courts');
+   }else{
+    assert.deepEqual([t.plotWidth,t.plotHeight,t.parkingRows],[8,11,2]);
+    assert.equal(t.parkingZoneDepth+t.buildingZoneDepth,t.plotHeight);
+   }
    const graphic=g.parkingVisuals(sample);
    assert(graphic.length>=t.parkingCapacity*3,key+' stripes for every stall');
    assert.equal(graphic.filter(x=>x.color==='#515f62').length,t.parkingRows,key+' visible parking aisles');
@@ -34,13 +39,12 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
    const points=g.lotSlots(sample);
    const frontBayEdge=Math.max(...points.map(x=>x.v+.62));
    if(key==='shop_large'){
-    // 7-Eleven's rear retail pavilions were shortened. The two real
-    // parking banks move 0.7 cells closer into the freed approach space;
-    // no stall crosses the shop wall, park capacity and entrances remain.
+    // The compact 8x11 store keeps both full-size parking banks,
+    // directly beside its foundation, with the original stall spacing.
     assert(frontBayEdge<=t.parkingZoneDepth+.55,
      'large shop advanced parking stays clear of storefront');
-    assert.equal(t.parkingRearAisle,2.75);
-    assert.equal(t.parkingAisle,5.60);
+    assert.equal(t.parkingRearAisle,2.05);
+    assert.equal(t.parkingAisle,4.90);
    }else assert(frontBayEdge<=t.parkingZoneDepth,
     key+' parking stays in rear half');
    assert(Math.min(...points.map(x=>x.v-.62))>=0,key+' no blank rear row');
@@ -80,5 +84,5 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
   for(let tick=0;tick<8000&&!b.parked.has(c.id);tick++){g.state.time+=.04;g.advanceVehicles(.05,.04);}
   assert(b.parked.has(c.id),key+' car successfully enters and parks');
  }
- console.log(JSON.stringify({passed:true,updatedBuildingTypes:Object.keys(spec).length,rotations:4,parkingFirst:true,landSplit:'50/50',grandUnchanged:true,hotelUnchanged:true,rendered:drawn,realArrivals:homes.length}));
+ console.log(JSON.stringify({passed:true,updatedBuildingTypes:Object.keys(spec).length,rotations:4,parkingFirst:true,landSplit:'50/50 except compact large shop',grandUnchanged:true,hotelUnchanged:true,rendered:drawn,realArrivals:homes.length}));
 })().catch(e=>{console.error(e);process.exitCode=1;});

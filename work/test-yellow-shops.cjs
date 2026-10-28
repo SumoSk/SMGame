@@ -11,7 +11,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  const r=Object.create(TrafficRenderer.prototype);
  r.parking={lotPoint:g.lotPoint,parkingVisuals:()=>[]};
  const specs=[['shop_small',6,8,10,2,8,1],
-  ['shop_medium',8,8,20,4,16,2],['shop_large',8,13,40,8,32,3]];
+  ['shop_medium',8,8,20,4,16,2],['shop_large',8,11,40,8,32,3]];
  const rows=[];
  for(const [key,W,H,parking,jobs,service,blocks] of specs){
   const t=g.CATALOG[key];
@@ -19,9 +19,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    [W,H,parking,jobs,service],'unchanged shopping and parking program '+key);
   assert.equal(g.lotSlots({key}).length,parking);
   if(key==='shop_large'){
-   // Parking and actual vehicle waypoints use the same shifted aisles.
-   assert.equal(t.parkingRearAisle,2.75);
-   assert.equal(t.parkingAisle,5.60);
+   // Paint and vehicle waypoints share the two compact-plot aisles.
+   assert.equal(t.parkingRearAisle,2.05);
+   assert.equal(t.parkingAisle,4.90);
    assert.equal(t.parkingRowOffset,.79);
    const slots=g.lotSlots({key});
    assert.equal(slots.length,40,'40 real parking bays retained');
@@ -86,21 +86,19 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     const floors=items.filter(i=>i.color==='#e9e7df'&&Math.abs(i.y-.28)<.04);
     assert.equal(floors.length,3,'independent shops remain');
     const minRear=Math.min(...floors.map(i=>uv({x:i.x,y:i.y,z:i.z})[1]-i.sz/2));
-    assert(minRear>8.3,'shortened rear must leave clearance near parking');
-    assert(floors.some(i=>uv({x:i.x,y:i.y,z:i.z})[1]+i.sz/2>11.2),
-     'front shop entrances must not move backward');
+    assert(minRear>6.7&&minRear<7.0,'shortened shops meet parking with a narrow safe setback');
+    assert(floors.some(i=>uv({x:i.x,y:i.y,z:i.z})[1]+i.sz/2>9.2),
+     'shop entrances remain inside the compact frontage');
     assert(hi>3.5&&hi<4.2,'only the main large shop reaches two floors');
-    // The compressed building had left a bare 1.5+ cell gap from parking.
-    // The rear-to-parking surface must now be flush and continuous, yet
-    // never displace the 40 real stalls or the vehicle aisles.
-    const apron=items.filter(i=>i.color==='#cbd1cb'&&i.sy<.08);
-    assert.equal(apron.length,1,'large store needs ONE joined rear parking walkway');
-    const rearEdge=uv({x:apron[0].x,y:apron[0].y,z:apron[0].z})[1]-apron[0].sz/2;
-    const frontEdge=uv({x:apron[0].x,y:apron[0].y,z:apron[0].z})[1]+apron[0].sz/2;
-    assert(rearEdge>=6.44&&rearEdge<=6.55,'walkway must start directly after parking');
-    assert(frontEdge>8.3,'walkway must reach shortened rear store walls');
-    assert(items.filter(i=>i.color==='#e7e7df'&&i.y<.20).length===1,
-     'one continuous contrasting shop pedestrian route is required');
+    assert(!items.some(i=>i.color==='#cbd1cb'&&i.sy<.08),
+     'surplus rear apron must be removed');
+    assert(!items.some(i=>i.color==='#e7e7df'&&i.y<.20),
+     'white filler passage must be removed');
+    const foundation=items.find(i=>i.color==='#c5ccc4');
+    const foundationRear=uv({x:foundation.x,y:foundation.y,z:foundation.z})[1]-foundation.sz/2;
+    const parkingEdge=Math.max(...g.lotSlots(b).map(s=>s.v+.64));
+    assert(foundationRear-parkingEdge>0&&foundationRear-parkingEdge<.20,
+     'parking must adjoin the foundation without overlapping');
     assert(items.filter(i=>i.color==='#e8e8df'&&i.y>2).length>=1,
      'large should have real upper level');
    }else assert(hi<2.65,'small and medium must remain one-floor');
