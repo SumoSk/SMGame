@@ -727,14 +727,18 @@ function carGeometries(style){
 }
 
 class Batch{
- constructor({detailGroups=false}={}){this.data=new Map();this.group=new THREE.Group();this.detailGroups=detailGroups;}
+ constructor({detailGroups=false,lowDetail=false}={}){this.data=new Map();this.group=new THREE.Group();this.detailGroups=detailGroups;this.lowDetail=lowDetail;}
  add(geo,color,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0,buildingId=null,glow=false,finish='matte'){
  buildingId??=this.pickId??null;
  const maxSize=Math.max(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  const minSize=Math.min(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  // Separate only tiny architectural trims, not walls, roofs, windows, parking paint or doors.
- const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&finish!=='mall-sign'&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&
+ const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&finish!=='mall-sign'&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&finish!=='lod-landmark'&&
    ((minSize<.045&&maxSize<.85)||(maxSize<.35&&Math.abs(sx*sy*sz)<.00065));
+ // LOW builds only the geometry that will actually be drawn. Keep roof signs,
+ // entrances, facades, solar panels and essential night strips at all presets.
+ if(this.lowDetail&&(fine||finish==='foliage'||finish==='bark'||
+    /^(?:factory|mall|shop)-night-(?:detail|reactor)$/.test(finish)))return;
  const key=geo.uuid+color+(glow?'@light':'')+finish+(this.detailGroups?(fine?'@detail':'@base'):'');
  if(!this.data.has(key))this.data.set(key,{geo,color,glow,finish,fine,items:[]});
  this.data.get(key).items.push({x,y,z,sx,sy,sz,rx,ry,rz,buildingId});
@@ -783,9 +787,11 @@ export class TrafficRenderer{
   if(this.graphicQuality===value)return true;
   this.graphicQuality=value;
   this.treeKey=''; // rebuild near-detail tree geometry when returning from a lower preset
+  this.buildKey=''; // LOW has a separate reduced building mesh; rebuild when toggling presets
   // Low deliberately renders into a smaller framebuffer: softer image at every zoom.
   const ratio=value==='low'?.72:Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,1.6);
   this.renderer.setPixelRatio(ratio);
+  this.renderer.shadowMap.enabled=value!=='low';
   this.lastBuildingDetailLevel=null;
   this.lastGlow=-1; // Force refresh on the first frame after a quality switch.
   this.treeGroup.visible=value!=='low';
@@ -877,7 +883,7 @@ export class TrafficRenderer{
   this.renderer.toneMappingExposure=Math.max(.82,visibility.exposure*(1-air.rain*.09));
   const solar=Math.max(0,Math.sin((sun.minute-360)/720*Math.PI)),az=sun.minute/1440*Math.PI*2;
   this.light.position.set(this.cam.x+Math.cos(az)*65,27+solar*68,this.cam.y+Math.sin(az)*65);
-  this.light.castShadow=sun.strength>.58;
+  this.light.castShadow=this.graphicQuality!=='low'&&sun.strength>.58;
   const glow=smooth(sun.lamps)*(1-air.rain*.12);
   this.updateNightVisibility(glow,visibility);
   if(Math.abs(glow-this.lastGlow)>.008){
@@ -1072,6 +1078,18 @@ export class TrafficRenderer{
   if(this.decoration(batch,x,z,kind))return;
   // Render-only upgrade: preserves tree kinds, footprint coordinates and save schema.
   if(kind===true)kind='palm';else if(kind===false)kind='shade';
+  // Landmark trees remain recognizable on LOW, using two shared primitives
+  // rather than generating rich foliage and then hiding it. Parks stay green.
+  if(batch.lowDetail&&batch.detailGroups){
+   const pine=['pine','cedar','cypress'].includes(kind);
+   const color=kind==='cherry'?'#e9a8c1':kind==='jacaranda'?'#9d88cb':
+    kind==='maple'?'#d38b55':kind==='palm'?'#5a9861':'#649b62';
+   const trunk=.70*scale,treeWidth=(pine?.49:.60)*scale;
+   batch.add(CYL,'#8a6d4e',x,trunk*.50,z,.085*scale,trunk,.085*scale,0,0,0,null,false,'lod-landmark');
+   batch.add(pine?CONE:LEAF,color,x,trunk+.38*scale,z,
+    treeWidth,.80*scale,treeWidth,0,0,0,null,false,'lod-landmark');
+   return;
+  }
   const near=detail==='near',tone=hash(x+7,z+3);
   const bark=tone>.52?'#79634b':'#927559',dark=tone>.55?'#3c784e':'#457f50';
   const mid=tone>.55?'#57935d':'#629b60',light=tone>.55?'#78ad6a':'#82b773';
@@ -6704,7 +6722,8 @@ export class TrafficRenderer{
  }
  createFactoryEffects(records){
   this.factoryFxSources=records;this.factoryFxSelectionKey='';this.factoryFxSelected=[];
-  if(!records.length){this.factoryFx=null;return;}
+  // Low graphics omits continuous steam/sparks/fan meshes entirely.
+  if(!records.length||this.graphicQuality==='low'){this.factoryFx=null;return;}
   if(!this.factorySteamTexture){
    const n=32,bytes=new Uint8Array(n*n*4);
    for(let y=0;y<n;y++)for(let x=0;x<n;x++){
@@ -6766,7 +6785,7 @@ export class TrafficRenderer{
 
  makeBuildings(state,CATALOG,KINDS){
   this.disposeGroup(this.buildingGroup);
-  const batch=new Batch({detailGroups:true});this.grandSignalLights=[];
+  const batch=new Batch({detailGroups:true,lowDetail:this.graphicQuality==='low'});this.grandSignalLights=[];
   for(const building of state.buildings.values())this.building(batch,building,CATALOG,KINDS);
   this.buildingGroup.add(batch.build());
   this.factoryNightPulseMeshes=[];
