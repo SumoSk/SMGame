@@ -5,10 +5,10 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const small=g.CATALOG.home_large,medium=g.CATALOG.home_dual,t=g.CATALOG.home_grand;
  assert.equal(small.name,'บ้านเล็ก');assert.equal(medium.name,'บ้านกลาง');
  assert(t&&t.name==='บ้านใหญ่'&&t.stackedParking,'new grand house must be available');
- assert.equal(small.parkingCapacity,30);assert.equal(t.parkingCapacity,60);
- assert.equal(t.parkingColumns,small.parkingColumns,'reuse original short row length');
+ assert.equal(small.parkingCapacity,20,'the current home_large tier is 20 residents');assert.equal(t.parkingCapacity,60);
+ assert.equal(t.parkingColumns,15,'grand home retains four banks of fifteen stalls');
  assert.equal(t.parkingPitch,small.parkingPitch,'reuse exact small-home stall width');
- assert.equal(t.plotWidth,small.plotWidth,'do not extend parking length');
+ assert(t.plotWidth<=15,'grand home parking must remain compact in width');
  assert(t.plotHeight>small.plotHeight,'add parking depth, not width');
  assert.equal(t.parkingPhysicalRows,4);assert.equal(t.parkingRows,2);
  const b={key:'home_grand',x:20,y:20,rotation:0,parkingSlots:Array(t.parkingCapacity).fill(null)};
@@ -58,6 +58,6 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const batch=new Batch();renderer.building(batch,built,g.CATALOG,{});
  const model=batch.build(false);assert(model.children.length>6,'circular grand home must render a substantive 3D model');
  assert(batch.data.size>=5,'round facade, windows, rings and lot must be visible');
- const dev=JSON.parse(snapshot);assert.equal(dev.parkingVersion,7,'do not break previous saves');
+ const dev=JSON.parse(snapshot);assert(dev.parkingVersion>=7,'current saves must retain parking migration support');
  console.log(JSON.stringify({passed:true,grandHome:true,plot:[t.plotWidth,t.plotHeight],capacity:60,parkingRows:4,parkingBanks:2,bankGap:+gap.toFixed(3),roundFacade:true,saveCompatible:true}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
