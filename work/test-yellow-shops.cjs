@@ -18,6 +18,15 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
   assert.deepEqual([t.plotWidth,t.plotHeight,t.parkingCapacity,t.jobs,t.service],
    [W,H,parking,jobs,service],'unchanged shopping and parking program '+key);
   assert.equal(g.lotSlots({key}).length,parking);
+  if(key==='shop_large'){
+   // Parking and actual vehicle waypoints use the same shifted aisles.
+   assert.equal(t.parkingRearAisle,2.75);
+   assert.equal(t.parkingAisle,5.60);
+   assert.equal(t.parkingRowOffset,.79);
+   const slots=g.lotSlots({key});
+   assert.equal(slots.length,40,'40 real parking bays retained');
+   assert(Math.max(...slots.map(s=>s.v))<6.5,'all parked cars clear the shop frontage');
+  }
   let digest;
   for(let rotation=0;rotation<4;rotation++){
    const b={key,x:40,y:50,id:127,rotation,parked:new Set(),
@@ -73,6 +82,13 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    assert.equal(offending.length,0,key+' physically overhangs streets '+JSON.stringify(offending));
    assert(lo>=-.001);
    if(key==='shop_large'){
+    // Rear half of each of the three 7-Eleven shops is contracted.
+    const floors=items.filter(i=>i.color==='#e9e7df'&&Math.abs(i.y-.28)<.04);
+    assert.equal(floors.length,3,'independent shops remain');
+    const minRear=Math.min(...floors.map(i=>uv({x:i.x,y:i.y,z:i.z})[1]-i.sz/2));
+    assert(minRear>8.3,'shortened rear must leave clearance near parking');
+    assert(floors.some(i=>uv({x:i.x,y:i.y,z:i.z})[1]+i.sz/2>11.2),
+     'front shop entrances must not move backward');
     assert(hi>3.5&&hi<4.2,'only the main large shop reaches two floors');
     assert(items.filter(i=>i.color==='#e8e8df'&&i.y>2).length>=1,
      'large should have real upper level');
@@ -124,5 +140,6 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
   'starter main rooftop identity invisible in Low');
  assert(Math.max(...starter.map(p=>p.y+p.sy*.5))<2.1,'starter remains a single storey');
  console.log(JSON.stringify({passed:true,shops:4,rotations:12,parkingPreserved:true,
+  rearHalfCompressed:true,parkingMovedTowardStore:true,
   lowQualityLighting:true,sevenElevenBranding:true,solarRoofs:true,roofSignsLow:true,models:rows}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
