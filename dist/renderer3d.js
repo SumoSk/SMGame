@@ -3331,6 +3331,66 @@ export class TrafficRenderer{
     // Prominent wing signage, low-grade meshes stay visible.
     if(wing===1)sign('CENTRAL',x,2.02,face+.130,2.18,.33);
    }
+   // The reference mall reads as ONE architecture, not three detached shops:
+   // stepped linking roof, clean white parapet and large flat charcoal deck.
+   // The roofing is a shallow H-shaped connection behind the glass atrium;
+   // every skylight remains visible from overhead, all below two-storey cap.
+   block('#cac7c0',5.50,4.155,8.49,8.38,.065,2.39,'stone');
+   block('#aaa6a4',5.50,4.202,8.49,8.17,.027,2.24,'metal');
+   // Thin architectural fascia runs only along the back and side boundaries.
+   block(white,5.50,4.28,7.22,8.48,.16,.15,'metal');
+   for(const x of[1.29,9.71])
+    block(white,x,4.28,8.44,.145,.16,2.46,'metal');
+   led(warm,5.50,4.18,7.32,7.90,.023,.026);
+   if(!low)for(const x of[1.39,9.61])
+    led('#c4e7ee',x,4.17,8.44,.021,.023,2.12,'detail');
+   // Carved white front-bay frames with narrow bronze inner rebates:
+   // the signature deep V / folded frames of the reference photo.
+   for(const [x,face] of[[2.58,11.36],[8.42,11.24]]){
+    for(const side of[-1,1]){
+     const off=side*1.13;
+     diagonal(white,x+off,.70,x+off*.77,2.05,face+.13,.21);
+     if(!low)diagonal(wood,x+off*.93,.86,x+off*.72,1.98,face+.21,.052);
+    }
+    edge(x,2.13,face+.14,2.45,.15,white);
+    led(warm,x,2.055,face+.20,2.24,.028,.027);
+    // Retail-level warm interior boutique display behind tinted glazing.
+    if(!low)for(const dx of[-.65,0,.65]){
+     block('#decbb6',x+dx,.57,face-.15,.34,.12,.24,'wood');
+     block(dx===0?'#88a9b4':'#b0bb99',x+dx,.86,face-.14,.18,.48,.16,'glass');
+     led('#ffeac8',x+dx,1.13,face-.145,.25,.028,.019,'detail');
+    }
+   }
+   // Side elevation: tall warm wood strip and readable red CENTRAL banner.
+   // The text is extruded geometry on a plane facing the east side street.
+   block('#a87855',9.83,2.81,9.25,.07,2.04,1.70,'wood');
+   const sideBlock=(c,u,y,v,w,h,d,finish='metal',lit=false)=>{
+    const p=point(u,v);
+    batch.add(BOX,c,p.x-.5,y,p.y-.5,w,h,d,0,turn+Math.PI/2,0,id,lit,finish);
+   };
+   sideBlock(red,9.885,2.97,9.27,1.47,.48,.070);
+   const sideText='CENTRAL',sideCell=.040;
+   for(let n=0;n<sideText.length;n++)for(let row=0;row<5;row++)for(let col=0;col<3;col++){
+    if(glyph[sideText[n]]?.[row]?.[col]!=='1')continue;
+    sideBlock(brandWhite,9.931,2.97+(2-row)*sideCell,
+      9.27-(sideText.length*4-1)*sideCell/2+(n*4+col)*sideCell,
+      sideCell*.87,sideCell*.87,.035,'mall-sign');
+   }
+   led(warm,9.88,2.67,9.27,.02,.021,1.23);
+   // Terrace café: tables, warm parasols and planted balustrade.
+   // This is decorative only, with zero additional customers/trips.
+   if(!low)for(const [x,z] of[[1.94,10.50],[3.18,10.50],[7.80,10.39],[8.93,10.39]]){
+    cyl('#9f7958',x,2.53,z,.025,.35,'wood');
+    cyl('#ebdfc9',x,2.72,z,.22,.04,'wood');
+    cyl('#d7c6a2',x,2.79,z,.31,.055,'wood');
+    for(const dx of[-.24,.24])
+     block('#b38d6a',x+dx,2.45,z+.25,.17,.070,.16,'wood');
+   }
+   for(const [x,z] of[[1.41,10.62],[3.78,10.53],[7.27,10.48],[9.55,10.38]]){
+    block('#b99b77',x,2.42,z,.34,.12,.30,'wood');
+    cyl('#598d60',x,2.56,z,.135,.17,'foliage');
+    if(!low)cyl('#7cad7a',x,2.69,z,.10,.11,'foliage');
+   }
    // Three simple skylights on a LOW-POLY flat roof, service units behind.
    // Non-occupied rooftop geometry stays below 4.60 world units.
    for(const [u,v] of[[2.52,8.64],[5.50,8.65],[8.47,8.61]]){
@@ -3342,6 +3402,13 @@ export class TrafficRenderer{
    for(const u of[3.34,7.85]){
     block('#acb7b7',u,4.275,7.70,.27,.22,.39,'metal');
     block('#697e87',u,4.393,7.70,.20,.025,.31,'metal');
+   }
+   // Roof lobby gets extra blue-white glass lantern slots on either side
+   // of the central skylight, keeping the reference low-poly silhouette.
+   if(!low)for(const [u,v] of[[4.45,8.08],[6.54,8.10]]){
+    block('#b7d4d5',u,4.265,v,.57,.065,.49,'metal');
+    block('#80bdcb',u,4.302,v,.46,.025,.36,'glass');
+    edge(u,4.326,v,.48,.029,white);
    }
    // Brand pylon at the front-left, located on the pedestrian court only.
    block('#a67d58',1.15,1.04,11.91,.43,1.54,.34,'wood');
