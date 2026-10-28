@@ -33,6 +33,10 @@ for(const b of [...g.state.buildings.values()].slice(0,12)){
   if(b.id!==c.id)assert(g.tripRoute(b.id,c.id,null,null,1),'London plot pairs need routes: '+b.id+' to '+c.id);
  }
 }
+g.state.speed=1;
+for(let n=0;n<4;n++)g.tick(.05);
+assert.equal(g.computeStats().pop,1000,'Brief simulation should preserve 1,000 citizens');
+g.state.speed=0;
 const snap=g.snapshot();
 assert.doesNotThrow(()=>g.validateSave(JSON.parse(snap)));
 assert.equal(g.loadGame(true,null,snap),true,'London must reload with normal save code');
