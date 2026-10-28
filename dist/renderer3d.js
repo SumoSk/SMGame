@@ -711,7 +711,7 @@ class Batch{
  const maxSize=Math.max(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  const minSize=Math.min(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  // Separate only tiny architectural trims, not walls, roofs, windows, parking paint or doors.
- const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&!finish.startsWith('shop-night-')&&
+ const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&
    ((minSize<.045&&maxSize<.85)||(maxSize<.35&&Math.abs(sx*sy*sz)<.00065));
  const key=geo.uuid+color+(glow?'@light':'')+finish+(this.detailGroups?(fine?'@detail':'@base'):'');
  if(!this.data.has(key))this.data.set(key,{geo,color,glow,finish,fine,items:[]});
@@ -1984,6 +1984,15 @@ export class TrafficRenderer{
      block('#83b8c2',xx,.86,.61,.041,1.04,.82,'glass');
     block('#f0f2eb',1.50,1.54,.63,2.54,.100,1.08,'metal');
     block('#bfcfc7',1.50,1.61,.63,2.56,.044,1.09,'metal');
+    // CLEAN MODERN SOLAR ROOF: four fixed blue-black photovoltaic plates,
+    // all physically on top and inside this tiny original 3x3 plot.
+    block('#e0e6e3',1.50,1.68,.60,2.36,.065,1.01,'metal');
+    for(const xx of[.94,2.06])for(const zz of[.38,.79]){
+     block('#c1d5da',xx,1.732,zz,.88,.046,.31,'shop-roof-essential');
+     block('#153a52',xx,1.775,zz,.82,.043,.25,'shop-roof-essential');
+     block('#39728c',xx,1.800,zz,.73,.020,.19,'shop-roof-essential');
+     if(!low)block('#99bbce',xx,1.816,zz,.024,.014,.21,'metal');
+    }
     // Thai frontage has three distinct full-length 7-Eleven brand stripes.
     for(const [color,y,h] of[[orange,1.49,.090],[green,1.393,.094],[red,1.313,.048]])
      block(color,1.50,y,1.105,2.48,h,.046,'metal');
@@ -2003,6 +2012,24 @@ export class TrafficRenderer{
       block(green,1.50-(name.length*4-1)*unit/2+(i*4+col)*unit,
        1.38+(2-row)*unit,1.217,unit*.79,unit*.78,.012,'metal');
     led('#fff1cd',1.50,1.215,1.15,2.20,.024,.022,'essential');
+    // Freestanding sign sits at the FRONT EDGE OF THE ROOF, facing players.
+    // The large raised "7" is geometric rather than a skewed texture, and
+    // the full billboard deliberately survives all LOW mesh filtering.
+    const roofSign=(color,x,y,z,w,h,d)=>
+     block(color,x,y,z,w,h,d,'shop-brand-essential');
+    for(const xx of[1.15,1.85])
+     roofSign('#d2d9d1',xx,1.84,.94,.057,.25,.065);
+    roofSign(green,1.50,1.91,1.026,.92,.35,.062);
+    roofSign('#fffefa',1.50,1.91,1.064,.84,.30,.025);
+    roofSign(orange,1.38,2.015,1.093,.43,.060,.024);
+    roofSign(red,1.63,1.971,1.094,.23,.072,.024);
+    roofSign(red,1.61,1.876,1.095,.13,.166,.024);
+    const roofWord='ELEVEN',roofUnit=.022;
+    for(let i=0;i<roofWord.length;i++)for(let row=0;row<5;row++)
+     for(let col=0;col<3;col++)if(glyph[roofWord[i]][row][col]==='1')
+      roofSign(green,1.50-(roofWord.length*4-1)*roofUnit/2+(i*4+col)*roofUnit,
+       1.824+(2-row)*roofUnit,1.120,roofUnit*.83,roofUnit*.78,.014);
+    led('#fff0c5',1.50,1.71,1.081,.80,.020,.021,'essential');
     for(const xx of[.39,2.61])
      led('#d7fff0',xx,.91,1.129,.019,.61,.016,'essential');
     // Actual checkout, chilled cabinets and four product rows.
@@ -3107,7 +3134,7 @@ export class TrafficRenderer{
      base(x,3.50,z,w+.14,.11,d+.13,white,'metal');
      base(x,3.58,z,w+.17,.048,d+.16,silver,'metal');
      solarRoof(x,z,w*.81,d*.70,3.665);
-     roofCrest(x,face-.17,3.626,Math.min(.80,w*.43),.53);
+     roofCrest(x,face-.17,3.600,Math.min(.80,w*.43),.53);
      led(cream,x,3.45,face-.075,w*.87,.028,.028,'essential');
      if(!low)led('#bfeee2',x,3.62,face-.072,w*.87,.017,.020);
     }
