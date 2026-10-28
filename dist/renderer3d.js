@@ -711,7 +711,7 @@ class Batch{
  const maxSize=Math.max(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  const minSize=Math.min(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  // Separate only tiny architectural trims, not walls, roofs, windows, parking paint or doors.
- const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&
+ const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&!finish.startsWith('shop-night-')&&
    ((minSize<.045&&maxSize<.85)||(maxSize<.35&&Math.abs(sx*sy*sz)<.00065));
  const key=geo.uuid+color+(glow?'@light':'')+finish+(this.detailGroups?(fine?'@detail':'@base'):'');
  if(!this.data.has(key))this.data.set(key,{geo,color,glow,finish,fine,items:[]});
@@ -723,7 +723,7 @@ class Batch{
   material.toneMapped=false;
   // Factory lighting uses additive batched emissive geometry rather than
   // faint transparent paint. No actual scene point lights are needed.
-  if(finish.startsWith('factory-night-')||finish.startsWith('mall-night-')){
+  if(finish.startsWith('factory-night-')||finish.startsWith('mall-night-')||finish.startsWith('shop-night-')){
    material.blending=THREE.AdditiveBlending;
    material.depthWrite=false;
    material.emissiveIntensity=2.25;
@@ -743,7 +743,7 @@ class Batch{
   };
   material.customProgramCacheKey=()=>finish==='bark'?'landscape-bark-v1':'landscape-foliage-v1';
  }
- const mesh=new THREE.InstancedMesh(geo,material,items.length);if(glow&&(finish.startsWith('factory-night-')||finish.startsWith('mall-night-')))mesh.renderOrder=2;mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;mesh.userData.mallNightTier=finish.startsWith('mall-night-')?finish.slice(11):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
+ const mesh=new THREE.InstancedMesh(geo,material,items.length);if(glow&&(finish.startsWith('factory-night-')||finish.startsWith('mall-night-')||finish.startsWith('shop-night-')))mesh.renderOrder=2;mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;mesh.userData.mallNightTier=finish.startsWith('mall-night-')?finish.slice(11):null;mesh.userData.shopNightTier=finish.startsWith('shop-night-')?finish.slice(11):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
 
 export class TrafficRenderer{
@@ -779,8 +779,8 @@ export class TrafficRenderer{
   this.buildingGroup.traverse(mesh=>{
    if(mesh.userData?.fineBuildingDetail)mesh.visible=level==='full';
    if(mesh.userData?.isBuildingTree)mesh.visible=this.graphicQuality!=='low';
-   if(mesh.userData?.factoryNightTier||mesh.userData?.mallNightTier)mesh.visible=(this.lastGlow??0)>.015&&
-    (this.graphicQuality!=='low'||(mesh.userData.factoryNightTier||mesh.userData.mallNightTier)==='essential');
+   if(mesh.userData?.factoryNightTier||mesh.userData?.mallNightTier||mesh.userData?.shopNightTier)mesh.visible=(this.lastGlow??0)>.015&&
+    (this.graphicQuality!=='low'||(mesh.userData.factoryNightTier||mesh.userData.mallNightTier||mesh.userData.shopNightTier)==='essential');
   });
  }
  resize(){this.w=innerWidth;this.h=innerHeight;this.renderer.setSize(this.w,this.h,false);if(this.cam)this.updateCamera(this.cam);}
@@ -861,9 +861,9 @@ export class TrafficRenderer{
    for(const group of [this.lampGroup,this.buildingGroup])group.traverse(mesh=>{
     if(!mesh.userData.nightGlow)return;
     mesh.visible=glow>.015&&(this.graphicQuality!=='low'||
-     !(mesh.userData.factoryNightTier||mesh.userData.mallNightTier)||
-     (mesh.userData.factoryNightTier||mesh.userData.mallNightTier)==='essential');
-    const architecturalLED=!!(mesh.userData.factoryNightTier||mesh.userData.mallNightTier);
+     !(mesh.userData.factoryNightTier||mesh.userData.mallNightTier||mesh.userData.shopNightTier)||
+     (mesh.userData.factoryNightTier||mesh.userData.mallNightTier||mesh.userData.shopNightTier)==='essential');
+    const architecturalLED=!!(mesh.userData.factoryNightTier||mesh.userData.mallNightTier||mesh.userData.shopNightTier);
     mesh.material.opacity=(architecturalLED?.98:.78)*glow;
     mesh.material.emissiveIntensity=architecturalLED?2.0+glow*.55:.70+glow*.55;
    });
