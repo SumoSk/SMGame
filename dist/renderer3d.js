@@ -2155,7 +2155,7 @@ export class TrafficRenderer{
      block('#cbd5ce',xx,1.80,.965,.073,.34,.095,'shop-roof-essential');
     block(green,1.50,2.30,1.026,1.43,1.14,.082,'shop-brand-essential');
     block('#fffefa',1.50,2.30,1.070,1.31,1.04,.022,'shop-brand-essential');
-    shopSignFace(1.50,2.30,1.041,1.31,1.04,.074,.071);
+    shopSignFace(1.50,2.30,1.041,1.31,1.04,.045,.071);
     led('#fff0c5',1.50,1.71,1.081,1.15,.020,.021,'essential');
     for(const xx of[.39,2.61])
      led('#d7fff0',xx,.91,1.129,.019,.61,.016,'essential');
@@ -3119,7 +3119,7 @@ export class TrafficRenderer{
     // Crisp single-texture 7 and ELEVEN, no subpixel geometry or overlap.
     base(x,y,z,width,height,.072,green,'shop-brand-essential');
     base(x,y,z+.041,width*.935,height*.92,.034,'#fffefa','shop-brand-essential');
-    shopSignFace(x,y,z,width*.935,height*.92,.089,.048);
+    shopSignFace(x,y,z,width*.935,height*.92,.064,.048);
    };
    const solarRoof=(x,z,w,d,y)=>{
     // Mounted photovoltaic glass in two orderly blue-black fields, raised
