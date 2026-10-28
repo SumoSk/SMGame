@@ -711,7 +711,7 @@ class Batch{
  const maxSize=Math.max(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  const minSize=Math.min(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  // Separate only tiny architectural trims, not walls, roofs, windows, parking paint or doors.
- const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&
+ const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&finish!=='mall-sign'&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&
    ((minSize<.045&&maxSize<.85)||(maxSize<.35&&Math.abs(sx*sy*sz)<.00065));
  const key=geo.uuid+color+(glow?'@light':'')+finish+(this.detailGroups?(fine?'@detail':'@base'):'');
  if(!this.data.has(key))this.data.set(key,{geo,color,glow,finish,fine,items:[]});
@@ -3169,6 +3169,196 @@ export class TrafficRenderer{
     base(x,.60,front-.15,.19,.12,.19,'#87ab7c','foliage');
     led(cream,x,.70,front-.15,.055,.050,.048,'essential');
    }
+   return;
+  }
+
+  // CENTRAL GRAND MALL - custom, TWO-storey mall_large only.
+  // Entire architectural and garden footprint stays inside the existing
+  // 11x13 plot's FRONT half. Rear 60-bay parking, road gates, routes, saves
+  // and visitor/service capacity remain exactly as provided by parkingLot.
+  // This deliberately replaces the glass cylinders of mall_large, NOT the
+  // smaller/medium Apple-style mall designs. Static instancing only.
+  if(b.key==='mall_large'){
+   const W=t.plotWidth,H=t.plotHeight,P=t.parkingZoneDepth,low=this.graphicQuality==='low';
+   const mid=W*.5,front=11.62;
+   const white='#edece5',ivory='#e6dfd5',steel='#b9ced0',wood='#ad7951';
+   const glass='#75b4ca',glassLit='#a0d1da',red='#c72e37',brandWhite='#fff8ec';
+   const warm='#ffdfb0',plant='#619b67';
+   const led=(color,u,y,v,w,h,d,grade='essential')=>
+    block(color,u,y,v,w,h,d,'mall-night-'+grade,true);
+   const cyl=(color,u,y,v,r,h,finish='stone')=>{
+    const p=point(u,v);
+    batch.add(CYL_SMOOTH,color,p.x-.5,y,p.y-.5,r,h,r,0,turn,0,id,false,finish);
+   };
+   const roofStrip=(u,v,w,d,y=4.12)=>{
+    block(white,u,y,v,w,.135,d,'metal');
+    block('#bbc5c4',u,y+.090,v,w+.045,.055,d+.050,'metal');
+   };
+   const edge=(u,y,v,w,d,color=steel)=>block(color,u,y,v,w,.060,d,'metal');
+   const glassWall=(u,y,v,w,h,side='front')=>{
+    block(glass,u,y,v,w,h,.045,'glass');
+    const count=Math.max(3,Math.round(w/.48));
+    for(let i=1;i<count;i++){
+     const x=u-w/2+i*w/count;
+     block('#d5e4e2',x,y,v+.028,.035,h+.040,.028,'metal');
+    }
+    edge(u,y+h*.5+.025,v,w+.08,.057);
+    if(side==='front')led(warm,u,y-h*.32,v+.048,w*.75,.025,.025);
+   };
+   const glyph={
+    A:['010','101','111','101','101'],C:['111','100','100','100','111'],
+    E:['111','100','110','100','111'],L:['100','100','100','100','111'],
+    N:['101','111','111','111','101'],R:['110','101','110','101','101'],
+    T:['111','010','010','010','010']
+   };
+   // Pixel geometry is pinned to the public-facing plane, with stable
+   // widths and no rotated tiny letters. Marked mall-sign to survive Low LOD.
+   const sign=(text,u,y,v,width,height=.40)=>{
+    block(red,u,y,v,width,height,.080,'metal');
+    block('#e49b91',u,y+height*.48,v+.044,width*.98,.018,.023,'metal');
+    const unit=Math.min(height/6.1,width/(text.length*4+.8));
+    for(let n=0;n<text.length;n++)for(let row=0;row<5;row++)for(let col=0;col<3;col++){
+     if(glyph[text[n]]?.[row]?.[col]!=='1')continue;
+     block(brandWhite,u-(text.length*4-1)*unit/2+(n*4+col)*unit,
+      y+(2-row)*unit,v+.058,unit*.92,unit*.92,.055,'mall-sign');
+    }
+    led('#ffe6d7',u,y-height*.47,v+.062,width*.86,.024,.023);
+   };
+   const shrub=(u,v,r=.21)=>{
+    cyl('#d2c7b6',u,.24,v,r,.16);
+    cyl('#4e8552',u,.39,v,r*.80,.18,'foliage');
+    cyl('#79ac74',u,.51,v,r*.60,.13,'foliage');
+   };
+   const tree=(u,v)=>{
+    cyl('#9e8164',u,.56,v,.057,.86,'wood');
+    cyl('#69a56a',u,1.16,v,.22,.64,'foliage');
+    cyl('#86b278',u,1.48,v,.15,.31,'foliage');
+   };
+   const diagonal=(col,u1,y1,u2,y2,v,thick=.12)=>{
+    const p=point((u1+u2)*.5,v);
+    batch.add(BOX,col,p.x-.5,(y1+y2)*.5,p.y-.5,
+     Math.hypot(u2-u1,y2-y1),thick,.125,0,turn,Math.atan2(y2-y1,u2-u1),
+     id,false,'metal');
+   };
+   // Original front-lot grounding, pedestrian entrance and back-edge setback.
+   block('#bdaba4',mid,.13,9.46,9.10,.21,5.72,'stone');
+   block(ivory,mid,.29,9.46,9.00,.14,5.62,'stone');
+   // Main entrance: double-height glass atrium, deep champagne/wood frame.
+   // Unlike the old circular pavilion, this reads like CENTRAL's front hall.
+   block('#c1d0d0',mid,.36,9.35,2.86,.12,4.86,'stone');
+   block(glass,mid,2.27,9.45,2.64,3.56,4.28,'glass');
+   glassWall(mid,2.19,11.58,2.60,3.40);
+   for(const x of[4.18,6.82]){
+    block(white,x,2.17,11.55,.25,3.85,.24,'metal');
+    led(warm,x,2.22,11.683,.045,3.11,.025);
+   }
+   // Visible main doorway and transparent entrance awning remain at FRONT.
+   block('#476e76',mid,.73,11.660,1.26,.97,.060,'glass');
+   for(const x of[5.10,5.90])
+    block('#c7e2df',x,.77,11.710,.036,1.05,.063,'metal');
+   block('#a6d6df',mid,1.52,11.78,2.26,.10,.66,'glass');
+   edge(mid,1.58,11.79,2.32,.69,white);
+   led(warm,mid,1.47,11.95,2.02,.026,.024);
+   // Red CENTRAL banner is large enough to read from the normal city camera.
+   sign('CENTRAL',mid,3.75,11.736,2.54,.48);
+   // Two white angled structural fins frame the full-height glass portal.
+   diagonal(white,4.02,1.12,4.37,3.71,11.61,.14);
+   diagonal(white,6.98,1.12,6.63,3.71,11.61,.14);
+   roofStrip(mid,9.12,2.95,4.48,4.15);
+   led('#fff0cc',mid,4.065,11.53,2.63,.031,.035);
+   // Split right and left wings: open storefronts below, real upper retail
+   // glazing behind terrace decks, two occupied floors MAX.
+   for(const [wing,x,shift] of[[0,2.58,0],[1,8.42,-.12]]){
+    const w=2.78,back=7.16+shift,face=11.36+shift,bodyZ=(back+face)*.5;
+    block('#dedbd2',x,.39,bodyZ,w,.12,face-back,'stone');
+    // Slender solid rear service wall, never one giant opaque building cube.
+    block('#e0dfd8',x,1.18,back+.065,w-.12,1.50,.125,'stone');
+    glassWall(x,1.22,face,w-.12,1.56);
+    // Side glass return and bronze verticals add meaningful structure.
+    for(const side of[-1,1]){
+     const xx=x+side*w*.47;
+     block(glassLit,xx,1.20,bodyZ,.055,1.60,face-back-.16,'glass');
+     for(const zz of[7.72,8.64,9.55,10.47])
+      block(steel,xx,1.20,zz,.07,1.52,.055,'metal');
+    }
+    block('#d6cbba',x,2.19,bodyZ,w+.06,.16,face-back,'stone');
+    edge(x,2.31,face,w+.15,.12,white);
+    led(warm,x,2.25,face+.065,w*.83,.029,.025);
+    // 2F retail recedes behind a café terrace with visible glass balustrade.
+    const upperBack=back+.07,upperFace=10.13+shift;
+    const upZ=(upperBack+upperFace)*.5,upD=upperFace-upperBack;
+    block(white,x,3.17,upperBack+.07,w-.12,1.62,.13,'stone');
+    glassWall(x,3.19,upperFace,w-.14,1.45);
+    for(const side of[-1,1]){
+     const xx=x+side*w*.48;
+     block('#8dc4d3',xx,3.20,upZ,.053,1.45,upD-.12,'glass');
+    }
+    roofStrip(x,upZ,w+.22,upD+.17,4.15);
+    led(warm,x,4.02,upperFace+.075,w*.83,.035,.031);
+    if(!low){
+     led('#c8edf4',x,4.235,upperFace+.070,w*.86,.023,.030,'detail');
+     for(const xx of[x-w*.40,x+w*.40])
+      led('#d7edf0',xx,3.12,upperFace+.073,.024,.84,.020,'detail');
+    }
+    // Roof terraces on BOTH wings with glass guard rails and café furniture.
+    const terraceZ=(upperFace+face)*.5;
+    block('#b8946d',x,2.32,terraceZ,w-.16,.07,face-upperFace-.06,'wood');
+    block('#9ccad2',x,2.55,face-.10,w-.17,.42,.040,'glass');
+    edge(x,2.79,face-.10,w-.16,.042,steel);
+    for(const xx of[x-w*.36,x+w*.36]){
+     block('#bba486',xx,2.42,terraceZ,.23,.045,.23,'wood');
+     block('#a6d2d3',xx,2.66,terraceZ,.38,.045,.38,'glass');
+     shrub(xx,terraceZ+.16,.12);
+    }
+    // Angular white architecture with bronze inlay resembling reference.
+    diagonal(white,x-w*.52,.73,x-w*.32,2.77,face+.035,.16);
+    diagonal(white,x+w*.53,.73,x+w*.32,2.77,face+.035,.16);
+    if(!low){
+     diagonal(wood,x-w*.46,.91,x-w*.29,2.67,face+.112,.055);
+     diagonal(wood,x+w*.47,.91,x+w*.29,2.67,face+.112,.055);
+    }
+    // Prominent wing signage, low-grade meshes stay visible.
+    if(wing===1)sign('CENTRAL',x,2.02,face+.130,2.18,.33);
+   }
+   // Three simple skylights on a LOW-POLY flat roof, service units behind.
+   // Non-occupied rooftop geometry stays below 4.60 world units.
+   for(const [u,v] of[[2.52,8.64],[5.50,8.65],[8.47,8.61]]){
+    block('#d2e5e3',u,4.264,v,.94,.074,.64,'metal');
+    block('#6eabbc',u,4.310,v,.77,.026,.48,'glass');
+    for(const dx of[-.25,.25])
+     block('#e8f2ec',u+dx,4.331,v,.028,.025,.46,'metal');
+   }
+   for(const u of[3.34,7.85]){
+    block('#acb7b7',u,4.275,7.70,.27,.22,.39,'metal');
+    block('#697e87',u,4.393,7.70,.20,.025,.31,'metal');
+   }
+   // Brand pylon at the front-left, located on the pedestrian court only.
+   block('#a67d58',1.15,1.04,11.91,.43,1.54,.34,'wood');
+   block(white,1.15,2.25,11.91,.64,2.14,.37,'metal');
+   block(red,1.15,2.71,12.123,.56,1.09,.055,'metal');
+   // White geometric flower cross, readable at Low render distance.
+   for(const angle of[0,Math.PI/4,Math.PI/2,-Math.PI/4]){
+    const p=point(1.15,12.165);
+    batch.add(BOX,brandWhite,p.x-.5,2.95,p.y-.5,
+     .35,.048,.075,0,turn,angle,id,false,'mall-sign');
+   }
+   block(brandWhite,1.15,2.35,12.165,.31,.066,.060,'mall-sign');
+   if(!low)sign('CENTRAL',1.15,2.02,12.146,.59,.125);
+   // Front public plaza fountain, raised planters, benches and warm path LEDs.
+   cyl('#dfdbd0',mid,.245,12.15,.36,.15);
+   cyl('#73bad4',mid,.337,12.15,.30,.045,'water');
+   cyl('#e8ebe2',mid,.43,12.15,.115,.16);
+   cyl('#81c7de',mid,.515,12.15,.073,.028,'water');
+   for(const u of[1.72,3.78,7.23,9.30]){
+    shrub(u,12.08,.17);
+    block('#ab8a68',u,.39,12.30,.45,.045,.13,'wood');
+    if(!low)tree(u,11.75);
+    led(warm,u,.37,11.96,.060,.025,.042);
+   }
+   for(const u of[4.40,6.60])
+    led('#c4ebef',u,.28,12.34,.25,.018,.036);
+   // Lightweight planted rear screening stays in front of parking lanes.
+   if(!low)for(const u of[1.35,9.65])shrub(u,6.92,.17);
    return;
   }
 
