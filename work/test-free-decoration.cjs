@@ -1,0 +1,28 @@
+require('./test-dom-compat.cjs');
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const prefix=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
+const {game:g,get}=new Function('require',prefix+'return boot();')(require);
+g.reset();g.state.money=1e8;
+assert(g.buildBuilding('home_starter',160,145,true));
+const beforeQuota=JSON.stringify(g.state.buildingQuota),cash=g.state.money;
+for(const [x,y] of [[150,150],[161,146],[0,0],[299,299],[10,10],[11,10]])assert(g.plantLandscape(x,y,'palm'),'allow map cell '+x+','+y);
+assert.equal(g.plantLandscape(10,10,'shade'),false,'ignore exact duplicates');
+assert.equal(g.plantLandscape(-1,1,'shade'),false);assert.equal(g.plantLandscape(NaN,1,'shade'),false);
+assert.equal(g.state.money,cash);assert.equal(JSON.stringify(g.state.buildingQuota),beforeQuota);
+get('subcategories').onclick({target:{closest:()=>({dataset:{category:'landscape'}})}});
+assert(!get('tools').innerHTML.includes('tool-quota-count'));
+const trees=JSON.stringify(g.state.plantedTrees),raw=g.snapshot();
+assert(g.loadGame(true,null,raw));assert.equal(JSON.stringify(g.state.plantedTrees),trees);
+for(const t of g.state.plantedTrees)assert(g.landscapeClear(t.x,t.y));
+g.reset('bangkok');assert(g.plantLandscape(125,0,'shade'),'river decorations are allowed');
+(async()=>{
+ const path=require('node:path'),{pathToFileURL}=require('node:url');
+ const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
+ const source=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
+ const Renderer=new Function('THREE',source+'return TrafficRenderer;')(THREE),r=Object.create(Renderer.prototype);
+ let drawn=[];r.treeGroup=new THREE.Group();r.disposeGroup=()=>{};r.coast=()=>125;r.tree=(_b,x,z)=>drawn.push([x,z]);r.graphicQuality='medium';
+ g.state.plantedTrees=[{x:150.5,y:150.5,kind:'palm'},{x:125.5,y:150.5,kind:'palm'}];
+ r.trees(g.state,{x:150,y:150});
+ for(const t of g.state.plantedTrees)assert(drawn.some(([x,y])=>x===t.x&&y===t.y),'manual tree remains visible on road/water');
+ console.log('PASS: unrestricted map placement, quota independence, saved positions, river and road rendering');
+})().catch(e=>{console.error(e);process.exitCode=1;});

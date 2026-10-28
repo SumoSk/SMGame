@@ -19,6 +19,7 @@ jobs:
       - run: node --check dist/game.js
       - run: node work/test-building-quota.cjs
       - run: node work/test-cloud-save-adapter.cjs
+      - run: node work/test-free-decoration.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-saves.cjs
   test:
     runs-on: ubuntu-latest

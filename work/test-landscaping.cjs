@@ -5,7 +5,8 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  // This DOM API exists in browsers but not in the lightweight test harness.
  get('buildDock').closest=()=>null;
  assert.equal(g.state.plantedTrees.length,0);
- assert.equal(g.plantLandscape(150,150,'shade'),false,'trees must not occupy roads');
+ assert.equal(g.plantLandscape(150,150,'shade'),true,'player decorations can occupy roads');
+ assert.equal(g.eraseLandscape(150.5,150.5),true);
  assert.equal(g.plantLandscape(190,190,'flower'),true);
  assert.equal(g.plantLandscape(190,190,'shade'),false,'duplicate plant must be ignored');
  assert.equal(g.plantLandscape(194,190,'palm'),true);

@@ -1180,7 +1180,7 @@ export class TrafficRenderer{
   this.tree(b,tx,tz,(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),kind,(this.graphicQuality==='veryHigh'||Math.hypot(tx-cam.x,tz-cam.y)<27)?'near':'far');
  }
  for(const t of state.plantedTrees||[]){
-  if(Math.abs(t.x-cellX*18)>span+3||Math.abs(t.y-cellZ*18)>span+3||!clear(t.x,t.y))continue;
+  if(!Number.isFinite(t.x)||!Number.isFinite(t.y)||t.x<0||t.y<0||t.x>=300||t.y>=300||Math.abs(t.x-cellX*18)>span+3||Math.abs(t.y-cellZ*18)>span+3)continue;
   const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:['oak','rain','willow','cherry','maple','jacaranda'].includes(t.kind)?1.24:['cedar','cypress'].includes(t.kind)?1.20:t.kind==='palm'?1.12:1.04;
   this.tree(b,t.x,t.y,scale,t.kind,(this.graphicQuality==='veryHigh'||Math.hypot(t.x-cam.x,t.y-cam.y)<27)?'near':'far');
  }
@@ -7076,7 +7076,7 @@ export class TrafficRenderer{
  if(selected?.kind==='building'){const b=state.buildings.get(selected.id);if(b){const {w,h}=this.parking.buildingBounds(b);boxes.push([b.x+w/2,b.y+h/2,w,h,'#fff1a1']);}}
  if(hover&&(tool.startsWith('tree:')||tool==='treeRow'||tool==='treeBrush')){
   const x=hover.x+.5,z=hover.y+.5,i=hover.y*300+hover.x;
-  if(hover.x>1&&hover.y>1&&hover.x<298&&hover.y<298&&state.footprint[i]<0&&state.buildGrid[i]<0){
+  if(hover.x>=0&&hover.y>=0&&hover.x<300&&hover.y<300){
    const batch=new Batch(),kind=tool.startsWith('tree:')?tool.slice(5):'shade';
    this.tree(batch,x,z,kind==='shrub'?.65:1,kind);
    const ghost=batch.build(false);ghost.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.50;}});this.previewGroup.add(ghost);
