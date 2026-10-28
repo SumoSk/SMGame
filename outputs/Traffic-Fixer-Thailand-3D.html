@@ -6715,6 +6715,20 @@ body>.bottom .city-control-mini .demand-scroll-thumb{
   }
   #tools.tools>.tool:has(.tool-quota-count) .tool-quota.is-locked {display:none!important}
 }
+
+/* F1 racing car upgrade shortcut: crisp static vector, no animation or extra draw loop. */
+#cityQuickModes [data-city-shortcut="vehicleUpgrade"] .quick-mode-icon {
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ width:50px!important;height:29px!important;line-height:1!important;
+ filter:drop-shadow(0 1px 2px rgba(12,36,44,.22))!important;
+}
+#cityQuickModes [data-city-shortcut="vehicleUpgrade"] .f1-upgrade-art {
+ display:block;width:48px;height:28px;max-width:100%;overflow:visible;
+}
+@media(max-width:750px) {
+ #cityQuickModes [data-city-shortcut="vehicleUpgrade"] .quick-mode-icon {width:44px!important;height:26px!important}
+ #cityQuickModes [data-city-shortcut="vehicleUpgrade"] .f1-upgrade-art {width:43px;height:25px}
+}
 </style><style id="smcity-dark-mode-v242">
 /* SMCITY v4.2 — high-contrast BLACK interface mode.
    Keep the current theme class and localStorage key so existing choices survive.
@@ -7601,7 +7615,7 @@ dialog.member-gate .member-card .member-back {
   <button type="button" id="resetCameraAngle" class="cam-reset" aria-label="คืนค่ามุมกล้องเริ่มต้น" title="รีเซ็ตมุมกล้อง">⌂</button>
  </div>
  <nav id="cityQuickModes" class="city-quick-modes" aria-label="โหมดด่วนของเมือง">
-  <button type="button" data-city-shortcut="vehicleUpgrade" title="อัปเกรดรถของประชาชน" aria-label="อัปเกรดรถของประชาชน" aria-pressed="false"><span class="quick-mode-icon" aria-hidden="true">⬆️</span><span class="quick-mode-name">อัปเกรด!</span></button>
+  <button type="button" data-city-shortcut="vehicleUpgrade" title="อัปเกรดรถของประชาชน" aria-label="อัปเกรดรถของประชาชน" aria-pressed="false"><span class="quick-mode-icon" aria-hidden="true"><svg class="f1-upgrade-art" viewBox="0 0 96 52" width="48" height="28" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true"><defs><linearGradient id="smcity-f1-paint" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7863"/><stop offset=".46" stop-color="#f52d3c"/><stop offset="1" stop-color="#ac0c2d"/></linearGradient></defs><path d="M2 15h14M0 26h12M3 38h13" stroke="#36aeea" stroke-width="2.4" stroke-linecap="round" opacity=".8"/><ellipse cx="49" cy="28" rx="41" ry="19" fill="#0d2330" opacity=".10"/><rect x="19" y="5" width="13" height="13" rx="4.1" fill="#111c29"/><rect x="19" y="34" width="13" height="13" rx="4.1" fill="#111c29"/><rect x="68" y="7" width="13" height="12" rx="4" fill="#101b28"/><rect x="68" y="33" width="13" height="12" rx="4" fill="#101b28"/><path d="M23 8v7m0 22v7m49-34v6m0 20v6" stroke="#566a78" stroke-width="2.1" stroke-linecap="round"/><path d="M15 20 27 16 40 17 47 20 60 21 79 24 88 26 79 28 60 31 47 32 40 36 27 36 15 32Z" fill="url(#smcity-f1-paint)" stroke="#851528" stroke-width="1.15" stroke-linejoin="round"/><path d="M29 18 37 15 51 18 60 22 53 25 39 25 30 24Z" fill="#ffb3a6" opacity=".8"/><path d="M29 34 37 37 51 34 60 30 53 27 39 27 30 28Z" fill="#98132b" opacity=".85"/><path d="M43 18 53 20 60 26 53 32 43 34 39 26Z" fill="#132f40"/><path d="M45 21 53 22 56 26 53 30 45 31 43 26Z" fill="#17394c" stroke="#a9eaf7" stroke-width="1"/><ellipse cx="47.5" cy="26" rx="4.1" ry="4.4" fill="#ffe27b" stroke="#e5a539" stroke-width="1"/><path d="m44.5 25 5.2-1.8" stroke="#fff7bd" stroke-width="1.6" stroke-linecap="round"/><path d="M63 24 79 25 84 26 79 27 63 28Z" fill="#fff9f3"/><path d="M13 13h7v26h-7z" fill="#142b3a" stroke="#42b6dd" stroke-width=".9"/><path d="M10 10h7v32h-7z" fill="#df273d" stroke="#92162a" stroke-width=".8"/><path d="M81 15h6v22h-6z" fill="#131f30" stroke="#51b8db" stroke-width="1"/><path d="M84 13h7v26h-7z" fill="#f12a3b" stroke="#af1727" stroke-width=".9"/><path d="M26 23h10m-10 6h10" stroke="#fff6e9" stroke-width="1.4" stroke-linecap="round" opacity=".9"/></svg></span><span class="quick-mode-name">อัปเกรด!</span></button>
   <button type="button" data-city-shortcut="citizenDashboard" title="แดชบอร์ดประชาชน" aria-label="แดชบอร์ดประชาชน" aria-pressed="false"><span class="quick-mode-icon" aria-hidden="true">👥</span><span class="quick-mode-name">ประชาชน</span></button>
   <button type="button" data-city-shortcut="touristDashboard" title="นักท่องเที่ยว" aria-label="นักท่องเที่ยว" aria-pressed="false"><span class="quick-mode-icon" aria-hidden="true">🚐</span><span class="quick-mode-name">นักท่องเที่ยว</span></button>
   <button type="button" data-city-shortcut="signalManage" title="ควบคุมไฟจราจร" aria-label="ควบคุมไฟจราจร" aria-pressed="false"><span class="quick-mode-icon" aria-hidden="true">🚦</span><span class="quick-mode-name">ไฟจราจร</span></button>
