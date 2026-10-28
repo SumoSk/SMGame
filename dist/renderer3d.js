@@ -1963,24 +1963,69 @@ export class TrafficRenderer{
     batch.add(geo,c,p.x-.5,y,p.y-.5,w,h,d,angles.x,angles.y,angles.z,id,glow,glow?'glass':'metal');
    };
    if(t.kind==='shop'){
-    // Sunny yellow neighbourhood mini-market: open produce counter + shutter.
-    block('#c5b897',1.50,.10,.62,2.70,.14,1.10,'stone');
-    block('#f0ce74',1.50,.65,.56,2.48,.98,.93,'stone');
-    block('#846b43',1.50,.25,.56,2.53,.10,.97,'wood');
-    block('#c3963e',1.50,1.19,.57,2.70,.12,1.07,'metal');
-    block('#eac253',1.50,1.04,1.08,2.68,.09,.30,'metal');
-    for(let n=0;n<12;n++)block(n%2?'#f3e7bf':'#dab04f',.30+n*.215,1.01,1.22,.21,.14,.035,'cloth');
-    badge('MART',1.50,1.23,1.12,1.12,'#a17a36','#fff3ce');
-    pane(.75,.69,1.04,.72,.53,true,'#789782');
-    block('#607664',1.58,.63,1.053,.43,.83,.055,'glass');
-    block('#e9dec1',1.58,.63,1.09,.025,.80,.025,'metal');
-    block('#c4bda6',2.25,.64,1.035,.69,.77,.055,'metal');
-    for(let y=.32;y<1.03;y+=.10)block('#979c89',2.25,y,1.076,.66,.025,.025,'metal');
-    for(const x of [.45,.74,1.03]){
-     block('#a38655',x,.27,1.13,.25,.23,.22,'wood');
-     for(const side of [-1,1])local(BALL,x<.7?'#aaae63':'#d49b65',x+side*.06,.42,1.13,.055,.055,.06);
+    // Starter Thai 7-Eleven: true glass corner-shop, not a solid yellow cube.
+    // The classic 7 icon is made from low-poly coloured shapes and ELEVEN
+    // is readable as a tiny geometric green wordmark.
+    const low=this.graphicQuality==='low',green='#006940',orange='#ff7f00',red='#ed1b34';
+    const led=(c,x,y,z,w,h,d,grade='detail')=>
+     block(c,x,y,z,w,h,d,'shop-night-'+grade,true);
+    block('#c6c9c1',1.50,.12,.63,2.67,.15,1.10,'stone');
+    block('#f0eee8',1.50,.25,.60,2.42,.055,.96,'stone');
+    block('#e4e7e1',1.50,.85,.14,2.39,1.06,.11,'stone');
+    for(const xx of[.30,1.08,1.93,2.69]){
+     block('#c9d2ce',xx,.93,.61,.056,1.28,.94,'metal');
     }
-    planter(2.69,1.10,.10);return;
+    for(const zz of[.21,1.07]){
+     block('#83b8c2',1.50,.86,zz,2.28,1.04,.055,'glass');
+     for(const xx of[.75,1.48,2.22])
+      block('#e0e8e5',xx,.84,zz+.035,.039,1.13,.047,'metal');
+    }
+    for(const xx of[.31,2.69])
+     block('#83b8c2',xx,.86,.61,.041,1.04,.82,'glass');
+    block('#f0f2eb',1.50,1.54,.63,2.54,.100,1.08,'metal');
+    block('#bfcfc7',1.50,1.61,.63,2.56,.044,1.09,'metal');
+    // Thai frontage has three distinct full-length 7-Eleven brand stripes.
+    for(const [color,y,h] of[[orange,1.49,.090],[green,1.393,.094],[red,1.313,.048]])
+     block(color,1.50,y,1.105,2.48,h,.046,'metal');
+    for(const y of[1.441,1.339])
+     block('#ffffff',1.50,y,1.13,2.49,.020,.052,'metal');
+    // Illuminated central logo: orange cap, red seven, green ELEVEN letters.
+    block(green,1.50,1.51,1.152,.67,.57,.043,'metal');
+    block('#fffefa',1.50,1.51,1.176,.59,.50,.025,'stone');
+    block(orange,1.44,1.68,1.196,.30,.071,.022,'metal');
+    block(red,1.59,1.60,1.199,.14,.083,.025,'metal');
+    block(red,1.56,1.47,1.200,.115,.20,.025,'metal');
+    const glyph={E:['111','100','110','100','111'],L:['100','100','100','100','111'],
+     V:['101','101','101','101','010'],N:['101','111','111','111','101']};
+    const name='ELEVEN',unit=.020;
+    for(let i=0;i<name.length;i++)for(let row=0;row<5;row++)
+     for(let col=0;col<3;col++)if(glyph[name[i]][row][col]==='1')
+      block(green,1.50-(name.length*4-1)*unit/2+(i*4+col)*unit,
+       1.38+(2-row)*unit,1.217,unit*.79,unit*.78,.012,'metal');
+    led('#fff1cd',1.50,1.215,1.15,2.20,.024,.022,'essential');
+    // Actual checkout, chilled cabinets and four product rows.
+    block('#ece9df',.88,.59,.61,.60,.59,.30,'stone');
+    block(orange,.88,.93,.61,.64,.065,.37,'metal');
+    block('#4b6470',1.03,1.07,.53,.19,.21,.10,'metal');
+    for(const xx of[1.65,2.15,2.55]){
+     block('#d8e1df',xx,.67,.48,.32,.78,.23,'stone');
+     block('#8eb9c2',xx,.75,.626,.27,.55,.035,'glass');
+     for(let j=0;j<(low?2:4);j++){
+      const yy=.49+j*.16;
+      block(j%2?orange:green,xx,yy,.660,.19,.077,.021,'stone');
+     }
+    }
+    for(const xx of[.40,2.60]){
+     block('#d5dacd',xx,.28,1.08,.19,.17,.19,'stone');
+     block('#629566',xx,.43,1.08,.14,.16,.14,'foliage');
+     led('#ffe0ab',xx,.56,1.09,.075,.075,.060,'essential');
+    }
+    if(!low){
+     led('#c6f5e3',1.50,1.630,1.11,2.35,.017,.023);
+     for(const xx of[.38,2.62])
+      led('#bfece9',xx,1.04,1.117,.017,.82,.017);
+    }
+    return;
    }
    if(t.kind==='restaurant'){
     // Blue bistro: pitched kitchen pavilion + a separate open dining pergola.
