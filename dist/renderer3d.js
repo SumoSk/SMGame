@@ -2956,22 +2956,56 @@ export class TrafficRenderer{
     base(x,y,z,w,h,d,color,'shop-night-'+tier,true);
    const plaque=(x,y,z,width=.68,height=.55)=>{
     // White/green square, distinctive red seven and orange upper stroke.
-    base(x,y,z,width,height,.040,green,'metal');
-    base(x,y,z+.029,width*.85,height*.89,.018,'#fffdf6','stone');
-    base(x-width*.10,y+height*.22,z+.053,width*.43,.080,.023,orange,'metal');
-    base(x+width*.10,y+height*.13,z+.055,width*.24,.10,.025,red,'metal');
-    base(x+width*.07,y-height*.06,z+.055,width*.14,.30,.025,red,'metal');
-    base(x+width*.02,y-height*.29,z+.055,width*.15,.08,.025,red,'metal');
+    base(x,y,z,width,height,.055,green,'shop-brand-essential');
+    base(x,y,z+.035,width*.85,height*.89,.028,'#fffdf6','shop-brand-essential');
+    base(x-width*.10,y+height*.22,z+.067,width*.43,.080,.023,orange,'shop-brand-essential');
+    base(x+width*.10,y+height*.13,z+.070,width*.24,.10,.025,red,'shop-brand-essential');
+    base(x+width*.07,y-height*.06,z+.070,width*.14,.30,.025,red,'shop-brand-essential');
+    base(x+width*.02,y-height*.29,z+.070,width*.15,.08,.025,red,'shop-brand-essential');
     // Four-pixel-high, six-letter ELEVEN wordmark, legible at game scale.
     const glyph={E:['111','100','110','100','111'],L:['100','100','100','100','111'],
      V:['101','101','101','101','010'],N:['101','111','111','111','101']};
-    const text='ELEVEN',unit=Math.min(width*.105,height*.056);
+    const text='ELEVEN',unit=Math.min(width/28,height*.058);
     for(let i=0;i<text.length;i++)for(let row=0;row<5;row++)
      for(let j=0;j<3;j++)if(glyph[text[i]][row][j]==='1'){
       const xx=x-(text.length*4-1)*unit/2+(i*4+j)*unit;
-      base(xx,y-height*.125+(2-row)*unit,z+.069,unit*.83,unit*.75,.012,green,'metal');
+      base(xx,y-height*.125+(2-row)*unit,z+.090,unit*.83,unit*.75,.021,green,'shop-brand-essential');
      }
     led('#fff0cb',x,y-height*.47,z+.073,width*.74,.011,.012,'essential');
+   };
+   const solarRoof=(x,z,w,d,y)=>{
+    // Mounted photovoltaic glass in two orderly blue-black fields, raised
+    // on silver rails; broad surfaces stay visible in LOW and remain within
+    // each existing roof's footprint. Nothing animates or casts new lights.
+    const rows=level===1?1:2,cols=level===3?2:1;
+    const panelW=Math.min(w*.72,(w-.24)/cols-.10);
+    const panelD=Math.min(d*.60,(d-.25)/rows-.08);
+    for(let col=0;col<cols;col++)for(let row=0;row<rows;row++){
+     const xx=x+(col-(cols-1)/2)*(panelW+.09);
+     const zz=z+(row-(rows-1)/2)*(panelD+.08);
+     base(xx,y+.045,zz,panelW+.055,.055,panelD+.055,silver,'shop-roof-essential');
+     base(xx,y+.087,zz,panelW,.036,panelD,'#183a4c','shop-roof-essential');
+     base(xx,y+.109,zz,panelW*.94,.014,panelD*.92,'#255c75','shop-roof-essential');
+     if(!low){
+      for(let i=1;i<4;i++)
+       base(xx-panelW*.46+panelW*.92*i/4,y+.120,zz,.018,.018,panelD*.90,
+        '#8aaec3','metal');
+      base(xx,y+.121,zz,panelW*.92,.016,.018,'#a8c7d2','metal');
+     }
+    }
+    // Elegant chamfer-style raised white perimeter and eave trim.
+    base(x,y-.025,z,w+.07,.065,d+.06,white,'metal');
+    base(x,y+.007,z,w+.08,.022,d+.07,'#aabcc0','metal');
+   };
+   const roofCrest=(x,z,roofY,width,height=.59)=>{
+    // Freestanding vertically readable primary billboard sits ABOVE the
+    // FRONT ROOF EDGE (not warped into the storefront/window surface).
+    const plaqueY=roofY+.32,signZ=z;
+    for(const dx of[-width*.30,width*.30])
+     base(x+dx,roofY+.15,signZ-.067,.070,.32,.090,silver,'shop-roof-essential');
+    base(x,roofY+.13,signZ-.06,width*.87,.045,.15,green,'shop-roof-essential');
+    plaque(x,plaqueY,signZ,width,height);
+    led('#fff0cb',x,roofY+.047,signZ+.084,width*.82,.022,.020,'essential');
    };
    const stripes=(x,y,z,width,frontSide=true)=>{
     // Real Thai convenience-store fascia: orange, green, red, with
@@ -3041,12 +3075,14 @@ export class TrafficRenderer{
       }
      }
     }
-    // One low floating eave for the small units.
+    // Smooth floating canopy, real photovoltaic panels and ONE highly
+    // visible rooftop sign per separate pavilion. The sign is independent
+    // of fascia text and always included even in the LOW graphics preset.
     base(x,1.83,z,w+.06,.11,d+.10,white,'metal');
     base(x,1.915,z,w+.09,.047,d+.12,silver,'metal');
+    solarRoof(x,z,w*.80,d*.72,1.985);
     stripes(x,1.98,face+.024,w-.07);
-    // 7-Eleven crest is centred on the brand-coloured fascia.
-    plaque(x,2.13,face+.080,Math.min(.78,w*.43),.48);
+    if(!upper)roofCrest(x,face-.19,1.978,Math.min(.82,w*.48),.57);
     led(cream,x,1.73,face+.065,w*.85,.027,.024,'essential');
     for(const xx of[x-w*.40,x+w*.40])
      led('#d3ffea',xx,1.02,face+.067,.026,1.03,.020,'essential');
@@ -3070,8 +3106,18 @@ export class TrafficRenderer{
       base(xx,2.90,z,.049,1.09,d-.28,tint,'glass');
      base(x,3.50,z,w+.14,.11,d+.13,white,'metal');
      base(x,3.58,z,w+.17,.048,d+.16,silver,'metal');
+     solarRoof(x,z,w*.81,d*.70,3.665);
+     roofCrest(x,face-.17,3.626,Math.min(.80,w*.43),.53);
      led(cream,x,3.45,face-.075,w*.87,.028,.028,'essential');
      if(!low)led('#bfeee2',x,3.62,face-.072,w*.87,.017,.020);
+    }
+    // Squared, aligned interior category labels fixed to actual vertical
+    // rear shelving: no rotated floating text or tilted signs.
+    if(!low){
+     for(const dx of[-w*.22,w*.14]){
+      base(x+dx,1.49,back+.20,w*.22,.13,.040,green,'metal');
+      base(x+dx,1.49,back+.226,w*.15,.060,.019,'#f1ecd9','shop-brand-essential');
+     }
     }
     // Counters and three-dimensional stocked aisles visible through glass.
     counter(x-w*.24,face-.55,.24);
