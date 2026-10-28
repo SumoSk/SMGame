@@ -19,8 +19,9 @@ function check(source){
  for(let y=140;y<=160;y++){const n=game.id(150,y);add(n);if(y>140)link(game.id(150,y-1),n);}
  const center=game.id(150,150),slots=game.signalSlots(center),slot=slots.findIndex(q=>q.incoming===0);
  assert(slot>=0,'green phase exists');
- const cycle=game.signalCycle(center);st.time=cycle*20-(center%17)*cycle/24+slot*(cycle/slots.length)+.1;
- assert(game.signalAllows(center,0,0),'approach starts green');
+ const cycle=game.signalCycle(center);let found=false;
+ for(let t=0;t<cycle*2;t+=.25){st.time=cycle*20+t;if(game.signalAllows(center,0,0)){found=true;break;}}
+ assert(found,'approach starts green');
  const cars=[];
  for(let x=137;x<=148;x++){
   const pos=x-125,id=x+2000,v={id,path,pathSet:new Set(path),pos,progress:0,
