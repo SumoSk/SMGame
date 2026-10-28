@@ -127,6 +127,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node work/test-platoon-green.cjs
+      - name: Verify all-red permits before green and stop-start counts
+        if: github.ref == 'refs/heads/feature/precleared-junction-permits-20261028'
+        run: node work/test-junction-preclearance.cjs
   publish:
     needs: [new-building-models, lane-change-safety]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
