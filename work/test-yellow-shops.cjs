@@ -37,6 +37,15 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    assert(baseLights.length>=blocks*5,'night essentials must survive Low');
    assert(detailLights.length>=blocks*2,'premium lit fascia needs optional accents');
    assert(baseLights.every(x=>x.glow)&&detailLights.every(x=>x.glow));
+   // The primary crest is physically ABOVE the roof FRONT, not just painted
+   // on the facade. Solar panels exist on ALL tiers, including the Low preset.
+   const rooftop=items.filter(x=>x.finish==='shop-brand-essential'&&x.y>2.0);
+   assert(rooftop.some(x=>x.color==='#ed1b34'),
+    key+' missing raised rooftop red seven');
+   assert(rooftop.some(x=>x.color==='#006940'),
+    key+' missing readable roof-mounted green billboard');
+   assert(items.some(x=>x.finish==='shop-roof-essential'&&x.color==='#183a4c'),
+    key+' must contain blue-black solar cells on the roof');
    // Inspect FULL rotated primitives. Checking only mesh centres misses
    // canopies, logos and cylindrical decorations overhanging road lanes.
    const uv=(pt)=>{
@@ -93,6 +102,13 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  r.graphicQuality='veryHigh';r.lastBuildingDetailLevel=null;
  r.updateBuildingDetailLOD({z:2});
  assert(ledMeshes.every(m=>m.visible));
+ const roofMeshes=[];
+ r.buildingGroup.traverse(mesh=>{if(mesh.userData.baseColor==='#183a4c'||
+   mesh.userData.baseColor==='#ed1b34')roofMeshes.push(mesh);});
+ assert(roofMeshes.length>=2,'all roof panels and primary brand are present');
+ assert(roofMeshes.filter(mesh=>mesh.userData.baseColor==='#ed1b34')
+  .some(mesh=>!mesh.userData.fineBuildingDetail),
+  'Low must retain the primary high rooftop crest even with detailed LOD off');
  // Starter store is also 7-Eleven styled.
  const sb=new Batch();r.building(sb,{key:'shop_starter',id:211,x:40,y:50,rotation:0,
   parked:new Set(),parkingSlots:[]},g.CATALOG,{});
@@ -100,7 +116,13 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  for(const color of ['#ff7f00','#006940','#ed1b34'])
   assert(starter.some(x=>x.color===color),'starter 7-Eleven logo/stripe missing '+color);
  assert(starter.filter(p=>p.finish==='shop-night-essential').length>=4);
+ assert(starter.some(p=>p.finish==='shop-roof-essential'&&p.color==='#153a52'),
+  'starter solar cells missing');
+ assert(starter.some(p=>p.finish==='shop-brand-essential'&&p.color==='#ed1b34'&&p.y>1.8),
+  'starter high red rooftop seven missing');
+ assert(starter.some(p=>p.finish==='shop-brand-essential'&&p.color==='#006940'&&p.y>1.7),
+  'starter main rooftop identity invisible in Low');
  assert(Math.max(...starter.map(p=>p.y+p.sy*.5))<2.1,'starter remains a single storey');
  console.log(JSON.stringify({passed:true,shops:4,rotations:12,parkingPreserved:true,
-  lowQualityLighting:true,sevenElevenBranding:true,models:rows}));
+  lowQualityLighting:true,sevenElevenBranding:true,solarRoofs:true,roofSignsLow:true,models:rows}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
