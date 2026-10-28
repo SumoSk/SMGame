@@ -21,6 +21,7 @@ jobs:
       - run: node work/test-cloud-save-adapter.cjs
       - run: node work/test-save-status.cjs
       - run: node work/test-free-decoration.cjs
+      - run: node work/test-decoration-editing.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-saves.cjs
   test:
     runs-on: ubuntu-latest
