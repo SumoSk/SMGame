@@ -3235,10 +3235,17 @@ export class TrafficRenderer{
     cyl('#86b278',u,1.48,v,.15,.31,'foliage');
    };
    const diagonal=(col,u1,y1,u2,y2,v,thick=.12)=>{
-    const p=point((u1+u2)*.5,v);
-    batch.add(BOX,col,p.x-.5,(y1+y2)*.5,p.y-.5,
-     Math.hypot(u2-u1,y2-y1),thick,.125,0,turn,Math.atan2(y2-y1,u2-u1),
-     id,false,'metal');
+    // Three short joined pieces stay within the roadside clearance even
+    // under conservative bounding-box checks at all plot rotations.
+    for(let n=0;n<3;n++){
+     const a=(n+.0)/3,c=(n+1)/3;
+     const x1=u1+(u2-u1)*a,yA=y1+(y2-y1)*a;
+     const x2=u1+(u2-u1)*c,yB=y1+(y2-y1)*c;
+     const p=point((x1+x2)*.5,v);
+     batch.add(BOX,col,p.x-.5,(yA+yB)*.5,p.y-.5,
+      Math.hypot(x2-x1,yB-yA),thick,.125,0,turn,
+      Math.atan2(yB-yA,x2-x1),id,false,'metal');
+    }
    };
    // Original front-lot grounding, pedestrian entrance and back-edge setback.
    block('#bdaba4',mid,.13,9.46,9.10,.21,5.72,'stone');
