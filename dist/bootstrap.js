@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=bb72135e6b50';
+import { TrafficRenderer } from './renderer3d.js?v=b26378d47b58';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
-await import('./game.js?v=755f0c1b9598');
+await import('./game.js?v=dc60aeb2240f');
 await import('./member.js?v=9a8fddc03610');

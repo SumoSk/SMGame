@@ -91,14 +91,11 @@ for(const t of Object.values(CATALOG)){
   t.frontageEntranceU=+(t.plotWidth*.275).toFixed(2);
   t.frontageExitU=+(t.plotWidth-t.frontageEntranceU).toFixed(2);
   t.frontageV=t.plotHeight-.57;t.parkingLayout=null;
-  // Large 7-Eleven: pull BOTH 40-slot parking banks 0.70 plot-units
-  // toward the shortened rear shop building. Preserve all 40 real slots,
-  // entrance/exit road connections, row clearances and saved slot indices.
-  // This is the SIMULATION geometry: the lot paint and vehicle waypoints
-  // both derive from the same aisle coordinates.
+  // Large store: crop two cells of unused approach, preserving 40 full-size
+  // stalls and both banks. Old saves retain their exact street-facing edge.
   if(t.key==='shop_large'){
-   t.parkingRearAisle=+(t.parkingRearAisle+.70).toFixed(2);
-   t.parkingAisle=+(t.parkingAisle+.70).toFixed(2);
+   t.plotHeight=11;t.parkingZoneDepth=6.45;t.buildingZoneDepth=4.55;
+   t.frontageV=t.plotHeight-.57;
   }
  }
 }
@@ -5318,7 +5315,7 @@ function moveBuilding(buildingId,x,y,confirmed=false,preferredRotation=null){
  syncParkingSlots();movingBuildingId=null;hover=null;selectTool('hand');selected={kind:'building',id:b.id};renderInspector();updateUI();toast('ย้ายอาคารแล้ว · ฟรี');return true;
 }
 
-function buildBuilding(key,x,y,confirmed=false,preferredRotation=null){const check=checkParkingBuilding(key,x,y,null,preferredRotation),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true,preferredRotation));positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,starterCompact:key==='home_starter',starterFrontRowV2:key==='home_starter',starterParkingV3:key==='home_starter',starterCottageV4:key==='home_starter',starterCottage3x3:key==='home_starter',starterGroundV6:key==='home_starter',grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,moveOutCooldowns:[],queue:[],arrivals:0};state.buildings.set(b.id,b);state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;markBuildingPlot(b,b.id);state.money-=t.cost;missionMoney('buildingCost',t.cost);missionCount('buildingsBuilt');for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
+function buildBuilding(key,x,y,confirmed=false,preferredRotation=null){const check=checkParkingBuilding(key,x,y,null,preferredRotation),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true,preferredRotation));positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,shopCompactLotV1:key==='shop_large',starterCompact:key==='home_starter',starterFrontRowV2:key==='home_starter',starterParkingV3:key==='home_starter',starterCottageV4:key==='home_starter',starterCottage3x3:key==='home_starter',starterGroundV6:key==='home_starter',grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,moveOutCooldowns:[],queue:[],arrivals:0};state.buildings.set(b.id,b);state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;markBuildingPlot(b,b.id);state.money-=t.cost;missionMoney('buildingCost',t.cost);missionCount('buildingsBuilt');for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
 function demolishBuilding(b,confirmed=false,anchor=null){if(!b||!state.buildings.has(b.id))return false;const t=CATALOG[b.key],fee=0;if(!confirmed){const details=t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ และการเดินทางมาที่นี่จะถูกยกเลิก';confirmDemolition('รื้อ'+t.name+'?',details,()=>demolishBuilding(b,true),anchor||screen(b.x+buildingBounds(b).w/2,b.y+buildingBounds(b).h/2));pendingDemolitionPreview={cells:[],eraseBuildingId:b.id};return true;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);resumeCancelledLife(c,v,'อาคารต้นทางหรือปลายทางถูกรื้อ');}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
 markBuildingPlot(b,-1);state.buildings.delete(b.id);state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;state.money-=fee;missionCount('buildingsRemoved');for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
 // Freehand demolition follows every crossed cell, even between sparse pointer samples.
@@ -5930,6 +5927,12 @@ function migrateCompactHomes(){
   if(b.rotation===0)b.y+=delta;
   if(b.rotation===3)b.x+=delta;
   b.compactLotV2=true;b.compactLotV3=true;moved.add(b.id);
+ }
+ // Crop 8x13 to 8x11 inside the former parcel, preserving street access.
+ for(const b of state.buildings.values())if(b.key==='shop_large'&&!b.shopCompactLotV1){
+  if(b.rotation===0)b.y+=2;
+  if(b.rotation===3)b.x+=2;
+  b.shopCompactLotV1=true;moved.add(b.id);
  }
  if(!moved.size)return;
  for(const v of state.vehicles.values()){

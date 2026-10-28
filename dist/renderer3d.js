@@ -2998,7 +2998,10 @@ export class TrafficRenderer{
    const shopStart=level===3?new Map([...batch.data].map(([key,val])=>
     [key,val.items.length])):null;
    const low=this.graphicQuality==='low',cx=W*.5;
-   const rear=P+.39,front=H-.79,usableW=W-1.82,usableD=front-rear;
+   // Keep the large shop's established shapes; translate the whole compound
+    // after compression to crop the former two-cell approach.
+    const rear=(level===3?6.5:P)+.39,front=(level===3?13:H)-.79;
+    const usableW=W-1.82,usableD=front-rear;
    const white='#f3f5f0',silver='#c6d3ce',green='#006940';
    const greenBright='#00844f',orange='#ff7f00',red='#ed1b34';
    const glass='#72aeba',tint='#92bdc5',cream='#ffe6c0';
@@ -3208,27 +3211,12 @@ export class TrafficRenderer{
       const u=rot===0?dx:rot===1?dz:rot===2?W-dx:W-dz;
       const v=rot===0?dz:rot===1?H-dx:rot===2?H-dz:dx;
       const rear=fold(v-mesh.sz*.5),front=fold(v+mesh.sz*.5);
-      const p=point(u,(rear+front)*.5);
+      const p=point(u,(rear+front)*.5-2);
       mesh.x=p.x-.5;mesh.z=p.y-.5;mesh.sz=front-rear;
      }
     }
-    // No unused dirt strip between the shortened building and parking.
-    // The rear store arcade is connected to the existing REAL parking
-    // pavement by a flat, flush pedestrian apron. Never move any bay,
-    // entrance/exit, street, car route or invisible collision reservation.
-    // Plot-local v=6.47..8.43: the structure starts around v=8.4.
-    // All components remain safely beyond the 6.42 parking-zone boundary.
-    base(cx,.093,7.45,usableW+.03,.038,1.96,'#cbd1cb','stone');
-    // Contrasting passage surface and subtle parking-to-shop wayfinding
-    // replace the old bare gap without adding bollards that block vehicles.
-    base(cx,.119,7.48,2.25,.014,1.83,'#e7e7df','stone');
-    for(const x of[1.32,2.43,3.54,4.65,5.76,6.67]){
-     base(x,.125,7.43,.065,.015,1.66,'#d6ddd6','stone');
-    }
-    for(const x of[1.26,W-1.26]){
-     base(x,.128,8.18,.33,.014,.045,greenBright,'metal');
-     if(!low)base(x,.134,8.25,.26,.014,.025,orange,'metal');
-    }
+    // Parking now meets the compact store parcel directly, with no filler
+    // apron or contrasting white pedestrian strip between the two.
    }
    return;
   }
