@@ -2099,29 +2099,34 @@ export class TrafficRenderer{
      block(color,1.50,y,1.105,2.48,h,.046,'metal');
     for(const y of[1.441,1.339])
      block('#ffffff',1.50,y,1.13,2.49,.020,.052,'metal');
-    // The starter storefront stays unbranded below the roof: one 7-Eleven
-    // identity above the roofline instead of duplicated facade lettering.
+    // Keep ONE 7-Eleven identity above the front roof edge.
+    // Use a near-square billboard with separate 7 and ELEVEN zones;
+    // never squeeze both into a shallow fascia-sized plaque.
     const glyph={E:['111','100','110','100','111'],L:['100','100','100','100','111'],
      V:['101','101','101','101','010'],N:['101','111','111','111','101']};
     led('#fff1cd',1.50,1.215,1.15,2.20,.024,.022,'essential');
-    // Freestanding sign sits at the FRONT EDGE OF THE ROOF, facing players.
-    // The large raised "7" is geometric rather than a skewed texture, and
-    // the full billboard deliberately survives all LOW mesh filtering.
+    // Every sign part is essential in LOW graphics. The billboard is placed
+    // in front of the solar panels; the 3x3 shop footprint is unchanged.
     const roofSign=(color,x,y,z,w,h,d)=>
      block(color,x,y,z,w,h,d,'shop-brand-essential');
-    for(const xx of[1.15,1.85])
-     roofSign('#d2d9d1',xx,1.84,.94,.057,.25,.065);
-    roofSign(green,1.50,1.91,1.026,.92,.35,.062);
-    roofSign('#fffefa',1.50,1.91,1.064,.84,.30,.025);
-    roofSign(orange,1.38,2.015,1.093,.43,.060,.024);
-    roofSign(red,1.63,1.971,1.094,.23,.072,.024);
-    roofSign(red,1.61,1.876,1.095,.13,.166,.024);
-    const roofWord='ELEVEN',roofUnit=.022;
+    for(const xx of[1.11,1.89])
+     roofSign('#d2d9d1',xx,1.79,.94,.065,.29,.075);
+    // Wide green border and generous white canvas keep the logo readable.
+    roofSign(green,1.50,2.25,1.026,1.46,.89,.066);
+    roofSign('#fffefa',1.50,2.25,1.068,1.33,.77,.030);
+    // Large upright red seven with its orange cap (not flattened).
+    roofSign(orange,1.42,2.530,1.103,.68,.079,.025);
+    roofSign(red,1.61,2.470,1.107,.48,.082,.026);
+    roofSign(red,1.77,2.400,1.109,.135,.112,.027);
+    roofSign(red,1.72,2.315,1.109,.140,.110,.027);
+    roofSign(red,1.66,2.225,1.109,.145,.103,.027);
+    // Larger 3x5 pixel lettering with independent baseline and spacing.
+    const roofWord='ELEVEN',roofUnit=.041,roofTextY=2.014;
     for(let i=0;i<roofWord.length;i++)for(let row=0;row<5;row++)
      for(let col=0;col<3;col++)if(glyph[roofWord[i]][row][col]==='1')
       roofSign(green,1.50-(roofWord.length*4-1)*roofUnit/2+(i*4+col)*roofUnit,
-       1.824+(2-row)*roofUnit,1.120,roofUnit*.83,roofUnit*.78,.014);
-    led('#fff0c5',1.50,1.71,1.081,.80,.020,.021,'essential');
+       roofTextY+(2-row)*roofUnit,1.126,roofUnit*.85,roofUnit*.82,.018);
+    led('#fff0c5',1.50,1.71,1.081,1.15,.020,.021,'essential');
     for(const xx of[.39,2.61])
      led('#d7fff0',xx,.91,1.129,.019,.61,.016,'essential');
     // Actual checkout, chilled cabinets and four product rows.
