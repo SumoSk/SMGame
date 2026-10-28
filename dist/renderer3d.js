@@ -20,7 +20,28 @@ const PALM_FROND=(()=>{
  geometry.setIndex(indices);geometry.computeVertexNormals();
  return geometry;
 })();
-const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND];
+// Instanced, low-polygon bitten-apple silhouette used by the medium mall's
+// rooftop identity. Cached globally: no per-building geometry allocations.
+const APPLE_MALL_MARK=(()=>{
+ const fruit=new THREE.Shape();
+ fruit.moveTo(-.07,.43);
+ fruit.bezierCurveTo(-.32,.56,-.54,.42,-.57,.13);
+ fruit.bezierCurveTo(-.64,-.17,-.47,-.48,-.30,-.59);
+ fruit.bezierCurveTo(-.16,-.68,-.05,-.57,.03,-.55);
+ fruit.bezierCurveTo(.18,-.65,.30,-.58,.43,-.35);
+ fruit.bezierCurveTo(.52,-.20,.57,-.03,.52,.07);
+ // Concave upper-right bite, an unmistakable part of the silhouette.
+ fruit.bezierCurveTo(.34,.04,.25,.17,.28,.29);
+ fruit.bezierCurveTo(.31,.42,.43,.43,.42,.44);
+ fruit.bezierCurveTo(.27,.54,.12,.45,.03,.40);
+ fruit.bezierCurveTo(-.01,.41,-.04,.43,-.07,.43);
+ const leaf=new THREE.Shape();
+ leaf.moveTo(-.025,.54);
+ leaf.bezierCurveTo(.10,.82,.30,.87,.36,.79);
+ leaf.bezierCurveTo(.25,.60,.11,.52,-.025,.54);
+ return {fruit:new THREE.ShapeGeometry(fruit,9),leaf:new THREE.ShapeGeometry(leaf,6)};
+})();
+const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf];
 
 // One tapered GPU-instanced light streak per beam; no floating glow spheres.
 const CAR_TECH_STREAK=(()=>{const g=new THREE.ConeGeometry(.044,.60,4,1,true);g.rotateZ(-Math.PI/2);return g;})();
@@ -3191,6 +3212,23 @@ export class TrafficRenderer{
       mesh.x=p.x-.5;mesh.z=p.y-.5;mesh.sz=front-rear;
      }
     }
+    // No unused dirt strip between the shortened building and parking.
+    // The rear store arcade is connected to the existing REAL parking
+    // pavement by a flat, flush pedestrian apron. Never move any bay,
+    // entrance/exit, street, car route or invisible collision reservation.
+    // Plot-local v=6.47..8.43: the structure starts around v=8.4.
+    // All components remain safely beyond the 6.42 parking-zone boundary.
+    base(cx,.093,7.45,usableW+.03,.038,1.96,'#cbd1cb','stone');
+    // Contrasting passage surface and subtle parking-to-shop wayfinding
+    // replace the old bare gap without adding bollards that block vehicles.
+    base(cx,.119,7.48,2.25,.014,1.83,'#e7e7df','stone');
+    for(const x of[1.32,2.43,3.54,4.65,5.76,6.67]){
+     base(x,.125,7.43,.065,.015,1.66,'#d6ddd6','stone');
+    }
+    for(const x of[1.26,W-1.26]){
+     base(x,.128,8.18,.33,.014,.045,greenBright,'metal');
+     if(!low)base(x,.134,8.25,.26,.014,.025,orange,'metal');
+    }
    }
    return;
   }
@@ -3714,6 +3752,28 @@ export class TrafficRenderer{
     batch.add(BOX,'#9bbac0',p.x-.5,(y1+y2)*.5,p.y-.5,
      Math.hypot(x2-x1,y2-y1),.029,Math.min(1.00,depth*.27),
      0,turn,Math.atan2(y2-y1,x2-x1),id,false,'glass');
+   }
+   // Medium mall only: a prominent, upright Apple-style bitten-apple
+   // rooftop identity above the CENTRAL glass atrium. The logo is actual 3D
+   // silhouette geometry, legible on Low graphics and from four rotations.
+   // This is SIGNAGE, never a second occupied floor; small and grand malls
+   // retain their independently designed roofs.
+   if(tier===2){
+    const signZ=mid+radius*.43;
+    const p=point(cx,signZ+.074);
+    for(const dx of[-.49,.49]){
+     solid('#aabec1',cx+dx,2.39,signZ-.03,.085,.27,.095,'metal');
+    }
+    solid('#d8e5e1',cx,3.055,signZ,1.70,1.33,.13,'metal');
+    solid('#273b46',cx,3.055,signZ+.071,1.59,1.23,.070,'metal');
+    solid('#d9ece6',cx,3.71,signZ,1.70,.030,.13,'metal');
+    // Fruit and leaf are two cached billboard geometries sharing the same
+    // local vertical plane; the bite is carved into the fruit's outline.
+    for(const [geo,col] of[[APPLE_MALL_MARK.fruit,'#f8f9f2'],
+      [APPLE_MALL_MARK.leaf,'#f8f9f2']])
+     batch.add(geo,col,p.x-.5,3.03,p.y-.5,.89,.89,.065,
+      0,turn,0,id,false,'mall-sign');
+    mallLED(warm,cx,2.46,signZ+.117,1.40,.030,.025,'essential');
    }
    // Open visitor plaza, low freestanding identity, four quiet spotlights.
    solid('#d5ddd5',cx,.22,front+.21,atriumW*.88,.09,.26);
