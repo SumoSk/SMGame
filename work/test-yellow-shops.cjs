@@ -36,6 +36,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     finish:v.finish,glow:v.glow,geo:v.geo})));
    assert(items.length>90&&items.length<850,key+' Low-poly shape budget');
    const countColor=color=>items.filter(x=>x.color===color).length;
+   if(key==='shop_small')assert(!items.some(i=>i.color==='#ff7f00'&&i.y>1.85&&i.y<2.15&&i.sx>2),
+    'small shop must have its brand sign only above the roof, not on its facade');
    assert(countColor('#ff7f00')>=blocks+1,'orange 7-brand stripe missing');
    assert(countColor('#006940')>=blocks+1,'dark-green 7-ELEVEN wordmark missing');
    assert(countColor('#ed1b34')>=blocks+1,'red 7 brandmark missing');
@@ -141,6 +143,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  for(const color of ['#ff7f00','#006940','#ed1b34'])
   assert(starter.some(x=>x.color===color),'starter 7-Eleven logo/stripe missing '+color);
  assert(starter.filter(p=>p.finish==='shop-night-essential').length>=4);
+ assert(!starter.some(p=>p.color==='#006940'&&p.y<1.75&&p.sx>.5&&p.sx<.85),
+  'starter shop must not duplicate its rooftop 7 logo on the facade');
  assert(starter.some(p=>p.finish==='shop-roof-essential'&&p.color==='#153a52'),
   'starter solar cells missing');
  assert(starter.some(p=>p.finish==='shop-brand-essential'&&p.color==='#ed1b34'&&p.y>1.8),
