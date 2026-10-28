@@ -2972,6 +2972,10 @@ export class TrafficRenderer{
   // campus; one/two floors only. Zero physics, extra lights or simulations.
   if(t.kind==='shop'){
    const level=t.modelTier||1,W=t.plotWidth,H=t.plotHeight,P=t.parkingZoneDepth;
+   // Track only new shop architecture. Parking/asphalt is already in Batch
+   // and must NOT be scaled or moved by this visual-only operation.
+   const shopStart=level===3?new Map([...batch.data].map(([key,val])=>
+    [key,val.items.length])):null;
    const low=this.graphicQuality==='low',cx=W*.5;
    const rear=P+.39,front=H-.79,usableW=W-1.82,usableD=front-rear;
    const white='#f3f5f0',silver='#c6d3ce',green='#006940';
@@ -3168,6 +3172,25 @@ export class TrafficRenderer{
     base(x,.45,front-.15,.26,.23,.25,greenBright,'foliage');
     base(x,.60,front-.15,.19,.12,.19,'#87ab7c','foliage');
     led(cream,x,.70,front-.15,.055,.050,.048,'essential');
+   }
+   // The rear HALF of every large-store pavilion is now only 50% deep.
+   // Keep the front entrance, 7-ELEVEN crests, solar roofs and storefront
+   // face pinned in place. Re-map both ENDPOINTS of long roof/wall pieces
+   // so they shrink exactly without creating gaps or overlapping parking.
+   if(shopStart){
+    const hinge=10.20,fold=v=>v>=hinge?v:hinge-(hinge-v)*.50;
+    for(const [key,group] of batch.data){
+     const first=shopStart.get(key)||0;
+     for(let i=first;i<group.items.length;i++){
+      const mesh=group.items[i],dx=mesh.x-b.x,dz=mesh.z-b.y;
+      const rot=b.rotation||0;
+      const u=rot===0?dx:rot===1?dz:rot===2?W-dx:W-dz;
+      const v=rot===0?dz:rot===1?H-dx:rot===2?H-dz:dx;
+      const rear=fold(v-mesh.sz*.5),front=fold(v+mesh.sz*.5);
+      const p=point(u,(rear+front)*.5);
+      mesh.x=p.x-.5;mesh.z=p.y-.5;mesh.sz=front-rear;
+     }
+    }
    }
    return;
   }
