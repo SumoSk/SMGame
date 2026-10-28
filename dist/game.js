@@ -2631,20 +2631,14 @@ const TREE_KINDS=[
 ];
 let currentTreeKind='shade';
 function landscapeClear(x,y){
- const xx=Math.floor(x),yy=Math.floor(y);
- if(!valid(xx,yy))return false;
- if(state.city==='phuket'&&renderer3d&&x<renderer3d.coast(y)+2.8)return false;
- if(state.city==='bangkok'&&Math.abs(x-(125+Math.sin(y*.047)*5))<6)return false;
- for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
-  const ax=xx+dx,ay=yy+dy;if(!valid(ax,ay))return false;
-  const i=id(ax,ay);if(state.footprint[i]>=0||state.buildGrid[i]>=0)return false;
- }
- return true;
+ // Player decorations can occupy any map cell, independently of buildings,
+ // roads and terrain. Automatic scenery keeps its separate clearance rules.
+ return Number.isFinite(x)&&Number.isFinite(y)&&valid(Math.floor(x),Math.floor(y));
 }
 function plantLandscape(x,y,kind=currentTreeKind){
  if(!TREE_KINDS.some(k=>k.key===kind)||!landscapeClear(x,y)||state.plantedTrees.length>=4000)return false;
  const tx=Math.floor(x)+.5,ty=Math.floor(y)+.5;
- if(state.plantedTrees.some(t=>Math.hypot(t.x-tx,t.y-ty)<1.1))return false;
+ if(state.plantedTrees.some(t=>t.x===tx&&t.y===ty))return false;
  state.plantedTrees.push({x:tx,y:ty,kind});state.landscapeVersion++;
  return true;
 }
@@ -2854,7 +2848,7 @@ function setDockCollapsed(collapsed){
  if(icon)icon.textContent=collapsed?'⌃':'⌄';
  if(label)label.textContent=collapsed?'กางเครื่องมือ':'หุบเครื่องมือ';
 }
-function selectTool(t,existingBuilding=null){const quota=buildingQuotaStatus(t);if(quota.locked&&!(existingBuilding&&state.buildings.get(existingBuilding.id)===existingBuilding&&existingBuilding.key===t)){toast(quota.message);$('hint').textContent=quota.message;return false;}movingBuildingId=null;$('cancelMoveBuilding').hidden=true;if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · เกมช่วยจัดตำแหน่งติดถนนใกล้เมาส์หรือนิ้ว`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'เลือกพื้นที่โล่งเพื่อปลูกต้นไม้ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลัก · รถบนถนนที่รื้อจะกลับเข้าเมืองใหม่':t==='erase'?'แตะตึกเพื่อรื้อ หรือลากตามถนนเพื่อลบต่อเนื่อง · ยืนยันก่อนรื้อทุกครั้ง':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูความสุข ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
+function selectTool(t,existingBuilding=null){const quota=buildingQuotaStatus(t);if(quota.locked&&!(existingBuilding&&state.buildings.get(existingBuilding.id)===existingBuilding&&existingBuilding.key===t)){toast(quota.message);$('hint').textContent=quota.message;return false;}movingBuildingId=null;$('cancelMoveBuilding').hidden=true;if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · เกมช่วยจัดตำแหน่งติดถนนใกล้เมาส์หรือนิ้ว`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'วางต้นไม้ได้ทุกตำแหน่งในแผนที่ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลัก · รถบนถนนที่รื้อจะกลับเข้าเมืองใหม่':t==='erase'?'แตะตึกเพื่อรื้อ หรือลากตามถนนเพื่อลบต่อเนื่อง · ยืนยันก่อนรื้อทุกครั้ง':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูความสุข ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
 let dialogRevision=0;
 function panelHeading(icon,title,subtitle=''){
  return '<header class="menu-heading"><span class="menu-logo" aria-hidden="true">'+icon+'</span><div><h2>'+title+'</h2>'+(subtitle?'<p class="panel-subtitle">'+subtitle+'</p>':'')+'</div></header>';
