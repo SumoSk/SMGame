@@ -89,6 +89,20 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
      'two separate outdoor café terraces missing');
     assert(items.some(i=>i.color==='#73bad4'),
      'public fountain at front entrance missing');
+    // Match the user's reference: one continuous white stepped rooftop,
+    // folded white/bronze front supports, real cafe terraces, side brand.
+    assert(items.some(i=>i.color==='#aaa6a4'&&i.sx>8&&i.y>4.15),
+     'reference requires a unified large flat rooftop deck');
+    assert(items.some(i=>i.color==='#edece5'&&Math.abs(i.rz)>.2&&i.y<2.9),
+     'reference requires angled white architectural frames');
+    assert(items.some(i=>i.color==='#a87855'&&i.u>9.7&&i.sy>1.5),
+     'reference requires wood-clad side elevation');
+    assert(items.some(i=>i.color==='#c72e37'&&i.u>9.7&&i.sy>.3),
+     'red CENTRAL side sign must face the side street');
+    assert(items.filter(i=>i.color==='#d7c6a2').length>=4,
+     'roof-terrace tables and café parasols missing');
+    assert(items.some(i=>i.color==='#69a56a')&&items.some(i=>i.color==='#73bad4'),
+     'front plaza needs ornamental trees and fountain');
     assert(items.some(i=>i.color==='#ad7951'||i.color==='#b8946d'),
      'Central facade must have premium wood and terrace detailing');
    }else{
