@@ -45,7 +45,7 @@ assert(!rail.includes('data-tool="small"'),'city data must not include construct
 assert(!rail.includes('data-tool="hand"'),'removed map exploration tool should stay removed');
 get('tools').onclick({target:{closest:sel=>sel==='[data-tool]'?{dataset:{tool:'touristDashboard',category:'tourists'}}:null}});
 assert(!get('touristsDashboard').classList.contains('hidden'),'tourist dashboard opens from flat tool rail');
-game.state.money=1e8;game.state.time=720;
+require('./test-building-fixtures.cjs')(game);game.state.money=1e8;game.state.time=720;
 const hotel=game.buildBuilding('hotel_small',245,148-game.CATALOG.hotel_small.plotHeight,true);
 const restaurant=game.buildBuilding('restaurant_small',190,148-game.CATALOG.restaurant_small.plotHeight,true);
 assert(hotel&&restaurant);

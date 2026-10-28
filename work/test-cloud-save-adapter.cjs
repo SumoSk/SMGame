@@ -1,0 +1,25 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const source=fs.readFileSync('work/member-entry.js','utf8');
+const start=source.indexOf('    async listSaves() {'),end=source.indexOf('    async deleteSave(',start);
+assert(start>0&&end>start);
+let response,calls=[];
+const query={};
+for(const method of ['select','eq','order','single','abortSignal'])query[method]=(...args)=>{calls.push([method,...args]);return query;};
+query.then=(resolve,reject)=>Promise.resolve(response).then(resolve,reject);
+const auth={from:table=>{calls.push(['from',table]);return query;},async rpc(name,args){calls.push(['rpc',name,args]);return response;}};
+const account=new Function('auth','user','AbortSignal','return ({'+source.slice(start,end)+'});')(auth,{id:'owner'},AbortSignal);
+(async()=>{
+ response={data:[{slot_id:'one',name:'เมือง',updated_at:'2026-10-28T00:00:00Z'}],error:null};
+ const list=await account.listSaves();assert.equal(list[0].id,'one');assert(!('data' in list[0]));
+ assert(calls.some(c=>c[0]==='select'&&c[1]==='slot_id,name,updated_at'));
+ calls=[];response={data:{data:{format:2,city:'phuket'}},error:null};
+ assert.equal(JSON.parse(await account.getSave('one')).city,'phuket');
+ assert(calls.some(c=>c[0]==='eq'&&c[1]==='user_id'&&c[2]==='owner'));
+ assert(calls.some(c=>c[0]==='eq'&&c[1]==='slot_id'&&c[2]==='one'));
+ calls=[];response={data:'one',error:null};
+ await account.save('เมือง','one','{"format":2}');
+ assert.equal(calls[0][1],'smgame_save_city');assert.equal(calls[0][2].p_slot_id,'one');assert(!('user_id' in calls[0][2]));
+ response={data:null,error:new Error('timeout')};await assert.rejects(()=>account.save('เมือง','one','{}'),/timeout/);
+ response={data:'other',error:null};await assert.rejects(()=>account.save('เมือง','one','{}'),/ตรวจสอบเซฟ/);
+ console.log('PASS: lightweight listing, owner-filtered lazy loading, dedicated save RPC, and save error handling');
+})().catch(e=>{console.error(e);process.exitCode=1;});

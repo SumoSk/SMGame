@@ -36,7 +36,7 @@ assert(heading(1.98)>0&&heading(1.98)<Math.PI/2,'parking corner must turn contin
 assert(heading(2.02)>heading(1.98),'parking curve must have smooth orientation');
 assert(heading(1.98)-heading(1.94)<.5&&heading(2.06)-heading(2.02)<.5,'corner heading jump');
 // Simulate a vehicle stuck in its exit lane for over the long recovery grace period.
-game.reset();game.state.money=1e8;
+game.reset();require('./test-building-fixtures.cjs')(game);game.state.money=1e8;
 const home=game.buildBuilding('home_large',160,148-game.CATALOG.home_large.plotHeight,true);
 const office=game.buildBuilding('office_large',180,148-game.CATALOG.office_large.plotHeight,true);
 assert(home&&office);
@@ -57,7 +57,7 @@ assert(game.state.vehicles.has(car.id),'recovery must not delete the journey');
 // Dense opposing-flow scenario for every compact model that previously looked broken.
 let laneCollisionChecks=0;
 for(const type of types){
- game.reset();game.state.money=1e8;
+ game.reset();require('./test-building-fixtures.cjs')(game);game.state.money=1e8;
  const origin=game.buildBuilding('home_large',160,148-game.CATALOG.home_large.plotHeight,true);
  const destination=game.buildBuilding(type,180,148-game.CATALOG[type].plotHeight,true);
  assert(origin&&destination,'missing parking access: '+type);

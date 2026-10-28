@@ -5,7 +5,7 @@ const context={document:{getElementById:get,querySelector:elem,querySelectorAll:
 vm.createContext(context);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),context);
 const step=n=>{for(let i=0;i<n;i++){game.state.time+=.04;game.advanceVehicles(.05,.04);}};
 function setup(){
- game.reset();game.state.money=1e8;
+ game.reset();require('./test-building-fixtures.cjs')(game);game.state.money=1e8;
  const home=game.buildBuilding('home_large',160,148-game.CATALOG.home_large.plotHeight,true);
  const office=game.buildBuilding('office_large',180,148-game.CATALOG.office_large.plotHeight,true);
  assert(home&&office);return {home,office};

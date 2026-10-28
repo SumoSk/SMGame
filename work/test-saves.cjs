@@ -69,21 +69,22 @@ console.log(JSON.stringify({passed:true,coverage:['IndexedDB commit before succe
 
 // The online adapter is optional and never alters any legacy/local save slot.
 const cloud=[];const session=boot();
-session.clientWindow.SMGameAccount={user:{id:'test-player'},async listSaves(){return cloud.map(s=>({...s}));},async save(name,id,data){const next={id,name,data,savedAt:Date.now()},index=cloud.findIndex(s=>s.id===id);if(index<0)cloud.push(next);else cloud[index]=next;}};
+session.clientWindow.SMGameAccount={user:{id:'test-player'},async listSaves(){return cloud.map(({data,...metadata})=>metadata);},async getSave(id){return cloud.find(s=>s.id===id).data;},async save(name,id,data){const next={id,name,data,savedAt:Date.now()},index=cloud.findIndex(s=>s.id===id);if(index<0)cloud.push(next);else cloud[index]=next;}};
 const originalSlots=session.game.readSaveSlots().map(s=>s.id).join(',');
 session.get('menu').onclick();
-assert(session.get('cloudSaveMenu').onclick,'logged-in player can access online saves');
-await session.get('cloudSaveMenu').onclick();
-session.get('cloudSaveName').value='เมืองคลาวด์';
-await session.get('cloudCreate').onclick();
+assert(session.get('saveMenu').onclick,'logged-in player can access online saves');
+await session.get('saveMenu').onclick();
+session.get('onlineSaveName').value='เมืองคลาวด์';
+await session.get('onlineCreate').onclick();
 assert.equal(cloud.length,1);
 assert.equal(session.game.readSaveSlots().map(s=>s.id).join(','),originalSlots);
 const originalMoney=session.game.state.money;
 session.game.state.money=123;
 session.get('menu').onclick();
-await session.get('cloudLoadMenu').onclick();
-session.get('slotAction0').onclick();
-session.get('confirmDialog').onclick();
+await session.get('saveMenu').onclick();
+session.get('onlineLoad0').onclick();
+await session.get('confirmDialog').onclick();
+for(let i=0;i<12;i++)await Promise.resolve();
 assert.equal(session.game.state.money,originalMoney);
 console.log(JSON.stringify({passed:true,coverage:['cloud save integration uses snapshot','cloud slots do not overwrite browser saves','cloud load restores the original snapshot']}));
 

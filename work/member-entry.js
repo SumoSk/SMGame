@@ -269,21 +269,32 @@ if (gate) {
     async listSaves() {
       if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
       const { data, error } = await auth.from('smgame_saves')
-        .select('slot_id,name,data,updated_at').eq('user_id',user.id).order('updated_at', { ascending: false });
+        .select('slot_id,name,updated_at').eq('user_id',user.id).order('updated_at', { ascending: false })
+        .abortSignal(AbortSignal.timeout(20000));
       if (error) throw error;
       return (data || []).map(slot => ({
         id: slot.slot_id, name: slot.name, savedAt: Date.parse(slot.updated_at),
-        data: JSON.stringify(slot.data),
       }));
+    },
+    async getSave(slotId) {
+      if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
+      if (typeof slotId !== 'string' || !slotId) throw Error('ระบุเซฟที่ต้องการโหลดค่ะ');
+      const ownerId = user.id;
+      const { data, error } = await auth.from('smgame_saves')
+        .select('data').eq('user_id', ownerId).eq('slot_id', slotId).single()
+        .abortSignal(AbortSignal.timeout(45000));
+      if (error) throw error;
+      if (user?.id !== ownerId) throw Error('บัญชีผู้ใช้เปลี่ยนระหว่างโหลด กรุณาเปิดรายการเซฟอีกครั้งค่ะ');
+      if (!data?.data || typeof data.data !== 'object' || Array.isArray(data.data)) throw Error('ข้อมูลเซฟไม่ถูกต้องค่ะ');
+      return JSON.stringify(data.data);
     },
     async save(name, slotId, serialized) {
       if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
-      const { data, error } = await auth.from('smgame_saves').upsert({
-        user_id: user.id, slot_id: slotId, name, data: JSON.parse(serialized),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,slot_id' }).select('slot_id').single();
+      const { data, error } = await auth.rpc('smgame_save_city', {
+        p_slot_id: slotId, p_name: name, p_data: JSON.parse(serialized),
+      });
       if (error) throw error;
-      if (data?.slot_id !== slotId) throw Error('ตรวจสอบเซฟออนไลน์ไม่สำเร็จ');
+      if (data !== slotId) throw Error('ตรวจสอบเซฟออนไลน์ไม่สำเร็จ');
     },
     async deleteSave(slotId) {
       if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');

@@ -4,7 +4,7 @@ const noop=()=>{},node=()=>({textContent:'',innerHTML:'',value:'',style:{},class
 let game;const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,node());return elements.get(id)};
 const context={document:{getElementById:get,querySelector:node,querySelectorAll:()=>[]},window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:x=>game=x},innerWidth:1440,innerHeight:900,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage:{getItem:()=>null,setItem:noop},console};
 vm.createContext(context);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),context);
-game.reset();game.state.money=1e9;
+game.reset();require('./test-building-fixtures.cjs')(game);game.state.money=1e9;
 const build=(kind,x)=>game.buildBuilding(kind,x,148-game.CATALOG[kind].plotHeight,true);
 const home=build('home_large',160),factory=build('factory_small',182),restaurant=build('restaurant_small',206),pub=build('pub_small',224),shop=build('shop_small',242);
 assert(home&&factory&&restaurant&&pub&&shop);

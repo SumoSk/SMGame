@@ -4,7 +4,7 @@ let game;const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,
 const storage={};const context={document:{getElementById:get,querySelector:node,querySelectorAll:()=>[]},window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:x=>game=x},innerWidth:1440,innerHeight:900,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage:{getItem:k=>storage[k]??null,setItem:(k,v)=>storage[k]=v},console};
 vm.createContext(context);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),context);
 function setup(){
- game.reset();game.state.money=1e9;
+ game.reset();require('./test-building-fixtures.cjs')(game);game.state.money=1e9;
  const home=game.buildBuilding('home_large',160,148-game.CATALOG.home_large.plotHeight,true);
  const office=game.buildBuilding('office_large',180,148-game.CATALOG.office_large.plotHeight,true);
  assert(home&&office);return {home,office};

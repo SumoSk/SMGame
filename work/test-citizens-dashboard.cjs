@@ -16,7 +16,7 @@ const ctx={document:{getElementById:get,querySelector:makeNode,querySelectorAll:
  innerWidth:1440,innerHeight:900,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,
  localStorage:{getItem:()=>null,setItem:noop},console};
 vm.createContext(ctx);vm.runInContext(source,ctx);
-game.reset();game.state.money=1e9;
+game.reset();require('./test-building-fixtures.cjs')(game);game.state.money=1e9;
 const home=game.buildBuilding('home_large',160,148-game.CATALOG.home_large.plotHeight,true);
 const office=game.buildBuilding('office_large',180,148-game.CATALOG.office_large.plotHeight,true);
 assert(home&&office);

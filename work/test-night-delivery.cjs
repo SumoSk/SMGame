@@ -10,7 +10,7 @@ assert.equal(game.deliveryNightAt(21*60+59),null);
 assert.equal(game.deliveryNightAt(22*60),0);
 assert.equal(game.deliveryNightAt(1440+4*60+59),0);
 assert.equal(game.deliveryNightAt(1440+5*60),null);
-game.reset();game.state.money=1e8;
+game.reset();require('./test-building-fixtures.cjs')(game);game.state.money=1e8;
 const build=(key,x)=>{const b=game.buildBuilding(key,x,148-game.CATALOG[key].plotHeight,true);assert(b,'Could not create '+key);return b;};
 const shop=build('shop_starter',171),food=build('restaurant_starter',197),hotel=build('hotel_starter',223),mall=build('mall_starter',249);
 const mallCatalog=game.CATALOG.mall_starter;

@@ -9,7 +9,7 @@ const storage={getItem:()=>null,setItem:noop};
 const context={document:{addEventListener:noop,getElementById:node,querySelector:()=>node('dummy'),querySelectorAll:()=>[]},window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:x=>game=x},innerWidth:1280,innerHeight:800,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage:storage,console};
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('dist/game.js','utf8'),context);
-game.reset();game.state.money=100000000;
+game.reset();require('./test-building-fixtures.cjs')(game);game.state.money=100000000;
 const gates=game.state.gates;
 assert.equal(gates.length,4);
 for(let i=0;i<4;i++){

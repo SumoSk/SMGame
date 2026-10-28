@@ -9,6 +9,17 @@ permissions:
   contents: write
   pages: write
 jobs:
+  building-quota:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check dist/game.js
+      - run: node work/test-building-quota.cjs
+      - run: node work/test-cloud-save-adapter.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-saves.cjs
   test:
     runs-on: ubuntu-latest
     steps:
@@ -108,7 +119,7 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
       - run: node work/test-performance.cjs
   publish:
-    needs: [new-building-models, lane-change-safety]
+    needs: [building-quota, new-building-models, lane-change-safety]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
