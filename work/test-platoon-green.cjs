@@ -30,14 +30,14 @@ function check(source){
   v.lane=game.plannedLane(v,pos);st.vehicles.set(id,v);cars.push(v);
   v.occKey=path[pos]+':0:'+v.lane;st.occ.set(v.occKey,id);
  }
- let drops=0,started=new Set(),crossed=new Set(),prev=new Map();
+ let drops=0,started=new Set(),crossed=new Set(),prev=new Map(),dropReasons=new Map();
  for(let tick=0;tick<150;tick++){
   game.advanceVehicles(1/60,.8/60);st.time+=.8/60;
   const active=cars.filter(v=>st.vehicles.has(v.id));
   for(const v of active){
    const speed=v.speed||0;
    if(speed>.15)started.add(v.id);
-   if((prev.get(v.id)||0)>.15&&speed<.01)drops++;
+   if((prev.get(v.id)||0)>.15&&speed<.01){drops++;const reason=v.stopReason||'(none)';dropReasons.set(reason,(dropReasons.get(reason)||0)+1);}
    prev.set(v.id,speed);
    if(v.pos>=26)crossed.add(v.id);
   }
@@ -45,7 +45,7 @@ function check(source){
   for(let i=1;i<positions.length;i++)if(Math.abs(positions[i].y-positions[i-1].y)<.18)
    assert(positions[i].x-positions[i-1].x>=.61,'vehicle overlap');
  }
- return{started:started.size,crossed:crossed.size,drops,travel:+cars.reduce((a,v)=>a+v.pos+v.progress,0).toFixed(3)};
+ return{started:started.size,crossed:crossed.size,drops,dropReasons:Object.fromEntries(dropReasons),travel:+cars.reduce((a,v)=>a+v.pos+v.progress,0).toFixed(3)};
 }
 const a=check(base),b=check(newer);console.log('GREEN_BASELINE',a,'GREEN_NEW',b);
 assert(b.started===12);
