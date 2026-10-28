@@ -370,7 +370,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  </section>
  <section class="city-control-mini" aria-label="ความต้องการของเมือง"><aside class="city-panel city-demand-panel" aria-label="ความต้องการของเมือง">
  <div class="mini-control-heading"><strong>ความต้องการ</strong><small class="mini-demand-legend" title="ความจุทั้งหมด / กำลังใช้งานรวมกำลังไป / ความต้องการ">จุ / ใช้ / ขาด</small></div>
- <div class="panel-content"><div id="demand" class="mini-needs-list" aria-live="off"></div></div>
+ <div class="panel-content"><div id="demand" class="mini-needs-list" aria-live="off"></div></div><div class="demand-scroll-track" aria-hidden="true"><span class="demand-scroll-thumb"></span></div>
  <div class="ui-legacy-hidden" hidden aria-hidden="true"><span id="cityName"></span><span id="citySub"></span><span id="sun"></span><span id="steps"></span><div id="guide"></div><span id="net"></span><div id="news"></div></div>
  </aside></section>
  <section class="builder-zone" aria-label="เครื่องมือสร้างเมือง">
@@ -558,6 +558,55 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  function safe(){if(broken)return;try{check();}catch(e){broken=true;hide();console.warn('SMCITY notice disabled after UI error:',e);}}
  const start=window.setTimeout(safe,1200),timer=window.setInterval(safe,3000);
  window.addEventListener('pagehide',()=>{window.clearTimeout(start);window.clearInterval(timer);},{once:true});
+})();
+</script>
+<script id="smcity-demand-scroll">
+(function(){
+ const pane=document.querySelector('.city-control-mini .panel-content');
+ const list=document.getElementById('demand');
+ const track=document.querySelector('.city-control-mini .demand-scroll-track');
+ const thumb=track&&track.querySelector('.demand-scroll-thumb');
+ if(!pane||!list||!track||!thumb)return;
+ let queued=false,dragOffset=0,dragPointer=null;
+ function refresh(){
+  queued=false;
+  const view=pane.clientHeight,total=pane.scrollHeight,rail=track.clientHeight;
+  if(!view||!rail)return;
+  const size=Math.min(rail,Math.max(24,rail*view/Math.max(total,view)));
+  const remaining=Math.max(0,rail-size),scrollRange=Math.max(0,total-view);
+  thumb.style.height=size+'px';
+  thumb.style.transform='translateY('+(scrollRange?remaining*pane.scrollTop/scrollRange:0)+'px)';
+  track.classList.toggle('is-scrollable',scrollRange>1);
+ }
+ function schedule(){
+  if(queued)return;
+  queued=true;
+  window.requestAnimationFrame(refresh);
+ }
+ pane.addEventListener('scroll',schedule,{passive:true});
+ if(typeof ResizeObserver!=='undefined')new ResizeObserver(schedule).observe(pane);
+ if(typeof MutationObserver!=='undefined')new MutationObserver(schedule).observe(list,{childList:true});
+ window.addEventListener('resize',schedule,{passive:true});
+ const scrollToPointer=y=>{
+  const rect=track.getBoundingClientRect(),limit=Math.max(0,rect.height-thumb.offsetHeight);
+  const top=Math.max(0,Math.min(limit,y-rect.top-dragOffset));
+  pane.scrollTop=limit?top/limit*Math.max(0,pane.scrollHeight-pane.clientHeight):0;
+ };
+ track.addEventListener('pointerdown',event=>{
+  if(event.button!==0)return;
+  dragPointer=event.pointerId;
+  dragOffset=event.target===thumb?event.clientY-thumb.getBoundingClientRect().top:thumb.offsetHeight/2;
+  track.setPointerCapture(event.pointerId);
+  scrollToPointer(event.clientY);
+  event.preventDefault();
+ });
+ track.addEventListener('pointermove',event=>{
+  if(event.pointerId===dragPointer)scrollToPointer(event.clientY);
+ });
+ const end=event=>{if(event.pointerId===dragPointer)dragPointer=null;};
+ track.addEventListener('pointerup',end);
+ track.addEventListener('pointercancel',end);
+ schedule();
 })();
 </script>
 <script type="module" src="dist/bootstrap.js?v=d8b96f188f05"></script></body></html>
