@@ -62,7 +62,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     assert(maxY<3.80&&maxY>3.45,key+' Central model must be 20% smaller');
    }else{
     assert(!floorsAt.some(i=>i.y>1),'one-level mall has phantom upper slab');
-    assert(maxY<2.75,key+' cannot exceed one floor');
+    if(key==='mall_medium'){
+     // The high Apple logo is an upright sign, NOT an occupied 2F.
+     assert(maxY>3.50&&maxY<3.90,'medium mall needs big central rooftop Apple sign');
+    }else assert(maxY<2.75,key+' cannot exceed one floor');
    }
    assert(!floorsAt.some(i=>i.y>3.0),'no THIRD occupied mall storey');
    assert(items.filter(i=>i.finish==='glass'&&!i.glow).length>=14,
@@ -76,6 +79,16 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    assert(lights.filter(i=>i.finish==='mall-night-detail').length>=8,
     key+' lacks premium night accent detail');
    assert(lights.every(i=>i.glow),key+' decorative LED meshes must emit light');
+   if(key==='mall_medium'){
+    const logo=[...batch.data.values()].filter(g=>g.finish==='mall-sign'&&g.color==='#f8f9f2');
+    assert.equal(logo.length,2,'medium mall must have fruit AND leaf, real 3D Apple silhouettes');
+    assert(logo.every(g=>g.items.length===1&&g.geo.type==='ShapeGeometry'),
+     'Apple logo must be one real geometry per shape, not tiny crooked letters');
+    assert(logo.every(g=>Math.abs(items.find(i=>i.color==='#f8f9f2').u-W/2)<.01),
+     'large roof sign must stay exactly centred over atrium');
+    assert(items.some(i=>i.color==='#273b46'&&i.y>3.0&&i.sx>1.5),
+     'medium rooftop mark needs a substantial readable backdrop');
+   }
    if(key==='mall_large'){
     assert(items.filter(i=>i.color==='#c72e37').length>=3,
      'CENTRAL red front, wing and freestanding entrance sign must render');
@@ -161,6 +174,22 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  renderer.graphicQuality='veryHigh';renderer.lastBuildingDetailLevel=null;
  renderer.updateBuildingDetailLOD({z:2});
  assert(mallMeshes.every(m=>m.visible),'High must restore all mall nighttime LED tiers');
+ // Low must also keep the medium Apple rooftop logo, independently of
+ // fancy night LEDs and close-distance details.
+ renderer.graphicQuality='low';renderer.lastBuildingDetailLevel=null;
+ const mediumBatch=new Batch({detailGroups:true}),midTier=g.CATALOG.mall_medium;
+ renderer.building(mediumBatch,{key:'mall_medium',id:97,x:40,y:50,rotation:0,
+  parked:new Set(),parkingSlots:Array(midTier.parkingCapacity).fill(null)},g.CATALOG,{});
+ const logoGroup=mediumBatch.build();
+ renderer.buildingGroup=new THREE.Group();renderer.buildingGroup.add(logoGroup);
+ renderer.updateBuildingDetailLOD({z:1});
+ const permanentMark=[];
+ renderer.buildingGroup.traverse(mesh=>{
+  if(mesh.userData.baseColor==='#f8f9f2')permanentMark.push(mesh);
+ });
+ assert.equal(permanentMark.length,2,'Low must retain both pieces of the rooftop Apple');
+ assert(permanentMark.every(mesh=>mesh.visible&&!mesh.userData.fineBuildingDetail),
+  'Low cannot hide the central rooftop Apple logo');
  renderer.graphicQuality=undefined;
  // Starter one-floor variant has three recognizable airy pavilions.
  const starter=g.CATALOG.mall_starter,starterBatch=new Batch();
