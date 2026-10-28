@@ -2341,23 +2341,8 @@ function updateCityAdvisor(){
   const value=-Math.max(0,r.waiting);
   return '<div class="mini-need'+(value<0?' shortage':'')+'" data-need-kind="'+r.kind+'" title="'+e(r.label)+' · ความจุ '+fmt(r.capacity)+' · กำลังใช้ '+fmt(r.busy)+' · ความต้องการ '+value+'"><span>'+e(r.label)+'</span><div class="mini-need-values"><b class="mini-need-capacity">'+fmt(r.capacity)+'</b><b class="mini-need-busy">'+fmt(r.busy)+'</b><strong class="mini-need-missing">'+value+'</strong></div></div>';
  }).join('');
- const activity=activitySnapshot(),block=state.homeActivityReport?.blocked||{},day=missionDay();
- const signed=n=>n>0?'+'+fmt(n):n<0?'−'+fmt(-n):'0';
- const shortages=needs.filter(r=>r.waiting>0).sort((a,b)=>b.waiting-a.waiting);
- const brief=[
-  'ประชาชน'+signed((day?.populationIn||0)-(day?.populationOut||0))+'•นักท่องเที่ยว'+signed((day?.touristsIn||0)-(day?.touristsOut||0)),
-  shortages.length?shortages.slice(0,2).map(r=>r.label+'−'+fmt(r.waiting)).join('•'):'ความต้องการค้าง0',
-  'ไปไม่ทัน'+fmt(day?.missed||0)+'•ไปสาย'+fmt(day?.late||0),
-  'อยู่บ้าน'+Math.round(activity.ratio*100)+'%•รถรอ'+fmt(state.stats.waiting||0)
- ];
- const titles=[
-  'จำนวนเพิ่มหรือลดสุทธิสะสมวันนี้',
-  shortages.length?shortages.map(r=>r.label+' ขาด '+fmt(r.waiting)).join(' • '):'ไม่มีความต้องการค้างจากข้อมูลปัจจุบัน',
-  'ผลการเดินทางสะสมวันนี้ · ไปไม่ทัน '+fmt(day?.missed||0)+' · ไปสาย '+fmt(day?.late||0),
-  'สัดส่วนอยู่บ้านและรถรอขณะนี้'+(activity.limit==null?' · ช่วงพักไม่จำกัด':' · เป้าอยู่บ้านไม่เกิน '+Math.round(activity.limit*100)+'%')+Object.entries(block).map(([k,v])=>' · '+k+' '+v).join('')
- ];
- const summary='<div id="cityBrief" class="city-brief" aria-label="สรุปเมืองปัจจุบัน">'+brief.map((line,i)=>'<span class="city-brief-line" title="'+e(titles[i])+'">'+e(line.replace(/\s+/g,''))+'</span>').join('•')+'</div>';
- set('demand',summary+html);
+ // Show category rows only. Detailed reports remain available in their own panels.
+ set('demand',html);
  set('advisorHeadline',e(advice.headline));set('advisorOverview',e(advice.overview));set('advisorGood',advice.good.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>เริ่มจากบ้านและถนน แล้วรอชีวิตเมืองเริ่มเดินทาง</li>');set('advisorProblems',advice.problems.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>ยังไม่พบปัญหาที่ต้องเร่งแก้จากข้อมูลปัจจุบัน</li>');
  set('advisorNext',advice.next.map((a,i)=>'<li><span>'+e(a.text)+'</span>'+(a.report?'<button data-advice-report>ตรวจเมือง</button>':a.category?'<button data-advice-category="'+a.category+'">เปิดหมวดสร้าง</button>':'')+'</li>').join(''));
 }
