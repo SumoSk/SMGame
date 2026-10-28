@@ -3,7 +3,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
 const prefix=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
 const {game:g,get}=new Function('require',prefix+'return boot();')(require);
 g.reset();const cash=g.state.money,quota=JSON.stringify(g.state.buildingQuota);
-assert.equal(g.DECOR_KINDS.length,32);
+assert.equal(g.DECOR_KINDS.length,56);
 for(let i=0;i<g.DECOR_KINDS.length;i++){
  const type=g.DECOR_KINDS[i];assert(g.plantLandscape(180+i%8*3,180+Math.floor(i/8)*3,type.key));
  g.selectTool('tree:'+type.key); // All kinds must also keep row/brush labels valid.
@@ -11,7 +11,7 @@ for(let i=0;i<g.DECOR_KINDS.length;i++){
 assert.equal(g.state.money,cash);assert.equal(JSON.stringify(g.state.buildingQuota),quota);
 g.selectTool('hand');const item=g.state.plantedTrees[0];
 g.inspectAt(...g.screen(item.x,item.y,8));assert.equal(g.selected.kind,'landscape');
-assert(get('inspectContent').innerHTML.includes('ม้านั่งไม้'));
+assert(get('inspectContent').innerHTML.includes('ถังขยะ'));
 const action=a=>get('inspectContent').onclick({target:{closest:()=>({dataset:{action:a}})}});
 action('rotate-landscape');assert.equal(item.rotation,1);
 action('move-landscape');assert.equal(get('cancelMoveBuilding').hidden,false);
@@ -29,6 +29,15 @@ assert(g.moveLandscape(automatic,12,13));assert(g.state.hiddenAutoTrees.includes
 assert(g.state.plantedTrees.some(t=>t.kind==='shade'&&t.x===12.5&&t.y===13.5));
 assert(g.deleteLandscape({auto:true,x:172.5,y:173.5,kind:'palm'}));assert(g.state.hiddenAutoTrees.includes(g.id(172,173)));
 assert(g.loadGame(true,null,g.snapshot()));assert(g.state.hiddenAutoTrees.includes(g.id(172,173)));
+const retired=['bench_wood','bench_iron','picnic','umbrella','play_swing','play_slide','gazebo','bike_rack'];
+const beforeMigration=JSON.stringify(g.state.plantedTrees),legacy=JSON.parse(g.snapshot());
+for(let i=0;i<retired.length;i++){
+ assert(!g.DECOR_KINDS.some(k=>k.key===retired[i]));
+ assert.equal(g.plantLandscape(250+i,250,retired[i]),false);
+ legacy.plantedTrees.push({x:250+i,y:250,kind:retired[i],rotation:1});
+}
+assert(g.loadGame(true,null,JSON.stringify(legacy)),'retired furniture must not break old saves');
+assert.equal(JSON.stringify(g.state.plantedTrees),beforeMigration,'remove only retired pieces from loaded cities');
 (async()=>{
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
  const source=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
@@ -43,5 +52,5 @@ assert(g.loadGame(true,null,g.snapshot()));assert(g.state.hiddenAutoTrees.includ
  assert([...r.landscapePicks.values()].some(v=>v.item),'manual props are selectable');
  assert([...r.landscapePicks.values()].some(v=>v.auto),'automatic trees are selectable');
  for(const mesh of r.treeGroup.children[0].children)assert(mesh.userData.ids.every(id=>r.landscapePicks.has(id)));
- console.log('PASS: 32 decoration models × 4 rotations, selectable trees/props, move/delete controls, auto-tree edits, and save roundtrip');
+ console.log('PASS: 56 decoration models × 4 rotations, selectable trees/props, move/delete controls, auto-tree edits, and save roundtrip');
 })().catch(e=>{console.error(e);process.exitCode=1;});

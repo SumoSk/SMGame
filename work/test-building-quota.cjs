@@ -41,6 +41,9 @@ test('locked cards remain visible, show zero at top right and explain the prereq
  assert(html.includes('ต้องสร้างบ้านเริ่มต้นเพิ่มอีก 1 ตึก'));
  assert(html.includes('aria-disabled="true"'));
  assert.equal(g.selectTool('home_large'),false);assert(get('hint').textContent.includes('บ้านเริ่มต้น'));
+ assert(get('dialogContent').innerHTML.includes('class="quota-warning"'),'show a prominent warning dialog');
+ assert(get('dialogContent').innerHTML.includes('เลือกบ้านเริ่มต้น'),'offer the previous tier');
+ assert(get('dialogContent').innerHTML.includes('ต้องสร้างบ้านเริ่มต้นเพิ่มอีก 1 ตึก'));
  assert(g.checkBuilding('home_large',160,100).error.includes('บ้านเริ่มต้น'));
  assert(g.assistedBuildingPlacement('home_large',160,100).error.includes('บ้านเริ่มต้น'));
  for(let n=0;n<5;n++)build(g,'home_starter',160+n*5);

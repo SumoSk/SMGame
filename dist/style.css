@@ -6627,3 +6627,11 @@ body>.bottom .city-control-mini .demand-scroll-thumb{
 .cloud-save-status p{line-height:1.6!important;overflow-wrap:anywhere}
 @keyframes cloud-save-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.cloud-save-status.saving .cloud-save-symbol{animation:none}}
+/* Large prerequisite warning; quota counters keep their existing size. */
+#dialog:has(.quota-warning){width:min(460px,calc(100vw - 24px))!important;zoom:1!important}
+#dialog .quota-warning{text-align:center;padding:16px 8px}
+#dialog .quota-warning-icon{display:block;font-size:44px!important;line-height:1.4!important;margin-bottom:10px}
+#dialog .quota-warning h2{font-size:24px!important;line-height:1.45!important;margin:4px 0 16px!important}
+#dialog .quota-warning-message{display:block!important;font-size:21px!important;line-height:1.6!important;font-weight:800!important;padding:18px 14px!important;border:2px solid #ca9851;border-radius:14px;background:#fff0cd;color:#674512!important}
+#dialog .quota-warning p:not(.quota-warning-message){font-size:15px!important;line-height:1.6!important}
+#dialog:has(.quota-warning) .actions button{min-height:44px!important;font-size:15px!important;padding:10px 16px!important}
