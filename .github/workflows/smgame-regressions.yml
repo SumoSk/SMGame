@@ -113,6 +113,19 @@ jobs:
       - name: Benchmark current against v4.4.2
         if: github.ref == 'refs/heads/feature/platoon-follow-performance-20261028'
         run: node work/test-platoon-performance.cjs
+  green-platoon-safety:
+    if: github.ref == 'refs/heads/feature/platoon-follow-performance-20261028'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node work/test-platoon-green.cjs
   publish:
     needs: [new-building-models, lane-change-safety]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
