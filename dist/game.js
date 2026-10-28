@@ -925,7 +925,7 @@ function startLondonShowcase(){
   const homes=[];
   const district=(xs,ys,layout)=>{
    for(let row=0;row<layout.length;row++)for(let col=0;col<layout[row].length;col++){
-    const key=layout[row][col],t=CATALOG[key],x=xs[col]+Math.floor((xs[col+1]-xs[col]-t.plotWidth)/2),y=ys[row+1]-t.plotHeight;
+    const key=layout[row][col],t=CATALOG[key],x=xs[col]+Math.floor((xs[col+1]-xs[col]-t.plotWidth)/2),y=ys[row+1]-t.plotHeight-1;
     const blocked=[];for(let yy=y;yy<y+t.plotHeight;yy++)for(let xx=x;xx<x+t.plotWidth;xx++){const i=id(xx,yy);if(state.footprint[i]>=0||state.buildGrid[i]>=0)blocked.push([xx,yy,state.footprint[i],state.buildGrid[i]]);}
     const b=buildBuilding(key,x,y,true,0);
     if(!b||b.access.length<2)throw Error('London placement: '+key+' ('+x+','+y+') size '+t.plotWidth+'x'+t.plotHeight+' / '+JSON.stringify(checkParkingBuilding(key,x,y,null,0))+' / collision '+JSON.stringify(blocked.slice(0,8)));
