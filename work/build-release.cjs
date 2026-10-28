@@ -31,8 +31,6 @@ const welcomeData=fs.existsSync(welcomeAsset)?'data:image/webp;base64,'+fs.readF
 const html=read('dist/index.html')
  .replace(/<link rel="stylesheet" href="style\.css[^"\s]*">/,()=>'<style>\n'+read('dist/style.css')+'</style>')
  .replace(/<link rel="stylesheet" href="modal-system\.css[^"\s]*">/,()=>'<style>\n'+read('dist/modal-system.css')+'</style>')
- .replace(/<link rel="stylesheet" href="language\.css[^"\s]*">/,()=>'<style>\n'+read('dist/language.css')+'</style>')
- .replace(/<script defer src="i18n\.js[^"\s]*"><\/script>/,()=>'<script>'+read('dist/i18n.js')+'</script>')
  .replace(/<script type="module" src="bootstrap\.js[^"\s]*"><\/script>/,()=>'<script type="module">'+inline+'</script>')
  .replace(/src="\.\.\/assets\/smcity-welcome\.webp"/g,()=>welcomeData||'../assets/smcity-welcome.webp');
 // Theme initialization and its toggle are separate inline scripts in v2.4.3.
