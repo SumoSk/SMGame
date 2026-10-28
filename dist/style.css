@@ -6609,3 +6609,12 @@ body>.bottom .city-control-mini .demand-scroll-thumb{
   top:25px!important;bottom:3px!important;right:2px!important;
  }
 }
+
+/* Locked buildings remain visible and explain their one-build prerequisite. */
+#tools .tool.quota-locked .tool-icon{opacity:.45}
+#tools .tool{position:relative}
+#tools .tool .tool-quota-count{position:absolute;top:3px;right:4px;min-width:19px;height:19px;padding:0 4px;border-radius:10px;display:grid;place-items:center;background:#28663e;color:#fff;font-size:11px;line-height:19px;font-weight:700}
+#tools .tool .tool-quota-count.is-locked{background:#e8ddcc;color:#795329}
+#tools .tool:has(.tool-quota-count) .tool-name{padding-right:19px}
+#tools .tool .tool-quota{display:block;max-width:160px;white-space:normal;font-size:10px;line-height:1.35;color:#28663e;margin-top:3px}
+#tools .tool .tool-quota.is-locked{color:#87551f}
