@@ -41,7 +41,29 @@ const APPLE_MALL_MARK=(()=>{
  leaf.bezierCurveTo(.25,.60,.11,.52,-.025,.54);
  return {fruit:new THREE.ShapeGeometry(fruit,9),leaf:new THREE.ShapeGeometry(leaf,6)};
 })();
-const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf];
+// Sharp 7-Eleven badge: one 512px canvas texture shared by all sizes and LODs.
+// Logo is static, instanced and independent of frame updates.
+const SHOP_SIGN_FACE=(()=>{
+ const canvas=document.createElement('canvas');canvas.width=512;canvas.height=512;
+ const ctx=canvas.getContext('2d',{alpha:false});
+ ctx.fillStyle='#087445';ctx.fillRect(0,0,512,512);
+ ctx.fillStyle='#fffefa';ctx.fillRect(32,32,448,448);
+ // A clear orange cap and large red 7, separated from the green wordmark.
+ ctx.fillStyle='#ff8900';ctx.beginPath();
+ ctx.moveTo(109,113);ctx.lineTo(397,113);ctx.lineTo(387,178);ctx.lineTo(123,178);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#ed2137';ctx.beginPath();
+ ctx.moveTo(133,190);ctx.lineTo(392,190);ctx.lineTo(284,365);
+ ctx.lineTo(211,365);ctx.lineTo(309,241);ctx.lineTo(133,241);ctx.closePath();ctx.fill();
+ ctx.font='900 70px Arial,Helvetica,sans-serif';
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#006b40';
+ ctx.fillText('ELEVEN',256,427,409);
+ const texture=new THREE.CanvasTexture(canvas);
+ texture.colorSpace=THREE.SRGBColorSpace;texture.generateMipmaps=true;
+ texture.minFilter=THREE.LinearMipmapLinearFilter;
+ texture.magFilter=THREE.LinearFilter;texture.anisotropy=4;
+ return {geometry:new THREE.PlaneGeometry(1,1),texture};
+})();
+const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry];
 
 // One tapered GPU-instanced light streak per beam; no floating glow spheres.
 const CAR_TECH_STREAK=(()=>{const g=new THREE.ConeGeometry(.044,.60,4,1,true);g.rotateZ(-Math.PI/2);return g;})();
@@ -733,7 +755,7 @@ class Batch{
  const maxSize=Math.max(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  const minSize=Math.min(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  // Separate only tiny architectural trims, not walls, roofs, windows, parking paint or doors.
- const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&finish!=='mall-sign'&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&finish!=='lod-landmark'&&
+ const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&finish!=='mall-sign'&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&!finish.startsWith('shop-sign-')&&finish!=='lod-landmark'&&
    ((minSize<.045&&maxSize<.85)||(maxSize<.35&&Math.abs(sx*sy*sz)<.00065));
  // LOW builds only the geometry that will actually be drawn. Keep roof signs,
  // entrances, facades, solar panels and essential night strips at all presets.
@@ -744,7 +766,9 @@ class Batch{
  this.data.get(key).items.push({x,y,z,sx,sy,sz,rx,ry,rz,buildingId});
 }
  box(color,x,y,z,sx,sy,sz,ry=0,id=null,glow=false,finish='matte'){this.add(BOX,color,x,y,z,sx,sy,sz,0,ry,0,id,glow,finish);}
- build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,fine=false,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=new THREE.MeshStandardMaterial({color,roughness:glow?.4:roughness,metalness,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){
+ build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,fine=false,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=finish==='shop-sign-face'?
+ new THREE.MeshBasicMaterial({map:SHOP_SIGN_FACE.texture,side:THREE.FrontSide,toneMapped:false,depthWrite:true}):
+ new THREE.MeshStandardMaterial({color,roughness:glow?.4:roughness,metalness,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){
   material.emissive.set(color);material.emissiveIntensity=1.6;
   material.toneMapped=false;
   // Factory lighting uses additive batched emissive geometry rather than
@@ -1487,6 +1511,14 @@ export class TrafficRenderer{
   const planted=(u,v,scale=.44)=>{
    const p=point(u,v);this.tree(batch,p.x-.5,p.y-.5,scale);
   };
+  const shopSignFace=(u,y,v,width,height,frontDepth=.084,backDepth=.052)=>{
+   // Both faces follow parcel rotation and stay readable from either side.
+   for(const [offset,angle] of [[frontDepth,turn],[-backDepth,turn+Math.PI]]){
+    const p=point(u,v+offset);
+    batch.add(SHOP_SIGN_FACE.geometry,'#ffffff',p.x-.5,y,p.y-.5,
+     width,height,.018,0,angle,0,id,false,'shop-sign-face');
+   }
+  };
   const gable=(color,u,v,w,d,base,rise)=>{
    const p=point(u,v);
    batch.add(PITCHED_ROOF,color,p.x-.5,base,p.y-.5,w,rise,d,0,turn,0,id,false,'stone');
@@ -2117,33 +2149,13 @@ export class TrafficRenderer{
      block(color,1.50,y,1.105,2.48,h,.046,'metal');
     for(const y of[1.441,1.339])
      block('#ffffff',1.50,y,1.13,2.49,.020,.052,'metal');
-    // Keep ONE 7-Eleven identity above the front roof edge.
-    // Use a near-square billboard with separate 7 and ELEVEN zones;
-    // never squeeze both into a shallow fascia-sized plaque.
-    const glyph={E:['111','100','110','100','111'],L:['100','100','100','100','111'],
-     V:['101','101','101','101','010'],N:['101','111','111','111','101']};
+    // Single square roof sign, clear in LOW, with no duplicate badge on fascia.
     led('#fff1cd',1.50,1.215,1.15,2.20,.024,.022,'essential');
-    // Every sign part is essential in LOW graphics. The billboard is placed
-    // in front of the solar panels; the 3x3 shop footprint is unchanged.
-    const roofSign=(color,x,y,z,w,h,d)=>
-     block(color,x,y,z,w,h,d,'shop-brand-essential');
-    for(const xx of[1.11,1.89])
-     roofSign('#d2d9d1',xx,1.79,.94,.065,.29,.075);
-    // Wide green border and generous white canvas keep the logo readable.
-    roofSign(green,1.50,2.25,1.026,1.46,.89,.066);
-    roofSign('#fffefa',1.50,2.25,1.068,1.33,.77,.030);
-    // Large upright red seven with its orange cap (not flattened).
-    roofSign(orange,1.42,2.530,1.103,.68,.079,.025);
-    roofSign(red,1.61,2.470,1.107,.48,.082,.026);
-    roofSign(red,1.77,2.400,1.109,.135,.112,.027);
-    roofSign(red,1.72,2.315,1.109,.140,.110,.027);
-    roofSign(red,1.66,2.225,1.109,.145,.103,.027);
-    // Larger 3x5 pixel lettering with independent baseline and spacing.
-    const roofWord='ELEVEN',roofUnit=.041,roofTextY=2.014;
-    for(let i=0;i<roofWord.length;i++)for(let row=0;row<5;row++)
-     for(let col=0;col<3;col++)if(glyph[roofWord[i]][row][col]==='1')
-      roofSign(green,1.50-(roofWord.length*4-1)*roofUnit/2+(i*4+col)*roofUnit,
-       roofTextY+(2-row)*roofUnit,1.126,roofUnit*.85,roofUnit*.82,.018);
+    for(const xx of[1.07,1.93])
+     block('#cbd5ce',xx,1.80,.965,.073,.34,.095,'shop-roof-essential');
+    block(green,1.50,2.30,1.026,1.43,1.14,.082,'shop-brand-essential');
+    block('#fffefa',1.50,2.30,1.070,1.31,1.04,.022,'shop-brand-essential');
+    shopSignFace(1.50,2.30,1.041,1.31,1.04,.074,.071);
     led('#fff0c5',1.50,1.71,1.081,1.15,.020,.021,'essential');
     for(const xx of[.39,2.61])
      led('#d7fff0',xx,.91,1.129,.019,.61,.016,'essential');
@@ -3103,24 +3115,11 @@ export class TrafficRenderer{
     block(color,x,y,z,w,h,d,finish,glow);
    const led=(color,x,y,z,w,h,d,tier='detail')=>
     base(x,y,z,w,h,d,color,'shop-night-'+tier,true);
-   const plaque=(x,y,z,width=.68,height=.55)=>{
-    // White/green square, distinctive red seven and orange upper stroke.
-    base(x,y,z,width,height,.055,green,'shop-brand-essential');
-    base(x,y,z+.035,width*.85,height*.89,.028,'#fffdf6','shop-brand-essential');
-    base(x-width*.10,y+height*.22,z+.067,width*.43,.080,.023,orange,'shop-brand-essential');
-    base(x+width*.10,y+height*.13,z+.070,width*.24,.10,.025,red,'shop-brand-essential');
-    base(x+width*.07,y-height*.06,z+.070,width*.14,.30,.025,red,'shop-brand-essential');
-    base(x+width*.02,y-height*.29,z+.070,width*.15,.08,.025,red,'shop-brand-essential');
-    // Four-pixel-high, six-letter ELEVEN wordmark, legible at game scale.
-    const glyph={E:['111','100','110','100','111'],L:['100','100','100','100','111'],
-     V:['101','101','101','101','010'],N:['101','111','111','111','101']};
-    const text='ELEVEN',unit=Math.min(width/28,height*.058);
-    for(let i=0;i<text.length;i++)for(let row=0;row<5;row++)
-     for(let j=0;j<3;j++)if(glyph[text[i]][row][j]==='1'){
-      const xx=x-(text.length*4-1)*unit/2+(i*4+j)*unit;
-      base(xx,y-height*.125+(2-row)*unit,z+.090,unit*.83,unit*.75,.021,green,'shop-brand-essential');
-     }
-    led('#fff0cb',x,y-height*.47,z+.073,width*.74,.011,.012,'essential');
+   const plaque=(x,y,z,width=1.05,height=.88)=>{
+    // Crisp single-texture 7 and ELEVEN, no subpixel geometry or overlap.
+    base(x,y,z,width,height,.072,green,'shop-brand-essential');
+    base(x,y,z+.041,width*.935,height*.92,.034,'#fffefa','shop-brand-essential');
+    shopSignFace(x,y,z,width*.935,height*.92,.089,.048);
    };
    const solarRoof=(x,z,w,d,y)=>{
     // Mounted photovoltaic glass in two orderly blue-black fields, raised
@@ -3146,15 +3145,14 @@ export class TrafficRenderer{
     base(x,y-.025,z,w+.07,.065,d+.06,white,'metal');
     base(x,y+.007,z,w+.08,.022,d+.07,'#aabcc0','metal');
    };
-   const roofCrest=(x,z,roofY,width,height=.59)=>{
-    // Freestanding vertically readable primary billboard sits ABOVE the
-    // FRONT ROOF EDGE (not warped into the storefront/window surface).
-    const plaqueY=roofY+.32,signZ=z;
+   const roofCrest=(x,z,roofY,width,height=width*.84)=>{
+    // Upright generous signage; lower edge stays above the rooftop.
+    const plaqueY=roofY+.14+height*.50,signZ=z;
     for(const dx of[-width*.30,width*.30])
-     base(x+dx,roofY+.15,signZ-.067,.070,.32,.090,silver,'shop-roof-essential');
-    base(x,roofY+.13,signZ-.06,width*.87,.045,.15,green,'shop-roof-essential');
+     base(x+dx,roofY+.175,signZ-.087,.085,.35,.11,silver,'shop-roof-essential');
+    base(x,roofY+.14,signZ-.070,width*.88,.058,.18,green,'shop-roof-essential');
     plaque(x,plaqueY,signZ,width,height);
-    led('#fff0cb',x,roofY+.047,signZ+.084,width*.82,.022,.020,'essential');
+    led('#fff0cb',x,roofY+.050,signZ+.095,width*.82,.022,.024,'essential');
    };
    const stripes=(x,y,z,width,frontSide=true)=>{
     // Real Thai convenience-store fascia: orange, green, red, with
@@ -3232,7 +3230,7 @@ export class TrafficRenderer{
     solarRoof(x,z,w*.80,d*.72,1.985);
     // The small store has a single roof sign; no second branded fascia.
     if(level!==1)stripes(x,1.98,face+.024,w-.07);
-    if(!upper)roofCrest(x,face-.19,1.978,Math.min(.82,w*.48),.57);
+    if(!upper)roofCrest(x,face-.19,1.978,Math.min(1.22,w*.70));
     led(cream,x,1.73,face+.065,w*.85,.027,.024,'essential');
     for(const xx of[x-w*.40,x+w*.40])
      led('#d3ffea',xx,1.02,face+.067,.026,1.03,.020,'essential');
@@ -3257,7 +3255,7 @@ export class TrafficRenderer{
      base(x,3.50,z,w+.14,.11,d+.13,white,'metal');
      base(x,3.58,z,w+.17,.048,d+.16,silver,'metal');
      solarRoof(x,z,w*.81,d*.70,3.665);
-     roofCrest(x,face-.17,3.600,Math.min(.80,w*.43),.53);
+     roofCrest(x,face-.17,3.600,Math.min(1.24,w*.62));
      led(cream,x,3.45,face-.075,w*.87,.028,.028,'essential');
      if(!low)led('#bfeee2',x,3.62,face-.072,w*.87,.017,.020);
     }
