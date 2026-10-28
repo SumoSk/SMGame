@@ -3365,8 +3365,9 @@ export class TrafficRenderer{
    // The text is extruded geometry on a plane facing the east side street.
    block('#a87855',9.83,2.81,9.25,.07,2.04,1.70,'wood');
    const sideBlock=(c,u,y,v,w,h,d,finish='metal',lit=false)=>{
-    const p=point(u,v);
-    batch.add(BOX,c,p.x-.5,y,p.y-.5,w,h,d,0,turn+Math.PI/2,0,id,lit,finish);
+    // Width runs along parcel Z, not X, so both the real vertices and
+    // conservative collision/LOD bounding checks respect roadside margins.
+    block(c,u,y,v,d,h,w,finish,lit);
    };
    sideBlock(red,9.885,2.97,9.27,1.47,.48,.070);
    const sideText='CENTRAL',sideCell=.040;
