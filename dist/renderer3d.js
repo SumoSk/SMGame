@@ -764,7 +764,7 @@ class Batch{
   };
   material.customProgramCacheKey=()=>finish==='bark'?'landscape-bark-v1':'landscape-foliage-v1';
  }
- const mesh=new THREE.InstancedMesh(geo,material,items.length);if(glow&&(finish.startsWith('factory-night-')||finish.startsWith('mall-night-')||finish.startsWith('shop-night-')))mesh.renderOrder=2;mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;mesh.userData.mallNightTier=finish.startsWith('mall-night-')?finish.slice(11):null;mesh.userData.shopNightTier=finish.startsWith('shop-night-')?finish.slice(11):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
+ const mesh=new THREE.InstancedMesh(geo,material,items.length);const isMallAppleLogo=finish==='mall-sign'&&geo.type==='ShapeGeometry';if(isMallAppleLogo){material.side=THREE.DoubleSide;material.emissive.set(color);material.emissiveIntensity=1.15;material.toneMapped=false;}if(glow&&(finish.startsWith('factory-night-')||finish.startsWith('mall-night-')||finish.startsWith('shop-night-')))mesh.renderOrder=2;mesh.castShadow=shadow&&!glow;mesh.receiveShadow=!glow;mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.mallAppleLogo=isMallAppleLogo;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;mesh.userData.mallNightTier=finish.startsWith('mall-night-')?finish.slice(11):null;mesh.userData.shopNightTier=finish.startsWith('shop-night-')?finish.slice(11):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
 
 export class TrafficRenderer{
@@ -850,6 +850,7 @@ export class TrafficRenderer{
     mesh.material.color.set(tint).multiplyScalar(1-visibility.marking);
    }
    else if(role==='lot-base'||role==='night-lot-base'){managed=true;intensity=visibility.road*.45;tint=base||'#bdc6ae';}
+   else if(mesh.userData.mallAppleLogo){managed=true;intensity=1.15;}
    else if(mesh.userData.buildingSurface&&!mesh.userData.nightGlow){managed=true;intensity=visibility.building;}
    if(managed){mesh.material.emissive.set(tint);mesh.material.emissiveIntensity=intensity;}
   });
@@ -2019,19 +2020,10 @@ export class TrafficRenderer{
      block(color,1.50,y,1.105,2.48,h,.046,'metal');
     for(const y of[1.441,1.339])
      block('#ffffff',1.50,y,1.13,2.49,.020,.052,'metal');
-    // Illuminated central logo: orange cap, red seven, green ELEVEN letters.
-    block(green,1.50,1.51,1.152,.67,.57,.043,'metal');
-    block('#fffefa',1.50,1.51,1.176,.59,.50,.025,'stone');
-    block(orange,1.44,1.68,1.196,.30,.071,.022,'metal');
-    block(red,1.59,1.60,1.199,.14,.083,.025,'metal');
-    block(red,1.56,1.47,1.200,.115,.20,.025,'metal');
+    // The starter storefront stays unbranded below the roof: one 7-Eleven
+    // identity above the roofline instead of duplicated facade lettering.
     const glyph={E:['111','100','110','100','111'],L:['100','100','100','100','111'],
      V:['101','101','101','101','010'],N:['101','111','111','111','101']};
-    const name='ELEVEN',unit=.020;
-    for(let i=0;i<name.length;i++)for(let row=0;row<5;row++)
-     for(let col=0;col<3;col++)if(glyph[name[i]][row][col]==='1')
-      block(green,1.50-(name.length*4-1)*unit/2+(i*4+col)*unit,
-       1.38+(2-row)*unit,1.217,unit*.79,unit*.78,.012,'metal');
     led('#fff1cd',1.50,1.215,1.15,2.20,.024,.022,'essential');
     // Freestanding sign sits at the FRONT EDGE OF THE ROOF, facing players.
     // The large raised "7" is geometric rather than a skewed texture, and
@@ -3136,7 +3128,8 @@ export class TrafficRenderer{
     base(x,1.83,z,w+.06,.11,d+.10,white,'metal');
     base(x,1.915,z,w+.09,.047,d+.12,silver,'metal');
     solarRoof(x,z,w*.80,d*.72,1.985);
-    stripes(x,1.98,face+.024,w-.07);
+    // The small store has a single roof sign; no second branded fascia.
+    if(level!==1)stripes(x,1.98,face+.024,w-.07);
     if(!upper)roofCrest(x,face-.19,1.978,Math.min(.82,w*.48),.57);
     led(cream,x,1.73,face+.065,w*.85,.027,.024,'essential');
     for(const xx of[x-w*.40,x+w*.40])
@@ -3748,7 +3741,9 @@ export class TrafficRenderer{
    // retain their independently designed roofs.
    if(tier===2){
     const signZ=mid+radius*.43;
-    const p=point(cx,signZ+.074);
+    // Keep the 2D Apple silhouette ahead of the dark screen face
+    // (screen front is signZ+.106) to avoid z-fighting/occlusion.
+    const p=point(cx,signZ+.135);
     for(const dx of[-.49,.49]){
      solid('#aabec1',cx+dx,2.39,signZ-.03,.085,.27,.095,'metal');
     }
