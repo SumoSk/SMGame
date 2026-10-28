@@ -178,16 +178,36 @@
  ['ยังไม่มี','No '],['ไม่สำเร็จ','Failed'],['สำเร็จ','Success'],['กำลังบันทึก','Saving'],
  ['กรุณา','Please '],['ลองอีกครั้ง','Try Again'],['แล้วค่ะ',''],['ค่ะ','']
  ];
+
+ // Additional complete phrases for English menus, onboarding and status messages.
+ pairs.push(...[["คู่มือเล่นเกม","Game Guide"],["ผู้เล่นออนไลน์และประวัติการเข้าเว็บ","Online Players & Visitor History"],["เลือกระดับกราฟิก","Select Graphics Quality"],["รถและบ้านรายละเอียดเต็มทุกระยะ เปิดต้นไม้","Full vehicle and home detail at all distances; trees enabled"],["ลดรายละเอียดรถเร็วขึ้น บ้านลดรายละเอียดเล็กน้อยเมื่อซูมออก","Simplified distant vehicles; slightly reduced home detail when zoomed out"],["ภาพนุ่มลง รถโมเดลเบาทุกระยะ ลดรายละเอียดบ้านและไม่แสดงต้นไม้","Lighter vehicle models and homes; trees disabled"],["เลือกเมืองที่ต้องการเริ่มเล่น เมืองปัจจุบันจะยังอยู่จนกว่าจะกดยืนยันค่ะ","Choose a city to start. Your current city stays until you confirm."],["เมืองปัจจุบันที่ยังไม่ได้บันทึกจะหายไป เริ่มเมืองใหม่พร้อมหมู่บ้านเริ่มต้นและเงิน 500,000 บาท","Unsaved progress will be lost. Start a new city with the initial village and ฿500,000."],["เปลี่ยนรหัสผ่าน","Change Password"],["รหัสผ่านปัจจุบัน","Current Password"],["รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษร)","New Password (at least 8 characters)"],["ยืนยันรหัสผ่านใหม่","Confirm New Password"],["บันทึกรหัสผ่านใหม่","Save New Password"],["ออกจากระบบ","Sign Out"],["เชื่อมต่อบัญชีแล้ว","Account Connected"],["รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษรค่ะ","New password must contain at least eight characters."],["ยืนยันรหัสผ่านใหม่ไม่ตรงกันค่ะ","New passwords do not match."],["กรุณาตั้งรหัสผ่านใหม่ที่ต่างจากเดิมค่ะ","Choose a password different from the old one."],["กำลังเปลี่ยนรหัสผ่าน…","Changing password…"],["รหัสผ่านเปลี่ยนแล้ว","Password Updated"],["ต้องสร้างบ้านเล็กเพิ่มอีก 1 ตึก เพื่อปลดล็อกบ้านกลาง 1 ตึก","Build one more Small Home to unlock one Medium Home."],["ต้องสร้างบ้านกลางเพิ่มอีก 1 ตึก เพื่อปลดล็อกบ้านใหญ่ 1 ตึก","Build one more Medium Home to unlock one Large Home."],["ปิดบัญชีแล้ว","Finalized"],["สถานะระหว่างวัน · ตัวเลขเปลี่ยนตามการเล่น","Live Day · Values Update While Playing"],["สรุปผลวันก่อนหน้า · ปิดบัญชีแล้ว","Previous Day · Finalized"],["ภาษีและรายได้ธุรกิจสรุปเมื่อจบวัน","Taxes and business income are finalized at day's end"],["เลือกรายงาน","Choose a Report"],["กำลังเล่นแบบผู้เยี่ยมชม: Log จะเก็บในเครื่องและซิงก์เมื่อเข้าสู่ระบบ","Guest mode: logs stay on this device and sync after signing in."],["กำลังเชื่อม Supabase…","Connecting to Supabase…"],["ยังไม่มีประวัติการช่วยเหลือค่ะ","No resolved incident history yet."],["บันทึกเฉพาะเหตุที่ผู้เล่นกดช่วยเหลือ ไม่รวมเหตุที่ระบบแก้อัตโนมัติ","Shows incidents manually resolved by the player; automatic recovery is excluded."],["ระงับแล้ว","Resolved"],["ส่งออก JSON","Export JSON"],["ซิงก์ Supabase","Sync Supabase"],["ยังไม่มีเมืองที่บันทึกไว้ค่ะ","No saved city found."],["บันทึกไม่สำเร็จ","Save Failed"],["โควต้าสร้างได้อีก","Build Quota Remaining"],["ต้องสร้าง","Build"],["สร้างใหม่","Build New"],["ปลดล็อก","Unlock"],["เมืองหยุดเวลาอยู่ กดเล่นต่อเพื่อให้รถขยับ","The game is paused. Resume to move vehicles."],["เมืองกำลังเดินเวลา","The city clock is running."],["ตรวจสอบรถอีกครั้งค่ะ","Please inspect the vehicle again."],["รถที่สามารถลากออกได้","Vehicles Available to Tow"],["รถรอคิวนาน","Vehicles Queued for Too Long"],["รถรอคิวสูงสุด","Peak Queued Vehicles"],["ไฟล์รายงานรวมเมือง เส้นทางรถ และเหตุผลที่หยุด แนบไฟล์นี้ให้อริสเพื่อตรวจเมืองที่มีปัญหาได้","This report includes the city, vehicle routes, and stop reasons for troubleshooting."],["ไฟล์รายงานรวมเมือง","Combined City Report"],["รถชนหรือเสีย","Collision or Breakdown"],["ไม่มีเส้นทาง / ใช้บริการไม่ได้","No Route / Service Unavailable"],["กลับนอกเมือง","Leaving the City"],["อยู่ในเมือง","In the City"],["อยู่ที่ทำงาน · มาสาย","At Work · Arrived Late"],["พักจากกะดึก","Resting After Night Shift"],["รอออกเดินทาง","Waiting to Depart"],["ต้องการเพิ่ม","Need More"],["ไม่มีเส้นทางไป","No route to"],["บริการไม่พอ","Insufficient Services"],["สร้างบ้านติดถนน รอคนย้ายเข้า","Build a house near a road and welcome residents"],["ต่อถนนเล็กจากถนนหลัก","Connect a smaller road to the main road"],["สร้างงานให้ประชาชน","Create jobs for citizens"],["หยุดติดตามรถ","Stop Following Vehicle"],["ติดตามรถ","Follow Vehicle"],["เข้าโหมดผู้สร้างด้วยบัญชีที่ล็อกอินไว้","Open Creator Mode Using Your Signed-In Account"],["กลับไปเล่นโดยไม่บันทึก","Return to Game Without Saving"],["ล็อกอิน","Sign In"],["สมัครสมาชิก","Sign Up"],["อีเมล","Email"],["ยืนยันรหัสผ่าน","Confirm Password"],["ลืมรหัสผ่าน","Forgot Password"],["ส่งลิงก์รีเซ็ตรหัสผ่าน","Send Password Reset Link"],["เริ่มเมือง","Start City"],["กำลังโหลด","Loading"],["พร้อมเล่น","Ready to Play"],["วิธีเล่น","How to Play"],["เกมจำลองเมืองและการจราจร","City and Traffic Simulation"],["เพิ่มความจุ","Increase Capacity"],["รองรับ","Capacity"],["พื้นที่ว่าง","Available Space"],["ไม่มีข้อมูล","No Data"],["ไม่พบ","Not Found"],["กำลังตรวจ","Checking"],["กำลังเชื่อมต่อ","Connecting"],["แก้ปัญหา","Resolve Issue"],["ยังไม่ระบุ","Not Specified"],["ลดความสุข","Happiness Decreased"],["หาทางออก","Find a Solution"],["ติดขัด","Congested"],["คิวรถ","Vehicle Queue"],["อัตราความสำเร็จ","Success Rate"],["ค่าเฉลี่ย","Average"],["รวม","Total"],["สุทธิ","Net"],["เกม","Game"],["เมือง","City"]]);
  const exact=new Map(pairs);
  // Long phrases always win over shorter building names/units in composite text.
  const ordered=[...pairs].sort((a,b)=>b[0].length-a[0].length);
  const cache=new Map();
+ function naturalMessage(word){
+  let m=word.match(/^ต้องสร้าง(.+?)เพิ่มอีก (\d+) ตึก เพื่อปลดล็อก(.+?) (\d+) ตึก$/);
+  if(m)return 'Build '+m[2]+' more '+translate(m[1])+' building(s) to unlock '+m[4]+' '+translate(m[3])+' building(s).';
+  m=word.match(/^ยังสร้าง(.+?)ไม่ได้$/);
+  if(m)return 'You cannot build '+translate(m[1])+' yet.';
+  m=word.match(/^เลือก(.+)$/);
+  if(m&&m[1]&&m[1].length<50)return 'Select '+translate(m[1]);
+  m=word.match(/^โควต้าสร้างได้อีก (\d+) ตึก$/);
+  if(m)return 'Remaining building quota: '+m[1];
+  m=word.match(/^รายงานเมือง วันที่ (\d+)$/);
+  if(m)return 'City Report — Day '+m[1];
+  m=word.match(/^วันที่ (\d+)(.*)$/);
+  if(m)return 'Day '+m[1]+translate(m[2]);
+  m=word.match(/^ดูเพิ่มอีก (\d+) คน$/);
+  if(m)return 'Show '+m[1]+' more citizens';
+  return null;
+ }
  function translate(source){
   if(typeof source!=='string'||!TH.test(source))return source;
   const left=(source.match(/^\s*/)||[''])[0],right=(source.match(/\s*$/)||[''])[0],word=source.slice(left.length,source.length-right.length);
   if(!word)return source;
   if(cache.has(word))return left+cache.get(word)+right;
-  let english=exact.get(word);
+  let english=naturalMessage(word)??exact.get(word);
   if(english==null){
    english=word;
    for(const [th,en] of ordered)if(english.includes(th))english=english.split(th).join(en);
