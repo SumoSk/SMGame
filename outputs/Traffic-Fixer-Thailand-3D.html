@@ -6954,6 +6954,482 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
   pointer-events:none;user-select:none;
  }
 }
+</style><style>
+/* SMCITY Unified Popup System | 2026-10-28
+   Shared visual tokens for dialogs, the member gate, daily report and action notices.
+   Pure CSS: no extra render loop, listeners, or changes to game state. */
+#dialog, #missionDailyAuto, dialog.member-gate .member-card {
+  --sm-pop-surface:#fbfcfa;
+  --sm-pop-card:#ffffff;
+  --sm-pop-raised:#f1f6f2;
+  --sm-pop-ink:#1c3830;
+  --sm-pop-muted:#60796e;
+  --sm-pop-line:#d6e3db;
+  --sm-pop-primary:#246b54;
+  --sm-pop-on-primary:#ffffff;
+  --sm-pop-hover:#e5f1e9;
+  --sm-pop-warning-bg:#fff7e7;
+  --sm-pop-warning-line:#efd5a1;
+  --sm-pop-warning-ink:#80581d;
+  --sm-pop-danger:#b33b40;
+  --sm-pop-shadow:0 20px 65px rgba(8,29,26,.25);
+  color-scheme:light;
+  font-family:'Noto Sans Thai',Tahoma,sans-serif;
+}
+:root.smcity-gray-ui #dialog,
+:root.smcity-gray-ui #missionDailyAuto,
+:root.smcity-gray-ui dialog.member-gate .member-card {
+  --sm-pop-surface:#15191b;
+  --sm-pop-card:#202629;
+  --sm-pop-raised:#252e2b;
+  --sm-pop-ink:#f3f7f5;
+  --sm-pop-muted:#b8c9c1;
+  --sm-pop-line:#3d4a45;
+  --sm-pop-primary:#9cdec0;
+  --sm-pop-on-primary:#183426;
+  --sm-pop-hover:#304139;
+  --sm-pop-warning-bg:#352d20;
+  --sm-pop-warning-line:#725b37;
+  --sm-pop-warning-ink:#ffdb9c;
+  --sm-pop-danger:#ff8d8d;
+  --sm-pop-shadow:0 24px 70px rgba(0,0,0,.53);
+  color-scheme:dark;
+}
+#dialog[open] {
+  zoom:1!important;
+  color:var(--sm-pop-ink)!important;
+  background:var(--sm-pop-surface)!important;
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:18px!important;
+  box-shadow:var(--sm-pop-shadow)!important;
+  font:400 13px/1.65 'Noto Sans Thai',Tahoma,sans-serif!important;
+  scrollbar-color:var(--sm-pop-line) transparent;
+  overscroll-behavior:contain;
+  animation:smcity-pop-enter .16s ease-out both;
+}
+#dialog::backdrop {
+  background:rgba(7,22,19,.46)!important;
+  -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
+}
+#dialog.construction-confirm::backdrop,
+#dialog.road-preview-confirm::backdrop {
+  background:rgba(7,22,19,.10)!important;
+}
+@keyframes smcity-pop-enter {
+  from{opacity:.5;translate:0 7px}
+  to{opacity:1;translate:0 0}
+}
+#dialog #dialogContent {
+  color:var(--sm-pop-ink);
+  font-family:inherit;
+  min-width:0;
+  overflow-wrap:break-word;
+}
+#dialog #dialogContent :is(h2,h3,strong,label) {color:var(--sm-pop-ink)}
+#dialog #dialogContent > h2,
+#dialog #dialogContent > .menu-heading h2,
+#dialog #dialogContent .demolition-card h2,
+#dialog #dialogContent .quota-warning h2 {
+  font-size:20px!important;
+  font-weight:700!important;
+  letter-spacing:-.2px;
+  line-height:1.35!important;
+  margin:4px 0 12px!important;
+}
+#dialog #dialogContent :is(p,li) {
+  line-height:1.7;
+  color:var(--sm-pop-muted);
+}
+#dialog #dialogContent > p, #dialog #dialogContent > ul,
+#dialog #dialogContent > section > p {
+  font-size:13px;
+}
+#dialog #dialogContent :is(.eyebrow,.tag) {
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.7px;
+  color:var(--sm-pop-muted);
+}
+#dialog .dialog-close-top {
+  width:34px!important;height:34px!important;
+  min-width:34px!important;min-height:34px!important;
+  top:11px!important;right:11px!important;
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:10px!important;
+  background:var(--sm-pop-card)!important;
+  color:var(--sm-pop-muted)!important;
+  font:400 22px/1 'Noto Sans Thai',Tahoma,sans-serif!important;
+  display:grid;place-items:center;
+  padding:0!important;
+  z-index:5;
+}
+#dialog .dialog-close-top:hover {
+  color:var(--sm-pop-ink)!important;
+  background:var(--sm-pop-hover)!important;
+}
+#dialog #dialogContent :is(input,textarea,select) {
+  font-family:inherit;
+  font-size:13px;
+  color:var(--sm-pop-ink)!important;
+  background:var(--sm-pop-card)!important;
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:10px!important;
+}
+#dialog #dialogContent :is(input,textarea,select):focus-visible,
+#dialog #dialogContent button:focus-visible,
+dialog.member-gate .member-card :is(input,button):focus-visible,
+#missionDailyAuto button:focus-visible {
+  outline:2px solid var(--sm-pop-primary)!important;
+  outline-offset:2px;
+}
+#dialog #dialogContent button {
+  font-family:inherit;
+  transition:background-color .15s ease,border-color .15s ease,opacity .15s ease;
+}
+#dialog #dialogContent :is(.actions,.ai-checkout-actions,.save-slot-actions) {
+  gap:9px;
+}
+#dialog #dialogContent :is(.actions>button,.menu-resume,.ai-checkout-actions>button,.garage-buy,.garage-bottom button,.save-slot-actions button,.save-create-card button) {
+  min-height:42px!important;
+  padding:9px 14px!important;
+  border-radius:10px!important;
+  border:1px solid var(--sm-pop-line)!important;
+  background:var(--sm-pop-card)!important;
+  color:var(--sm-pop-ink)!important;
+  font-size:13px!important;
+  font-weight:650!important;
+  line-height:1.4!important;
+  white-space:normal;
+}
+#dialog #dialogContent :is(.actions>button,.menu-resume,.ai-checkout-actions>button,.garage-buy,.garage-bottom button,.save-slot-actions button,.save-create-card button):hover:not(:disabled) {
+  background:var(--sm-pop-hover)!important;
+}
+#dialog #dialogContent :is(.actions>button.primary,.menu-resume.primary,.ai-checkout-actions>button.primary,.garage-buy,.garage-bottom button.primary,.save-create-card button.primary,.save-slot-actions button.primary) {
+  background:var(--sm-pop-primary)!important;
+  border-color:var(--sm-pop-primary)!important;
+  color:var(--sm-pop-on-primary)!important;
+}
+#dialog #dialogContent :is(.actions>button.danger,.save-slot-actions button.danger) {
+  background:transparent!important;
+  color:var(--sm-pop-danger)!important;
+  border-color:var(--sm-pop-danger)!important;
+}
+#dialog #dialogContent button:disabled {
+  opacity:.44!important;
+  cursor:not-allowed;
+}
+/* Common navigation, report menus, and save/load cards. */
+#dialog #dialogContent .menu-heading {
+  display:flex;align-items:center;gap:11px;
+  margin-bottom:15px!important;
+  padding:0 38px 14px 0;
+  border-bottom:1px solid var(--sm-pop-line);
+}
+#dialog #dialogContent .menu-heading h2 {margin:0!important}
+#dialog #dialogContent .menu-logo {
+  width:39px;height:39px;
+  border-radius:12px;
+  background:var(--sm-pop-raised)!important;
+  color:var(--sm-pop-primary)!important;
+  font-size:21px!important;
+  box-shadow:none!important;
+}
+#dialog #dialogContent :is(.smcity-menu-list,.smcity-report-list) {gap:8px!important}
+#dialog #dialogContent :is(.smcity-menu-list>button,.smcity-report-entry) {
+  min-height:58px!important;
+  padding:11px 12px!important;
+  border-radius:12px!important;
+  border:1px solid var(--sm-pop-line)!important;
+  background:var(--sm-pop-card)!important;
+  color:var(--sm-pop-ink)!important;
+  box-shadow:none!important;
+}
+#dialog #dialogContent :is(.smcity-menu-list>button,.smcity-report-entry):hover {
+  border-color:var(--sm-pop-primary)!important;
+  background:var(--sm-pop-hover)!important;
+}
+#dialog #dialogContent :is(.smcity-menu-list b,.smcity-report-entry b) {
+  font-size:13px!important;font-weight:700!important;color:var(--sm-pop-ink)!important
+}
+#dialog #dialogContent :is(.smcity-menu-list small,.smcity-report-entry small) {
+  color:var(--sm-pop-muted)!important;font-size:11px!important;
+}
+#dialog #dialogContent :is(.menu-symbol,.save-slot-icon) {
+  background:var(--sm-pop-raised)!important;
+  color:var(--sm-pop-primary)!important;
+  border-radius:10px!important;
+}
+#dialog #dialogContent :is(.save-create-card,.save-slot-card,.account-password) {
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:12px!important;
+  background:var(--sm-pop-card)!important;
+  color:var(--sm-pop-ink)!important;
+  box-shadow:none!important;
+}
+#dialog #dialogContent .save-workspace {color:var(--sm-pop-ink);font-size:13px}
+#dialog #dialogContent :is(.save-create-card label,.save-list-heading h3,.save-slot-heading h3) {
+  color:var(--sm-pop-ink)!important;font-size:13px!important
+}
+#dialog #dialogContent :is(.save-slot-heading time,.save-list-heading>span) {
+  color:var(--sm-pop-muted)!important;font-size:11px!important
+}
+/* Building lock state shares the same typography, card and button system. */
+#dialog:has(.quota-warning)[open] {
+  width:min(450px,calc(100vw - 24px))!important;
+}
+#dialog #dialogContent .quota-warning {padding:8px 2px 2px!important}
+#dialog #dialogContent .quota-warning-icon {
+  display:grid;place-items:center;
+  width:50px;height:50px;margin:0 auto 12px!important;
+  border-radius:14px;
+  background:var(--sm-pop-warning-bg);
+  border:1px solid var(--sm-pop-warning-line);
+  font-size:26px!important;line-height:1!important;
+}
+#dialog #dialogContent .quota-warning h2 {margin:0 0 12px!important}
+#dialog #dialogContent .quota-warning-message {
+  display:block!important;
+  margin:0!important;
+  padding:14px 15px!important;
+  border:1px solid var(--sm-pop-warning-line)!important;
+  border-radius:12px!important;
+  background:var(--sm-pop-warning-bg)!important;
+  color:var(--sm-pop-warning-ink)!important;
+  font-size:14px!important;
+  line-height:1.65!important;
+  font-weight:700!important;
+}
+#dialog #dialogContent .quota-warning p:not(.quota-warning-message) {
+  margin:12px 0 4px!important;
+  color:var(--sm-pop-muted)!important;
+  font-size:12px!important;
+  line-height:1.6!important;
+}
+#dialog:has(.quota-warning) #dialogContent .actions>button {
+  font-size:13px!important;min-height:42px!important
+}
+/* AI checkout: keep its unique information, unify visual hierarchy and color. */
+#dialog.ai-upgrade-center[open] {
+  background:var(--sm-pop-surface)!important;
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:18px!important;
+}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-v2 {
+  --ai-bg:var(--sm-pop-surface);
+  --ai-header:var(--sm-pop-surface);
+  --ai-text:var(--sm-pop-ink);
+  --ai-muted:var(--sm-pop-muted);
+  --ai-line:var(--sm-pop-line);
+  --ai-primary:var(--sm-pop-primary);
+  --ai-primary-text:var(--sm-pop-on-primary);
+  --ai-panel:var(--sm-pop-raised);
+  padding:24px!important;
+  font-size:13px!important;
+  line-height:1.65!important;
+}
+:root.smcity-gray-ui #dialog.ai-upgrade-center #dialogContent .ai-checkout-v2 {
+  --ai-bg:var(--sm-pop-surface);
+  --ai-header:var(--sm-pop-surface);
+  --ai-text:var(--sm-pop-ink);
+  --ai-muted:var(--sm-pop-muted);
+  --ai-line:var(--sm-pop-line);
+  --ai-primary:var(--sm-pop-primary);
+  --ai-primary-text:var(--sm-pop-on-primary);
+  --ai-panel:var(--sm-pop-raised);
+}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-v2 header {
+  padding:0 28px 16px 0!important;
+  text-align:left;
+  background:transparent!important;
+}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-icon {
+  width:42px;height:42px;margin:0 0 9px;
+  border-radius:12px;
+  background:var(--sm-pop-raised)!important;
+  color:var(--sm-pop-primary)!important;
+  font-size:23px!important;
+}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-v2 h2 {
+  font-size:20px!important;line-height:1.35!important;margin:5px 0!important;
+}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-v2 :is(header p,.ai-checkout-info span,.ai-checkout-balance) {
+  font-size:12px!important;
+}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-info {padding:12px 0}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-info strong {font-size:14px!important}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-balance {
+  margin:13px 0;padding:12px;border:1px solid var(--sm-pop-line)
+}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-actions {margin-top:15px}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-actions>button {
+  min-height:42px!important;font-size:13px!important;
+}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-actions #confirmDialog {
+  background:var(--sm-pop-primary)!important;
+  color:var(--sm-pop-on-primary)!important;
+  border:1px solid var(--sm-pop-primary)!important;
+}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-actions #cancelDialog {
+  background:var(--sm-pop-card)!important;
+  color:var(--sm-pop-ink)!important;
+  border:1px solid var(--sm-pop-line)!important;
+}
+#dialog.ai-upgrade-center #dialogContent .ai-checkout-warning {color:var(--sm-pop-danger)!important}
+/* Construction keeps its position beside the plot while using the same surface. */
+#dialog.construction-confirm[open] {
+  border-radius:14px!important;
+  padding:17px!important;
+  font-size:13px!important;
+}
+#dialog.construction-confirm #dialogContent>h2 {font-size:18px!important}
+#dialog.construction-confirm #dialogContent .actions {
+  border-top:1px solid var(--sm-pop-line);
+  padding-top:12px!important;
+  background:var(--sm-pop-surface)!important;
+}
+#dialog #dialogContent .demolition-card {gap:12px;align-items:center}
+#dialog #dialogContent .demolition-symbol {
+  color:var(--sm-pop-danger)!important;
+  background:var(--sm-pop-raised)!important;
+  border-radius:12px!important;
+}
+#dialog #dialogContent .demolition-info {color:var(--sm-pop-ink)}
+#dialog #dialogContent .demolition-info p {font-size:13px;color:var(--sm-pop-muted)!important}
+/* Reports and garages retain their spacious layouts and own data hierarchy. */
+#dialog #dialogContent .garage-v2 {
+  --g-bg:var(--sm-pop-surface);
+  --g-header:var(--sm-pop-raised);
+  --g-card:var(--sm-pop-card);
+  --g-line:var(--sm-pop-line);
+  --g-text:var(--sm-pop-ink);
+  --g-muted:var(--sm-pop-muted);
+  --g-button:var(--sm-pop-primary);
+  --g-button-text:var(--sm-pop-on-primary);
+  --g-bottom:var(--sm-pop-raised);
+  color:var(--sm-pop-ink)!important;
+}
+#dialog #dialogContent .garage-hero h2 {font-size:21px!important;line-height:1.35!important}
+#dialog #dialogContent .garage-hero p {color:var(--sm-pop-muted)!important}
+#dialog #dialogContent .garage-product {
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:12px!important;
+  box-shadow:none!important;
+}
+#dialog #dialogContent .garage-product :is(.garage-product-type,.garage-product-stats strong,.garage-price strong) {
+  color:var(--sm-pop-ink)!important;
+}
+#dialog #dialogContent .garage-product :is(.garage-aura,.garage-price small,.garage-product-stats small) {
+  color:var(--sm-pop-muted)!important;
+}
+#dialog #dialogContent .garage-buy {
+  background:var(--sm-pop-primary)!important;color:var(--sm-pop-on-primary)!important;
+  border-color:var(--sm-pop-primary)!important;
+}
+#dialog #dialogContent .daily-report-body,
+#missionDailyAuto .daily-report-body {
+  color:var(--sm-pop-ink)!important;font-size:13px!important;
+}
+#dialog #dialogContent .daily-report-body .sm-report-header h2,
+#missionDailyAuto .daily-report-body .sm-report-header h2 {
+  font-size:20px!important;color:var(--sm-pop-ink)!important
+}
+#dialog #dialogContent .daily-report-section,
+#missionDailyAuto .daily-report-section,
+#dialog #dialogContent .daily-report-highlights .mission-card,
+#missionDailyAuto .daily-report-highlights .mission-card {
+  background:var(--sm-pop-card)!important;
+  color:var(--sm-pop-ink)!important;
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:11px!important;
+}
+#dialog #dialogContent .daily-report-section h3,
+#missionDailyAuto .daily-report-section h3 {font-size:13px!important;color:var(--sm-pop-ink)!important}
+#dialog #dialogContent .daily-report-rows>div,
+#missionDailyAuto .daily-report-rows>div {border-color:var(--sm-pop-line)!important}
+#dialog #dialogContent .daily-report-rows span,
+#missionDailyAuto .daily-report-rows span {color:var(--sm-pop-muted)!important}
+#missionDailyAuto.daily-report-auto {
+  color:var(--sm-pop-ink)!important;
+  background:var(--sm-pop-surface)!important;
+  border:1px solid var(--sm-pop-line)!important;
+  box-shadow:var(--sm-pop-shadow)!important;
+  border-radius:16px!important;
+}
+#missionDailyAuto .daily-report-topbar {
+  background:var(--sm-pop-raised)!important;
+  border-bottom:1px solid var(--sm-pop-line)!important;
+  color:var(--sm-pop-ink)!important;
+  border-radius:15px 15px 0 0!important;
+}
+#missionDailyAuto .daily-report-topbar small {color:var(--sm-pop-muted)!important}
+#missionDailyAuto .daily-report-topbar button {
+  color:var(--sm-pop-ink)!important;background:var(--sm-pop-card)!important;
+  border:1px solid var(--sm-pop-line)!important;border-radius:9px!important;
+}
+#missionDailyAuto>.actions>button {
+  border-radius:10px;min-height:42px;padding:9px 14px;
+  font:650 13px/1.4 'Noto Sans Thai',Tahoma,sans-serif;
+}
+#missionDailyAuto>.actions>button.primary {
+  background:var(--sm-pop-primary)!important;
+  color:var(--sm-pop-on-primary)!important;
+  border:1px solid var(--sm-pop-primary)!important;
+}
+/* Auth gate and toast are aligned without changing authentication behavior. */
+dialog.member-gate .member-card {
+  background:var(--sm-pop-surface)!important;
+  border:1px solid var(--sm-pop-line)!important;
+  border-radius:18px!important;
+  color:var(--sm-pop-ink)!important;
+  box-shadow:var(--sm-pop-shadow)!important;
+}
+dialog.member-gate .member-card h2 {font-size:21px!important;color:var(--sm-pop-ink)!important}
+dialog.member-gate .member-card .member-intro {color:var(--sm-pop-muted)!important;font-size:12px!important}
+dialog.member-gate .member-card :is(input,.member-tabs) {
+  color:var(--sm-pop-ink)!important;
+  background:var(--sm-pop-card)!important;
+  border-color:var(--sm-pop-line)!important;
+}
+dialog.member-gate .member-card :is(.member-submit,.member-tabs button.active) {
+  color:var(--sm-pop-on-primary)!important;
+  background:var(--sm-pop-primary)!important;
+}
+dialog.member-gate .member-card .member-back {
+  background:var(--sm-pop-card)!important;color:var(--sm-pop-ink)!important;
+  border:1px solid var(--sm-pop-line)!important;
+}
+#toast {
+  background:var(--sm-pop-primary,#245b4d)!important;
+  color:var(--sm-pop-on-primary,#fff)!important;
+  border:1px solid rgba(255,255,255,.15)!important;
+  border-radius:10px!important;
+  box-shadow:0 8px 24px rgba(8,29,26,.18)!important;
+  font:600 12px/1.5 'Noto Sans Thai',Tahoma,sans-serif!important;
+}
+:root.smcity-gray-ui #toast {--sm-pop-primary:#9cdec0;--sm-pop-on-primary:#183426}
+/* Mobile/iPad readability; keep large reports scrollable, never make overlay wider than screen. */
+@media(max-width:700px) {
+  #dialog[open]:not(.construction-confirm) {max-width:calc(100vw - 20px)!important}
+  #dialog #dialogContent > h2,
+  #dialog #dialogContent .quota-warning h2,
+  #dialog #dialogContent .demolition-card h2 {font-size:18px!important}
+  #dialog #dialogContent .menu-heading {margin-bottom:12px!important;padding-bottom:12px}
+  #dialog #dialogContent :is(.actions>button,.menu-resume,.ai-checkout-actions>button,.garage-buy,.garage-bottom button) {
+    min-height:42px!important;font-size:12px!important
+  }
+  #dialog.ai-upgrade-center #dialogContent .ai-checkout-v2 {padding:19px 16px!important}
+  #dialog #dialogContent .garage-hero h2 {font-size:19px!important}
+  #dialog #dialogContent .garage-buy {min-height:40px!important;font-size:12px!important}
+  #dialog #dialogContent :is(input,textarea,select),
+  dialog.member-gate .member-card input {font-size:16px!important}
+  #missionDailyAuto.daily-report-auto {max-width:calc(100vw - 18px)!important}
+  #dialog .dialog-close-top {top:8px!important;right:8px!important}
+}
+@media(prefers-reduced-motion:reduce) {
+  #dialog[open]{animation:none!important}
+  #dialog #dialogContent button {transition:none!important}
+}
 </style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
