@@ -88,7 +88,7 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-yellow-shops.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-shop-compact-lot.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-pink-malls.cjs
-      - run: node work/test-city-brief.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-city-brief.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-purple-pubs.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-orange-factories.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-factory-night-effects.cjs
