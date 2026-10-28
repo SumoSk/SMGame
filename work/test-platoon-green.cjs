@@ -10,7 +10,7 @@ function boot(source){
  return new Function('require','source',fixture+'return boot();')(require,source).game;
 }
 function check(source){
- const game=boot(source),st=game.state;game.reset();
+ const game=boot(source);game.reset();const st=game.state;
  for(const key of ['roads','vehicles','occ','reservations','junctionCache','junctionLayoutCache'])st[key]?.clear();
  const add=n=>{if(!st.roads.has(n))st.roads.set(n,{type:'large',main:false,links:new Set(),load:0,wait:0});};
  const link=(a,b)=>{add(a);add(b);st.roads.get(a).links.add(b);st.roads.get(b).links.add(a);};
