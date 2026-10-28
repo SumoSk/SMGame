@@ -4503,6 +4503,29 @@ function prepareJunctionQueues(){
   for(const key of Object.keys(v.junctionQueueSince))if(!activeKeys.has(key))delete v.junctionQueueSince[key];
  }
 }
+// Only reorder vehicles already sharing a green incoming lane. Their
+// leader moves first, so followers observe its current-frame position.
+function queueOrderedVehicles(){
+ const cars=[...state.vehicles.values()],positions=new Map();
+ for(let i=0;i<cars.length;i++)positions.set(cars[i].id,i);
+ const used=new Set();
+ for(const [node,queue] of state.junctionQueues||[]){
+  const lanes=new Map();
+  for(const q of queue){
+   const key=node+':'+q.connector.incoming+':'+q.connector.laneIn;
+   let group=lanes.get(key);if(!group)lanes.set(key,group=[]);
+   group.push(q);
+  }
+  for(const list of lanes.values()){
+   const active=list.filter(q=>positions.has(q.id)&&!used.has(q.id));
+   if(active.length<2)continue;
+   const slots=active.map(q=>positions.get(q.id)).sort((a,b)=>a-b);
+   active.sort((a,b)=>a.distance-b.distance||a.id-b.id);
+   for(let n=0;n<slots.length;n++){cars[slots[n]]=state.vehicles.get(active[n].id);used.add(active[n].id);}
+  }
+ }
+ return cars;
+}
 function junctionPriority(request,node){
  const c=request.connector;let priority=c.turn===2?2:c.turn===1?1:0;
  // A movement that has waited a full signal cycle joins the oldest-first tier.
@@ -4806,7 +4829,27 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
   }
   near.push(p);
  }
- if(!near.length)return mergeLimit;let safe=s;
+ if(!near.length)return mergeLimit;
+ // Straight same-heading followers use algebraic capsule clearance, rounded
+ // down to the old 0.1 stepping grid. Curves, merges and crossings retain
+ // the original sampled collision test below.
+ if(piece&&origin.dx!=null&&origin.dy!=null){
+  let clearance=Infinity,straight=true;
+  for(const other of near){
+   if(other.dx==null||other.dy==null||
+      origin.dx*other.dx+origin.dy*other.dy<.9999||
+      Math.abs(origin.dx*other.dy-origin.dy*other.dx)>.01){straight=false;break;}
+   const x=other.x-origin.x,y=other.y-origin.y;
+   const ahead=x*origin.dx+y*origin.dy,side=Math.abs(x*origin.dy-y*origin.dx);
+   if(ahead<=0){straight=false;break;}
+   clearance=Math.min(clearance,ahead-.32-Math.sqrt(Math.max(0,.32*.32-side*side)));
+  }
+  if(straight){
+   if(clearance>end-s+1e-7)return mergeLimit;
+   return Math.min(mergeLimit,s+Math.max(0,Math.floor((clearance-1e-8)/.1)*.1-.025));
+  }
+ }
+ let safe=s;
  for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(const other of near)if(capsulesOverlap(p,other))return Math.min(mergeLimit,Math.max(s,safe-.025));safe=along;if(along===end)break;}
  return mergeLimit;
 }
@@ -4990,7 +5033,7 @@ function advanceVehicles(realDt,gameDt){
  let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);for(const car of state.vehicles.values()){if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,poseMemo:new WeakMap(),parkingGrid:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
  prepareParkingMerges(simDt);
  const emergencyAlerts=parkingGateAlerts();
- for(const v of [...state.vehicles.values()]){
+ for(const v of queueOrderedVehicles()){
   try{
   if(!state.vehicles.has(v.id))continue;
   if(v.phase==='delivery_unload'){if(state.time>=(v.delivery?.until??Infinity))startDeliveryReturn(v);continue;}
