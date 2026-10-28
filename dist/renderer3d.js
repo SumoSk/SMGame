@@ -755,11 +755,16 @@ class Batch{
  const maxSize=Math.max(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  const minSize=Math.min(Math.abs(sx),Math.abs(sy),Math.abs(sz));
  // Separate only tiny architectural trims, not walls, roofs, windows, parking paint or doors.
- const fine=this.detailGroups&&buildingId!=null&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&finish!=='mall-sign'&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&!finish.startsWith('shop-sign-')&&finish!=='lod-landmark'&&
+ const paneArea=Math.max(Math.abs(sx*sy),Math.abs(sy*sz),Math.abs(sx*sz));
+ // Keep visible door and window panels in LOW; thin panes used to vanish
+ // because their depth alone classified them as disposable micro-trim.
+ const structuralPane=!glow&&(finish==='glass'||finish==='wood')&&maxSize>=.46&&paneArea>=.14;
+ const fine=this.detailGroups&&buildingId!=null&&!structuralPane&&!finish.startsWith('building-sign-')&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&finish!=='mall-sign'&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&!finish.startsWith('shop-sign-')&&finish!=='lod-landmark'&&
    ((minSize<.045&&maxSize<.85)||(maxSize<.35&&Math.abs(sx*sy*sz)<.00065));
  // LOW builds only the geometry that will actually be drawn. Keep roof signs,
  // entrances, facades, solar panels and essential night strips at all presets.
- if(this.lowDetail&&(fine||finish==='foliage'||finish==='bark'||
+ if(this.lowDetail&&(fine||finish==='bark'||
+    (finish==='foliage'&&(maxSize<.33||paneArea<.085))||
     /^(?:factory|mall|shop)-night-(?:detail|reactor)$/.test(finish)))return;
  const key=geo.uuid+color+(glow?'@light':'')+finish+(this.detailGroups?(fine?'@detail':'@base'):'');
  if(!this.data.has(key))this.data.set(key,{geo,color,glow,finish,fine,items:[]});
@@ -2090,7 +2095,7 @@ export class TrafficRenderer{
     const unit=w/(text.length*4+1);
     block(bg,x,y,z,w+.06,unit*6,.045,'metal');
     for(let n=0;n<text.length;n++)for(let row=0;row<5;row++)for(let col=0;col<3;col++)
-     if(glyphs[text[n]]?.[row][col]==='1')block(ink,x-w/2+(n*4+col+1)*unit,y+(2-row)*unit,z+.029,unit*.78,unit*.78,.013,'glass',true);
+     if(glyphs[text[n]]?.[row][col]==='1')block(ink,x-w/2+(n*4+col+1)*unit,y+(2-row)*unit,z+.029,unit*.78,unit*.78,.013,'building-sign-essential');
    };
    const planter=(x,z,r=.13,y=.08)=>{
     block('#b6a58b',x,y+.09,z,r*1.6,.18,r*1.5,'stone');
@@ -2484,7 +2489,7 @@ export class TrafficRenderer{
     const glyph={C:['111','100','100','100','111'],A:['010','101','111','101','101'],S:['111','100','111','001','111'],I:['111','010','010','010','111'],N:['101','111','111','111','101'],O:['111','101','101','101','111']};
     block(ink,x,y,z,width+.18,.58,.10,'metal');const pixel=width/(word.length*4),ox=x-width/2;
     for(let k=0;k<word.length;k++)for(let row=0;row<5;row++)for(let col=0;col<3;col++)if(glyph[word[k]][row][col]==='1'){
-     block('#eee9db',ox+(k*4+col+.5)*pixel,y+(.5*4-row)*.072,z+.065,pixel*.78,.056,.025,'stone');
+     block('#eee9db',ox+(k*4+col+.5)*pixel,y+(.5*4-row)*.072,z+.065,pixel*.78,.056,.025,'building-sign-essential');
     }
     strip(x,y-.29,z+.075,width,.035);
    };
@@ -2693,7 +2698,7 @@ export class TrafficRenderer{
     block(navy,x,y,z,w,h,.055,'wood');
     block(gold,x,y-h/2,z+.034,w,.018,.016,'metal');
     for(let i=0;i<text.length;i++)for(let row=0;row<5;row++)for(let col=0;col<3;col++)if(glyph[text[i]]?.[row]?.[col]==='1')
-     block('#f1ddaf',x-(text.length*4-1)*unit/2+(i*4+col)*unit,y+(2-row)*unit,z+.037,unit*.75,unit*.80,.012,'stone');
+     block('#f1ddaf',x-(text.length*4-1)*unit/2+(i*4+col)*unit,y+(2-row)*unit,z+.037,unit*.75,unit*.80,.012,'building-sign-essential');
     block('#ffe1a7',x,y+h/2-.015,z+.034,w*.92,.016,.012,'glass',true);
    };
    const roof=(x,z,w,d,eave,rise)=>{
@@ -3658,7 +3663,7 @@ export class TrafficRenderer{
     // Raised brass letters stay visible in daylight. Concealed warm strips
     // light the sign at night instead of replacing the letters with glow.
     for(let i=0;i<text.length;i++)for(let row=0;row<5;row++)for(let col=0;col<3;col++)if(letters[text[i]]?.[row]?.[col]==='1')
-     solid('#e3cf9c',x-(text.length*4-1)*cell/2+(i*4+col)*cell,y+(2-row)*cell,z+.032,cell*.76,cell*.80,.012,'metal');
+     solid('#e3cf9c',x-(text.length*4-1)*cell/2+(i*4+col)*cell,y+(2-row)*cell,z+.032,cell*.76,cell*.80,.012,'building-sign-essential');
     solid('#ffdfa2',x,y+h/2-.013,z+.028,w*.92,.014,.012,'glass',true);
    };
 
@@ -4705,7 +4710,7 @@ export class TrafficRenderer{
      for(let a=0;a<5;a++)for(let col=0;col<3;col++)
       if(glyph[clean[i]]?.[a][col]==='1'){
        const xx=x-sw/2+(i*4+col+1.5)*unit,yy=y+(2-a)*unit;
-       block(fg,xx,yy,z+.078,unit*.75,unit*.78,.027,'glass',true);
+       block(fg,xx,yy,z+.078,unit*.75,unit*.78,.027,'building-sign-essential');
       }
     }
    };
@@ -5638,7 +5643,7 @@ export class TrafficRenderer{
     for(let k=0;k<word.length;k++)for(let row=0;row<5;row++)
      for(let col=0;col<3;col++)if(glyph[word[k]][row][col]==='1'){
       const x=start+(k*4+col)*cell,yy=cy+(2-row)*cell;
-      block('#d9ae75',x,yy,front+.237,cell*.83,cell*.83,.019,'metal');
+      block('#d9ae75',x,yy,front+.237,cell*.83,cell*.83,.019,'building-sign-essential');
       block('#ffe0a0',x,yy,front+.251,cell*.60,cell*.60,.013,'glass',true);
      }
    };
@@ -6125,7 +6130,7 @@ export class TrafficRenderer{
     for(let i=0;i<word.length;i++)for(let row=0;row<5;row++)for(let col=0;col<3;col++)
      if(glyphs[word[i]]?.[row][col]==='1'){
       const x=u-w/2+cell*(1.5+i*4+col),yy=y+cell*(2-row);
-      block(fg,x,yy,v+.06,cell*.83,cell*.83,.018,'metal');
+      block(fg,x,yy,v+.06,cell*.83,cell*.83,.018,'building-sign-essential');
       block(fg,x,yy,v+.072,cell*.73,cell*.73,.012,'glass',true);
      }
    };
