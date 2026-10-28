@@ -927,7 +927,7 @@ function startLondonShowcase(){
    for(let row=0;row<layout.length;row++)for(let col=0;col<layout[row].length;col++){
     const key=layout[row][col],t=CATALOG[key],x=xs[col]+Math.floor((xs[col+1]-xs[col]-t.plotWidth)/2),y=ys[row+1]-t.plotHeight;
     const b=buildBuilding(key,x,y,true,0);
-    if(!b||b.access.length<2)throw Error('London site has no two-way parking access: '+key+' ('+x+','+y+')');
+    if(!b||b.access.length<2)throw Error('London site has no two-way parking access: '+key+' ('+x+','+y+') / '+JSON.stringify(checkParkingBuilding(key,x,y,null,0)));
     if(t.kind==='home')homes.push(b);
    }
   };
