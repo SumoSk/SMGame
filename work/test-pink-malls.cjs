@@ -86,8 +86,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
      'Apple logo must be one real geometry per shape, not tiny crooked letters');
     assert(logo.every(g=>Math.abs(items.find(i=>i.color==='#f8f9f2').u-W/2)<.01),
      'large roof sign must stay exactly centred over atrium');
-    assert(items.some(i=>i.color==='#273b46'&&i.y>3.0&&i.sx>1.5),
-     'medium rooftop mark needs a substantial readable backdrop');
+    const screen=items.find(i=>i.color==='#273b46'&&i.y>3.0&&i.sx>1.5);
+    assert(screen,'medium rooftop mark needs a substantial readable backdrop');
+    const mark=items.filter(i=>i.finish==='mall-sign'&&i.color==='#f8f9f2');
+    assert(mark.every(i=>i.v>screen.v+screen.sz/2+.015),
+     'Apple fruit/leaf planes must sit IN FRONT of the screen, clear of depth occlusion');
    }
    if(key==='mall_large'){
     assert(items.filter(i=>i.color==='#c72e37').length>=3,
@@ -190,6 +193,16 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  assert.equal(permanentMark.length,2,'Low must retain both pieces of the rooftop Apple');
  assert(permanentMark.every(mesh=>mesh.visible&&!mesh.userData.fineBuildingDetail),
   'Low cannot hide the central rooftop Apple logo');
+ assert(permanentMark.every(mesh=>mesh.userData.mallAppleLogo&&
+  mesh.material.side===THREE.DoubleSide&&!mesh.material.toneMapped),
+  'Apple mark must stay double-sided and readable independently of daylight');
+ renderer.roadGroup=new THREE.Group();renderer.carSets=new Map();
+ for(const building of [0,.85]){
+  renderer.lastNightVisibility=-1;
+  renderer.updateNightVisibility(0,{building,road:0,marking:0});
+  assert(permanentMark.every(mesh=>mesh.visible&&mesh.material.emissiveIntensity>=1.15),
+   'Apple screen logo must stay illuminated in both night and daylight');
+ }
  renderer.graphicQuality=undefined;
  // Starter one-floor variant has three recognizable airy pavilions.
  const starter=g.CATALOG.mall_starter,starterBatch=new Batch();
