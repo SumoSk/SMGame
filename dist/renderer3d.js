@@ -759,7 +759,7 @@ class Batch{
  // Keep visible door and window panels in LOW; thin panes used to vanish
  // because their depth alone classified them as disposable micro-trim.
  const structuralPane=!glow&&(finish==='glass'||finish==='wood')&&maxSize>=.46&&paneArea>=.14;
- const fine=this.detailGroups&&buildingId!=null&&!structuralPane&&!finish.startsWith('building-sign-')&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&finish!=='mall-sign'&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&!finish.startsWith('shop-sign-')&&finish!=='lod-landmark'&&
+ const fine=this.detailGroups&&buildingId!=null&&!structuralPane&&!finish.startsWith('building-sign-')&&!finish.startsWith('night-')&&!finish.startsWith('factory-night-')&&!finish.startsWith('mall-night-')&&finish!=='mall-sign'&&!finish.startsWith('shop-night-')&&!finish.startsWith('shop-brand-')&&!finish.startsWith('shop-roof-')&&!finish.startsWith('shop-sign-')&&finish!=='lod-landmark'&&finish!=='rear-service-essential'&&
    ((minSize<.045&&maxSize<.85)||(maxSize<.35&&Math.abs(sx*sy*sz)<.00065));
  // LOW builds only the geometry that will actually be drawn. Keep roof signs,
  // entrances, facades, solar panels and essential night strips at all presets.
@@ -1510,6 +1510,26 @@ export class TrafficRenderer{
   const block=(color,u,y,v,w,h,d,finish='matte',glow=false)=>{
    const p=point(u,v);batch.box(color,p.x-.5,y,p.y-.5,w,h,d,turn,id,glow,finish);
   };
+  // Static rear service details share BOX geometry and existing batch materials.
+  // The essential door, vent and canopy remain visible at every graphics preset.
+  const rearService=(x,face,width,bottom=.30,height=1.05)=>{
+   const low=this.graphicQuality==='low',dw=Math.min(.48,width*.38);
+   const doorX=x-width*.19,ventX=x+width*.27,vw=Math.min(.34,width*.24);
+   const part=(color,u,y,v,w,h,d,essential=true)=>
+    block(color,u,y,v,w,h,d,essential?'rear-service-essential':'metal');
+   part('#c6d3ce',doorX,bottom+height*.46,face,dw+.07,height*.92,.038);
+   part('#41565f',doorX,bottom+height*.44,face-.025,dw,height*.86,.024);
+   part('#c6d3ce',ventX,bottom+height*.73,face,vw,.25,.048);
+   part('#41565f',ventX,bottom+height*.73,face-.030,vw*.80,.17,.018);
+   part('#c6d3ce',doorX,bottom+height*.98,face-.026,dw+.16,.065,.09);
+   part('#006940',doorX,bottom+height*.87,face-.043,dw*.48,.075,.018);
+   if(!low){
+    part('#c6d3ce',doorX+dw*.32,bottom+height*.43,face-.046,.035,.10,.025,false);
+    for(const dy of[-.045,0,.045])
+     part('#c6d3ce',ventX,bottom+height*.73+dy,face-.043,vw*.78,.018,.018,false);
+    part('#c6d3ce',x-width*.44,bottom+height*.48,face,.045,height,.045,false);
+   }
+  };
   const pole=(color,u,y,v,r,h,finish='matte',glow=false)=>{
    const p=point(u,v);batch.add(CYL,color,p.x-.5,y,p.y-.5,r,h,r,0,0,0,id,glow,finish);
   };
@@ -2128,6 +2148,7 @@ export class TrafficRenderer{
     block('#c6c9c1',1.50,.12,.63,2.67,.15,1.10,'stone');
     block('#f0eee8',1.50,.25,.60,2.42,.055,.96,'stone');
     block('#e4e7e1',1.50,.85,.14,2.39,1.06,.11,'stone');
+    rearService(1.50,.075,1.55,.32,.94);
     for(const xx of[.30,1.08,1.93,2.69]){
      block('#c9d2ce',xx,.93,.61,.056,1.28,.94,'metal');
     }
@@ -2216,6 +2237,7 @@ export class TrafficRenderer{
     block('#e5e9e3',1.50,.20,.63,2.54,.04,.98,'stone');
     for(const [x,w,z] of [[.77,.79,.65],[2.23,.78,.52]]){
      block(tint,x,.86,z,w,1.08,.82,'glass');
+     rearService(x,z-.425,w*.86,.32,.94);
      for(const xx of[x-w*.44,x+w*.44]){
       block(metal,xx,.89,z,.050,1.18,.84,'metal');
       block('#ffe1b1',xx,.37,z,.041,.022,.60,'glass',true);
@@ -3209,6 +3231,7 @@ export class TrafficRenderer{
     // concrete retail box. All customer aisles are visible inside.
     base(x,.28,z,w-.08,.12,d-.08,'#e9e7df');
     base(x,.97,back+.078,w-.11,1.35,.12,'#d7dfd6');
+    rearService(x,back+.004,w*.75,.32,1.18);
     for(const xx of[x-w*.47,x+w*.47]){
      base(xx,1.09,z,.064,1.52,d-.14,silver,'metal');
      base(xx,1.02,z,.042,1.27,d-.28,tint,'glass');
@@ -3431,6 +3454,7 @@ export class TrafficRenderer{
     block('#dedbd2',x,.39,bodyZ,w,.12,face-back,'stone');
     // Slender solid rear service wall, never one giant opaque building cube.
     block('#e0dfd8',x,1.18,back+.065,w-.12,1.50,.125,'stone');
+    rearService(x,back-.012,w*.72,.45,1.35);
     glassWall(x,1.22,face,w-.12,1.56);
     // Side glass return and bronze verticals add meaningful structure.
     for(const side of[-1,1]){
@@ -3687,6 +3711,7 @@ export class TrafficRenderer{
     // faces; masonry only in a narrow rear service core.
     solid('#d6e3e0',x,.31,z,wingW-.09,.07,d-.10);
     solid('#d1d8d1',x,.91,back+.085,wingW-.17,1.25,.12,'stone');
+    rearService(x,back+.010,wingW*.80,.32,1.13);
     for(const xx of[x-wingW*.46,x+wingW*.46]){
      for(const zz of[back+.20,face-.17])
       solid('#d8e3e1',xx,1.12,zz,.068,1.59,.070,'metal');
