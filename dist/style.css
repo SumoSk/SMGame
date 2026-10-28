@@ -6713,3 +6713,17 @@ body>.bottom .city-control-mini .demand-scroll-thumb{
   }
   #tools.tools>.tool:has(.tool-quota-count) .tool-quota.is-locked {display:none!important}
 }
+
+/* F1 racing car upgrade shortcut: crisp static vector, no animation or extra draw loop. */
+#cityQuickModes [data-city-shortcut="vehicleUpgrade"] .quick-mode-icon {
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ width:50px!important;height:29px!important;line-height:1!important;
+ filter:drop-shadow(0 1px 2px rgba(12,36,44,.22))!important;
+}
+#cityQuickModes [data-city-shortcut="vehicleUpgrade"] .f1-upgrade-art {
+ display:block;width:48px;height:28px;max-width:100%;overflow:visible;
+}
+@media(max-width:750px) {
+ #cityQuickModes [data-city-shortcut="vehicleUpgrade"] .quick-mode-icon {width:44px!important;height:26px!important}
+ #cityQuickModes [data-city-shortcut="vehicleUpgrade"] .f1-upgrade-art {width:43px;height:25px}
+}
