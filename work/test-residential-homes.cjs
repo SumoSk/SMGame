@@ -15,13 +15,13 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
  renderer.parking={lotPoint:g.lotPoint,parkingVisuals:()=>[]};
  const specs=[
   {key:'home_large',label:'small garden cottage',plot:[8,8],people:20,levels:1},
-  {key:'home_dual',label:'medium poolside condo',plot:[8,13],people:40,levels:2}
+  {key:'home_dual',label:'single-storey walled garden villa',plot:[8,13],people:40,levels:1}
  ];
  const reports=[];
  for(const spec of specs){
   const t=g.CATALOG[spec.key];
   assert(t&&t.plannedParking&&t.kind==='home');
-  assert.equal(t.name,spec.levels===1?'บ้านเล็ก':'บ้านกลาง');
+  assert.equal(t.name,spec.key==='home_large'?'บ้านเล็ก':'บ้านกลาง');
   assert.deepEqual([t.plotWidth,t.plotHeight],spec.plot);
   assert.equal(t.residents,spec.people);
   assert.equal(t.parkingCapacity,spec.people);
@@ -79,7 +79,7 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
    // Never build one solid tower wall that blocks the entire courtyard.
    assert.equal(local.filter(p=>p.sy>1.7&&p.sx*p.sz>3.7).length,0,
     spec.key+' became a single solid cuboid');
-   if(spec.levels===1){
+   if(spec.key==='home_large'){
     assert(top>2.0&&top<3.1,'small HOME must be one storey');
     assert(count('#aa6c52')>=1&&count('#836960')>=1,
      'two offset pitched roof volumes missing');
@@ -88,22 +88,24 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
     assert(count('#af835d')>=4,'visible timber outdoor patio missing');
     assert(count('#e2b4a6')>=2,'furnished bedroom missing');
    }else{
-    assert(top>4.1&&top<5.0,'pool condo should have exactly two occupied storeys');
-    assert(count('#e5e9e2')>=2,'second condo floors missing');
-    assert(count('#f1f0e9')>=4,'white modern rear/side condo volumes missing');
-    assert(count('#72b9cb')>=9,'real glazed residential rooms missing');
-    assert(count('#398eae')>=1&&count('#47a6bf')>=1&&count('#5bb8c9')>=1,
-     'dominant multilayer turquoise pool is missing');
-    const water=local.find(p=>p.color==='#47a6bf'&&p.y>.34&&p.y<.42);
-    assert(water&&water.sx>=3.0&&water.sz>=1.85,'pool needs sizeable visible water surface');
-    assert(count('#4a956b')>=20,'six palm crowns and landscaping missing');
-    assert(count('#d8b99a')>=6,'timber poolside decking absent');
-    assert(count('#ba9974')>=6,'sunloungers and deck furniture absent');
-    assert(count('#8cc5cf')>=2,'elevated glass balconies absent');
-    assert(local.some(p=>p.color==='#f8f7f1'&&p.y>2.5),
-     'second-level condo furnishings missing');
-    assert(count('#91e0dd')===0||count('#b9f1e8')>=1,
-     'pool water reflection detail missing');
+    assert(top>=2.50&&top<3.1,'medium villa must be a true single storey');
+    assert(count('#975c48')>=1&&count('#b1765e')>=1,
+     'overhanging pitched main roof and a contrasting entrance gable required');
+    assert(count('#f0e9dd')>=4,'fully enclosed exterior walls missing');
+    assert(count('#d6c9b5')>=4&&count('#8a735c')>=2,
+     'single-storey villa must have low perimeter walls and fence');
+    assert(count('#428eaa')>=1&&count('#b6d4d7')>=1,
+     'independent garden pool and landscaped courtyard missing');
+    assert(count('#fbf5ec')>=2&&count('#e5c5ba')>=2,
+     'two complete indoor beds and cushions missing');
+    assert(count('#6e9eaa')>=3,'glass-front entry and windows missing');
+    const beds=local.filter(p=>p.color==='#fbf5ec');
+    assert(beds.every(p=>p.u>1.40&&p.u<6.60&&p.v>7.20&&p.v<9.70),
+     'beds must be wholly INSIDE the walled bedroom building');
+    assert(local.filter(p=>p.color==='#975c48').every(p=>p.y>1.9),
+     'main roof must cover the sleeping rooms');
+    assert(!local.some(p=>p.color==='#e5e9e2'&&p.y>2.2),
+     'no second-storey bedroom platforms allowed');
    }
    const digest={geometry:items.length,colors:colors.size,
     top:+top.toFixed(3),lights:local.filter(p=>p.glow).length};
