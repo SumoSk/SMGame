@@ -97,8 +97,8 @@ for(const t of Object.values(CATALOG)){
   // This is the SIMULATION geometry: the lot paint and vehicle waypoints
   // both derive from the same aisle coordinates.
   if(t.key==='shop_large'){
-   t.parkingRearAisle+=.70;
-   t.parkingAisle+=.70;
+   t.parkingRearAisle=+(t.parkingRearAisle+.70).toFixed(2);
+   t.parkingAisle=+(t.parkingAisle+.70).toFixed(2);
   }
  }
 }
