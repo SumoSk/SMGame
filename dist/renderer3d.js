@@ -2003,6 +2003,8 @@ export class TrafficRenderer{
       block(green,1.50-(name.length*4-1)*unit/2+(i*4+col)*unit,
        1.38+(2-row)*unit,1.217,unit*.79,unit*.78,.012,'metal');
     led('#fff1cd',1.50,1.215,1.15,2.20,.024,.022,'essential');
+    for(const xx of[.39,2.61])
+     led('#d7fff0',xx,.91,1.129,.019,.61,.016,'essential');
     // Actual checkout, chilled cabinets and four product rows.
     block('#ece9df',.88,.59,.61,.60,.59,.30,'stone');
     block(orange,.88,.93,.61,.64,.065,.37,'metal');
