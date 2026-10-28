@@ -57,9 +57,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    const floorsAt=items.filter(i=>i.color==='#e6dfd5'&&i.sy<=.15);
    assert(floorsAt.some(i=>Math.abs(i.y-.29)<.07),key+' ground slab missing');
    if(floors===2){
-    assert(floorsAt.some(i=>Math.abs(i.y-2.31)<.14),
-     'large mall needs ONE supported second level');
-    assert(maxY<4.65&&maxY>4.20,key+' mall max height must fit two floors');
+    assert(floorsAt.some(i=>Math.abs(i.y-1.844)<.08),
+     '80% grand mall must retain its scaled second floor');
+    assert(maxY<3.80&&maxY>3.45,key+' Central model must be 20% smaller');
    }else{
     assert(!floorsAt.some(i=>i.y>1),'one-level mall has phantom upper slab');
     assert(maxY<2.75,key+' cannot exceed one floor');
@@ -81,7 +81,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
      'CENTRAL red front, wing and freestanding entrance sign must render');
     assert(items.filter(i=>i.color==='#fff8ec'&&i.finish==='mall-sign').length>=75,
      'CENTRAL white letters must be real 3D low-quality-proof geometry');
-    assert(items.some(i=>i.color==='#75b4ca'&&i.sy>3.0),
+    assert(items.some(i=>i.color==='#75b4ca'&&i.sy>2.70),
      'double-height Central glass entrance hall absent');
     assert(items.filter(i=>i.color==='#6eabbc').length>=3,
      'grand mall must have rooftop glazed skylights');
@@ -91,13 +91,13 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
      'public fountain at front entrance missing');
     // Match the user's reference: one continuous white stepped rooftop,
     // folded white/bronze front supports, real cafe terraces, side brand.
-    assert(items.some(i=>i.color==='#aaa6a4'&&i.sx>8&&i.y>4.15),
+    assert(items.some(i=>i.color==='#aaa6a4'&&i.sx>6.50&&i.sx<6.60&&i.y>3.32&&i.y<3.40),
      'reference requires a unified large flat rooftop deck');
     assert(items.some(i=>i.color==='#edece5'&&Math.abs(i.rz)>.2&&i.y<2.9),
      'reference requires angled white architectural frames');
-    assert(items.some(i=>i.color==='#a87855'&&i.u>9.7&&i.sy>1.5),
+    assert(items.some(i=>i.color==='#a87855'&&i.u>8.85&&i.u<9.1&&i.sy>1.5),
      'reference requires wood-clad side elevation');
-    assert(items.some(i=>i.color==='#c72e37'&&i.u>9.7&&i.sy>.3),
+    assert(items.some(i=>i.color==='#c72e37'&&i.u>8.85&&i.u<9.1&&i.sy>.3),
      'red CENTRAL side sign must face the side street');
     assert(items.filter(i=>i.color==='#d7c6a2').length>=4,
      'roof-terrace tables and café parasols missing');
