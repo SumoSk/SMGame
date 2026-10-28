@@ -3282,6 +3282,8 @@ export class TrafficRenderer{
       block(steel,xx,1.20,zz,.07,1.52,.055,'metal');
     }
     block('#d6cbba',x,2.19,bodyZ,w+.06,.16,face-back,'stone');
+    // Real second-floor plate, separated from rooftop by the upper facade.
+    block(ivory,x,2.305,bodyZ,w-.10,.105,face-back-.15,'stone');
     edge(x,2.31,face,w+.15,.12,white);
     led(warm,x,2.25,face+.065,w*.83,.029,.025);
     // 2F retail recedes behind a café terrace with visible glass balustrade.
@@ -3299,6 +3301,8 @@ export class TrafficRenderer{
      led('#c8edf4',x,4.235,upperFace+.070,w*.86,.023,.030,'detail');
      for(const xx of[x-w*.40,x+w*.40])
       led('#d7edf0',xx,3.12,upperFace+.073,.024,.84,.020,'detail');
+     led('#fff4d6',x,2.64,face-.13,w*.76,.024,.026,'detail');
+     led('#b9e5ed',x,1.86,face+.059,w*.79,.018,.025,'detail');
     }
     // Roof terraces on BOTH wings with glass guard rails and café furniture.
     const terraceZ=(upperFace+face)*.5;
