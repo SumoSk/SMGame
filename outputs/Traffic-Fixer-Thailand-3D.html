@@ -6637,6 +6637,84 @@ body>.bottom .city-control-mini .demand-scroll-thumb{
 #dialog .quota-warning-message{display:block!important;font-size:21px!important;line-height:1.6!important;font-weight:800!important;padding:18px 14px!important;border:2px solid #ca9851;border-radius:14px;background:#fff0cd;color:#674512!important}
 #dialog .quota-warning p:not(.quota-warning-message){font-size:15px!important;line-height:1.6!important}
 #dialog:has(.quota-warning) .actions button{min-height:44px!important;font-size:15px!important;padding:10px 16px!important}
+
+/* SMCITY iPad building quota layout — labels must never sit under quota badges.
+   Quotas are in normal grid flow below the building name, beside the price.
+   The same card width is used for locked and unlocked building options. */
+@media (min-width:721px) and (max-width:1240px) and (pointer:coarse) {
+  body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #tools.tools>.tool,
+  body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #tools.tools:not(:has(>.tool:nth-child(5)))>.tool {
+    flex:0 0 96px!important;
+    width:96px!important;min-width:96px!important;max-width:96px!important;
+    height:100%!important;max-height:100%!important;min-height:0!important;
+    aspect-ratio:auto!important;
+    padding:3px 5px!important;gap:1px!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #tools.tools>.tool>.tool-icon {
+    flex:0 0 15px!important;width:21px!important;height:15px!important;
+    font-size:17px!important;line-height:1!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #tools.tools>.tool>span:last-child {
+    display:grid!important;flex:0 1 auto!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    grid-template-rows:auto auto!important;
+    align-content:center!important;align-items:center!important;
+    justify-items:stretch!important;
+    column-gap:3px!important;row-gap:1px!important;
+    width:100%!important;min-width:0!important;max-width:100%!important;
+    overflow:visible!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #tools.tools>.tool .tool-name {
+    grid-column:1/-1!important;grid-row:1!important;
+    width:100%!important;max-width:100%!important;
+    padding:0!important;margin:0!important;
+    font-size:10px!important;line-height:1.16!important;
+    font-weight:700!important;text-align:center!important;
+    white-space:normal!important;overflow:visible!important;
+    text-overflow:clip!important;overflow-wrap:anywhere!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #tools.tools>.tool .tool-price {
+    grid-column:1!important;grid-row:2!important;
+    min-width:0!important;width:100%!important;max-width:100%!important;
+    margin:0!important;
+    font-size:9px!important;line-height:1.3!important;
+    text-align:center!important;
+    white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #tools.tools>.tool .tool-quota-count {
+    position:static!important;grid-column:2!important;grid-row:2!important;
+    justify-self:end!important;align-self:center!important;
+    display:inline-grid!important;place-items:center!important;
+    min-width:16px!important;width:auto!important;height:16px!important;
+    padding:0 4px!important;margin:0!important;
+    border-radius:8px!important;font-size:10px!important;line-height:1!important;
+    font-weight:700!important;flex:none!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #tools.tools>.tool .tool-quota.is-locked {
+    display:none!important;
+  }
+}
+/* Tiny split-screen iPad: use the same non-overlapping badge placement. */
+@media (min-width:520px) and (max-width:720px) and (pointer:coarse) {
+  #tools.tools>.tool:has(.tool-quota-count) {min-width:91px!important;max-width:91px!important;flex-basis:91px!important}
+  #tools.tools>.tool:has(.tool-quota-count)>span:last-child {
+    display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
+    grid-template-rows:auto auto!important;align-items:center!important;column-gap:2px!important;
+  }
+  #tools.tools>.tool:has(.tool-quota-count) .tool-name {
+    grid-column:1/-1!important;grid-row:1!important;padding:0!important;
+    white-space:normal!important;overflow:visible!important;text-overflow:clip!important;
+  }
+  #tools.tools>.tool:has(.tool-quota-count) .tool-price {
+    grid-column:1!important;grid-row:2!important;
+  }
+  #tools.tools>.tool:has(.tool-quota-count) .tool-quota-count {
+    position:static!important;grid-column:2!important;grid-row:2!important;
+    min-width:15px!important;height:15px!important;
+    padding:0 3px!important;font-size:9px!important;line-height:1!important;
+  }
+  #tools.tools>.tool:has(.tool-quota-count) .tool-quota.is-locked {display:none!important}
+}
 </style><style id="smcity-dark-mode-v242">
 /* SMCITY v4.2 — high-contrast BLACK interface mode.
    Keep the current theme class and localStorage key so existing choices survive.
