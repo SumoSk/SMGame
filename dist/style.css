@@ -6567,3 +6567,45 @@ body>.bottom>.city-advisor-mini button:focus-visible{outline:2px solid var(--smg
 @media(prefers-reduced-motion:reduce){
  body>.bottom>.city-advisor-mini{transition:none!important}
 }
+
+/* SMCITY: demand categories only, with a persistent, draggable scrollbar.
+   Custom indicator is necessary on touch WebKit, where native bars fade away. */
+body>.bottom .city-control-mini .city-demand-panel{
+ position:relative!important;
+}
+body>.bottom .city-control-mini .panel-content{
+ padding-right:15px!important;
+ scrollbar-width:none!important;
+ -ms-overflow-style:none!important;
+ overscroll-behavior-y:contain!important;
+}
+body>.bottom .city-control-mini .panel-content::-webkit-scrollbar{
+ display:none!important;width:0!important;height:0!important;
+}
+body>.bottom .city-control-mini .demand-scroll-track{
+ position:absolute!important;top:27px!important;bottom:4px!important;right:3px!important;
+ width:14px!important;display:block!important;z-index:3;
+ border:0!important;background:transparent!important;
+ touch-action:none!important;cursor:ns-resize;
+}
+body>.bottom .city-control-mini .demand-scroll-track::before{
+ content:"";position:absolute;top:0;bottom:0;left:4px;right:4px;
+ border-radius:8px;background:#b9cdc1;
+}
+body>.bottom .city-control-mini .demand-scroll-thumb{
+ position:absolute;left:3px;right:3px;top:0;
+ display:block;min-height:24px;border-radius:8px;
+ background:#4d8368;box-shadow:0 0 0 1px #e5eee8;
+ will-change:transform;
+}
+:root.smcity-gray-ui body>.bottom .city-control-mini .demand-scroll-track::before{
+ background:#394651;
+}
+:root.smcity-gray-ui body>.bottom .city-control-mini .demand-scroll-thumb{
+ background:#97bdd0;box-shadow:0 0 0 1px #161c24;
+}
+@media(max-width:720px){
+ body>.bottom .city-control-mini .demand-scroll-track{
+  top:25px!important;bottom:3px!important;right:2px!important;
+ }
+}

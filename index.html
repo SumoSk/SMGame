@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="th" data-ui-version="4.4.2" class="building-labels-off"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#103b39"><title>SMCITY v4.4.2 — เมืองที่ทุกการเดินทางมีความหมาย</title><meta name="description" content="สร้างเมืองไทย วางถนน และแก้ปัญหาจราจรจากชีวิตประชาชนแต่ละคน"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23103b39'/%3E%3Cpath d='M13 3h6v26h-6z' fill='%23f9c75c'/%3E%3Cpath d='M16 5v4m0 4v4m0 4v4' stroke='%23103b39' stroke-width='2'/%3E%3C/svg%3E"><script>(function(){try{if(localStorage.getItem('smcity-theme-light-default-v1')==='dark')document.documentElement.classList.add('smcity-gray-ui')}catch(_){}})();</script><link rel="stylesheet" href="dist/style.css?v=412a6b4896a8"><style id="smcity-dark-mode-v242">
+<html lang="th" data-ui-version="4.4.2" class="building-labels-off"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#103b39"><title>SMCITY v4.4.2 — เมืองที่ทุกการเดินทางมีความหมาย</title><meta name="description" content="สร้างเมืองไทย วางถนน และแก้ปัญหาจราจรจากชีวิตประชาชนแต่ละคน"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23103b39'/%3E%3Cpath d='M13 3h6v26h-6z' fill='%23f9c75c'/%3E%3Cpath d='M16 5v4m0 4v4m0 4v4' stroke='%23103b39' stroke-width='2'/%3E%3C/svg%3E"><script>(function(){try{if(localStorage.getItem('smcity-theme-light-default-v1')==='dark')document.documentElement.classList.add('smcity-gray-ui')}catch(_){}})();</script><link rel="stylesheet" href="dist/style.css?v=ac241382c2a6"><style id="smcity-dark-mode-v242">
 /* SMCITY v4.2 — high-contrast BLACK interface mode.
    Keep the current theme class and localStorage key so existing choices survive.
    Only app panels, controls and dialogs are themed; never recolor the 3D world. */
@@ -370,7 +370,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  </section>
  <section class="city-control-mini" aria-label="ความต้องการของเมือง"><aside class="city-panel city-demand-panel" aria-label="ความต้องการของเมือง">
  <div class="mini-control-heading"><strong>ความต้องการ</strong><small class="mini-demand-legend" title="ความจุทั้งหมด / กำลังใช้งานรวมกำลังไป / ความต้องการ">จุ / ใช้ / ขาด</small></div>
- <div class="panel-content"><div id="demand" class="mini-needs-list" aria-live="off"></div></div>
+ <div class="panel-content"><div id="demand" class="mini-needs-list" aria-live="off"></div></div><div class="demand-scroll-track" aria-hidden="true"><span class="demand-scroll-thumb"></span></div>
  <div class="ui-legacy-hidden" hidden aria-hidden="true"><span id="cityName"></span><span id="citySub"></span><span id="sun"></span><span id="steps"></span><div id="guide"></div><span id="net"></span><div id="news"></div></div>
  </aside></section>
  <section class="builder-zone" aria-label="เครื่องมือสร้างเมือง">
@@ -560,4 +560,53 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  window.addEventListener('pagehide',()=>{window.clearTimeout(start);window.clearInterval(timer);},{once:true});
 })();
 </script>
-<script type="module" src="dist/bootstrap.js?v=d8b96f188f05"></script></body></html>
+<script id="smcity-demand-scroll">
+(function(){
+ const pane=document.querySelector('.city-control-mini .panel-content');
+ const list=document.getElementById('demand');
+ const track=document.querySelector('.city-control-mini .demand-scroll-track');
+ const thumb=track&&track.querySelector('.demand-scroll-thumb');
+ if(!pane||!list||!track||!thumb)return;
+ let queued=false,dragOffset=0,dragPointer=null;
+ function refresh(){
+  queued=false;
+  const view=pane.clientHeight,total=pane.scrollHeight,rail=track.clientHeight;
+  if(!view||!rail)return;
+  const size=Math.min(rail,Math.max(24,rail*view/Math.max(total,view)));
+  const remaining=Math.max(0,rail-size),scrollRange=Math.max(0,total-view);
+  thumb.style.height=size+'px';
+  thumb.style.transform='translateY('+(scrollRange?remaining*pane.scrollTop/scrollRange:0)+'px)';
+  track.classList.toggle('is-scrollable',scrollRange>1);
+ }
+ function schedule(){
+  if(queued)return;
+  queued=true;
+  window.requestAnimationFrame(refresh);
+ }
+ pane.addEventListener('scroll',schedule,{passive:true});
+ if(typeof ResizeObserver!=='undefined')new ResizeObserver(schedule).observe(pane);
+ if(typeof MutationObserver!=='undefined')new MutationObserver(schedule).observe(list,{childList:true});
+ window.addEventListener('resize',schedule,{passive:true});
+ const scrollToPointer=y=>{
+  const rect=track.getBoundingClientRect(),limit=Math.max(0,rect.height-thumb.offsetHeight);
+  const top=Math.max(0,Math.min(limit,y-rect.top-dragOffset));
+  pane.scrollTop=limit?top/limit*Math.max(0,pane.scrollHeight-pane.clientHeight):0;
+ };
+ track.addEventListener('pointerdown',event=>{
+  if(event.button!==0)return;
+  dragPointer=event.pointerId;
+  dragOffset=event.target===thumb?event.clientY-thumb.getBoundingClientRect().top:thumb.offsetHeight/2;
+  track.setPointerCapture(event.pointerId);
+  scrollToPointer(event.clientY);
+  event.preventDefault();
+ });
+ track.addEventListener('pointermove',event=>{
+  if(event.pointerId===dragPointer)scrollToPointer(event.clientY);
+ });
+ const end=event=>{if(event.pointerId===dragPointer)dragPointer=null;};
+ track.addEventListener('pointerup',end);
+ track.addEventListener('pointercancel',end);
+ schedule();
+})();
+</script>
+<script type="module" src="dist/bootstrap.js?v=ced16612af18"></script></body></html>
