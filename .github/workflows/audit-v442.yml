@@ -1,0 +1,31 @@
+name: SMCITY v4.4.2 non-release audit
+on:
+  push:
+    branches:
+      - audit/v441-v442-bugs-performance-20261028
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check actual v4.4.2 syntax
+        run: node --check dist/game.js
+      - name: Verify signal admission, turns and lane changing
+        run: |
+          node -r ./work/test-dom-compat.cjs work/test-signal-queue-optimization.cjs
+          node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
+          node -r ./work/test-dom-compat.cjs work/test-lane-change-safety.cjs
+          node work/test-performance.cjs
+      - name: Measure 4.4.1 versus 4.4.2 simulation CPU under identical vehicle layouts
+        run: node work/audit-v442-performance.cjs
+      - name: Compare 4.4.1 versus 4.4.2 green-light stop-and-go
+        run: node work/audit-v442-green.cjs
