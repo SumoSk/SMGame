@@ -5,7 +5,7 @@ const {city}=new Function('require',prefix+'return {city};')(require);
 const {game:g,get,restaurant:b}=city();
 const html=fs.readFileSync('index.html','utf8'),css=fs.readFileSync('dist/style.css','utf8');
 const baseline=JSON.parse(g.snapshot());
-assert(html.includes('SMCITY / CITY LIFE')&&html.includes('SMCITY / VISITORS'),'matching dashboard header metadata');
+assert(html.includes('id="citizensDashboard"')&&html.includes('<h2>ชีวิตประชาชน')&&html.includes('id="touristsDashboard"')&&html.includes('<h2>นักท่องเที่ยว</h2>'),'current Thai dashboard headers remain visible');
 assert(html.includes('id="closeInspector"')&&html.includes('id="closeCitizensDashboard"')&&html.includes('id="closeTouristsDashboard"'),'permanent close buttons retained');
 assert(html.includes('id="dialogCloseTop"'),'global modal close button retained');
 // Representative inspector screens must share the same semantic layout.
