@@ -57,6 +57,7 @@ function run(source){
   for(let j=1;j<poses.length;j++)if(Math.abs(poses[j].y-poses[j-1].y)<.18)
    assert(poses[j].x-poses[j-1].x>=.61,'colliding vehicles');
  }
+ console.log('QUEUE_END',cars.map(v=>({id:v.id,x:+(v.pos+v.progress).toFixed(3),speed:+(v.speed||0).toFixed(2),reason:v.stopReason||'',pass:v.junctionPasses?.length||0})), 'CLAIMS', [...st.reservations].filter(([k])=>String(k).startsWith('junction:')).slice(0,6));
  return{pregrants:st.pregrants||0,pregrantsUsed:st.pregrantsUsed||0,
   greenFrames,initialGreenSpeed:+initialGreenSpeed.toFixed(4),rollingStops,started:started.size,
   travel:+cars.reduce((v,c,i)=>v+c.pos+c.progress-before[i],0).toFixed(4)};
