@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - fix/v442-stability-report-20261028
       - feature/smcity-1.4-landscaping-20261022
   pull_request:
 permissions:
@@ -95,6 +96,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -105,6 +108,12 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-lane-change-safety.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
       - run: node work/test-performance.cjs
+      - name: Benchmark against published v4.4.2 on 200/500/1000 cars
+        if: github.ref == 'refs/heads/fix/v442-stability-report-20261028'
+        run: node work/test-v442-stability-performance.cjs
+      - name: Compare green light stop-start against published v4.4.2
+        if: github.ref == 'refs/heads/fix/v442-stability-report-20261028'
+        run: node work/test-v442-stability-green.cjs
   publish:
     needs: [new-building-models, lane-change-safety]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
