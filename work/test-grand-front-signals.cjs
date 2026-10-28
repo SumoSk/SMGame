@@ -3,7 +3,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const base=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
  const {game:g}=new Function('require',base+';return boot();')(require);
  const home=g.CATALOG.home_grand,small=g.CATALOG.home_large;
- assert.equal(home.plotWidth,small.plotWidth,'grand house must retain unchanged plot width');
+ assert(home.plotWidth<=15&&home.plotWidth>=small.plotWidth,'grand house stays compact without clipping its larger parking bank');
  assert.equal(home.plotHeight,13,'keep existing grand-house plots/save footprints intact');
  assert(home.parkingAisle<7&&home.parkingRearAisle<home.parkingAisle,'both parking banks are behind the street-front building');
  const buildingsource=fs.readFileSync('dist/renderer3d.js','utf8');
