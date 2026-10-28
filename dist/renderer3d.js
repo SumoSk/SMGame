@@ -3702,277 +3702,126 @@ export class TrafficRenderer{
   // All physical meshes remain in the pre-existing 8x13 parcel's front 50%.
   // No changes to 40 parking bays, 40 residents, routing, roads or home_grand.
   if(b.key==='home_dual'){
-   // Only condo architecture is inset; the painted parking/street network
-   // is untouched. Track the batch positions to avoid transforming any
-   // pre-existing parking geometry that happens to use the same material.
-   const preHouseItems=new Map([...batch.data].map(([key,val])=>[key,val.items.length]));
-   const W=t.plotWidth,H=t.plotHeight,parking=t.parkingZoneDepth;
-   const ivory='#f1f0e9',bone='#dfdfd7',white='#f8f7f1',cream='#e6e1d4';
-   const silver='#a7b4b4',dark='#53656e',blue='#72b9cb';
-   const teal='#5bb8c9',poolBlue='#47a6bf',waterGlow='#91e0dd';
-   const aqua='#b9f1e8',timber='#ba9974',teak='#98765b';
-   const green='#5e986a',lime='#87b782',stone='#dad0be',light='#ffe5b7';
-   const tile=(x,y,z,w,d,col=bone)=>block(col,x,y,z,w,.075,d,'stone');
-   const column=(x,z,h,y=.23,c=ivory)=>block(c,x,y+h/2,z,.080,h,.084,'stone');
-   const cbox=(x,y,z,w,h,d,c=bone)=>block(c,x,y,z,w,h,d,'stone');
-   const bar=(x,y,z,w,d,col='#b6c7c3')=>block(col,x,y,z,w,.045,d,'metal');
-   const circle=(x,y,z,r,h,col=teal,finish='stone',glow=false)=>{
-    const p=point(x,z);
-    batch.add(CYL,col,p.x-.5,y,p.y-.5,r,h,r,0,0,0,id,glow,finish);
+   // VILLA COURTYARD — new ONE-STOREY medium home.
+   // Retains 8x13 lot, 40 residents, 40 rear parking slots, all traffic rules.
+   // Continuous opaque room walls and a complete hipped/gabled roof mean
+   // beds are physically indoors, never poking through the facade.
+   const W=t.plotWidth,H=t.plotHeight,P=t.parkingZoneDepth;
+   const ivory='#f0e9dd',sand='#d8c5ac',tile='#975c48',ridge='#66483e';
+   const timber='#ad865f',oak='#826247',stone='#d5cec0',sage='#659578';
+   const glass='#6e9eaa',silver='#abb8b3',light='#ffe6bd';
+   const low=this.graphicQuality==='low';
+   const panel=(col,x,y,z,w,h,d,type='stone',lit=false)=>
+    block(col,x,y,z,w,h,d,type,lit);
+   const lamp=(x,z,h=.78)=>{
+    panel('#7f8478',x,h/2,z,.075,h,.075,'metal');
+    panel(light,x,h+.06,z,.17,.13,.15,'glass',true);
+    panel('#e7d9ba',x,h+.14,z,.18,.055,.17,'metal');
    };
-   const globe=(x,z,y=.98)=>{
-    block('#849999',x,y-.11,z,.13,.14,.13,'metal');
-    block(light,x,y,z,.13,.11,.13,'glass',true);
-    block(ivory,x,y+.085,z,.17,.043,.16,'metal');
+   const pot=(x,z)=>{
+    panel('#b0a294',x,.35,z,.32,.29,.33);
+    panel('#4e8061',x,.59,z,.35,.30,.34,'foliage');
+    panel('#87ae86',x,.76,z,.24,.19,.25,'foliage');
    };
-   const lowPlant=(x,z,r=.24,y=0)=>{
-    cbox(x,y+.29,z,r*1.22,.24,r*1.21,stone);
-    circle(x,y+.50,z,r*.47,.25,green);
-    circle(x-r*.24,y+.62,z+.055,r*.30,.20,lime);
-    circle(x+r*.24,y+.65,z-.07,r*.26,.21,'#73aa7c');
+   const window=(x,z,w=.64,y=1.17)=>{
+    panel('#e2e3d9',x,y,z,w+.12,.86,.089);
+    panel(glass,x,y,z+.057,w,.72,.047,'glass');
+    panel('#d1eeeb',x,y+.19,z+.089,w*.83,.095,.015,'glass');
+    panel(silver,x,y,z+.10,.038,.77,.019,'metal');
+    panel('#f8e4b5',x,y-.24,z+.11,w*.69,.070,.018,'glass',true);
    };
-   const palm=(x,z,y=0,scale=1)=>{
-    // Low-poly palm: curved-looking segmented trunk and separated fronds.
-    const steps=4,tt=1.70*scale;
-    for(let k=0;k<steps;k++){
-     const yy=y+.29+(k+.5)*tt/steps,off=(k/steps)*.12*scale;
-     cbox(x+off,yy,z-off*.35,.12*scale,tt/steps+.015,.11*scale,teak);
-     bar(x+off,yy+tt/(steps*2)-.04,z-off*.35,.16*scale,.14*scale,stone);
+   const homeX=4.0,homeZ=8.61,homeW=5.58,homeD=2.95;
+   const rear=homeZ-homeD/2,facade=homeZ+homeD/2;
+   // Stone podium plus WALLS on all four sides; glazed windows are outside
+   // the walls, not a missing front wall. No furniture can escape.
+   panel('#c7bfb0',homeX,.15,homeZ,homeW+.20,.23,homeD+.23);
+   panel('#eee8de',homeX,.287,homeZ,homeW,.11,homeD);
+   panel(ivory,homeX,1.14,rear+.085,homeW-.14,1.71,.19);
+   for(const x of[homeX-homeW/2+.092,homeX+homeW/2-.092])
+    panel('#e9ded0',x,1.14,homeZ,.19,1.71,homeD-.17);
+   // Front facade has full wall segments, glazed insets and central entry.
+   for(const [x,w] of[[1.66,.82],[2.78,.47],[5.20,.48],[6.37,.82]])
+    panel(ivory,x,1.14,facade-.07,w,1.70,.15);
+   for(const x of[2.24,5.77])window(x,facade+.027,.55);
+   panel('#b4b9b2',4.0,1.14,facade-.05,1.04,1.68,.105,'metal');
+   panel(glass,4.0,1.12,facade+.035,.92,1.58,.048,'glass');
+   panel('#d5d8cc',4.0,1.13,facade+.067,.035,1.56,.024,'metal');
+   panel('#b58d68',4.36,1.07,facade+.090,.036,.14,.043,'metal');
+   panel('#e1d5c2',homeX,.46,facade+.067,homeW-.23,.085,.095);
+   // The BEDROOMS stay entirely inside the four-wall envelope. The roof
+   // covers their entire footprint with generous safe eaves.
+   for(const [x,z] of[[2.58,8.34],[5.39,8.31]]){
+    panel('#a98b6c',x,.37,z,.86,.21,1.11,'wood');
+    panel('#fbf5ec',x,.51,z,.77,.18,1.00);
+    panel('#e5c5ba',x,.63,z-.31,.66,.14,.24);
+    panel(oak,x,.76,z-.55,.91,.47,.095,'wood');
+    panel('#d7c3a7',x+.62,.50,z-.22,.30,.39,.36,'wood');
+    if(!low)panel('#c5a17e',x+.62,.72,z-.22,.32,.08,.36,'wood');
+   }
+   panel('#e2d5c4',3.95,1.06,8.49,.12,1.38,2.35);
+   for(const x of[1.50,6.50])panel('#e6dfd2',x,1.20,8.60,.07,1.60,2.10);
+   // Complete double-pitched hip-inspired roof, clean 3D silhouette,
+   // prominent warm terracotta edges and a small front cross-gable.
+   gable(tile,homeX,homeZ,homeW+.31,homeD+.31,2.08,.56);
+   panel(ridge,homeX,2.57,homeZ,homeW*.73,.075,.09,'wood');
+   for(const x of[1.53,6.47])panel('#d9cbb7',x,2.09,homeZ,.095,.11,homeD+.26,'wood');
+   for(const z of[rear-.13,facade+.13]){
+    panel('#f0cfad',homeX,2.035,z,homeW+.30,.054,.085,'metal');
+    if(!low)panel('#ffe7b7',homeX,1.992,z,homeW*.83,.019,.029,'glass',true);
+   }
+   gable('#b1765e',homeX,facade+.18,1.50,.96,2.07,.36);
+   panel('#f6ead9',homeX,2.07,facade+.63,1.56,.095,.08,'wood');
+   panel(timber,homeX,1.85,facade+.61,1.40,.078,.11,'wood');
+   panel(light,homeX,1.78,facade+.66,1.18,.040,.028,'glass',true);
+   // Front courtyard and discrete covered patio, with the roofline staying
+   // below three world units: never a two-storey box.
+   panel('#d2c6b2',4.0,.18,11.14,5.87,.18,2.28);
+   panel('#e7d8c1',4.0,.292,10.42,5.63,.055,.34);
+   for(let n=0;n<13;n++)
+    panel(n%3===0?'#cda97b':'#b59b7c',1.78+n*.37,.305,11.88,.066,.026,.57,'wood');
+   panel('#b6d4d7',3.04,.344,11.24,2.53,.042,1.09,'water');
+   panel('#428eaa',3.04,.377,11.24,2.34,.042,.93,'water');
+   for(const x of[1.98,4.11]){
+    panel('#f3ebe2',x,.38,11.24,.18,.12,1.10);
+    lamp(x,10.61,.63);
+   }
+   for(const x of[5.10,6.12]){
+    panel('#b28f72',x,.45,11.19,.46,.085,.38,'wood');
+    panel('#e7d6bc',x,.57,11.07,.44,.18,.085,'wood');
+    panel('#78685b',x,.31,11.20,.055,.33,.043,'metal');
+   }
+   // Physically distinct low perimeter wall: continuous sides and rear,
+   // separated front gate, with opaque plinth and decorative railings.
+   const fenceL=1.00,fenceR=7.00,fenceBack=6.86,fenceFront=12.26;
+   const wallSide=x=>{
+    panel('#d6c9b5',x,.43,(fenceBack+fenceFront)/2,.16,.55,fenceFront-fenceBack);
+    for(let j=0;j<8;j++){
+     const z=fenceBack+.22+j*(fenceFront-fenceBack-.44)/7;
+     panel('#b5a38e',x,.84,z,.13,.38,.13,'stone');
+     panel('#725d4c',x,.99,z,.16,.063,.17,'wood');
     }
-    const topY=y+.29+tt;
-    for(let i=0;i<6;i++){
-     const a=i*Math.PI/3,dirX=Math.cos(a),dirZ=Math.sin(a);
-     for(let j=0;j<3;j++){
-      const dist=.15+j*.20,px=x+.12*scale+dirX*dist*scale;
-      const pz=z-.042*scale+dirZ*dist*scale;
-      const lift=(j===0?.12:j===1?.08:-.06)*scale;
-      block(j===2?'#79ab72':'#4a956b',px,topY+lift,pz,
-       (Math.abs(dirX)>.75?.27:.20)*scale,.055*scale,
-       (Math.abs(dirZ)>.75?.27:.20)*scale,'stone');
-     }
-    }
-    circle(x+.13*scale,topY+.12*scale,z-.04*scale,.17*scale,.11*scale,'#5d936c');
+    panel('#8a735c',x,1.02,(fenceBack+fenceFront)/2,.068,.055,fenceFront-fenceBack,'wood');
    };
-   const glassPanel=(x,y,z,w,h,vert=false)=>{
-    block('#e2e7e2',x,y,z,w+(vert?.03:.08),h+.085,vert?.060:.075,'metal');
-    block(blue,x,y,z+.045,w,h,.047,'glass');
-    block('#d5f1eb',x,y+h*.22,z+.077,w*.89,.055,.019,'glass');
-    block('#5c8595',x,y,z+.090,.026,h*.95,.019,'metal');
-    block('#fff0c8',x,y-h*.23,z+.096,w*.73,.13,.016,'glass',true);
-   };
-   const railHorizontal=(x,z,y,w)=>{
-    block('#8cc5cf',x,y+.25,z,w,.45,.047,'glass');
-    block(ivory,x,y+.50,z,w+.05,.042,.063,'metal');
-    for(const dx of[-w*.46,0,w*.46])
-     block('#a6b8b5',x+dx,y+.25,z,.029,.48,.052,'metal');
-   };
-   const railVertical=(x,z,y,d)=>{
-    block('#8cc5cf',x,y+.25,z,.047,.45,d,'glass');
-    block(ivory,x,y+.50,z,.063,.042,d+.05,'metal');
-    for(const dz of[-d*.45,0,d*.45])
-     block('#a6b8b5',x,y+.25,z+dz,.052,.48,.029,'metal');
-   };
-   const chaise=(x,z,y=0,angle=0)=>{
-    // Sunlounger has a reclined back and cushion separated from side frame.
-    tile(x,y+.32,z,.39,.77,timber);
-    tile(x,y+.38,z,.33,.62,white);
-    cbox(x,y+.58,z-.25,.33,.31,.08,ivory);
-    for(const dx of[-.17,.17]){
-     cbox(x+dx,y+.20,z,.030,.25,.68,dark);
-     cbox(x+dx,y+.40,z-.24,.024,.40,.05,teak);
-    }
-    cbox(x,y+.46,z+.31,.31,.035,.055,blue);
-   };
-   const umbrella=(x,z,y=0,r=.47)=>{
-    pole('#aebcbb',x,y+1.01,z,.027,1.35,'metal');
-    circle(x,y+1.70,z,r,.075,ivory);
-    circle(x,y+1.78,z,r*.72,.055,teal);
-    circle(x,y+1.84,z,r*.29,.065,white);
-    for(let i=0;i<8;i++){
-     const a=i*Math.PI/4;
-     cbox(x+Math.cos(a)*r*.64,y+1.72,z+Math.sin(a)*r*.64,.025,.025,.13,timber);
-    }
-    globe(x,z,y+.50);
-   };
-   const indoorBed=(x,z,y=0)=>{
-    tile(x,y+.32,z,.58,.77,timber);
-    tile(x,y+.43,z,.55,.69,white);
-    tile(x,y+.49,z-.22,.50,.16,'#e8d3cb');
-    cbox(x,y+.58,z-.38,.61,.35,.052,teak);
-   };
-   const couch=(x,z,y=0)=>{
-    cbox(x,y+.37,z,.57,.25,.31,'#e9e1d7');
-    cbox(x,y+.59,z-.13,.59,.34,.078,'#d4cabe');
-    for(const dx of[-.27,.27])
-     cbox(x+dx,y+.46,z,.052,.22,.33,timber);
-    tile(x,y+.56,z,.48,.27,white);
-   };
-   const gardenSeat=(x,z,y=0)=>{
-    tile(x,y+.40,z,.57,.25,timber);
-    cbox(x,y+.58,z-.11,.57,.32,.055,teak);
-    for(const dx of[-.24,.24])cbox(x+dx,y+.20,z,.035,.36,.030,dark);
-   };
-   // Real parcel: 8x13, parking 0-6.5, residence and amenities 6.5-13.
-   // Keep 0.7+ of side-drive clearance. Main pedestrian base at front half.
-   const back=parking+.42,front=H-.78,mid=(back+front)/2;
-   tile(4,.13,mid,6.23,front-back+.19,'#c8d2c7');
-   tile(4,.20,front-.26,5.99,.32,'#e2d8c8');
-   // Asymmetric L plan: rear condo block spans nearly the full usable width,
-   // east wing extends forward. Central pool remains unroofed and dominant.
-   const rearX=3.93,rearZ=7.77,rearW=5.03,rearD=1.36,groundY=.23,secondY=2.29;
-   const sideX=6.09,sideZ=9.80,sideW=1.13,sideD=3.15;
-   tile(rearX,.25,rearZ,rearW,rearD,ivory);
-   tile(sideX,.25,sideZ,sideW,sideD,ivory);
-   // Rear multi-room condominium block, exposed front glazing and partitions.
-   cbox(rearX,.93,rearZ-.62,rearW,1.28,.085,ivory);
-   for(const px of[1.91,3.25,4.62,5.95]){
-    cbox(px,1.00,rearZ,.080,1.33,1.25,cream);
+   wallSide(fenceL);wallSide(fenceR);
+   panel('#d6c9b5',4.0,.43,fenceBack,6.02,.55,.16);
+   for(const [x,w] of[[1.95,1.93],[6.05,1.93]])
+    panel('#d6c9b5',x,.44,fenceFront,w,.58,.15);
+   for(const x of[1.13,2.92,5.08,6.87]){
+    panel('#b0a089',x,.67,fenceFront,.20,1.02,.19);
+    panel('#d9cbb5',x,1.22,fenceFront,.26,.10,.25);
+    lamp(x,12.08,.66);
    }
-   for(const px of[2.08,3.39,4.75,5.90]){
-    glassPanel(px,1.08,rearZ+.65,.79,1.19);
-    indoorBed(px,rearZ-.05);
-    cbox(px,1.73,rearZ+.55,.86,.13,.17,teak);
+   panel('#816a59',4.0,.80,fenceFront,1.75,.061,.12,'metal');
+   for(let j=0;j<9;j++)panel('#ab9576',3.24+j*.19,.57,fenceFront,.066,.47,.065,'metal');
+   // Distinct warm garden lights, flowering hedges and clean approach path.
+   for(const x of[1.39,6.61])for(const z of[7.12,9.56,11.84]){
+    pot(x,z);
+    lamp(x,z+.14,.59);
    }
-   // Side wing front-facing glazed lift/lobby and two glass suites.
-   cbox(sideX+.51,1.00,sideZ, .088,1.46,sideD-.05,ivory);
-   for(const pz of[8.89,10.22,11.11]){
-    glassPanel(sideX-.12,1.10,pz,.64,1.21);
-    indoorBed(sideX-.03,pz+.12);
-    cbox(sideX,1.70,pz-.24,.90,.10,.34,timber);
+   for(let n=0;n<11;n++){
+    const x=2.32+n*.334;
+    panel(n%2?'#cdb9a5':'#dfc8ad',x,.264,12.02,.16,.020,.25);
    }
-   // TWO ACTUAL OCCUPIED LEVELS, no more. Elevated decks and bedrooms.
-   tile(rearX,secondY,rearZ,rearW,rearD,'#e5e9e2');
-   tile(sideX,secondY,sideZ,sideW,sideD,'#e5e9e2');
-   for(const px of[1.95,3.26,4.65,5.91]){
-    cbox(px,secondY+.91,rearZ-.60,.10,1.21,.10,white);
-    glassPanel(px,secondY+1.04,rearZ+.67,.83,1.13);
-    indoorBed(px,rearZ-.06,secondY);
-   }
-   for(const zz of[8.80,10.19,11.24]){
-    glassPanel(sideX-.20,secondY+1.06,zz,.66,1.12);
-    couch(sideX+.12,zz,secondY);
-   }
-   // Real balcony decks: a light glass balcony facing the pool. Balcony
-   // front edge 8.63, outside pool starts at 9.14 -> no occlusion.
-   const balconyZ=8.57;
-   tile(rearX,secondY+.075,balconyZ,rearW-.17,.37,'#e6d8c4');
-   railHorizontal(rearX,balconyZ+.21,secondY+.14,rearW-.25);
-   railVertical(sideX-.58,sideZ,secondY+.13,sideD-.15);
-   for(const x of[2.31,3.64,4.91]){
-    couch(x,balconyZ-.11,secondY);
-    lowPlant(x+.32,balconyZ-.12,.13,secondY);
-   }
-   // White pergola sunshade covers bedrooms/rear service zone only,
-   // leaving an architectural open swimming court in front.
-   for(const xx of[1.56,6.45]){
-    column(xx,rearZ-.47,3.83);
-   }
-   tile(rearX,4.24,rearZ-.34,rearW+.06,.67,'#c8d2d3');
-   for(let i=0;i<15;i++){
-    const x=1.60+i*.332;
-    bar(x,4.32,rearZ-.30,.035,.62,i%3===0?teal:white);
-   }
-   tile(sideX,4.23,sideZ-.52,sideW+.13,1.06,white);
-   for(let i=0;i<7;i++){
-    const zz=sideZ-.98+i*.16;
-    bar(sideX,4.32,zz,sideW+.08,.036,i%2===0?silver:teal);
-   }
-   // MAIN SWIMMING POOL — the focal point of the entire model.
-   // Physically distinct deck, coping, water basin, bottom, lane marks,
-   // ripples, glass fence and metal grab handles. Always visible in top view.
-   const poolX=3.29,poolZ=10.08,poolW=3.42,poolD=2.20;
-   tile(poolX,.275,poolZ,poolW+.48,poolD+.49,'#e9dfcb'); // beach deck
-   tile(poolX,.309,poolZ,poolW+.19,poolD+.17,white);      // pool coping
-   tile(poolX,.337,poolZ,poolW-.07,poolD-.06,'#398eae'); // deep trough
-   tile(poolX,.381,poolZ,poolW-.20,poolD-.16,poolBlue);  // water surface
-   tile(poolX,.391,poolZ,poolW-.29,poolD-.25,teal);
-   for(let j=0;j<8;j++){
-    const x=poolX-poolW*.41+j*poolW*.115;
-    bar(x,.404,poolZ+(j%2?-.38:.44),.15,.032,aqua);
-    bar(x-.10,.402,poolZ+(j%2?.21:-.27),.085,.026,'#9edddf');
-   }
-   for(const sign of[-1,1]){
-    const x=poolX+sign*poolW*.48;
-    for(const z of[poolZ-poolD*.45,poolZ+poolD*.45]){
-     tile(x,.416,z,.32,.18,'#eeeadf');
-    }
-   }
-   // Real stainless-steel pool ladder facing the wooden sun deck.
-   for(const x of[poolX-1.19,poolX-.88]){
-    pole('#e9ebdf',x,.76,poolZ+poolD*.42,.024,.94,'metal');
-    block('#e8ecde',x,.99,poolZ+poolD*.41,.061,.08,.29,'metal');
-   }
-   for(let step=0;step<3;step++){
-    cbox(poolX-1.04,.39+step*.13,poolZ+poolD*.48,.34,.025,.043,silver);
-   }
-   // Sunny outdoor timber deck in front: loungers and parasols separated
-   // around the swimming pool, with green planters and wellness pavilion.
-   const deckZ=11.75;
-   tile(3.19,.260,deckZ,4.15,.67,timber);
-   for(let i=0;i<14;i++){
-    bar(1.25+i*.295,.313,deckZ,.035,.58,i%3===0?teak:'#d8b99a');
-   }
-   for(const x of[1.77,2.67,3.58,4.48]){
-    chaise(x,deckZ);
-    globe(x,deckZ+.30,.65);
-   }
-   umbrella(2.18,11.25,0,.37);
-   umbrella(4.20,11.25,0,.38);
-   // Side café lounge with shaded counter and garden dining area.
-   tile(5.92,.265,11.65,1.09,.62,stone);
-   gardenSeat(5.90,11.52);
-   for(const zz of[11.45,11.79]){
-    cbox(6.57,.72,zz,.21,.78,.25,teak);
-    cbox(6.57,1.12,zz,.24,.08,.27,white);
-   }
-   // Six detailed palms + layered tropical shrubs / low planters.
-   for(const [x,z,r] of[
-    [1.29,7.41,.59],[6.57,7.50,.55],
-    [1.28,9.07,.62],[6.55,9.38,.56],
-    [1.27,11.66,.59],[6.57,11.81,.55]
-   ])palm(x,z,0,r);
-   for(const [x,z,r] of[
-    [1.14,8.30,.20],[1.16,10.26,.22],[1.22,12.13,.18],
-    [6.74,8.23,.22],[6.75,10.75,.21],[6.76,12.16,.17],
-    [2.00,8.90,.19],[5.25,9.02,.16],[5.43,11.87,.16]
-   ])lowPlant(x,z,r);
-   for(const [x,z] of[
-    [1.58,8.86],[5.37,8.87],[1.66,10.97],[5.22,10.90],
-    [1.52,12.02],[6.45,12.11]
-   ])globe(x,z,.68);
-   // Low amenity lighting around the pool only, not a privacy-blocking wall.
-   for(const x of[1.59,4.88]){
-    for(const z of[poolZ-.91,poolZ+.82]){
-     block('#d6ccbd',x,.44,z,.13,.20,.13,'stone');
-     block(light,x,.57,z,.11,.12,.11,'glass',true);
-    }
-   }
-   // Distinct FRONT residential entrance and property sign (not 3rd floor).
-   for(const x of[2.36,5.65]){
-    column(x,12.12,2.24,.23,'#e0d9ca');
-    globe(x,12.11,2.40);
-   }
-   block('#e9e6dc',4,2.63,12.12,3.51,.16,.23,'stone');
-   block(teal,4,2.76,12.18,3.35,.060,.13,'metal');
-   block('#4a737c',4,2.23,12.19,2.13,.37,.12,'metal');
-   block(light,4,2.27,12.26,1.80,.18,.023,'glass',true);
-   // Geometric setback protects all four road-facing sides including
-   // rotated plots. Compress the entire condo compound around its own
-   // 8x13 building-half centre, without moving the underlying 40 stalls.
-   const insetX=.95,insetZ=.94,midU=W*.5,midV=(parking+H)*.5;
-   for(const [key,group] of batch.data){
-    const from=preHouseItems.get(key)||0;
-    for(let i=from;i<group.items.length;i++){
-     const item=group.items[i],dx=item.x-b.x,dz=item.z-b.y,rot=b.rotation||0;
-     const u=rot===0?dx:rot===1?dz:rot===2?W-dx:W-dz;
-     const v=rot===0?dz:rot===1?H-dx:rot===2?H-dz:dx;
-     const dest=point(midU+(u-midU)*insetX,midV+(v-midV)*insetZ);
-     item.x=dest.x-.5;item.z=dest.y-.5;
-     item.sx*=insetX;item.sz*=insetZ;
-    }
-   }
-   // Leave the pool, deck and trees visible; original garage/lot remains
-   // completely independent of the presentation-only setback.
    return;
   }
 
