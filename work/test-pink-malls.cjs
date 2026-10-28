@@ -1,5 +1,6 @@
-// Apple-style glass mall QA: true full-mesh clearances and absolute maximum
-// TWO actual storeys, low-polygon glass pavilions and independent wings.
+// Mall QA: Apple-inspired starter/small/medium and CENTRAL grand mall.
+// Physical full-mesh street/parking clearance, entrance, signage, Low LOD,
+// two-storey limit and original mall business capacity must all survive.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('node:url');
 (async()=>{
  const boot=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
@@ -75,13 +76,31 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    assert(lights.filter(i=>i.finish==='mall-night-detail').length>=8,
     key+' lacks premium night accent detail');
    assert(lights.every(i=>i.glow),key+' decorative LED meshes must emit light');
-   assert(items.some(i=>i.color==='#9bbac0'&&Math.abs(i.rz)>.05),
-    'faceted curved skylight missing');
-   assert(items.some(i=>i.color==='#77b7c6')||items.some(i=>i.color==='#87bac5'),
-    'Apple-style cylindrical glass lobby missing');
+   if(key==='mall_large'){
+    assert(items.filter(i=>i.color==='#c72e37').length>=3,
+     'CENTRAL red front, wing and freestanding entrance sign must render');
+    assert(items.filter(i=>i.color==='#fff8ec'&&i.finish==='mall-sign').length>=75,
+     'CENTRAL white letters must be real 3D low-quality-proof geometry');
+    assert(items.some(i=>i.color==='#75b4ca'&&i.sy>3.0),
+     'double-height Central glass entrance hall absent');
+    assert(items.filter(i=>i.color==='#6eabbc').length>=3,
+     'grand mall must have rooftop glazed skylights');
+    assert(items.filter(i=>i.color==='#b8946d').length>=2,
+     'two separate outdoor café terraces missing');
+    assert(items.some(i=>i.color==='#73bad4'),
+     'public fountain at front entrance missing');
+    assert(items.some(i=>i.color==='#ad7951'||i.color==='#b8946d'),
+     'Central facade must have premium wood and terrace detailing');
+   }else{
+    assert(items.some(i=>i.color==='#9bbac0'&&Math.abs(i.rz)>.05),
+     'small/medium mall must retain arched skylight');
+    assert(items.some(i=>i.color==='#77b7c6')||items.some(i=>i.color==='#87bac5'),
+     'small/medium mall must retain transparent cylindrical glass lobby');
+   }
    assert(!items.some(i=>i.finish==='stone'&&i.sy>2.3&&i.sx>2.1),
     'oversized single stone/glass-box facade');
-   assert(items.some(i=>i.color==='#e3cf9c'),'raised daylight sign lettering absent');
+   assert(items.some(i=>i.color=== (key==='mall_large'?'#fff8ec':'#e3cf9c')),
+    key+' raised daylight sign lettering absent');
    const result={instances:items.length,materials:batch.data.size,top:+maxY.toFixed(3),
     glow:items.filter(i=>i.glow).length};
    if(signature)assert.deepEqual(result,signature,key+' cardinal rotation altered rendering');
@@ -102,6 +121,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  assert(lowItems.length<=results[2].instances,'low mode should not use more instances');
  assert(lowEssential>=16,'low-quality mall must preserve hero lights');
  assert(lowDetail<results[2].glow,'low-quality mall must omit accent LEDs');
+ assert(lowGroups.some(v=>v.finish==='mall-sign'&&v.items.length>=45),
+  'Low must retain visible CENTRAL raised red-white facade and pylon signs');
  // Changing the graphics preset at runtime must hide expensive luxury
  // light groups without switching off essentials or requiring a rebuild.
  renderer.graphicQuality='veryHigh';
@@ -112,8 +133,13 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  renderer.buildingGroup.add(toggleBatch.build());
  renderer.graphicQuality='low';renderer.lastGlow=1;renderer.lastBuildingDetailLevel=null;
  renderer.updateBuildingDetailLOD({z:2});
- const mallMeshes=[];
- renderer.buildingGroup.traverse(mesh=>{if(mesh.userData.mallNightTier)mallMeshes.push(mesh);});
+ const mallMeshes=[],signMeshes=[];
+ renderer.buildingGroup.traverse(mesh=>{
+  if(mesh.userData.mallNightTier)mallMeshes.push(mesh);
+  if(mesh.userData.baseColor==='#fff8ec')signMeshes.push(mesh);
+ });
+ assert(signMeshes.length>0&&signMeshes.every(mesh=>mesh.visible),
+  'Raised white CENTRAL letters must remain visible on Low quality');
  assert(mallMeshes.some(m=>m.userData.mallNightTier==='essential'&&m.visible),
   'Low must show essential shopping-mall night lights');
  assert(mallMeshes.some(m=>m.userData.mallNightTier==='detail'&&!m.visible),
@@ -136,5 +162,6 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  assert(starterItems.filter(i=>i.finish==='mall-night-essential'&&i.glow).length>=7,
   'starter glass pavilion must glow on Low without expensive spotlights');
  console.log(JSON.stringify({passed:true,malls:4,rotations:12,maxFloors:2,
-  appleStyle:true,parkingPreserved:true,results}));
+  appleStyleSmallMedium:true,centralGrandMall:true,frontEntrance:true,
+  parkingPreserved:true,lowQualityBrand:true,results}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
