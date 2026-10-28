@@ -32,7 +32,17 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
    assert.equal(graphic.filter(x=>x.color==='#515f62').length,t.parkingRows,key+' visible parking aisles');
    assert.equal(graphic.filter(x=>['#9baaa0','#96af8f'].includes(x.color)).length,2,key+' real split ground');
    const points=g.lotSlots(sample);
-   assert(Math.max(...points.map(x=>x.v+.62))<=t.parkingZoneDepth,key+' parking stays in rear half');
+   const frontBayEdge=Math.max(...points.map(x=>x.v+.62));
+   if(key==='shop_large'){
+    // 7-Eleven's rear retail pavilions were shortened. The two real
+    // parking banks move 0.7 cells closer into the freed approach space;
+    // no stall crosses the shop wall, park capacity and entrances remain.
+    assert(frontBayEdge<=t.parkingZoneDepth+.55,
+     'large shop advanced parking stays clear of storefront');
+    assert.equal(t.parkingRearAisle,2.75);
+    assert.equal(t.parkingAisle,5.60);
+   }else assert(frontBayEdge<=t.parkingZoneDepth,
+    key+' parking stays in rear half');
    assert(Math.min(...points.map(x=>x.v-.62))>=0,key+' no blank rear row');
    assert(Math.max(...points.map(x=>x.u+.275))<t.plotWidth-.90,key+' clear exit driveway');
    assert(graphic.every(rect=>Number.isFinite(rect.w)&&rect.w>0&&Number.isFinite(rect.h)&&rect.h>0),key+' no negative-sized asphalt, island or markings');
