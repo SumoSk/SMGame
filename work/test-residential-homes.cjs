@@ -46,6 +46,31 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
     p.v+p.sz*.5>t.plotHeight-.34||
     p.u-p.sx*.5<.68||p.u+p.sx*.5>t.plotWidth-.68);
    assert.equal(bad.length,0,spec.key+' rotation '+rotation+' blocks parking or side roadway '+JSON.stringify(bad.slice(0,3)));
+   if(spec.key==='home_dual'){
+    // Check actual transformed vertices, not mesh centres. Cylinders,
+    // pitched roofs, panels and decor may physically overhang their origins.
+    const intrusions=[],mat=new THREE.Matrix4(),q=new THREE.Quaternion();
+    for(const group of batch.data.values())for(const p of group.items){
+     q.setFromEuler(new THREE.Euler(p.rx,p.ry,p.rz));
+     mat.compose(new THREE.Vector3(p.x,p.y,p.z),q,new THREE.Vector3(p.sx,p.sy,p.sz));
+     const geometry=group.geo.attributes.position;
+     for(let vtx=0;vtx<geometry.count;vtx++){
+      const pt=new THREE.Vector3().fromBufferAttribute(geometry,vtx).applyMatrix4(mat);
+      const x=pt.x-b.x,z=pt.z-b.y;
+      const [u,v]=rotation===0?[x,z]:rotation===1?[z,t.plotHeight-x]:
+       rotation===2?[t.plotWidth-x,t.plotHeight-z]:[t.plotWidth-z,x];
+      if(u<.69-1e-5||u>t.plotWidth-.69+1e-5||
+       v<t.parkingZoneDepth-.08-1e-5||v>t.plotHeight-.34+1e-5){
+       if(intrusions.length<8)intrusions.push({
+        u:+u.toFixed(3),v:+v.toFixed(3),color:group.color,
+        geo:group.geo.type,origin:[+p.x.toFixed(2),+p.z.toFixed(2)],
+        mesh:[p.sx,p.sy,p.sz]});
+      }
+     }
+    }
+    assert.equal(intrusions.length,0,
+     'home_dual full mesh must not enter road, parking or plot edge: '+JSON.stringify(intrusions));
+   }
    const count=color=>local.filter(p=>p.color===color).length;
    const colors=new Set(local.map(p=>p.color));
    assert(colors.size>=23,'garden home materials missing');
