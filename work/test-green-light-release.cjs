@@ -1,5 +1,5 @@
 // SMCITY 4.4.6 — a green signal has exactly one veto: a truly full
-// outgoing road in the chosen travel direction. Queue, stale claims and
+// outgoing LANE for the chosen route. Queue, stale claims and
 // competing intersection leases are not green-light blockers.
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const prefix=fs.readFileSync('work/test-motion.cjs','utf8').split('let combinations=0;')[0];
@@ -30,18 +30,33 @@ function test(type){
  game.state.reservations.set('junction:'+node,{id:992,passes:[reservation],until:reservation.until});
  assert.equal(game.intersectionAllowed(v,g.pos),true,'green must ignore opposing junction reservation');
  game.state.reservations.delete('junction:'+node);
- // The one and only admission exception: ALL actual outgoing lanes are full.
- const out=v.path[g.pos+1],direction=game.dir(v.path[g.pos],out),capacity=game.ROADS[type].lanes/2;
+ // Other lanes can be full; the target lane determines admission.
+ const out=v.path[g.pos+1],direction=game.dir(v.path[g.pos],out);
+ const capacity=game.ROADS[type].lanes/2,target=game.plannedLane(v,g.pos+1);
+ const others=[];
  for(let lane=0;lane<capacity;lane++){
-  const parked={...v,id:997+lane,phase:'driving',pos:g.pos+1,progress:0,occKey:null};
-  game.state.vehicles.set(parked.id,parked);
-  game.state.occ.set(out+':'+direction+':'+lane,parked.id);
+  if(lane===target)continue;
+  const id=997+lane;
+  game.state.vehicles.set(id,{...v,id,phase:'driving',pos:g.pos+1,progress:0,occKey:null});
+  game.state.occ.set(out+':'+direction+':'+lane,id);
+  others.push({id,lane});
  }
- assert.equal(game.intersectionAllowed(v,g.pos),false,'full outbound road must stop green release');
- // One real lane opens -> release immediately, without queue arbitration.
- const firstId=997;game.state.occ.delete(out+':'+direction+':0');game.state.vehicles.delete(firstId);
- assert.equal(game.intersectionAllowed(v,g.pos),true,'outgoing lane freed: green immediately releases');
- for(let lane=1;lane<capacity;lane++){game.state.occ.delete(out+':'+direction+':'+lane);game.state.vehicles.delete(997+lane);}
+ assert.equal(game.intersectionAllowed(v,g.pos),true,'full adjacent lane must never block a free destination lane');
+ // A car occupying exactly the assigned target lane must stop green release.
+ const occupiedId=997+target;
+ game.state.vehicles.set(occupiedId,{...v,id:occupiedId,phase:'driving',pos:g.pos+1,progress:0,occKey:null});
+ game.state.occ.set(out+':'+direction+':'+target,occupiedId);
+ assert.equal(game.intersectionAllowed(v,g.pos),false,'occupied target lane must stop green release even when other lanes are free');
+ game.reserveIntersection(v,g.pos);
+ assert.equal(game.intersectionAllowed(v,g.pos),false,'already granted junction pass cannot override a full target lane');
+ game.state.occ.delete(out+':'+direction+':'+target);
+ game.state.vehicles.delete(occupiedId);
+ assert.equal(game.intersectionAllowed(v,g.pos),true,'target lane open: green resumes despite neighboring full lanes');
+ for(const other of others){
+  game.state.occ.delete(out+':'+direction+':'+other.lane);
+  game.state.vehicles.delete(other.id);
+ }
+ game.release(v);
  setSignal(false);assert.equal(game.intersectionAllowed(v,g.pos),false,'red still blocks new entries');
  setSignal(true);game.state.vehicles.delete(ghost.id);
  const start=game.motionDistance(v);
@@ -50,4 +65,4 @@ function test(type){
  return type;
 }
 const passed=['small','medium','large'].map(test);
-console.log(JSON.stringify({version:'4.4.6',passed:true,roadTypes:passed,soleGreenVeto:'full actual outbound lanes'}));
+console.log(JSON.stringify({version:'4.4.6',passed:true,roadTypes:passed,soleGreenVeto:'occupied assigned outbound lane'}));
