@@ -4774,24 +4774,56 @@ function junctionExitAvailable(v,pos){
  }
  return true;
 }
-// Retry only stalled green admissions; never scan the city or discard a live owner's claim.
+// Only a green-light car stalled at the stop line invokes this throttled
+// repair. Keep every active pass and any car physically near the junction.
 const junctionClaimRetries=new WeakMap();
 function recoverOrphanJunctionClaims(v,node){
  const last=junctionClaimRetries.get(v);
  if(last&&last.node===node&&last.version===state.version&&state.time>=last.at&&state.time-last.at<.5)return false;
  junctionClaimRetries.set(v,{node,version:state.version,at:state.time});
+ const center=xy(node),near=car=>{
+  if(!car?.path?.length||!['driving','stuck','parking_in','parking_out'].includes(car.phase))return false;
+  const pose=vehiclePosition(car);
+  return !!pose&&Math.hypot(pose.x-center[0]-.5,pose.y-center[1]-.5)<1.6;
+ };
+ const hasPass=(car,pos=null)=>!!car?.junctionPasses?.some(p=>p.node===node&&(pos==null||p.pos===pos));
  let changed=false;
+ const lockKey='junction:'+node,lock=state.reservations.get(lockKey);
+ if(lock){
+  const passes=lock.passes||[lock],live=passes.filter(pass=>{
+   const owner=state.vehicles.get(pass.id);
+   return !!owner&&(hasPass(owner,pass.pos??null)||near(owner));
+  });
+  if(live.length!==passes.length){
+   changed=true;
+   if(!live.length)state.reservations.delete(lockKey);
+   else if(lock.passes){lock.passes=live;lock.id=live[0].id;state.reservations.set(lockKey,lock);}
+   else{lock.id=live[0].id;state.reservations.set(lockKey,lock);}
+  }
+ }
  for(let d=0;d<4;d++)for(let lane=0;lane<4;lane++){
-  const key=occKey(node,d,lane),owner=state.occ.get(key),claim=state.reservations.get(key);
-  if(owner!=null&&!state.vehicles.has(owner)){state.occ.delete(key);changed=true;}
-  if(claim&&!state.vehicles.has(claim.id)){state.reservations.delete(key);changed=true;}
+  const key=occKey(node,d,lane),occupied=state.occ.get(key),claim=state.reservations.get(key);
+  if(occupied!=null&&!near(state.vehicles.get(occupied))){state.occ.delete(key);changed=true;}
+  if(claim){
+   const owner=state.vehicles.get(claim.id);
+   if(!owner||(!hasPass(owner)&&!near(owner))){state.reservations.delete(key);changed=true;}
+  }
  }
  return changed;
 }
 function intersectionAllowed(v,pos,ignoreSignal=false){
  if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
  const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return false;
- const connector=junctionConnector(v,pos),lock=state.reservations.get('junction:'+i);
+ const connector=junctionConnector(v,pos);
+ // Repair before checking a competing lease; a stale live-owner lease used
+ // to return false before the orphan recovery code could be reached.
+ let urgentGreen=false;
+ if(!ignoreSignal&&v.phase==='driving'&&(v.wait||0)>=.8&&signalAllows(i,entering,lane)){
+  const plan=motionPlan(v),guard=plan.junctions.find(g=>g.pos===pos);
+  if(guard){const distanceAt=motionDistance(v,plan);urgentGreen=distanceAt>=guard.stop-.35&&distanceAt<guard.entry+1e-6;}
+ }
+ if(urgentGreen)recoverOrphanJunctionClaims(v,i);
+ const lock=state.reservations.get('junction:'+i);
  for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos)))return false;}}
  // Exit clearance is dynamic: check on EVERY admission attempt, never cache
  // across simulation steps. Reuse this read-only result within this attempt.
@@ -4803,11 +4835,6 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
  // remain mandatory, so an occupied intersection cannot be crossed.
  // Keep the normal 1,000-car path cheap: only long-waiting green
  // approaches do the extra stop-line lookup.
- let urgentGreen=false;
- if(!ignoreSignal&&v.phase==='driving'&&(v.wait||0)>=.8&&signalAllows(i,entering,lane)){
-  const plan=motionPlan(v),guard=plan.junctions.find(g=>g.pos===pos);
-  if(guard){const distanceAt=motionDistance(v,plan);urgentGreen=distanceAt>=guard.stop-.35&&distanceAt<guard.entry+1e-6;}
- }
  if(!ignoreSignal&&!urgentGreen&&queuedBehindLeader(v,pos,connector))return false;
  let exitAvailable=junctionExitAvailable(v,pos);
  if(!exitAvailable&&urgentGreen&&recoverOrphanJunctionClaims(v,i))exitAvailable=junctionExitAvailable(v,pos);
