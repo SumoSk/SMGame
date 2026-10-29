@@ -19,12 +19,14 @@ for(const roadType of ['small','medium','large']){
  assert(green,'green signal must occur');
  game.prepareJunctionQueues();
  assert.equal(game.intersectionAllowed(v,g.pos),true,'empty junction must permit green departure: '+roadType);
- const holder={...v,id:991,pos:v.path.length-2,progress:.85,wait:0,occKey:null,junctionPasses:[],turnLanes:{...v.turnLanes}};
+ const holder={...v,id:991,pos:g.pos,progress:0,wait:0,occKey:null,junctionPasses:[],turnLanes:{...v.turnLanes}};
  game.state.vehicles.set(holder.id,holder);
  game.reserveIntersection(holder,g.pos);
  assert.equal(game.intersectionAllowed(v,g.pos),false,'active lease must remain protected: '+roadType);
- // The owner is still alive, but no longer holds the lease and is far away.
- holder.junctionPasses=[];
+ // Simulate a live owner already beyond the exit which retained an obsolete
+ // pass in its array. Position, not the stale flag, must decide validity.
+ holder.pos=v.path.length-2;holder.progress=.85;
+ assert(holder.junctionPasses.length,'stale owner still carries a pass');
  game.state.time+=1;
  assert.equal(game.intersectionAllowed(v,g.pos),true,'stale live-owner lease must not block: '+roadType);
  assert.equal(game.state.reservations.has('junction:'+node),false,'stale intersection lease removed');
