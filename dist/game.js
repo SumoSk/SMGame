@@ -4789,7 +4789,17 @@ function recoverOrphanJunctionClaims(v,node){
   const pose=vehiclePosition(car);
   return !!pose&&Math.hypot(pose.x-center[0]-.5,pose.y-center[1]-.5)<1.6;
  };
- const hasPass=(car,pos=null)=>!!car?.junctionPasses?.some(p=>p.node===node&&(pos==null||p.pos===pos));
+ const passCache=new WeakMap();
+ const hasPass=(car,pos=null)=>{
+  if(!car?.junctionPasses?.some(p=>p.node===node&&(pos==null||p.pos===pos)))return false;
+  let valid=passCache.get(car);
+  if(!valid){
+   const plan=motionPlan(car),distanceAt=motionDistance(car,plan);
+   valid=new Set(plan.junctions.filter(g=>g.node===node&&distanceAt<g.clear+.08).map(g=>g.pos));
+   passCache.set(car,valid);
+  }
+  return pos==null?valid.size>0:valid.has(pos);
+ };
  let changed=false;
  const lockKey='junction:'+node,lock=state.reservations.get(lockKey);
  if(lock){
