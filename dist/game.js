@@ -5036,8 +5036,12 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
 }
 function motionBarrier(v,plan,s,budget=-1){
  const scan=Math.min(3,Math.max(.8,(v.speed||0)*(v.speed||0)/9.6+.3,budget>=0?budget+.1:0));
- // Cars already on the road have priority: the parking exit must yield, not stop all road traffic.
- const physical=physicalTrafficLimit(v,plan,s,scan);
+ // 4.4.6: inside a green release corridor, the only admission stop
+ // is a physically full outgoing road. No queue/lease/physical conflict
+ // veto at the signal itself. Normal following checks resume after clearing.
+ const greenRelease=plan.junctions.some(g=>s<g.clear&&g.stop<=s+scan+.1&&
+  signalAllows(g.node,motionDirection(v.path,g.pos-1)));
+ const physical=greenRelease?Infinity:physicalTrafficLimit(v,plan,s,scan);
  let limit=physical,reason=Number.isFinite(physical)?'เว้นระยะรถ':'';
  const nextPos=v.pos+1;
  if(nextPos<v.path.length&&!roadTraversalAvailable(v,nextPos)){
