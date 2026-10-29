@@ -22,5 +22,5 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-green-light-release.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-signal-queue-optimization.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-lane-signals.cjs
-      - run: node -r ./work/test-dom-compat.cjs work/test-junctions.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
       - run: npm run build
