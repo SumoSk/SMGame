@@ -1,0 +1,31 @@
+name: SMCITY small-road signal admission
+on:
+  push:
+    branches:
+      - fix/small-road-green-2026-10-29
+      - main
+    paths:
+      - dist/game.js
+      - work/test-small-road-green.cjs
+      - .github/workflows/small-road-green.yml
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  small-road-signal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node -r ./work/test-dom-compat.cjs work/test-small-road-green.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-green-light-release.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-signal-queue-optimization.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-lane-merge-deadlock.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-lane-signals.cjs
+      - run: npm run build
