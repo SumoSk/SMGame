@@ -4787,10 +4787,13 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
  // departure attempt without being trapped behind stale queue arbitration.
  // Actual intersection leases, live exit clearance and physical spacing
  // remain mandatory, so an occupied intersection cannot be crossed.
- const plan=motionPlan(v),guard=plan.junctions.find(g=>g.pos===pos);
- const distanceAt=guard?motionDistance(v,plan):-Infinity;
- const urgentGreen=!ignoreSignal&&v.phase==='driving'&&(v.wait||0)>=.8&&
-   signalAllows(i,entering,lane)&&guard&&distanceAt>=guard.stop-.35&&distanceAt<guard.entry+1e-6;
+ // Keep the normal 1,000-car path cheap: only long-waiting green
+ // approaches do the extra stop-line lookup.
+ let urgentGreen=false;
+ if(!ignoreSignal&&v.phase==='driving'&&(v.wait||0)>=.8&&signalAllows(i,entering,lane)){
+  const plan=motionPlan(v),guard=plan.junctions.find(g=>g.pos===pos);
+  if(guard){const distanceAt=motionDistance(v,plan);urgentGreen=distanceAt>=guard.stop-.35&&distanceAt<guard.entry+1e-6;}
+ }
  if(!ignoreSignal&&!urgentGreen&&queuedBehindLeader(v,pos,connector))return false;
  const exitAvailable=junctionExitAvailable(v,pos);
  if(!exitAvailable)return false;
