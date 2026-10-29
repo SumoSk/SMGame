@@ -4752,10 +4752,18 @@ function queueAllows(v,pos,connector,precheckedExit=null){
 }
 function signalRequired(node){return junction(node)>=3;}
 function junctionExitAvailable(v,pos){
+ // Single-lane exits can be safely approached while a car remains two or
+ // three road tiles downstream. The old coarse three-tile vacancy test
+ // unnecessarily held the whole narrow-road approach on green. Keep the
+ // junction and immediate exit cell exclusive; live physical separation
+ // below still checks traffic beyond them every attempt.
+ const smallGreenExit=!!trafficSpatial&&state.roads.get(v.path[pos+1])?.type==='small'&&
+  signalRequired(v.path[pos])&&signalAllows(v.path[pos],motionDirection(v.path,pos-1),plannedLane(v,pos-1));
  for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionLookahead);k++){
   // The next signalized junction controls its own red light and exit queue.
   // Do not make entry into this junction depend on a downstream green light.
   if(k>pos&&signalRequired(v.path[k]))break;
+  if(smallGreenExit&&k>pos+1)continue;
   if(!roadTraversalAvailable(v,k))return false;
  }
  // A free *logical* lane is not enough if a car is physically sitting at the
