@@ -4783,6 +4783,9 @@ function recoverOrphanJunctionClaims(v,node){
  junctionClaimRetries.set(v,{node,version:state.version,at:state.time});
  const center=xy(node),near=car=>{
   if(!car?.path?.length||!['driving','stuck','parking_in','parking_out'].includes(car.phase))return false;
+  // An eight-lane junction can extend far beyond its center. Logical route
+  // presence is decisive; a fixed center-radius check alone is unsafe.
+  if(car.path[car.pos]===node||car.path[car.pos+1]===node)return true;
   const pose=vehiclePosition(car);
   return !!pose&&Math.hypot(pose.x-center[0]-.5,pose.y-center[1]-.5)<1.6;
  };
