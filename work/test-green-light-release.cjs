@@ -42,9 +42,11 @@ assert.equal(game.intersectionAllowed(v,g.pos),false,'green priority cannot over
 game.release(holder);game.state.vehicles.delete(holder.id);
 const out=g.pos;
 const key=v.path[out]+':'+game.dir(v.path[out],v.path[out+1])+':'+game.plannedLane(v,out);
+game.state.vehicles.set(999,{...holder,id:999});
 game.state.occ.set(key,999);
 assert.equal(game.intersectionAllowed(v,g.pos),false,'green priority cannot enter a claimed junction lane');
 game.state.occ.delete(key);
+game.state.vehicles.delete(999);
 setSignal(false);
 assert.equal(game.intersectionAllowed(v,g.pos),false,'red remains binding after any amount of waiting');
 setSignal(true);
