@@ -1,0 +1,26 @@
+name: SMCITY 4.4.5 green-light release checks
+on:
+  push:
+    branches:
+      - fix/green-light-priority-2026-10-29
+  pull_request:
+    paths:
+      - dist/game.js
+      - work/test-green-light-release.cjs
+      - .github/workflows/green-light-release.yml
+jobs:
+  green-light:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --check dist/game.js
+      - run: node -r ./work/test-dom-compat.cjs work/test-green-light-release.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-signal-queue-optimization.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-signals.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-junctions.cjs
+      - run: npm run build
