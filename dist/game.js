@@ -4774,6 +4774,20 @@ function junctionExitAvailable(v,pos){
  }
  return true;
 }
+// Retry only stalled green admissions; never scan the city or discard a live owner's claim.
+const junctionClaimRetries=new WeakMap();
+function recoverOrphanJunctionClaims(v,node){
+ const last=junctionClaimRetries.get(v);
+ if(last&&last.node===node&&last.version===state.version&&state.time>=last.at&&state.time-last.at<.5)return false;
+ junctionClaimRetries.set(v,{node,version:state.version,at:state.time});
+ let changed=false;
+ for(let d=0;d<4;d++)for(let lane=0;lane<4;lane++){
+  const key=occKey(node,d,lane),owner=state.occ.get(key),claim=state.reservations.get(key);
+  if(owner!=null&&!state.vehicles.has(owner)){state.occ.delete(key);changed=true;}
+  if(claim&&!state.vehicles.has(claim.id)){state.reservations.delete(key);changed=true;}
+ }
+ return changed;
+}
 function intersectionAllowed(v,pos,ignoreSignal=false){
  if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
  const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return false;
@@ -4795,7 +4809,8 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
   if(guard){const distanceAt=motionDistance(v,plan);urgentGreen=distanceAt>=guard.stop-.35&&distanceAt<guard.entry+1e-6;}
  }
  if(!ignoreSignal&&!urgentGreen&&queuedBehindLeader(v,pos,connector))return false;
- const exitAvailable=junctionExitAvailable(v,pos);
+ let exitAvailable=junctionExitAvailable(v,pos);
+ if(!exitAvailable&&urgentGreen&&recoverOrphanJunctionClaims(v,i))exitAvailable=junctionExitAvailable(v,pos);
  if(!exitAvailable)return false;
  if(!ignoreSignal&&!urgentGreen&&!queueAllows(v,pos,connector,true))return false;
  return true;
