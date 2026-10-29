@@ -1690,7 +1690,8 @@ function motionPlan(v){
   const d=motionDirection(path,first),types=new Set();for(let k=first;k<=Math.min(n-1,last+1);k++)types.add(state.roads.get(path[k])?.type);
   const forward=dot({x:end.x-start.x,y:end.y-start.y},d),lateral=Math.abs((end.x-start.x)*DIR[d][1]-(end.y-start.y)*DIR[d][0]);
   if(types.size===1&&forward>1e-8){
-   const window=Math.min(forward,Math.max(3,lateral*3));let a=start,u=startU;
+   // 4.4.6: minimize the swept distance and arc depth for a lane shift.
+   const window=Math.min(forward,Math.max(1.65,lateral*2));let a=start,u=startU;
    if(lateral>1e-8&&forward>window){
     // Perform the lateral manoeuvre in the FIRST part of the link, not the
     // last three cells immediately before the junction stop line.
@@ -4317,7 +4318,14 @@ function occKey(i,d,l){return `${i}:${d}:${l}`;}
 function cellAvailable(i,d,l,vid){const r=state.roads.get(i);if(!r)return false;const key=occKey(i,d,l),o=state.occ.get(key),res=state.reservations.get(key);if(parkingClaimed(key,vid)||o&&o!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},o)||res&&res.id!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},res.id))return false;const cap=laneCapacity(i,d);let same=0,total=0;for(let dd=0;dd<4;dd++)for(let ll=0;ll<4;ll++){const o=state.occ.get(occKey(i,dd,ll));if(o&&o!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},o)){total++;if(dd===d)same++;}}return l>=0&&l<cap&&same<cap&&(junction(i)>=3||total<cap*2);}
 // Road traffic may pass a road tile held by another vehicle; a physical same-lane leader still governs spacing.
 // Keep signalised intersections on the original exclusive admission rules.
-function roadTraversalAvailable(v,pos){const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);return state.roads.has(i)&&lane>=0&&lane<laneCapacity(i,d)&&(junction(i)<3||ownsJunctionPass(v,pos)||cellAvailable(i,d,lane,v.id));}
+function roadTraversalAvailable(v,pos){
+ const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);
+ if(!state.roads.has(i)||lane<0||lane>=laneCapacity(i,d))return false;
+ if(junction(i)<3||ownsJunctionPass(v,pos))return true;
+ // An intersection cell's reservations/occupancy cannot veto green in 4.4.6.
+ if(pos>0&&signalAllows(i,motionDirection(v.path,pos-1)))return true;
+ return cellAvailable(i,d,lane,v.id);
+}
 function occupy(v,pos){const i=v.path[pos],d=dir(i,v.path[Math.min(pos+1,v.path.length-1)]),l=plannedLane(v,pos);v.lane=l;v.occKey=occKey(i,d,l);state.occ.set(v.occKey,v.id);}
 function release(v,keepIntersection=false){if(v.occKey&&state.occ.get(v.occKey)===v.id)state.occ.delete(v.occKey);v.occKey=null;if(!keepIntersection){clearVehicleReservations(v);v.junctionPasses=[];v.committedJunction=null;}}
 // Sky travel bypasses the road graph entirely. It still uses the original
@@ -4788,38 +4796,40 @@ function recoverOrphanJunctionClaims(v,node){
  }
  return changed;
 }
-function intersectionAllowed(v,pos,ignoreSignal=false){
- if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
- const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return false;
- const connector=junctionConnector(v,pos),lock=state.reservations.get('junction:'+i);
- for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos)))return false;}}
- // Exit clearance is dynamic: check on EVERY admission attempt, never cache
- // across simulation steps. Reuse this read-only result within this attempt.
- // A queued follower cannot pass the head of its lane. Avoid the expensive
- // downstream exit scan until its turn without weakening collision checks.
- // v4.4.5: a car that has already waited through red gets a green-light
- // departure attempt without being trapped behind stale queue arbitration.
- // Actual intersection leases, live exit clearance and physical spacing
- // remain mandatory, so an occupied intersection cannot be crossed.
- // Keep the normal 1,000-car path cheap: only long-waiting green
- // approaches do the extra stop-line lookup.
- let urgentGreen=false;
- if(!ignoreSignal&&v.phase==='driving'&&(v.wait||0)>=.8&&signalAllows(i,entering,lane)){
-  const plan=motionPlan(v),guard=plan.junctions.find(g=>g.pos===pos);
-  if(guard){const distanceAt=motionDistance(v,plan);urgentGreen=distanceAt>=guard.stop-.35&&distanceAt<guard.entry+1e-6;}
+// 4.4.6: green is unconditional release. The ONLY rejection is that every
+// actual outgoing lane in the intended direction already contains a live car.
+// Reserved lanes, intersection leases, queue priority and opposing turn paths
+// must never deny a green movement. This is an intentionally aggressive mode.
+function greenOutboundRoadFull(v,pos){
+ const out=v.path[pos+1];
+ if(out==null||!state.roads.has(out))return true;
+ const heading=motionDirection(v.path,pos),capacity=laneCapacity(out,heading);
+ let actualCars=0;
+ for(let lane=0;lane<capacity;lane++){
+  const owner=state.occ.get(occKey(out,heading,lane));
+  const car=owner!=null?state.vehicles.get(owner):null;
+  if(car&&car.id!==v.id&&['driving','stuck','parking_in','parking_out'].includes(car.phase))actualCars++;
  }
- if(!ignoreSignal&&!urgentGreen&&queuedBehindLeader(v,pos,connector))return false;
- let exitAvailable=junctionExitAvailable(v,pos);
- if(!exitAvailable&&urgentGreen&&recoverOrphanJunctionClaims(v,i))exitAvailable=junctionExitAvailable(v,pos);
- if(!exitAvailable)return false;
- if(!ignoreSignal&&!urgentGreen&&!queueAllows(v,pos,connector,true))return false;
- return true;
+ return actualCars>=capacity;
+}
+function intersectionAllowed(v,pos,ignoreSignal=false){
+ const i=v.path[pos];
+ if(junction(i)<3||ownsJunctionPass(v,pos))return true;
+ const entering=motionDirection(v.path,pos-1);
+ if(!ignoreSignal&&!signalAllows(i,entering))return false;
+ // No queue, lease, conflicting connector or priority check is allowed here.
+ // Cars already inside a junction retain the right to clear it.
+ return ignoreSignal||!greenOutboundRoadFull(v,pos);
 }
 function ownsJunctionPass(v,pos){return v.junctionPasses?.some(p=>p.pos===pos&&p.node===v.path[pos]);}
 function reserveIntersection(v,pos){
  const i=v.path[pos];if(junction(i)<3)return;
  if(!v.junctionPasses)v.junctionPasses=[];
  if(!ownsJunctionPass(v,pos))v.junctionPasses.push({pos,node:i});
+ // Green has no lease arbitration: retain only the car's own pass token so
+ // it can finish crossing even if the signal changes before clearing.
+ const heading=motionDirection(v.path,pos-1);
+ if(signalAllows(i,heading)){v.committedJunction=i;return;}
  const key='junction:'+i,lock=state.reservations.get(key)||{passes:[]};if(!lock.passes)lock.passes=[];const pass=lock.passes.find(p=>p.id===v.id);if(pass){pass.until=state.time+30;pass.pos=pos;}else lock.passes.push({id:v.id,pos,until:state.time+30});lock.id=lock.passes[0].id;lock.until=state.time+30;state.reservations.set(key,lock);
  for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionReservation);k++){
   // Reserve this connector only, never an independent downstream junction.
