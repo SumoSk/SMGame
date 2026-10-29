@@ -2,7 +2,7 @@
 // but never bypasses a real reservation, red light or a blocked exit.
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const prefix=fs.readFileSync('work/test-motion.cjs','utf8').split('let combinations=0;')[0];
-const {game,install,turnPath,phase}=new Function('require',prefix+'return {game,install,turnPath,phase};')(require);
+const {game,install,turnPath}=new Function('require',prefix+'return {game,install,turnPath,phase};')(require);
 const v=install(turnPath(-1),'large',true);
 const plan=game.motionPlan(v),g=plan.junctions[0],node=g.node;
 assert(g&&g.pos>=1,'a real signalized junction must exist');
@@ -14,7 +14,15 @@ function locate(car,distance){
  car.lane=game.plannedLane(car,pos);car.occKey=null;
 }
 locate(v,g.stop-.09);
-phase(node,0);
+const incoming=game.dir(v.path[g.pos-1],node);
+function setSignal(green){
+ for(let k=0;k<160;k++){
+  game.state.time+=.25;
+  if(game.signalAllows(node,incoming)===green)return;
+ }
+ throw Error('signal did not enter requested color');
+}
+setSignal(true);
 game.prepareJunctionQueues();
 const current=game.state.junctionQueues.get(node).find(r=>r.id===v.id);
 assert(current,'vehicle is registered at the stop line');
@@ -37,9 +45,9 @@ const key=v.path[out]+':'+game.dir(v.path[out],v.path[out+1])+':'+game.plannedLa
 game.state.occ.set(key,999);
 assert.equal(game.intersectionAllowed(v,g.pos),false,'green priority still needs an available downstream exit');
 game.state.occ.delete(key);
-phase(node,1);
+setSignal(false);
 assert.equal(game.intersectionAllowed(v,g.pos),false,'red remains binding after any amount of waiting');
-phase(node,0);
+setSignal(true);
 game.state.vehicles.delete(ghost.id);
 const start=game.motionDistance(v);
 for(let k=0;k<12;k++)game.advanceVehicles(.016,.032);
