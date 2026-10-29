@@ -39,7 +39,7 @@ function test(type){
  }
  assert.equal(game.intersectionAllowed(v,g.pos),false,'full outbound road must stop green release');
  // One real lane opens -> release immediately, without queue arbitration.
- const firstId=997;game.state.occ.delete(out+':'+direction+':0);game.state.vehicles.delete(firstId);
+ const firstId=997;game.state.occ.delete(out+':'+direction+':0');game.state.vehicles.delete(firstId);
  assert.equal(game.intersectionAllowed(v,g.pos),true,'outgoing lane freed: green immediately releases');
  for(let lane=1;lane<capacity;lane++){game.state.occ.delete(out+':'+direction+':'+lane);game.state.vehicles.delete(997+lane);}
  setSignal(false);assert.equal(game.intersectionAllowed(v,g.pos),false,'red still blocks new entries');
