@@ -21,7 +21,7 @@ const ROADS={small:{name:'ถนนเล็ก',lanes:2,cost:50,maint:.5,speed:
 const TRAFFIC_RULES={stopLineOffset:.52,vehicleHalfLength:.28,maxIntersectionLookahead:3,maxIntersectionReservation:3};
 // Never change lanes just because one is a little faster. Only react to real
 // obstruction, with ample room before a turn/junction and a clear swept path.
-const ADAPTIVE_LANE_RULES={minWait:2,obstacleAhead:2.2,turnBuffer:9,junctionBuffer:5,cooldown:8,sweep:3.1};
+const ADAPTIVE_LANE_RULES={minWait:2,obstacleAhead:2.2,turnBuffer:9,junctionBuffer:5,cooldown:8,sweep:2.2};
 const GAME_MINUTES_PER_SECOND=.8;
 const NORMAL_SPEED_SCALE=2; // UI 1x runs at the former 2x simulation speed.
 const CITIES={phuket:{name:'ภูเก็ต',en:'PHUKET ISLAND',sub:'เกาะเล็ก ๆ กับความเป็นไปได้ที่ยิ่งใหญ่',terrain:'island'},bangkok:{name:'กรุงเทพฯ',en:'BANGKOK METROPOLIS',sub:'เชื่อมสองฝั่งเมือง ให้ทุกชีวิตไปต่อ',terrain:'river'},chiangmai:{name:'เชียงใหม่',en:'CHIANG MAI',sub:'เมืองเหนือที่เติบโต ในจังหวะของคุณ',terrain:'mountain'},korat:{name:'โคราช',en:'NAKHON RATCHASIMA',sub:'ประตูสู่อีสาน ทุกเส้นทางเริ่มที่นี่',terrain:'through'},london:{name:'ลอนดอน',en:'LONDON SHOWCASE',sub:'เมืองตัวอย่าง ลอนดอน · ประชาชน 1,000 คน',terrain:'through'}};
@@ -4796,30 +4796,47 @@ function recoverOrphanJunctionClaims(v,node){
  }
  return changed;
 }
-// 4.4.6: green is unconditional release. The ONLY rejection is that every
-// actual outgoing lane in the intended direction already contains a live car.
-// Reserved lanes, intersection leases, queue priority and opposing turn paths
-// must never deny a green movement. This is an intentionally aggressive mode.
-function greenOutboundRoadFull(v,pos){
+// 4.4.6 hotfix: check the exact lane this car will enter, not spare
+// capacity in other lanes. The road is considered blocked only when that
+// destination lane cannot physically fit this car. Ignore priority queues
+// and intersection claims as before.
+function greenOutboundLaneBlocked(v,pos){
  const out=v.path[pos+1];
  if(out==null||!state.roads.has(out))return true;
- const heading=motionDirection(v.path,pos),capacity=laneCapacity(out,heading);
- let actualCars=0;
- for(let lane=0;lane<capacity;lane++){
-  const owner=state.occ.get(occKey(out,heading,lane));
-  const car=owner!=null?state.vehicles.get(owner):null;
-  if(car&&car.id!==v.id&&['driving','stuck','parking_in','parking_out'].includes(car.phase))actualCars++;
+ const heading=motionDirection(v.path,pos),lane=plannedLane(v,pos+1);
+ if(lane<0||lane>=laneCapacity(out,heading))return true;
+ const owner=state.occ.get(occKey(out,heading,lane));
+ const occupant=owner!=null?state.vehicles.get(owner):null;
+ if(occupant&&occupant.id!==v.id&&['driving','stuck','parking_in','parking_out'].includes(occupant.phase))return true;
+ // A tile records only one occupying ID, and a car can straddle two tiles
+ // during a lane change. Examine the *actual exit geometry* as well.
+ if(!trafficSpatial)return false;
+ const plan=motionPlan(v),guard=plan.junctions.find(g=>g.pos===pos);
+ if(!guard)return false;
+ const checkEnd=Math.min(plan.total,guard.clear+1.05);
+ for(const sample of [.12,.42,.76]){
+  const along=Math.min(checkEnd,guard.clear+sample);
+  const pose=positionOnMotion(plan,along);
+  const ix=Math.floor(pose.x/2),iy=Math.floor(pose.y/2);
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)
+   for(const other of trafficSpatial.cells.get((ix+dx)+':'+(iy+dy))?.values()||[]){
+    if(other.id===v.id||!other.pose||Math.hypot(other.pose.x-pose.x,other.pose.y-pose.y)>.85)continue;
+    const car=state.vehicles.get(other.id);
+    if(!car||!['driving','stuck','parking_in','parking_out'].includes(car.phase))continue;
+    // Do not turn an unrelated crossing car into a new green veto.
+    const sameDirection=car.path?.length>1&&motionDirection(car.path,Math.max(0,car.pos))===heading;
+    if(sameDirection&&capsulesOverlap(pose,other.pose))return true;
+   }
  }
- return actualCars>=capacity;
+ return false;
 }
 function intersectionAllowed(v,pos,ignoreSignal=false){
  const i=v.path[pos];
- if(junction(i)<3||ownsJunctionPass(v,pos))return true;
- const entering=motionDirection(v.path,pos-1);
- if(!ignoreSignal&&!signalAllows(i,entering))return false;
- // No queue, lease, conflicting connector or priority check is allowed here.
- // Cars already inside a junction retain the right to clear it.
- return ignoreSignal||!greenOutboundRoadFull(v,pos);
+ if(junction(i)<3)return true;
+ const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);
+ if(!ignoreSignal&&!ownsJunctionPass(v,pos)&&!signalAllows(i,entering,lane))return false;
+ // An existing pass cannot waive the target-lane capacity check.
+ return !greenOutboundLaneBlocked(v,pos);
 }
 function ownsJunctionPass(v,pos){return v.junctionPasses?.some(p=>p.pos===pos&&p.node===v.path[pos]);}
 function reserveIntersection(v,pos){
@@ -4966,17 +4983,17 @@ function convergingLanePair(v,other,plan,s,otherPose){
  const axis=DIR[d],origin=positionOnMotion(plan,s),op=motionPlan(other),os=motionDistance(other,op);
  // Crossing traffic and actual turns keep their existing intersection rules.
  if([ [plan,s],[op,os] ].some(([p,at])=>p.turns.some(t=>t.endDistance>at-.2&&t.startDistance<at+3.5)))return null;
- const shifting=(p,at)=>(p.laneShifts??=p.pieces.filter(t=>!t.turn&&!t.line)).find(t=>t.endDistance>at-.5&&t.startDistance<at+3.5&&Math.abs((t.p3.x-t.p0.x)*axis[1]-(t.p3.y-t.p0.y)*axis[0])>.08);
+ const shifting=(p,at)=>(p.laneShifts??=p.pieces.filter(t=>!t.turn&&!t.line)).find(t=>t.endDistance>at-.35&&t.startDistance<at+2.5&&Math.abs((t.p3.x-t.p0.x)*axis[1]-(t.p3.y-t.p0.y)*axis[0])>.08);
  const shift=shifting(plan,s),otherShift=shifting(op,os);if(!shift&&!otherShift)return null;
  if(Math.abs((otherPose.x-origin.x)*axis[1]-(otherPose.y-origin.y)*axis[0])<.08)return null;
  let shared=false;
- for(let k=v.pos+1;k<plan.path.length&&plan.nodes[k]-s<=4.5;k++){
-  for(let j=other.pos+1;j<op.path.length&&op.nodes[j]-os<=4.5;j++)if(plan.path[k]===op.path[j]&&plan.lanes[k]===op.lanes[j]){shared=true;break;}
+ for(let k=v.pos+1;k<plan.path.length&&plan.nodes[k]-s<=3.2;k++){
+  for(let j=other.pos+1;j<op.path.length&&op.nodes[j]-os<=3.2;j++)if(plan.path[k]===op.path[j]&&plan.lanes[k]===op.lanes[j]){shared=true;break;}
   if(shared)break;
  }
  if(!shared)return null;
  const ahead=(otherPose.x-origin.x)*axis[0]+(otherPose.y-origin.y)*axis[1];
- return {wins:ahead< -1e-6||Math.abs(ahead)<=1e-6&&v.id<other.id,stop:Math.max(s,(shift?.startDistance??s)-.7)};
+ return {wins:ahead< -1e-6||Math.abs(ahead)<=1e-6&&v.id<other.id,stop:Math.max(s,(shift?.startDistance??s)-.4)};
 }
 function overlapEscapePriority(v,other,plan,s,otherPose,merge=null){
  if(v.phase!=='driving'||other.phase!=='driving')return false;
@@ -5036,11 +5053,10 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
 }
 function motionBarrier(v,plan,s,budget=-1){
  const scan=Math.min(3,Math.max(.8,(v.speed||0)*(v.speed||0)/9.6+.3,budget>=0?budget+.1:0));
- // 4.4.6: inside a green release corridor, the only admission stop
- // is a physically full outgoing road. No queue/lease/physical conflict
- // veto at the signal itself. Normal following checks resume after clearing.
+ // Green retains its fast departure, but the car's actual target lane
+ // must be free. Full following checks resume after the junction exit.
  const greenRelease=plan.junctions.some(g=>s<g.clear&&g.stop<=s+scan+.1&&
-  signalAllows(g.node,motionDirection(v.path,g.pos-1)));
+  signalAllows(g.node,motionDirection(v.path,g.pos-1),plannedLane(v,g.pos-1)));
  const physical=greenRelease?Infinity:physicalTrafficLimit(v,plan,s,scan);
  let limit=physical,reason=Number.isFinite(physical)?'เว้นระยะรถ':'';
  const nextPos=v.pos+1;
@@ -5049,7 +5065,7 @@ function motionBarrier(v,plan,s,budget=-1){
  }
  const lookahead=Math.max(4,(v.speed||0)*(v.speed||0)/9.6+1,budget>=0?budget+.5:0);
  for(const g of plan.junctions){
-  if(s>=g.clear||g.stop>s+lookahead||ownsJunctionPass(v,g.pos))continue;
+  if(s>=g.clear||g.stop>s+lookahead)continue;
   // Cars from an older save can already be beyond the entry line. They may
   // clear a free junction, but are never rewound when the signal changes.
   const inside=s>g.entry+1e-6;
