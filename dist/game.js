@@ -4783,10 +4783,18 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
  // across simulation steps. Reuse this read-only result within this attempt.
  // A queued follower cannot pass the head of its lane. Avoid the expensive
  // downstream exit scan until its turn without weakening collision checks.
- if(!ignoreSignal&&queuedBehindLeader(v,pos,connector))return false;
+ // v4.4.5: a car that has already waited through red gets a green-light
+ // departure attempt without being trapped behind stale queue arbitration.
+ // Actual intersection leases, live exit clearance and physical spacing
+ // remain mandatory, so an occupied intersection cannot be crossed.
+ const plan=motionPlan(v),guard=plan.junctions.find(g=>g.pos===pos);
+ const distanceAt=guard?motionDistance(v,plan):-Infinity;
+ const urgentGreen=!ignoreSignal&&v.phase==='driving'&&(v.wait||0)>=.8&&
+   signalAllows(i,entering,lane)&&guard&&distanceAt>=guard.stop-.35&&distanceAt<guard.entry+1e-6;
+ if(!ignoreSignal&&!urgentGreen&&queuedBehindLeader(v,pos,connector))return false;
  const exitAvailable=junctionExitAvailable(v,pos);
  if(!exitAvailable)return false;
- if(!ignoreSignal&&!queueAllows(v,pos,connector,true))return false;
+ if(!ignoreSignal&&!urgentGreen&&!queueAllows(v,pos,connector,true))return false;
  return true;
 }
 function ownsJunctionPass(v,pos){return v.junctionPasses?.some(p=>p.pos===pos&&p.node===v.path[pos]);}
