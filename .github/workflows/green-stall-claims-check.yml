@@ -1,0 +1,21 @@
+name: Green stall stale-claim regression
+on:
+  push:
+    branches:
+      - fix/green-stale-claims-2026-10-30
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node -r ./work/test-dom-compat.cjs work/test-green-stale-claims.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-green-light-release.cjs
+      - run: node work/test-motion.cjs
+      - run: node work/test-mixed-junctions.cjs
+      - run: node work/test-traffic-integrity.cjs
+      - run: npm run build
