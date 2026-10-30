@@ -14,8 +14,10 @@ console.log('PASS: local stopping history and nearby trace, save unchanged');
 `)(require);
 new Function('require',fixture+`
 const {car}=roadScene(false,false),st=game.state,node=car.path[car.pos+1];
-for(const n of [game.id(116,154),game.id(116,156)]){
- st.roads.set(n,{type:'medium',main:false,links:new Set([node]),load:0,wait:0});st.roads.get(node).links.add(n);
+for(const sign of [-1,1])for(let distance=1;distance<=5;distance++){
+ const n=game.id(116,155+sign*distance),prev=distance===1?node:game.id(116,155+sign*(distance-1));
+ st.roads.set(n,{type:'medium',main:false,links:new Set([prev]),load:0,wait:0});
+ st.roads.get(prev).links.add(n);
 }
 st.junctionCache.clear();st.junctionLayoutCache?.clear();st.version++;
 const desired=game.plannedLane(car,car.pos+1),occupied=[0,1,2].filter(l=>l!==desired).slice(0,2);st.occ.set(node+':0:'+occupied[0],991);st.occ.set(node+':0:'+occupied[1],992);
