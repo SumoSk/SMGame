@@ -1690,7 +1690,7 @@ function motionPlan(v){
   const d=motionDirection(path,first),types=new Set();for(let k=first;k<=Math.min(n-1,last+1);k++)types.add(state.roads.get(path[k])?.type);
   const forward=dot({x:end.x-start.x,y:end.y-start.y},d),lateral=Math.abs((end.x-start.x)*DIR[d][1]-(end.y-start.y)*DIR[d][0]);
   if(types.size===1&&forward>1e-8){
-   const window=Math.min(forward,Math.max(3,lateral*3));let a=start,u=startU;
+   const window=Math.min(forward,1);let a=start,u=startU;
    if(lateral>1e-8&&forward>window){
     // Perform the lateral manoeuvre in the FIRST part of the link, not the
     // last three cells immediately before the junction stop line.
