@@ -4931,12 +4931,14 @@ function junctionExitAvailable(v,pos){
   if(k>pos&&signalRequired(v.path[k]))break;
   if(!roadTraversalAvailable(v,k)){if(bugCaptureEnabled){const node=v.path[k],d=motionDirection(v.path,k),lane=plannedLane(v,k);v.lastJunctionExitCheck={gameTime:state.time,code:'road_space_unavailable',node,direction:d,lane,space:ownedRoadSpace(node,d,lane,v.id),admission:explainRoadTraversal(v,k)};}return false;}
  }
- // A free *logical* lane is not enough if a car is physically sitting at the
- // downstream side of the junction (for example during a lane change).
+ // A free logical lane is not enough: protect the vehicle's rear until
+ // it clears the junction, but DO NOT require a long empty downstream road.
+ // Normal physicalTrafficLimit takes over after admission and safely meters
+ // the following distance to cars farther down the outbound lane.
  if(trafficSpatial){
   const plan=motionPlan(v),junctionTurn=plan.junctions.find(g=>g.pos===pos);
   if(junctionTurn){
-   for(const beyond of [.18,.6,1.05,1.4]){
+   for(const beyond of [.12,.35]){
     const pose=positionOnMotion(plan,Math.min(plan.total,junctionTurn.clear+beyond));
     const ix=Math.floor(pose.x/2),iy=Math.floor(pose.y/2);
     for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)
