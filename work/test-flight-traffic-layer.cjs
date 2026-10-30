@@ -30,6 +30,15 @@ function pair(leaderTech,flightFollower){
  assert(g.motionDistance(follower)>g.motionDistance(leader)+.5,'air car should fly past ground blocker');
  assert(g.motionDistance(follower)>start+3,'air traffic must actually move');
 }
+// Normal cars must also pass through an airborne car without seeing a ground obstacle.
+{
+ const {st,leader,follower}=pair('fly',false);
+ const start=g.motionDistance(follower);
+ for(let k=0;k<350;k++){st.time+=.032;g.advanceVehicles(.016,.032);}
+ assert.equal(leader.phase,'stuck');
+ assert(g.motionDistance(follower)>g.motionDistance(leader)+.5,'ground traffic must ignore airborne blockers');
+ assert(g.motionDistance(follower)>start+3);
+}
 // Airborne cars still stop for other airborne vehicles in the same lane.
 {
  const {st,leader,follower}=pair('fly',true);
