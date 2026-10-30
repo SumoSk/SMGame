@@ -14,9 +14,9 @@ jobs:
         with:
           node-version: '22'
       - run: node --check dist/game.js
-      - run: node work/test-parking-junction-claims.cjs
-      - run: node work/test-parking-merge.cjs
-      - run: node work/test-parking-emergency.cjs
-      - run: node work/test-green-light-release.cjs
-      - run: node work/test-traffic-fixes.cjs
-      - run: node work/test-lane-change-safety.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-parking-junction-claims.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-parking-merge.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-parking-emergency.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-green-light-release.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-lane-change-safety.cjs
