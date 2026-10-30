@@ -13,6 +13,7 @@
   for(const name of ['openSignIn','requestSaveLogin','listSaves','getSave','save','deleteSave','saveIncidentLog','listIncidentLogs','submitVehicleBugReport','listVehicleBugReports','changePassword','signOut','closePanel'])
     old[name]=api[name].bind(api);
   let account=null,token=null,pending=null,working=false,requestRevision=0;
+  let legacyBypassSubmit=false,legacyAttempt=null;
   const active=()=>!!(account&&token&&!legacyUser());
   function setAccount(user,session){
     account=user||null;token=session||null;
@@ -27,7 +28,11 @@
     try{
       const response=await fetch(endpoint,{method:'POST',headers,body:JSON.stringify({action,...fields}),signal:controller.signal});
       const body=await response.json();
-      if(!response.ok)throw Error(body.message||'ระบบบัญชีไม่พร้อม');
+      if(!response.ok){
+        const error=new Error(body.message||'ระบบบัญชีไม่พร้อม');
+        error.code=body.code||'';
+        throw error;
+      }
       return body;
     }finally{clearTimeout(timeout);}
   }
@@ -36,7 +41,7 @@
   }
   function labels(){
     const tabs=gate.querySelector('.member-tabs');
-    if(tabs)tabs.hidden=true;
+    if(tabs){tabs.hidden=true;tabs.style.display='none';}
     $('memberIntro').textContent=pending
       ? 'กรอกชื่อกับรหัสผ่านเพื่อบันทึกเมือง ชื่อใหม่จะสร้างบัญชีให้ทันที'
       : 'กรอกชื่อกับรหัสผ่านได้เลย ไม่ต้องสมัครหรือยืนยันอีเมล';
@@ -88,11 +93,44 @@
     try{await call('logout',{},prior);}catch{}
   };
   api.closePanel=()=>{pending=null;return old.closePanel();};
+  // Preserve the legacy auth path until existing players have supplied their own
+  // password once; the server verifies their current login before importing it.
+  const previousAuthChanged=window.SMGameOnAuthChanged;
+  window.SMGameOnAuthChanged=function(...args){
+    const result=typeof previousAuthChanged==='function'?previousAuthChanged.apply(this,args):undefined;
+    if(args[0]&&legacyUser()&&pending){
+      const draft=pending;
+      pending=null;
+      setTimeout(()=>{
+        void api.save(draft.name,draft.slotId,draft.serialized)
+          .then(()=>{window.SMGameOnCloudSaved?.();window.SMGameOpenSaveDialog?.();})
+          .catch(()=>{pending=draft;});
+      },0);
+    }
+    if(args[0]&&legacyUser()&&legacyAttempt&&legacyAttempt.until>Date.now()){
+      const attempt=legacyAttempt;
+      legacyAttempt=null;
+      setTimeout(()=>{
+        if(!legacyUser()||typeof window.SMGameCreatorRequest!=='function')return;
+        void Promise.resolve(window.SMGameCreatorRequest('adopt-legacy',{password:attempt.password})).catch(()=>{});
+      },0);
+    }
+    return result;
+  };
   form.addEventListener('submit',event=>{
     const username=$('memberEmail').value.trim().normalize('NFC');
-    if(username.includes('@')){
+    if(legacyBypassSubmit){
+      legacyBypassSubmit=false;
+      legacyAttempt={password:$('memberPassword').value,until:Date.now()+45000};
       if(account)setAccount(null,null);
-      return; // Legacy email accounts still use their original sign-in.
+      return; // Let the original verified Supabase sign-in run.
+    }
+    // The original developer account must retain its creator session.
+    if(username.toLowerCase()==='sumoskb@hotmail.com'){
+      event.preventDefault();event.stopImmediatePropagation();
+      legacyBypassSubmit=true;
+      form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+      return;
     }
     event.preventDefault();event.stopImmediatePropagation();
     if(working)return;
@@ -115,6 +153,12 @@
           if(typeof window.SMGameOpenSaveDialog==='function')void window.SMGameOpenSaveDialog();
         }else old.closePanel();
       }catch(error){
+        if(['LEGACY_PASSWORD_SETUP','LEGACY_FALLBACK','LEGACY_LOGIN_FAILED'].includes(error.code)){
+          legacyBypassSubmit=true;
+          working=false;$('memberSubmit').disabled=false;
+          form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+          return;
+        }
         if(revision===requestRevision)notice('เข้าสู่ระบบไม่ได้: '+(error.message||'กรุณาลองใหม่'),true);
       }finally{working=false;$('memberSubmit').disabled=false;}
     })();
@@ -130,7 +174,7 @@
       finally{working=false;}
     })();
   },true);
-  gate.addEventListener('close',()=>{if(!working)pending=null;});
+  gate.addEventListener('close',()=>{if(!working)pending=null;legacyAttempt=null;});
   labels();
   try{
     const saved=localStorage.getItem(storageKey);
