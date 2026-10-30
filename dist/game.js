@@ -1605,13 +1605,13 @@ function chooseTurnLane(v,c){
  const count=Math.min(2,laneCapacity(v.path[c.pos-1],c.incoming),laneCapacity(v.path[c.pos+1],c.outgoing));
  const scores=Array(count).fill(0),node=v.path[c.pos];
  for(const other of state.vehicles.values()){
-  if(other.id===v.id||!other.path?.length)continue;
+  if(other.id===v.id||!other.path?.length||((other.vehicleTech==='fly')!==(v.vehicleTech==='fly')))continue;
   const p=motionPlans.get(other);if(!p)continue;
   const turn=p.turns.find(t=>other.pos<=t.pos&&other.path[t.pos]===node&&t.incoming===c.incoming&&t.turn===c.turn);
   if(!turn||turn.pos-other.pos>24)continue;
   for(let r=0;r<count;r++)if(p.lanes[Math.max(0,turn.pos-1)]===turnLanePair(v,c,r).incoming)scores[r]+=1+(other.speed<.1?.5:0);
  }
- for(let r=0;r<count;r++){const pair=turnLanePair(v,c,r);for(let k=c.pos+1;k<=Math.min(v.path.length-1,c.pos+4);k++){const key=occKey(v.path[k],c.outgoing,Math.min(pair.outgoing,laneCapacity(v.path[k],c.outgoing)-1));if(state.occ.has(key)||state.reservations.has(key))scores[r]+=2;}}
+ for(let r=0;r<count;r++){const pair=turnLanePair(v,c,r);for(let k=c.pos+1;k<=Math.min(v.path.length-1,c.pos+4);k++){const key=(v.vehicleTech==='fly'?'air:':'')+occKey(v.path[k],c.outgoing,Math.min(pair.outgoing,laneCapacity(v.path[k],c.outgoing)-1));if(state.occ.has(key)||state.reservations.has(key))scores[r]+=2;}}
  const seed=Math.abs(v.laneSeed??v.id??0)%count;let best=seed;for(let r=0;r<count;r++)if(scores[r]<scores[best])best=r;return best;
 }
 function motionPlan(v){
@@ -4320,11 +4320,34 @@ function runAction(c,action,extra={}){
 function attemptLife(c,kind,toId,deadline,extra={}){if(c.locationId===toId)return true;const target=state.buildings.get(toId);if(target&&parkingFree(target)<=0){journeyResult(c,{id:'blocked:'+kind+':'+Math.floor(state.time/1440),kind},'unavailable','ลานจอดปลายทางเต็ม',false);pending(c,kind==='leisure'?'leisure':kind,{kind:extra.serviceKind,end:extra.activityEnd},'ลานจอดปลายทางเต็ม');return false;}const from=c.locationId||c.homeId;if(createTrip(c,kind,from,toId,null,null,deadline,extra))return true;journeyResult(c,{id:'blocked:'+kind+':'+Math.floor(state.time/1440),kind},'unavailable','ไม่มีเส้นทางถึงจุดหมาย',false);pending(c,kind==='leisure'?'leisure':kind,{kind:extra.serviceKind,end:extra.activityEnd},c.problem);return false;}
 function plannedLane(v,pos){return motionPlan(v).lanes[pos]??0;}
 function occKey(i,d,l){return `${i}:${d}:${l}`;}
-function cellAvailable(i,d,l,vid){const r=state.roads.get(i);if(!r)return false;const key=occKey(i,d,l),o=state.occ.get(key),res=state.reservations.get(key);if(parkingClaimed(key,vid)||o&&o!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},o)||res&&res.id!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},res.id))return false;const cap=laneCapacity(i,d);let same=0,total=0;for(let dd=0;dd<4;dd++)for(let ll=0;ll<4;ll++){const o=state.occ.get(occKey(i,dd,ll));if(o&&o!==vid&&!parkingEscapePair(state.vehicles.get(vid)||{},o)){total++;if(dd===d)same++;}}return l>=0&&l<cap&&same<cap&&(junction(i)>=3||total<cap*2);}
+// Flight traffic gets its own physical, logical and junction space. Driveways
+// remain on the ground until parking_out commits; flight begins in driving.
+function isAirTraffic(v){return v?.vehicleTech==='fly'&&(v.phase==='driving'||v.phase==='stuck');}
+function sameTrafficLayer(a,b){return isAirTraffic(a)===isAirTraffic(b);}
+function trafficCellKey(v,i,d,l){const key=occKey(i,d,l);return isAirTraffic(v)?'air:'+key:key;}
+function trafficJunctionKey(v,node){return(isAirTraffic(v)?'air:':'')+'junction:'+node;}
+function trafficQueueKey(v,node){return isAirTraffic(v)?'air:'+node:node;}
+function trafficSpatialPrefix(v){return isAirTraffic(v)?'air:':'';}
+function cellAvailable(i,d,l,vid){
+ const r=state.roads.get(i);if(!r)return false;
+ const v=state.vehicles.get(vid),air=isAirTraffic(v),key=trafficCellKey(v,i,d,l),o=state.occ.get(key),res=state.reservations.get(key);
+ const conflicts=id=>id!=null&&id!==vid&&(!air&&!parkingEscapePair(v||{},id)||air);
+ if(!air&&parkingClaimed(key,vid)||conflicts(o)||res&&conflicts(res.id))return false;
+ const cap=laneCapacity(i,d);let same=0,total=0;
+ for(let dd=0;dd<4;dd++)for(let ll=0;ll<4;ll++){
+  const owner=state.occ.get((air?'air:':'')+occKey(i,dd,ll));
+  if(conflicts(owner)){total++;if(dd===d)same++;}
+ }
+ return l>=0&&l<cap&&same<cap&&(junction(i)>=3||total<cap*2);
+}
 // Road traffic may pass a road tile held by another vehicle; a physical same-lane leader still governs spacing.
 // Keep signalised intersections on the original exclusive admission rules.
 function roadTraversalAvailable(v,pos){const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);return state.roads.has(i)&&lane>=0&&lane<laneCapacity(i,d)&&(junction(i)<3||ownsJunctionPass(v,pos)||cellAvailable(i,d,lane,v.id));}
-function occupy(v,pos){const i=v.path[pos],d=dir(i,v.path[Math.min(pos+1,v.path.length-1)]),l=plannedLane(v,pos);v.lane=l;v.occKey=occKey(i,d,l);state.occ.set(v.occKey,v.id);}
+function occupy(v,pos){
+ const i=v.path[pos],d=dir(i,v.path[Math.min(pos+1,v.path.length-1)]),l=plannedLane(v,pos),key=trafficCellKey(v,i,d,l);
+ if(v.occKey&&v.occKey!==key&&state.occ.get(v.occKey)===v.id)state.occ.delete(v.occKey);
+ v.lane=l;v.occKey=key;state.occ.set(key,v.id);
+}
 function release(v,keepIntersection=false){if(v.occKey&&state.occ.get(v.occKey)===v.id)state.occ.delete(v.occKey);v.occKey=null;if(!keepIntersection){clearVehicleReservations(v);v.junctionPasses=[];v.committedJunction=null;}}
 // Sky travel bypasses the road graph entirely. It still uses the original
 // trip/reservation and arrival bookkeeping so lifestyle outcomes remain intact.
@@ -4644,19 +4667,19 @@ function mutualPhysicalDeadlock(v){
 // Diagnostics are read-only: mirror every admission test without changing the traffic rules.
 function explainRoadTraversal(v,pos){
  const node=v.path?.[pos],d=node!=null?motionDirection(v.path,pos):0,lane=node!=null?plannedLane(v,pos):-1;
- const road=state.roads.get(node),capacity=road?laneCapacity(node,d):0,key=occKey(node,d,lane);
+ const road=state.roads.get(node),capacity=road?laneCapacity(node,d):0,key=trafficCellKey(v,node,d,lane);
  const o=state.occ.get(key),res=state.reservations.get(key);
  const escape=(other)=>other!=null&&parkingEscapePair(v,other);
  const blockers=[],directional=[],occupants=[];
  let same=0,total=0;
  for(let dd=0;dd<4;dd++)for(let ll=0;ll<4;ll++){
-  const other=state.occ.get(occKey(node,dd,ll));
+  const other=state.occ.get(trafficCellKey(v,node,dd,ll));
   if(other==null||other===v.id)continue;
   const exempt=escape(other);
   occupants.push({vehicleId:other,direction:dd,lane:ll,exists:state.vehicles.has(other),exempt});
   if(!exempt){total++;if(dd===d){same++;directional.push(other);}}
  }
- const parkingBlocker=parkingMerges.find(g=>g.v.id!==v.id&&g.v.mergeCommitted&&g.keys.includes(key)&&!parkingEscapePair(v,g.v.id));
+ const parkingBlocker=!isAirTraffic(v)&&parkingMerges.find(g=>g.v.id!==v.id&&g.v.mergeCommitted&&g.keys.includes(key)&&!parkingEscapePair(v,g.v.id));
  if(!road)blockers.push({code:'road_missing',node});
  if(!Number.isInteger(lane)||lane<0||lane>=capacity)blockers.push({code:'invalid_lane',lane,capacity});
  if(parkingBlocker)blockers.push({code:'parking_merge_claim',vehicleId:parkingBlocker.v.id});
@@ -4713,7 +4736,7 @@ function noteVehicleJunctionDenial(v,node,code,details={}){
  return false;
 }
 function ownedRoadSpace(node,d,l,exclude){
- const key=occKey(node,d,l),owner=state.occ.get(key),reservation=state.reservations.get(key);
+ const key=trafficCellKey(state.vehicles.get(exclude),node,d,l),owner=state.occ.get(key),reservation=state.reservations.get(key);
  return {key,occupant:owner??null,reservationId:reservation?.id??null,
   occupantExists:owner!=null?state.vehicles.has(owner):null,
   reservationOwnerExists:reservation?.id!=null?state.vehicles.has(reservation.id):null};
@@ -4730,7 +4753,7 @@ function captureTowedVehicleEvidence(v){
  for(const other of state.vehicles.values()){
   if(other.id===v.id)continue;
   const p=vehiclePosition(other);if(!p||!pose||Math.hypot(p.x-pose.x,p.y-pose.y)>6)continue;
-  nearby.push({id:other.id,phase:other.phase,node:other.path?.[other.pos]??null,pos:other.pos,
+  nearby.push({id:other.id,phase:other.phase,trafficLayer:isAirTraffic(other)?'air':'ground',node:other.path?.[other.pos]??null,pos:other.pos,
    lane:other.lane??null,plannedLane:other.path?.length?plannedLane(other,other.pos):null,
    speed:other.speed??0,wait:other.wait??0,stopReason:other.stopReason||'',pose:p,
    recentRoute:other.path?.slice(Math.max(0,other.pos-2),other.pos+8)||[],
@@ -4782,7 +4805,7 @@ function captureTowedVehicleEvidence(v){
  return {schemaVersion:1,kind:'manual_tow_only',capturedAt:new Date().toISOString(),
   build:document.documentElement?.dataset?.uiVersion||'unknown',city:state.city,gameTime:state.time,
   paused:state.speed===0,gameSpeed:state.speed,roadVersion:state.version,
-  vehicle:{id:v.id,phase:v.phase,node:road,pos:v.pos,progress:v.progress,speed:v.speed,wait:v.wait,
+  vehicle:{id:v.id,phase:v.phase,trafficLayer:isAirTraffic(v)?'air':'ground',node:road,pos:v.pos,progress:v.progress,speed:v.speed,wait:v.wait,
    stopReason:v.stopReason||'',lane:v.lane,plannedLane:plan.lanes[current],
    pathAhead,routeLength:v.path.length,pose,tech:v.vehicleTech||null,fromId:v.fromId??null,toId:v.toId??null,
    junctionPasses:(v.junctionPasses||[]).map(p=>({...p})),motionDistance:s,
