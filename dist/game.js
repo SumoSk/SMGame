@@ -4682,6 +4682,8 @@ function setBugCaptureEnabled(enabled){
  if(state?.vehicles)for(const v of state.vehicles.values()){
   delete v.lastStoppedBarrier;delete v.lastRoadTraversalBlock;
   delete v.lastJunctionDenial;delete v.lastQueueDenial;delete v.lastJunctionExitCheck;
+  // Keep the owner ID for live deadlock recovery, but discard detailed evidence on OFF.
+  if(!enabled&&v.lastPhysicalBlock){delete v.lastPhysicalBlock.ownerPose;delete v.lastPhysicalBlock.distance;}
   // lastPhysicalBlock is a live traffic-safety signal for paired-deadlock recovery.
  }
  try{localStorage.setItem(BUG_CAPTURE_STORAGE_KEY,enabled?'on':'off');}catch(_){}
