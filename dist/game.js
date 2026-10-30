@@ -2966,7 +2966,7 @@ function travelLogPulse(){
 window.addEventListener('pagehide',()=>{if(travelRecording)travelLogStop('ปิดหรือออกจากหน้าเกม');});
 
 function dockItems(currentCategory){
- if(currentCategory==='reports')return[{key:'sendAi',name:'ส่ง AI',icon:'↗',price:'ส่งแมปและสถานะรถเพื่อวิเคราะห์บัค'},...(travelLogAdmin()?[{key:'travelLog',name:'Log การเดินทาง',icon:'◉',price:travelRecording?'กำลังบันทึก':'เฉพาะแอดมิน · เก็บในเครื่อง'}]:[]),{key:'cityReport',name:'รายงานเมือง',icon:'▤',price:'ตรวจการจราจรและเส้นทาง'}];
+ if(currentCategory==='reports')return[{key:'cityReport',name:'รายงานรถบัค',icon:'▤',price:'ผู้เล่นกดเอารถออกเพื่อส่งหลักฐาน · Dev ดูจาก Supabase'}];
  let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[{key:'landscapeSelect',name:'จับ/ย้ายของตกแต่ง',icon:'✋',price:'แตะเลือก · ย้าย · ลบ'},...LANDSCAPE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อวางทีละชิ้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home'];items=Object.values(CATALOG).filter(t=>kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
@@ -4622,6 +4622,73 @@ function respawnVehicle(v,reason='stalled'){
  if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+(reason==='demolition'?' ถนนถูกรื้อ · กลับเข้าประตูเมืองใหม่':' รถติดครบ 150 นาที · กลับเข้าประตูเมืองใหม่'));c.history=c.history.slice(-12);}
  updateTrafficSpatial(v);return true;
 }
+function noteVehicleJunctionDenial(v,node,code,details={}){
+ v.lastJunctionDenial={gameTime:state.time,node,code,...details};
+ return false;
+}
+function ownedRoadSpace(node,d,l,exclude){
+ const key=occKey(node,d,l),owner=state.occ.get(key),reservation=state.reservations.get(key);
+ return {key,occupant:owner??null,reservationId:reservation?.id??null,
+  occupantExists:owner!=null?state.vehicles.has(owner):null,
+  reservationOwnerExists:reservation?.id!=null?state.vehicles.has(reservation.id):null};
+}
+// Only called for a player-requested tow. No city-wide logging, no automatic uploads.
+function captureTowedVehicleEvidence(v){
+ const plan=motionPlan(v),s=motionDistance(v,plan),pose=vehiclePosition(v),current=Number.isFinite(v.pos)?v.pos:0;
+ const nextJunction=plan.junctions.find(g=>g.clear>=s);
+ const direction=nextJunction?motionDirection(v.path,nextJunction.pos-1):motionDirection(v.path,current);
+ const inLane=nextJunction?plan.lanes[nextJunction.pos-1]:plan.lanes[current];
+ const road=v.path?.[current],nearby=[],roads=[];
+ for(const other of state.vehicles.values()){
+  if(other.id===v.id)continue;
+  const p=vehiclePosition(other);if(!p||!pose||Math.hypot(p.x-pose.x,p.y-pose.y)>6)continue;
+  nearby.push({id:other.id,phase:other.phase,node:other.path?.[other.pos]??null,pos:other.pos,
+   lane:other.lane??null,plannedLane:other.path?.length?plannedLane(other,other.pos):null,
+   speed:other.speed??0,wait:other.wait??0,stopReason:other.stopReason||'',pose:p,
+   recentRoute:other.path?.slice(Math.max(0,other.pos-2),other.pos+8)||[]});
+  if(nearby.length>=32)break;
+ }
+ if(pose)for(let dx=-6;dx<=6;dx++)for(let dy=-6;dy<=6;dy++){
+  const x=Math.floor(pose.x)+dx,y=Math.floor(pose.y)+dy;if(x<0||y<0||x>=W||y>=H)continue;
+  const key=id(x,y),r=state.roads.get(key);if(r)roads.push({node:key,type:r.type,links:[...r.links]});
+ }
+ const pathAhead=v.path?.slice(current,current+12)||[],owned=[];
+ for(let k=current;k<Math.min(v.path.length,current+10);k++){
+  const node=v.path[k],d=motionDirection(v.path,k),lane=plan.lanes[k];
+  const space=ownedRoadSpace(node,d,lane,v.id);
+  owned.push({node,direction:d,lane,...space});
+ }
+ const junctionSpace=nextJunction?state.reservations.get('junction:'+nextJunction.node):null;
+ const queues=nextJunction?(state.junctionQueues?.get(nextJunction.node)||[]).slice(0,30).map(q=>({
+  id:q.id,pos:q.pos,at:q.at,distance:q.distance,incoming:q.connector?.incoming,
+  lane:q.connector?.laneIn,turn:q.connector?.turn
+ })):[];
+ const recent=v.lastJunctionDenial||null;
+ const fresh=!!recent&&state.time-recent.gameTime>=0&&state.time-recent.gameTime<=2;
+ const actualBarrier=v.lastStoppedBarrier||null;
+ const diagnosis=fresh&&nextJunction?.node===recent.node?{
+  certainty:'observed_rejection',code:recent.code,gameTime:recent.gameTime,
+  proof:recent,explanation:'บันทึกจากเงื่อนไขที่ปฏิเสธรถจริงในรอบคำนวณล่าสุด'
+ }:{
+  certainty:'not_proven',code:'insufficient_direct_trace',
+  explanation:'ไม่พบหลักฐานการปฏิเสธล่าสุดที่สัมพันธ์กับทางแยกนี้ ไม่สรุปสาเหตุจากภาพหรือข้อความหยุด'
+ };
+ return {schemaVersion:1,kind:'manual_tow_only',capturedAt:new Date().toISOString(),
+  build:document.documentElement?.dataset?.uiVersion||'unknown',city:state.city,gameTime:state.time,
+  paused:state.speed===0,gameSpeed:state.speed,roadVersion:state.version,
+  vehicle:{id:v.id,phase:v.phase,node:road,pos:v.pos,progress:v.progress,speed:v.speed,wait:v.wait,
+   stopReason:v.stopReason||'',lane:v.lane,plannedLane:plan.lanes[current],
+   pathAhead,routeLength:v.path.length,pose,tech:v.vehicleTech||null,fromId:v.fromId??null,toId:v.toId??null,
+   junctionPasses:(v.junctionPasses||[]).map(p=>({...p})),motionDistance:s,
+   nextJunction:nextJunction?{node:nextJunction.node,pos:nextJunction.pos,entry:nextJunction.entry,stop:nextJunction.stop,clear:nextJunction.clear,
+    direction,lane:inLane,signal:signalColor(nextJunction.node,direction,inLane)}:null},
+  diagnosis,lastStoppedBarrier:actualBarrier,
+  lastJunctionDenial:recent,latestPhysicalBlock:v.lastPhysicalBlock||null,
+  junctionLease:junctionSpace?JSON.parse(JSON.stringify(junctionSpace)):null,
+  roadSpace:owned,queueAtClick:queues,
+  nearbyVehicles:nearby,nearbyRoads:roads, runtimeErrors:runtimeErrors.slice(-5),
+  evidenceNotes:['เหตุผลจากเงื่อนไขจริงมีเฉพาะเมื่อ certainty เป็น observed_rejection','queueAtClick เป็นข้อมูล ณ เวลากดปุ่ม ไม่ใช่หลักฐานว่าคิวในเฟรมก่อนหน้าเหมือนกัน','ไม่มีการส่งรายงานโดยอัตโนมัติ']};
+}
 function canTowVehicle(v){return !!v&&(v.phase==='stuck'||v.departureNoRoute||v.wait>=48);}
 function towVehicle(id,incidentForce=false){
  const v=state.vehicles.get(id);if(!v||(!incidentForce&&!canTowVehicle(v)))return false;
@@ -4651,7 +4718,7 @@ function towVehicle(id,incidentForce=false){
  }}
  if(follow===id)follow=null;return true;
 }
-function vehicleRecoveryActions(v){if(!v)return '';const incident=incidentForVehicle.get(v.id);return (incident?row('⚠️ เหตุจราจร','ต้นเหตุ '+incident.vehicles.length+' คัน · หยุด '+Math.round(incident.stalled)+' นาที')+action('🚨 ดูเหตุการณ์','incident-resolve',v.id):'')+row('เหตุผลที่หยุด',escapeSaveText(v.stopReason||(['departing','gate_waiting'].includes(v.phase)?'รอออกเดินทาง':'กำลังเดินทาง')))+(v.phase==='stuck'||v.departureNoRoute?action('ลองหาเส้นทางใหม่','reroute',v.id):'')+(canTowVehicle(v)?action('ลากรถออก / ยกเลิกเที่ยว','tow',v.id):'');}
+function vehicleRecoveryActions(v){if(!v)return '';const incident=incidentForVehicle.get(v.id);return (incident?row('⚠️ เหตุจราจร','ต้นเหตุ '+incident.vehicles.length+' คัน · หยุด '+Math.round(incident.stalled)+' นาที')+action('🚨 ดูเหตุการณ์','incident-resolve',v.id):'')+row('เหตุผลที่หยุด',escapeSaveText(v.stopReason||(['departing','gate_waiting'].includes(v.phase)?'รอออกเดินทาง':'กำลังเดินทาง')))+(v.phase==='stuck'||v.departureNoRoute?action('ลองหาเส้นทางใหม่','reroute',v.id):'')+(canTowVehicle(v)?action('เอารถออก · ส่งรายงานบัค','tow',v.id):'');}
 function immigration(){if(computeStats().happy<TOURISM.residentHappiness)return;let n=0;for(const b of state.buildings.values()){const t=CATALOG[b.key];if(!t.residents||!b.access.length||b.failedRouteVersion===state.version)continue;const free=Math.max(0,t.residents-b.residents.size-b.reservedResidents-homeImmigrationLocks(b));for(let k=0;k<free&&n<16;k++){const c=newCitizen(b);const gates=[...state.gates].sort((a,z)=>distance(a,id(b.x,b.y))-distance(z,id(b.x,b.y)));let success=false;for(const gate of gates)if(createTrip(c,'moveIn',null,b.id,gate,null,state.time+1440)){success=true;n++;break;}if(!success){state.citizens.delete(c.id);b.failedRouteVersion=state.version;break;}}if(n>=16)break;}}
 function junctionConnector(v,pos){
  const plan=motionPlan(v),g=plan.junctions.find(g=>g.pos===pos);if(!g)return null;
@@ -4756,7 +4823,7 @@ function junctionExitAvailable(v,pos){
   // The next signalized junction controls its own red light and exit queue.
   // Do not make entry into this junction depend on a downstream green light.
   if(k>pos&&signalRequired(v.path[k]))break;
-  if(!roadTraversalAvailable(v,k))return false;
+  if(!roadTraversalAvailable(v,k)){const node=v.path[k],d=motionDirection(v.path,k),lane=plannedLane(v,k);v.lastJunctionExitCheck={gameTime:state.time,code:'road_space_unavailable',node,direction:d,lane,space:ownedRoadSpace(node,d,lane,v.id)};return false;}
  }
  // A free *logical* lane is not enough if a car is physically sitting at the
  // downstream side of the junction (for example during a lane change).
@@ -4768,11 +4835,11 @@ function junctionExitAvailable(v,pos){
     const ix=Math.floor(pose.x/2),iy=Math.floor(pose.y/2);
     for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)
      for(const other of trafficSpatial.cells.get((ix+dx)+':'+(iy+dy))?.values()||[])
-      if(other.id!==v.id&&Math.hypot(other.pose.x-pose.x,other.pose.y-pose.y)<.8&&capsulesOverlap(pose,other.pose))return false;
+      if(other.id!==v.id&&Math.hypot(other.pose.x-pose.x,other.pose.y-pose.y)<.8&&capsulesOverlap(pose,other.pose)){v.lastJunctionExitCheck={gameTime:state.time,code:'physical_exit_collision',ownerId:other.id,ownerPose:other.pose,ownerPhase:state.vehicles.get(other.id)?.phase??null};return false;}
    }
   }
  }
- return true;
+ v.lastJunctionExitCheck={gameTime:state.time,code:'exit_clear'};return true;
 }
 // Retry only stalled green admissions; never scan the city or discard a live owner's claim.
 const junctionClaimRetries=new WeakMap();
@@ -4790,9 +4857,9 @@ function recoverOrphanJunctionClaims(v,node){
 }
 function intersectionAllowed(v,pos,ignoreSignal=false){
  if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
- const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return false;
+ const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return noteVehicleJunctionDenial(v,i,'red_signal',{incoming:entering,lane,signal:signalColor(i,entering,lane)});
  const connector=junctionConnector(v,pos),lock=state.reservations.get('junction:'+i);
- for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos)))return false;}}
+ for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos)))return noteVehicleJunctionDenial(v,i,'conflicting_junction_lease',{ownerId:pass.id,ownerPhase:other.phase,ownerPos:pass.pos??other.pos,ownerStopReason:other.stopReason||''});}}
  // Exit clearance is dynamic: check on EVERY admission attempt, never cache
  // across simulation steps. Reuse this read-only result within this attempt.
  // A queued follower cannot pass the head of its lane. Avoid the expensive
@@ -4808,12 +4875,12 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
   const plan=motionPlan(v),guard=plan.junctions.find(g=>g.pos===pos);
   if(guard){const distanceAt=motionDistance(v,plan);urgentGreen=distanceAt>=guard.stop-.35&&distanceAt<guard.entry+1e-6;}
  }
- if(!ignoreSignal&&!urgentGreen&&queuedBehindLeader(v,pos,connector))return false;
+ if(!ignoreSignal&&!urgentGreen&&queuedBehindLeader(v,pos,connector)){const q=state.junctionQueues?.get(i),heads=q?queueIndex(q).fronts.get(connector.incoming+':'+connector.laneIn):null;return noteVehicleJunctionDenial(v,i,'queued_behind_head',{headVehicleId:heads?.first?.id??null,incoming:connector.incoming,lane:connector.laneIn});}
  let exitAvailable=junctionExitAvailable(v,pos);
  if(!exitAvailable&&urgentGreen&&recoverOrphanJunctionClaims(v,i))exitAvailable=junctionExitAvailable(v,pos);
- if(!exitAvailable)return false;
- if(!ignoreSignal&&!urgentGreen&&!queueAllows(v,pos,connector,true))return false;
- return true;
+ if(!exitAvailable)return noteVehicleJunctionDenial(v,i,'junction_exit_blocked',{exitCheck:v.lastJunctionExitCheck||null});
+ if(!ignoreSignal&&!urgentGreen&&!queueAllows(v,pos,connector,true))return noteVehicleJunctionDenial(v,i,'queue_arbitration_denied',{incoming:connector.incoming,lane:connector.laneIn,queueCount:state.junctionQueues?.get(i)?.length||0});
+ v.lastJunctionDenial=null;return true;
 }
 function ownsJunctionPass(v,pos){return v.junctionPasses?.some(p=>p.pos===pos&&p.node===v.path[pos]);}
 function reserveIntersection(v,pos){
@@ -5345,7 +5412,7 @@ function advanceVehicles(realDt,gameDt){
   refreshMotionReservations(v,plan,s);
   if(s-initial>1e-7)v.lastMovedAt=state.time;
   if(blocked&&s-initial<1e-7){
-   v.wait+=gameDt;v.stopReason=blocked;state.roads.get(v.path[v.pos]).wait=Math.min(10,state.roads.get(v.path[v.pos]).wait+realDt);
+   v.wait+=gameDt;v.stopReason=blocked;v.lastStoppedBarrier={gameTime:state.time,reason:blocked,node:v.path[v.pos],distance:s,limit:barrier.limit,speed:v.speed};state.roads.get(v.path[v.pos]).wait=Math.min(10,state.roads.get(v.path[v.pos]).wait+realDt);
   }else{v.wait=0;v.stopReason=blocked||'';}
   updateTrafficSpatial(v);
   }finally{updateParkingRoadSpatial(v);}
@@ -6011,7 +6078,18 @@ $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)
  if(a==='signal-global'){selected={kind:'signals'};renderInspector(true);return;}
  if(a==='signal-ai-buy'){if(selected?.kind==='road'&&selected.id===v)openAISignalUpgrade(v);return;}
  if(a.startsWith('signal-')){if(selected?.kind!=='road'||selected.id!==v)return;if(a==='signal-save'){const rawEW=String($('signalEW').value).trim(),rawNS=String($('signalNS').value).trim(),eastWest=Number(rawEW),northSouth=Number(rawNS);if(!rawEW||!rawNS||!editSignal(v,{eastWest,northSouth})){toast('ตั้งเวลาไฟเขียวต่อทิศ 5–240 นาที (จำนวนเต็ม) ค่ะ');return;}toast('บันทึกเวลาไฟแยกนี้แล้วค่ะ');}else{const key=a==='signal-manual'?'manual':a==='signal-switch'?'switch':a==='signal-auto'?'auto':'';if(!controlSignal(v,key))return;toast(key==='manual'?'เปิดโหมดควบคุมไฟเองแล้วค่ะ':key==='switch'?'สลับไฟแล้ว · รอแดงทุกทิศ '+SIGNAL_CLEAR_MINUTES+' นาที':'กลับสู่ไฟอัตโนมัติแล้วค่ะ');}renderInspector(true);return;}
- if(a==='incident-resolve'){openTrafficIncident(v);return;}if(a==='tow'){if(towVehicle(v)){selected=null;$('inspector').classList.add('hidden');toast('ลากรถออกแล้ว · ยกเลิกเที่ยวเดินทาง');updateUI();}}if(a==='reroute'){const car=state.vehicles.get(v),ok=car?.phase==='stuck'?recoverVehicle(car,true):car?checkDepartureRoute(car):false;toast(ok?'พบเส้นทางแล้ว จะออกเดินทางเมื่อถนนว่าง':'ยังไม่มีเส้นทางที่ไปต่อได้ค่ะ');renderInspector();}if(a==='citizen'){selected={kind:'citizen',id:v};renderInspector();}if(a==='tourist-dashboard'){category='tourists';selectTool('touristDashboard');return;}if(a==='follow'){follow=follow===v?null:v;renderInspector();}if(a==='move-building'){beginMoveBuilding(v);return;}if(a==='demolish')demolishBuilding(state.buildings.get(v));if(a==='heat')toggleTrafficHeat();};
+ if(a==='incident-resolve'){openTrafficIncident(v);return;}if(a==='tow'){
+ const vehicle=state.vehicles.get(v),evidence=vehicle&&canTowVehicle(vehicle)?captureTowedVehicleEvidence(vehicle):null;
+ if(towVehicle(v)){
+  selected=null;$('inspector').classList.add('hidden');updateUI();
+  if(!evidence){toast('เอารถออกแล้ว · ไม่มีข้อมูลรถให้รายงาน');}
+  else if(typeof window.SMGameAccount?.submitVehicleBugReport!=='function')toast('เอารถออกแล้ว แต่ยังส่งรายงานไม่ได้ · ระบบรายงานไม่พร้อม');
+  else{
+   toast('เอารถออกแล้ว · กำลังส่งหลักฐานบัค…');
+   void window.SMGameAccount.submitVehicleBugReport(evidence).then(()=>toast('ส่งรายงานรถบัคถึง Dev แล้วค่ะ')).catch(err=>{console.warn('Vehicle bug report upload failed:',err);toast('เอารถออกแล้ว แต่ส่งรายงานไม่สำเร็จ: '+(err?.message||'เชื่อมต่อไม่ได้'));});
+  }
+ }
+}if(a==='reroute'){const car=state.vehicles.get(v),ok=car?.phase==='stuck'?recoverVehicle(car,true):car?checkDepartureRoute(car):false;toast(ok?'พบเส้นทางแล้ว จะออกเดินทางเมื่อถนนว่าง':'ยังไม่มีเส้นทางที่ไปต่อได้ค่ะ');renderInspector();}if(a==='citizen'){selected={kind:'citizen',id:v};renderInspector();}if(a==='tourist-dashboard'){category='tourists';selectTool('touristDashboard');return;}if(a==='follow'){follow=follow===v?null:v;renderInspector();}if(a==='move-building'){beginMoveBuilding(v);return;}if(a==='demolish')demolishBuilding(state.buildings.get(v));if(a==='heat')toggleTrafficHeat();};
 
 function showPlayerManual(){
  const esc=escapeSaveText;
@@ -6490,12 +6568,35 @@ async function sendCurrentMapToAi(){
  try{downloadAiMapFile(filename,blob);showAiMapSendGuide(filename,blob,true);}
  catch(e){console.error('SMCITY download failed:',e);showAiMapSendGuide(filename,blob,false);}
 }
-function openCityReport(){const report=cityBugReport(),rows=Object.entries(report.summary.reasons).map(([reason,count])=>'<li>'+escapeSaveText(reason)+' · '+count+' คัน</li>').join('');
- modal('<span class="eyebrow">CITY DIAGNOSTICS</span><h2>ตรวจเมือง / รายงานบัค</h2><p>'+ (report.paused?'เมืองหยุดเวลาอยู่ กดเล่นต่อเพื่อให้รถขยับ':'เมืองกำลังเดินเวลา')+'</p><p>รถ '+report.summary.vehicles+' คัน · สงสัยผิดปกติ '+report.summary.suspectedVehicles+' คัน · เหตุต้นเหตุ '+report.summary.incidents+' เหตุ · รอคิวปกตินาน '+report.summary.normalQueueVehicles+' คัน</p><ul>'+rows+'</ul><p><b>ประเภทการจราจร</b></p><ul>'+Object.entries(report.summary.categories).sort((a,b)=>b[1]-a[1]).map(([name,count])=>'<li>'+escapeSaveText(name)+' · '+count+' คัน</li>').join('')+'</ul><p>รถที่สามารถลากออกได้ '+report.issues.length+' คัน (รวมรถรอคิวนาน)</p><p>ลิงก์ถนนผิดปกติ '+report.brokenLinks.length+' · การจองรถที่หายไป '+report.orphanReservations.length+' · ข้อผิดพลาดโปรแกรม '+report.runtimeErrors.length+'</p><p>ไฟล์รายงานรวมเมือง เส้นทางรถ และเหตุผลที่หยุด แนบไฟล์นี้ให้อริสเพื่อตรวจเมืองที่มีปัญหาได้</p><div class="actions"><button id="exportCityBug" class="primary">ดาวน์โหลดรายงานเมือง</button><button id="reportClose">กลับไปเล่น</button></div>'+report.issues.slice(0,12).map((v,i)=>'<p><button id="bugCar'+i+'">ดูรถ #'+v.id+'</button> <button id="bugTow'+i+'">ลากรถออก</button> '+escapeSaveText(v.reason)+' · รอ '+Math.round(v.wait)+' นาทีในเกม</p>').join(''));
- $('reportClose').onclick=closeModal;
- $('exportCityBug').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='SMGame-bug-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);};
- report.issues.slice(0,12).forEach((v,i)=>{$('bugCar'+i).onclick=()=>{if(v.pose){cam.x=v.pose.x;cam.y=v.pose.y;follow=v.id;}selected={kind:'vehicle',id:v.id};closeModal();renderInspector();};$('bugTow'+i).onclick=()=>{if(towVehicle(v.id))toast('ลากรถออกแล้ว · ยกเลิกเที่ยวเดินทาง');openCityReport();};});
+function openCityReport(){
+ const dev=window.SMGameCreatorCanOpen===true;
+ modal('<div class="menu-heading"><span class="menu-logo">⚠</span><div><span class="eyebrow">SMCITY · BUG REPORTS</span><h2>รายงานรถบัค</h2></div></div>'+
+ '<p>ผู้เล่นส่งรายงานเฉพาะตอนกด <b>เอารถออก · ส่งรายงานบัค</b> ที่รถค้าง ระบบจับหลักฐานก่อนเอารถออก ไม่ติดตามรถอัตโนมัติ</p>'+
+ (dev?'<p>Dev เท่านั้น · ข้อมูลจาก Supabase</p><div id="vehicleBugReportItems">กำลังโหลดรายงาน…</div><div class="actions"><button id="vehicleBugRefresh" class="primary">รีเฟรช</button><button id="vehicleBugClose">กลับไปเล่น</button></div>':
+ '<p>รายงานที่ผู้เล่นส่งจะถูกเก็บให้ Dev ตรวจใน Supabase โดยผู้เล่นทั่วไปไม่สามารถเปิดดูรายงานของผู้อื่นได้</p><div class="actions"><button id="vehicleBugClose" class="primary">กลับไปเล่น</button></div>'));
+ $('vehicleBugClose').onclick=closeModal;
+ if(!dev)return;
+ let generation=0;
+ const refresh=async()=>{
+  const token=++generation,el=$('vehicleBugReportItems');
+  if(!el)return;el.textContent='กำลังโหลดรายงานจาก Supabase…';
+  try{
+   const rows=await window.SMGameAccount?.listVehicleBugReports?.();
+   if(token!==generation||!$('vehicleBugReportItems'))return;
+   if(!rows){el.textContent='ยังเชื่อมต่อ Supabase ไม่ได้';return;}
+   el.innerHTML=rows.length?rows.map(r=>{
+    const d=r.details||{},diagnosis=d.diagnosis||{};
+    const note=diagnosis.certainty==='observed_rejection'?'พบเงื่อนไขปฏิเสธจริง':'ยังไม่พิสูจน์สาเหตุ';
+    return '<details class="panel-help"><summary>รถ #'+Number(r.vehicle_id)+' · '+escapeSaveText(r.city)+' · '+escapeSaveText(new Date(r.created_at).toLocaleString('th-TH'))+'</summary>'+
+      '<p><b>เหตุผล:</b> '+escapeSaveText(r.stop_reason||'ไม่มี')+' · '+escapeSaveText(note)+' · '+escapeSaveText(r.trace_code||'—')+'</p>'+
+      '<pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;font-size:11px">'+escapeSaveText(JSON.stringify(d,null,2))+'</pre></details>';
+   }).join(''):'ยังไม่มีรายงานรถบัคที่ผู้เล่นส่ง';
+  }catch(err){if(token===generation&&$('vehicleBugReportItems'))el.textContent='อ่านรายงานไม่ได้: '+(err?.message||'เกิดข้อผิดพลาด');}
+ };
+ $('vehicleBugRefresh').onclick=()=>void refresh();
+ void refresh();
 }
+
 $('advisorNext').onclick=e=>{const button=e.target.closest('button');if(!button)return;if(button.hasAttribute('data-advice-report'))openCityReport();else if(button.dataset.adviceCategory){category=button.dataset.adviceCategory;renderTools();}};
 if($('accountQuick'))$('accountQuick').onclick=openAccountDialog;
 if($('saveGameQuick'))$('saveGameQuick').onclick=openCloudSaveDialog;
@@ -6511,24 +6612,8 @@ window.SMGameOnAuthChanged=loggedIn=>{
   account.setAttribute('aria-label',account.title);
  }
 };
-function openReportMenu(){
- const actions=dockItems('reports');
- const icons={sendAi:'↗',travelLog:'◉',cityReport:'▤',incidentLog:'◷'};
- modal('<div class="menu-heading"><span class="menu-logo">▤</span><div><span class="eyebrow">SMCITY</span><h2>Report</h2></div></div>'+
-  '<div class="smcity-report-list" role="group" aria-label="Report">'+actions.map(t=>
-   '<button type="button" class="smcity-report-entry" data-report-action="'+t.key+'"><span class="menu-symbol">'+icons[t.key]+'</span>'+
-   '<span><b>'+t.name+'</b><small>'+t.price+'</small></span><span class="menu-chevron">›</span></button>').join('')+'</div>'+
-  '<div class="actions"><button type="button" id="reportMenuBack">เมนูหลัก</button><button type="button" id="reportMenuClose" class="primary">กลับไปเล่น</button></div>');
- $('reportMenuBack').onclick=openMainMenu;
- $('reportMenuClose').onclick=closeModal;
- // A single delegated click handler avoids accidental double execution.
- $('dialogContent').onclick=event=>{
-  const button=event.target.closest?.('[data-report-action]');
-  if(!button)return;
-  const handlers={sendAi:sendCurrentMapToAi,travelLog:openTravelLog,cityReport:openCityReport,incidentLog:openManualIncidentLog};
-  handlers[button.dataset.reportAction]?.();
- };
-}
+function openReportMenu(){openCityReport();}
+
 function openGraphicsMenu(){
  const levels=[
   {value:'veryHigh',label:'สูงมาก',desc:'รถและบ้านรายละเอียดเต็มทุกระยะ เปิดต้นไม้'},
@@ -6547,7 +6632,7 @@ function openGraphicsMenu(){
  }
 }
 function openMainMenu(){
- modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b></span><span class="menu-chevron">›</span></button><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b></span><span class="menu-chevron">›</span></button><button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>รายงานเมือง</b></span><span class="menu-chevron">›</span></button><button type="button" id="graphicsMenu"><span class="menu-symbol">◈</span><span><b>ตั้งค่ากราฟิก</b></span><span class="menu-chevron">›</span></button><button type="button" id="helpMenu"><span class="menu-symbol">?</span><span><b>คู่มือเล่นเกม</b></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
+ modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b></span><span class="menu-chevron">›</span></button><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b></span><span class="menu-chevron">›</span></button><button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>รายงานรถบัค</b></span><span class="menu-chevron">›</span></button><button type="button" id="graphicsMenu"><span class="menu-symbol">◈</span><span><b>ตั้งค่ากราฟิก</b></span><span class="menu-chevron">›</span></button><button type="button" id="helpMenu"><span class="menu-symbol">?</span><span><b>คู่มือเล่นเกม</b></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
  const creatorAnchor=$('reportMenu');
  if(window.SMGameCreatorCanOpen&&creatorAnchor){
   const button=document.createElement('button');
