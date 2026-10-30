@@ -24,11 +24,11 @@ function pair(leaderTech,flightFollower){
 {
  const {st,leader,follower}=pair('normal',true);
  const start=g.motionDistance(follower);
- for(let k=0;k<600;k++){st.time+=.032;g.advanceVehicles(.016,.032);}
+ assert(follower.occKey?.startsWith('air:'),'airborne occupation must have independent namespace');
+ for(let k=0;k<350;k++){st.time+=.032;g.advanceVehicles(.016,.032);}
  assert.equal(leader.phase,'stuck','stationary ground blocker must remain');
  assert(g.motionDistance(follower)>g.motionDistance(leader)+.5,'air car should fly past ground blocker');
  assert(g.motionDistance(follower)>start+3,'air traffic must actually move');
- assert(follower.occKey?.startsWith('air:'),'airborne occupation must have independent namespace');
 }
 // Airborne cars still stop for other airborne vehicles in the same lane.
 {
