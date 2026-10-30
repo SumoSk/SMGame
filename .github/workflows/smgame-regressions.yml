@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - feature/fly-traffic-layer-20261030
       - feature/smcity-1.4-landscaping-20261022
   pull_request:
 permissions:
@@ -121,6 +122,7 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-lane-change-safety.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-paired-physical-deadlock.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-right-turn-exit-clearance.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-flight-traffic-layer.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-bug-capture-toggle.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-vehicle-block-trace.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
