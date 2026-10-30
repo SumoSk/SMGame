@@ -10,8 +10,8 @@ const {pathToFileURL}=require('node:url');
  const text=fs.readFileSync('dist/renderer3d.js','utf8')
   .replace(/import \* as THREE from '[^']+';/,'')
   .replace('export class TrafficRenderer','class TrafficRenderer');
- const {TrafficRenderer,cityVisibilityAt,Batch}=new Function('THREE',text+
-  '\nreturn {TrafficRenderer,cityVisibilityAt,Batch};')(THREE);
+ const {TrafficRenderer,cityVisibilityAt,Batch,climateAt,hash}=new Function('THREE',text+
+  '\nreturn {TrafficRenderer,cityVisibilityAt,Batch,climateAt,hash};')(THREE);
  const r=Object.create(TrafficRenderer.prototype);
  r.scene=new THREE.Scene();r.scene.background=new THREE.Color('#081322');r.roadGroup=new THREE.Group();r.lampGroup=new THREE.Group();
  r.buildingGroup=new THREE.Group();r.carSets=new Map();
@@ -64,6 +64,37 @@ const {pathToFileURL}=require('node:url');
   'coastal city keeps its existing environment');
  assert(text.includes('state.gates.length'),'all four live gate coordinates drive the visual');
  assert(!text.includes('new THREE.PointLight('));
+ // RAIN: static rain drop seeds must be cached, while the visual math stays exact.
+ let rainyTime=null;
+ for(let d=0;d<60&&rainyTime==null;d++)
+  for(const minute of [480,600,720,840,960])
+   if(climateAt(d*1440+minute,'chiangmai').rain>.1){rainyTime=d*1440+minute;break;}
+ assert(rainyTime!=null,'deterministic weather fixture has a rainy hour');
+ const clock=Date.now;Date.now=()=>1700000000000;
+ try{
+  r.updateWeatherLight({time:rainyTime,city:'chiangmai'});
+  assert.equal(r.rainSeeds.length,430);
+  const seedCache=r.rainSeeds,span=34;
+  assert(Math.abs(r.rainPoints[0]-(hash(2,19)-.5)*span*2)<.00001);
+  assert(Math.abs(r.rainPoints[2]-(hash(7,23)-.5)*span*2)<.00001);
+  r.updateWeatherLight({time:rainyTime+.01,city:'chiangmai'});
+  assert.strictEqual(r.rainSeeds,seedCache,'do not recompute rain hashes per frame');
+ }finally{Date.now=clock;}
+ // PARKED CULL: don't call expensive parking slot poses for offscreen lots.
+ const parkedRenderer=Object.create(TrafficRenderer.prototype);
+ parkedRenderer.scene=new THREE.Scene();
+ parkedRenderer.w=900;parkedRenderer.h=600;parkedRenderer.cam={x:0,y:0,z:2};
+ parkedRenderer.camera=new THREE.PerspectiveCamera(35,1.5,.1,1500);
+ parkedRenderer.camera.position.set(0,25,30);parkedRenderer.camera.lookAt(0,0,0);
+ parkedRenderer.createCars();
+ let poseCalls=0;
+ parkedRenderer.parking={buildingBounds:()=>({w:12,h:12}),parkingIsMoving:()=>false,
+  parkingSlotPose:()=>{poseCalls++;return{x:801,y:801,angle:0};},
+  citizenCarColor:()=>'#ffffff'};
+ const farPlot={id:99,key:'home',x:800,y:800,parked:new Set([4,5,6]),parkingSlots:[4,5,6]};
+ parkedRenderer.cars({vehicles:new Map(),citizens:new Map(),
+  buildings:new Map([[99,farPlot]])},()=>null,{},()=> 'green',null,false);
+ assert.equal(poseCalls,0,'offscreen lots must be culled before calculating parked car poses');
  console.log(JSON.stringify({passed:true,gateCount:state.gates.length,
    batchedMeshes:{solid:solids.length,emissive:glows.length},solidInstances:count,
    nightAmbient,dayAmbient:day.ambient,ridgeMeshes:ridges.length}));

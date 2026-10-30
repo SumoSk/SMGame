@@ -938,8 +938,10 @@ export class TrafficRenderer{
   if(this.rain.visible){
    this.rain.material.opacity=Math.min(.49,.12+air.rain*.4);this.rain.position.set(this.cam.x,0,this.cam.y);
    const elapsed=Date.now()*.001,p=this.rainPoints,span=Math.max(24,Math.min(52,34/Math.max(.7,this.cam.z)));
-   for(let i=0;i<p.length/6;i++){const k=i*6,x=(hash(i+2,19)-.5)*span*2,z=(hash(i+7,23)-.5)*span*2;
-    const y=1+((hash(i+11,41)*13-elapsed*(9+hash(i,9)*5))%13+13)%13;
+   this.rainSeeds??=Array.from({length:p.length/6},(_,i)=>[
+    hash(i+2,19),hash(i+7,23),hash(i+11,41),hash(i,9)]);
+   for(let i=0;i<this.rainSeeds.length;i++){const k=i*6,seed=this.rainSeeds[i],x=(seed[0]-.5)*span*2,z=(seed[1]-.5)*span*2;
+    const y=1+((seed[2]*13-elapsed*(9+seed[3]*5))%13+13)%13;
     p[k]=x;p[k+1]=y;p[k+2]=z;p[k+3]=x+.13;p[k+4]=y-.65;p[k+5]=z+.05;
    }this.rain.geometry.attributes.position.needsUpdate=true;
   }
@@ -7124,10 +7126,19 @@ export class TrafficRenderer{
    if(!['driving','stuck','parking_in','parking_out','delivery_unload','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;
    const p=vehiclePosition(v);if(p)add(p.x-.5,p.y-.5,Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),state.citizens.get(v.citizenId),v.citizenId??v.id,v.color,v,null,p.altitude||0);
   }
-  for(const b of state.buildings.values())for(const id of b.parked){
+  for(const b of state.buildings.values()){
+   // Coarse-frustum cull whole parking plots before expanding parked cars.
+   const bounds=this.parking?.buildingBounds?.(b);
+   if(bounds){
+    point.set(b.x+bounds.w*.5-.5,.3,b.y+bounds.h*.5-.5);
+    const radius=Math.hypot(bounds.w,bounds.h)*.57+3;
+    if(frustum.planes.some(plane=>plane.distanceToPoint(point)<-radius))continue;
+   }
+   for(const id of b.parked){
    if(this.parking.parkingIsMoving(id))continue;
    const p=this.parkedCarPose(b,id);
    if(p)add(p.x-.5,p.y-.5,Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),state.citizens.get(id),id,this.parking.citizenCarColor(id),state.vehicles.get(state.citizens.get(id)?.vehicleId),b.id);
+   }
   }
   for(const v of state.vehicles.values())if(v.phase==='warp_charge'&&v.airFrom&&v.airTo){warpPoints.push(v.airFrom,v.airTo);}
   this.updateCarTechEffects(techEffects,warpPoints);

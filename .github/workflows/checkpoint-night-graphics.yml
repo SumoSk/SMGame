@@ -16,9 +16,9 @@ jobs:
           node-version: '22'
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
-      - run: node -r ./work/test-dom-compat.cjs work/test-checkpoint-night.cjs
-      - run: node -r ./work/test-dom-compat.cjs work/test-terrain-materials.cjs
-      - run: node -r ./work/test-dom-compat.cjs work/test-factory-night-effects.cjs
-      - run: node -r ./work/test-dom-compat.cjs work/test-graphics-quality.cjs
-      - run: node -r ./work/test-dom-compat.cjs work/test-flight-traffic-layer.cjs
-      - run: node -r ./work/test-dom-compat.cjs work/test-right-turn-exit-clearance.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-checkpoint-night.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-terrain-materials.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-factory-night-effects.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-graphics-quality.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-flight-traffic-layer.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-right-turn-exit-clearance.cjs
