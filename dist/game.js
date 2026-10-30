@@ -4699,9 +4699,9 @@ function captureTowedVehicleEvidence(v){
    lastJunctionDenial:other.lastJunctionDenial||null,lastJunctionExitCheck:other.lastJunctionExitCheck||null,
    lastQueueDenial:other.lastQueueDenial||null,lastStoppedBarrier:other.lastStoppedBarrier||null,
    lastRoadTraversalBlock:other.lastRoadTraversalBlock||null,lastPhysicalBlock:other.lastPhysicalBlock||null,
-   stopHistory:vehicleStopHistories.get(other)||[],
+   stopHistory:vehicleStopHistories.get(other)?.slice(-10)||[],
    nextCellAdmission:other.path?.length>other.pos+1?explainRoadTraversal(other,other.pos+1):null});
-  if(nearby.length>=32)break;
+  if(nearby.length>=24)break;
  }
  if(pose)for(let dx=-6;dx<=6;dx++)for(let dy=-6;dy<=6;dy++){
   const x=Math.floor(pose.x)+dx,y=Math.floor(pose.y)+dy;if(x<0||y<0||x>=W||y>=H)continue;
@@ -6656,7 +6656,7 @@ function openCityReport(){
    if(!rows){el.textContent='ยังเชื่อมต่อ Supabase ไม่ได้';return;}
    el.innerHTML=rows.length?rows.map(r=>{
     const d=r.details||{},diagnosis=d.diagnosis||{};
-    const note=diagnosis.certainty==='observed_rejection'?'พบเงื่อนไขปฏิเสธจริง':'ยังไม่พิสูจน์สาเหตุ';
+    const note=diagnosis.certainty==='observed_rejection'?'พบเงื่อนไขที่ปฏิเสธจริง':diagnosis.certainty==='observed_signal'?'ยืนยันไฟแดงเฉพาะขณะรายงาน':'ต้องตรวจหลักฐานรถที่เกี่ยวข้อง';
     return '<details class="panel-help"><summary>รถ #'+Number(r.vehicle_id)+' · '+escapeSaveText(r.city)+' · '+escapeSaveText(new Date(r.created_at).toLocaleString('th-TH'))+'</summary>'+
       '<p><b>เหตุผล:</b> '+escapeSaveText(r.stop_reason||'ไม่มี')+' · '+escapeSaveText(note)+' · '+escapeSaveText(r.trace_code||'—')+'</p>'+
       '<pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;font-size:11px">'+escapeSaveText(JSON.stringify(d,null,2))+'</pre></details>';
