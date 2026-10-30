@@ -231,6 +231,28 @@ if (gate) {
   window.SMGameAccount = {
     get user() { return user; },
     get displayName() { return user?.user_metadata?.username || user?.email || 'ผู้เล่น'; },
+    async submitVehicleBugReport(report) {
+      if (report?.schemaVersion !== 1 || !report.vehicle?.id || !report.diagnosis) throw Error('รายงานรถบัคไม่ครบ');
+      const { error } = await auth.from('smgame_vehicle_bug_reports').insert({
+        reporter_user_id: user?.id || null,
+        city: String(report.city || 'unknown').slice(0, 60),
+        game_time: Number(report.gameTime) || 0,
+        vehicle_id: Number(report.vehicle.id),
+        stop_reason: String(report.vehicle.stopReason || '').slice(0, 300),
+        trace_code: String(report.diagnosis.code || '').slice(0, 100),
+        details: report,
+      });
+      if (error) throw error;
+      return true;
+    },
+    async listVehicleBugReports() {
+      if (!user || window.SMGameCreatorCanOpen !== true) throw Error('เฉพาะบัญชี Dev ที่ยืนยันสิทธิ์แล้วค่ะ');
+      const { data, error } = await auth.from('smgame_vehicle_bug_reports')
+        .select('id,created_at,city,game_time,vehicle_id,stop_reason,trace_code,details')
+        .order('created_at', { ascending: false }).limit(60);
+      if (error) throw error;
+      return data || [];
+    },
     closePanel: closeMember,
     openSignIn() { pendingSave = null; showMember('login'); },
     requestSaveLogin(serialized, name) {
