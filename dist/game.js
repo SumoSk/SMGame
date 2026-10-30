@@ -4622,8 +4622,21 @@ function respawnVehicle(v,reason='stalled'){
  v.retryAt=0;v.departureRouteVersion=path?state.version:-1;v.nextDepartureRouteRetry=state.time;
  v.departureNoRoute=!path;v.routeCheckedVersion=state.version;v.noUTurnPolicy=1;v.trafficModel=2;
  setRouteMissing(v,!path);v.stopReason=path?'กลับมาเริ่มเข้าที่ประตูเมืองใหม่':'กลับมาประตูเมืองแล้ว · ยังไม่มีเส้นทางถึงจุดหมาย';
- if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+(reason==='demolition'?' ถนนถูกรื้อ · กลับเข้าประตูเมืองใหม่':' รถติดครบ 150 นาที · กลับเข้าประตูเมืองใหม่'));c.history=c.history.slice(-12);}
+ if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+(reason==='demolition'?' ถนนถูกรื้อ · กลับเข้าประตูเมืองใหม่':reason==='paired_deadlock'?' รถขวางกันเป็นคู่ · เปิดทางด้วยการกลับเข้าประตูเมืองใหม่':' รถติดครบ 150 นาที · กลับเข้าประตูเมืองใหม่'));c.history=c.history.slice(-12);}
  updateTrafficSpatial(v);return true;
+}
+// Constant-time deadlock detection: read the two blocking IDs already recorded by
+// physicalTrafficLimit. No city-wide search, new geometry scan or ghost collisions.
+function mutualPhysicalDeadlock(v){
+ if(v.phase!=='driving'||(v.wait||0)<6||v.stopReason!=='เว้นระยะรถ')return false;
+ const mine=v.lastPhysicalBlock,age=state.time-(mine?.gameTime??-Infinity);
+ if(mine?.reason!=='physical_capsule_overlap'||age<0||age>1)return false;
+ const other=state.vehicles.get(mine.ownerId);
+ // Break one pair once: the higher ID yields and keeps its existing trip.
+ if(!other||v.id<other.id||other.phase!=='driving'||(other.wait||0)<6||other.stopReason!=='เว้นระยะรถ')return false;
+ if(motionDirection(v.path,v.pos)!==motionDirection(other.path,other.pos))return false;
+ const peer=other.lastPhysicalBlock,peerAge=state.time-(peer?.gameTime??-Infinity);
+ return peer?.reason==='physical_capsule_overlap'&&peer.ownerId===v.id&&peerAge>=0&&peerAge<=1;
 }
 // Diagnostics are read-only: mirror every admission test without changing the traffic rules.
 function explainRoadTraversal(v,pos){
@@ -5341,7 +5354,7 @@ function emergencyRightReroute(v,alerts){
  return true;
 }
 function advanceVehicles(realDt,gameDt){
- let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);for(const car of state.vehicles.values()){if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,poseMemo:new WeakMap(),parkingGrid:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
+ let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);let pairedDeadlocks=null;for(const car of state.vehicles.values()){if(mutualPhysicalDeadlock(car))(pairedDeadlocks??=new Set()).add(car.id);if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,poseMemo:new WeakMap(),parkingGrid:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
  prepareParkingMerges(simDt);
  const emergencyAlerts=parkingGateAlerts();
  for(const v of [...state.vehicles.values()]){
@@ -5350,6 +5363,9 @@ function advanceVehicles(realDt,gameDt){
   if(v.phase==='delivery_unload'){if(state.time>=(v.delivery?.until??Infinity))startDeliveryReturn(v);continue;}
   if(!Number.isFinite(v.lastMovedAt))v.lastMovedAt=state.time-Math.max(0,Number.isFinite(v.wait)?v.wait:0);
   if(missingRoute(v)&&Number.isFinite(v.routeMissingSince)&&state.time-v.routeMissingSince>=NO_ROUTE_TIMEOUT){towVehicle(v.id);continue;}
+   // Restore one car from an observed two-car physical deadlock without collision bypass.
+   // Reuse the existing trip-preserving gate recovery; never reset both vehicles.
+   if(respawnBudget>0&&pairedDeadlocks?.has(v.id)&&respawnVehicle(v,'paired_deadlock')){respawnBudget--;continue;}
   // Apply the same 150-game-minute recovery to every moving/stalled trip,
   // INCLUDING parking_in, parking_out and departing without an active lotPath.
   // This check must precede the early continue branches for parking motion.
