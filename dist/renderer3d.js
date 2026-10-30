@@ -1051,6 +1051,33 @@ export class TrafficRenderer{
     for(const [key,record] of details.data)for(let i=start.get(key)||0;i<record.items.length;i++)record.items[i].y+=h;
    }
   }
+  // Distant northern/western ridges frame Chiang Mai's horizon, not the
+  // city blocks. This scenery is render-only and built once per city load.
+  if(city==='chiangmai'){
+   for(const edge of ['north','west']){
+    const north=edge==='north';
+    const ridge=new THREE.PlaneGeometry(north?410:69,north?70:390,north?68:12,north?12:66);
+    ridge.rotateX(-Math.PI/2);ridge.translate(north?150:-47,0,north?350:150);
+    const positions=ridge.attributes.position,colors=[],shade=new THREE.Color();
+    for(let k=0;k<positions.count;k++){
+     const x=positions.getX(k),z=positions.getZ(k),across=north?z:x,along=north?x:z;
+     const fade=north?smooth((across-312)/19)*(1-smooth((across-383)/12)):
+      smooth((-across-8)/20)*(1-smooth((-across-77)/8));
+     const ends=smooth((along+55)/35)*(1-smooth((along-352)/38));
+     const profile=10.5+4.5*Math.sin(along*.042+2.4)+2.8*Math.sin(along*.105-.7)+2*Math.sin(along*.19);
+     const height=Math.max(0,profile)*fade*ends;
+     positions.setY(k,height+.002);
+     shade.set('#314737').lerp(new THREE.Color('#879184'),smooth((height-5)/12)*.62);
+     shade.multiplyScalar(.91+hash(along,across)*.17);
+     colors.push(shade.r,shade.g,shade.b);
+    }
+    ridge.computeVertexNormals();ridge.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+    const material=landscapeMaterial(city,'rock',noise);material.vertexColors=true;
+    const mesh=new THREE.Mesh(ridge,material);mesh.receiveShadow=true;
+    mesh.userData.landscapeKind='distant-ridge';
+    this.scene.add(mesh);this.terrainGroup.push(mesh);
+   }
+  }
   if(city==='phuket'){
    for(let n=0;n<95;n++){
     const z=55+hash(n,9)*225,x=this.coast(z)-1.1+hash(n,21)*1.8;
