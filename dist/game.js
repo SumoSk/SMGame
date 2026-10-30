@@ -6583,17 +6583,17 @@ function openAccountDialog(){
  <details class="account-password"><summary>เปลี่ยนรหัสผ่าน</summary>
  <label for="accountOldPassword">รหัสผ่านปัจจุบัน</label>
  <input id="accountOldPassword" type="password" autocomplete="current-password" style="display:block;width:100%;box-sizing:border-box;margin:7px 0 12px;padding:9px" required>
- <label for="accountNewPassword">รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษร)</label>
- <input id="accountNewPassword" type="password" autocomplete="new-password" minlength="8" style="display:block;width:100%;box-sizing:border-box;margin:7px 0 12px;padding:9px" required>
+ <label for="accountNewPassword">รหัสผ่านใหม่</label>
+ <input id="accountNewPassword" type="password" autocomplete="new-password" style="display:block;width:100%;box-sizing:border-box;margin:7px 0 12px;padding:9px" required>
  <label for="accountConfirmPassword">ยืนยันรหัสผ่านใหม่</label>
- <input id="accountConfirmPassword" type="password" autocomplete="new-password" minlength="8" style="display:block;width:100%;box-sizing:border-box;margin:7px 0 12px;padding:9px" required>
+ <input id="accountConfirmPassword" type="password" autocomplete="new-password" style="display:block;width:100%;box-sizing:border-box;margin:7px 0 12px;padding:9px" required>
  <p id="accountChangeNotice" role="status" aria-live="polite"></p>
  <div class="actions"><button id="accountChangePassword" class="primary">บันทึกรหัสผ่านใหม่</button></div></details><div class="actions account-footer"><button id="accountSignOut">ออกจากระบบ</button><button id="accountClose" class="primary">กลับไปเล่น</button></div>`);
  $('accountClose').onclick=closeModal;
  $('accountChangePassword').onclick=async()=>{
   const oldPw=$('accountOldPassword').value,newPw=$('accountNewPassword').value,confirm=$('accountConfirmPassword').value;
   const error=$('accountChangeNotice'),button=$('accountChangePassword'),revision=dialogRevision;
-  if(newPw.length<8){error.textContent='รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษรค่ะ';return;}
+  if(!newPw){error.textContent='กรุณากรอกรหัสผ่านใหม่ค่ะ';return;}
   if(newPw!==confirm){error.textContent='ยืนยันรหัสผ่านใหม่ไม่ตรงกันค่ะ';return;}
   if(newPw===oldPw){error.textContent='กรุณาตั้งรหัสผ่านใหม่ที่ต่างจากเดิมค่ะ';return;}
   button.disabled=true;error.textContent='กำลังเปลี่ยนรหัสผ่าน…';
