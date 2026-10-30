@@ -132,10 +132,10 @@ function hash(a,b=0){return ((Math.sin(a*127.1+b*311.7)*43758.5453)%1+1)%1;}
 // deterministic. One mipmapped noise atlas serves every surface (no downloads,
 // per-frame geometry, game RNG or changes to the buildable grid).
 const TERRAIN_PALETTES={
- phuket:['#526b3d','#82965b','#b0a36d','#9a8864'],
- bangkok:['#657544','#91a367','#b4ad7d','#8d8066'],
- chiangmai:['#49623c','#7c9558','#aaa46b','#8b795b'],
- korat:['#6c7843','#9ca566','#b7a272','#a18362']
+ phuket:['#52764c','#8faa71','#c2b589','#968363'],
+ bangkok:['#597858','#91a77a','#b7b398','#96896c'],
+ chiangmai:['#476b4b','#87a477','#a7ae83','#8a7e64'],
+ korat:['#748556','#a6b47d','#c3b58b','#a49473']
 };
 function landscapeNoise(){
  const size=128,data=new Uint8Array(size*size*4);let seed=743923;
@@ -186,6 +186,12 @@ function landscapeMaterial(city,kind,noise){
    turf=mix(turf,${c(palette[2])},dry);
    float soil=smoothstep(.70,.87,speckle)*(.24+dry*.4);
    turf=mix(turf,${c(palette[3])},soil);
+   // Large, soft vegetation islands connect parks, verges and empty plots
+   // without additional draw calls, textures or changes to the game map.
+   float meadow=smoothstep(.36,.79,landNoise(p/19.0+vec2(8.0,24.0)));
+   turf=mix(turf,${c(palette[1])},meadow*.13);
+   float organicEdge=sin(p.x*.37+sin(p.y*.23)*.6)*sin(p.y*.31+sin(p.x*.19)*.7);
+   turf*=.97+.045*organicEdge;
    // Occasional soft lawn clearings, with restrained mowing bands.
    float lawn=smoothstep(.70,.88,broad)*(1.0-dry);
    float mowing=.5+.5*sin((p.x*.71+p.y*.34)*3.14159);
