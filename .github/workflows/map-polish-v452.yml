@@ -20,6 +20,7 @@ jobs:
       - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-checkpoint-night.cjs
       - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-terrain-materials.cjs
       - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-graphics-quality.cjs
-      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-parking-renderer.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-landscape-detail.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-landscaping.cjs
       - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-flight-traffic-layer.cjs
       - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-right-turn-exit-clearance.cjs
