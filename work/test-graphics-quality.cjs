@@ -8,7 +8,7 @@ const path=require('node:path'),{pathToFileURL}=require('node:url');
  const {TrafficRenderer,Batch}=new Function('THREE',source+'return {TrafficRenderer,Batch};')(THREE);
  const r=Object.create(TrafficRenderer.prototype);
  r.scene=new THREE.Scene();r.w=800;r.h=600;
- r.renderer={setPixelRatio(v){this.dpr=v;}};
+ r.renderer={shadowMap:{enabled:true},setPixelRatio(v){this.dpr=v;}};
  r.resize=()=>{};
  r.graphicQuality='medium';
  r.treeGroup=new THREE.Group();
