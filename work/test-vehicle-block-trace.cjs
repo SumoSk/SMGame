@@ -18,7 +18,7 @@ for(const n of [game.id(116,154),game.id(116,156)]){
  st.roads.set(n,{type:'medium',main:false,links:new Set([node]),load:0,wait:0});st.roads.get(node).links.add(n);
 }
 st.junctionCache.clear();st.junctionLayoutCache?.clear();st.version++;
-st.occ.set(node+':0:1',991);st.occ.set(node+':0:2',992);
+const desired=game.plannedLane(car,car.pos+1),occupied=[0,1,2].filter(l=>l!==desired).slice(0,2);st.occ.set(node+':0:'+occupied[0],991);st.occ.set(node+':0:'+occupied[1],992);
 const x=game.explainRoadTraversal(car,car.pos+1);
 assert.equal(x.occupant,null);assert.equal(x.capacity,2);assert.equal(x.capacityCounts.sameDirection,2);
 assert(x.junctionArms>=3);assert(x.blockers.some(b=>b.code==='directional_capacity_full'));
