@@ -7,9 +7,14 @@ function scene(blockBeyond){
  for(let x=170;x>=164;x--)points.push([x,136]);
  for(let y=135;y>=125;y--)points.push([164,y]);
  const v=install(points,i=>i<6?'small':'medium',false,0),st=g.state;
- const center=g.id(164,136),spur=g.id(164,137);
- st.roads.set(spur,{type:'medium',main:false,links:new Set([center]),load:0,wait:0});
- st.roads.get(center).links.add(spur);
+ const center=g.id(164,136);
+ // Junction detection needs a full-length arm, not a one-cell decorative spur.
+ let previous=center;
+ for(let y=137;y<=142;y++){
+  const node=g.id(164,y);
+  st.roads.set(node,{type:'medium',main:false,links:new Set([previous]),load:0,wait:0});
+  st.roads.get(previous).links.add(node);previous=node;
+ }
  st.junctionCache.clear();st.junctionLayoutCache?.clear();st.version++;
  const plan=g.motionPlan(v),guard=plan.junctions.find(t=>t.node===center);
  assert(guard,'must be a three-arm signalized right turn');
