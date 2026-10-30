@@ -1,0 +1,26 @@
+name: Map art and performance regression
+on:
+  push:
+    branches: [feature/map-polish-v452]
+  pull_request:
+    paths:
+      - 'dist/renderer3d.js'
+      - 'work/test-map-polish.cjs'
+jobs:
+  map-art:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check dist/renderer3d.js
+      - run: node --check dist/game.js
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-map-polish.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-checkpoint-night.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-terrain-materials.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-graphics-quality.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-landscape-detail.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-landscaping.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-flight-traffic-layer.cjs
+      - run: node -r ./work/test-renderer-dom-stub.cjs -r ./work/test-dom-compat.cjs work/test-right-turn-exit-clearance.cjs
