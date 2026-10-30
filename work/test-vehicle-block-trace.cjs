@@ -2,7 +2,7 @@
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const fixture=fs.readFileSync('work/test-adaptive-traffic.cjs','utf8').split('let {car}=roadScene(false);')[0];
 new Function('require',fixture+`
-const {car,leader}=roadScene(false);car.stopReason='ไฟแดง';
+const {car,leader}=roadScene(false);game.setBugCaptureEnabled(true);car.stopReason='ไฟแดง';
 const original=game.snapshot(),plan=game.motionPlan(car),at=game.motionDistance(car,plan);
 game.rememberVehicleStop(car,plan,at,'ไฟแดง');
 const evidence=game.captureTowedVehicleEvidence(car);

@@ -120,6 +120,8 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-travel-happiness.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-lane-change-safety.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-paired-physical-deadlock.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-bug-capture-toggle.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-vehicle-block-trace.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
       - run: node work/test-performance.cjs
   publish:

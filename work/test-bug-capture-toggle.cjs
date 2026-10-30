@@ -1,0 +1,27 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const fixture=fs.readFileSync('work/test-adaptive-traffic.cjs','utf8').split('let {car}=roadScene(false);')[0];
+new Function('require',fixture+`
+assert.equal(game.bugCaptureEnabled,false,'new installations should start with capture disabled');
+const {car}=roadScene(false,false),plan=game.motionPlan(car),s=game.motionDistance(car,plan);
+car.stopReason='เว้นระยะรถ';
+game.rememberVehicleStop(car,plan,s,'เว้นระยะรถ');
+assert.equal(game.captureTowedVehicleEvidence(car),null,'off must not create evidence');
+game.setBugCaptureEnabled(true);
+assert.equal(game.bugCaptureEnabled,true);
+assert.equal(game.captureTowedVehicleEvidence(car),null,'switch-on cannot synthesize preexisting history');
+game.rememberVehicleStop(car,plan,s,'เว้นระยะรถ');
+let evidence=game.captureTowedVehicleEvidence(car);
+assert.equal(evidence.stopHistory.length,1,'on captures only new stop history');
+assert.equal(evidence.kind,'manual_tow_only');
+game.setBugCaptureEnabled(false);
+assert.equal(game.bugCaptureEnabled,false);
+assert.equal(game.captureTowedVehicleEvidence(car),null,'switch-off immediately rejects evidence');
+game.setBugCaptureEnabled(true);
+assert.equal(game.captureTowedVehicleEvidence(car),null,'switch-on must start an empty history');
+game.rememberVehicleStop(car,plan,s,'เว้นระยะรถ');
+evidence=game.captureTowedVehicleEvidence(car);
+assert.equal(evidence.stopHistory.length,1,'fresh history only');
+assert.equal(game.state.vehicles.get(car.id),car,'switch must not modify traffic state');
+console.log('PASS: off/on/off/on bug capture; no stale history and traffic state unchanged');
+`)(require);
