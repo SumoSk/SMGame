@@ -65,8 +65,11 @@ console.log('PASS: 45/50 default view, high-speed orbit, pinch zoom, pitch slide
 
 (async()=>{
  const THREE=await import(require('node:url').pathToFileURL(require('node:path').resolve('dist/vendor/three.module.js')).href);
- const source=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
- const {TrafficRenderer}=new Function('THREE',source+'return {TrafficRenderer};')(THREE),r=Object.create(TrafficRenderer.prototype);
+ const source=fs.readFileSync('dist/renderer3d.js','utf8');
+ const start=source.indexOf(' updateCamera(cam){'),end=source.indexOf('\n screen(',start);
+ assert(start>=0&&end>start,'camera method is present');
+ const updateCamera=new Function('return ({'+source.slice(start,end).trim()+'}).updateCamera')();
+ const r={updateCamera};
  r.w=1280;r.h=800;r.camera=new THREE.PerspectiveCamera(35,1.6,.1,1500);r.light=new THREE.DirectionalLight();
  const cam={x:160,y:150,z:1.5,angle:0,elevation:.7};
  r.updateCamera(cam);
