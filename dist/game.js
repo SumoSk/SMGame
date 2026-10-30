@@ -265,7 +265,7 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
   const t=CATALOG[b.key],entrance=lotPoint(b,t.frontageEntranceU??.45,t.plotHeight),exit=lotPoint(b,t.frontageExitU??(t.dualParking?t.parkingExitB:t.plotWidth-.45),t.plotHeight);
   if(v.phase==='parking_out'||Math.min(Math.hypot(pose.x-entrance.x,pose.y-entrance.y),Math.hypot(pose.x-exit.x,pose.y-exit.y))<1.15)
    for(const other of nearbyParkingCars(pose,1.1)){
-    if(other.id===v.id||!['driving','stuck','parking_out','parking_in','departing'].includes(other.phase))continue;
+    if(other.id===v.id||isAirTraffic(other)||!['driving','stuck','parking_out','parking_in','departing'].includes(other.phase))continue;
     if(other.lotBuilding===b.id&&other.lotPath)continue;
     const p=vehiclePosition(other);
     if(p&&Math.hypot(p.x-pose.x,p.y-pose.y)<1.1&&lotCarsOverlap(pose,p,.045))return false;
@@ -403,7 +403,7 @@ function prepareParkingMerges(dt){
   v.mergeLastPose={x:pose.x,y:pose.y};
   if(!previous||Math.hypot(previous.x-pose.x,previous.y-pose.y)>.001){v.mergeBlockSeconds=0;v.mergeBlockRoad=null;continue;}
   const candidate=[...nearbyParkingCars(pose,2)].find(road=>{
-   if(road.id===v.id||road.phase!=='driving'||road.mergeExitActive||road.parkingEscapeFor||(road.speed||0)>.05)return false;
+   if(road.id===v.id||isAirTraffic(road)||road.phase!=='driving'||road.mergeExitActive||road.parkingEscapeFor||(road.speed||0)>.05)return false;
    const plan=motionPlan(road),s=motionDistance(road,plan);
    // Both vehicles' immediate forward footprints must block one another.
    const blockedByParking=[0,.12,.28,.48].some(d=>capsulesOverlap(positionOnMotion(plan,Math.min(plan.total,s+d)),pose));
@@ -1393,7 +1393,7 @@ function aiSignalQueuePressure(){
   demands.set(node,signalSlots(node).map(()=>({cars:0,queued:0,blocked:0})));
  if(!demands.size)return demands;
  for(const v of state.vehicles.values()){
-  if(!['driving','stuck','departing'].includes(v.phase)||!Array.isArray(v.path)||!v.path.length)continue;
+  if(!['driving','stuck','departing'].includes(v.phase)||isAirTraffic(v)||!Array.isArray(v.path)||!v.path.length)continue;
   const start=Math.max(1,Math.floor(v.pos||0)),end=Math.min(v.path.length-1,start+9);
   for(let k=start;k<=end;k++){
    const node=v.path[k],entry=demands.get(node);
@@ -1781,7 +1781,7 @@ function computeVehiclePosition(v){
  if(v.phase==='warp_charge'&&v.airFrom)return{...v.airFrom,altitude:0};
  
  if(v.vehicleTech==='fly'&&v.phase==='departing'){const b=state.buildings.get(v.fromId);const p=b?parkingSlotPose(b,parkingSpace(b,v.citizenId)):null;return p?{...p,altitude:4}:null;}
- if(v.lotPath){const p=parkingPose(v);return v.vehicleTech==='fly'&&p?{...p,altitude:4}:p;}if(v.phase==='departing'){const b=state.buildings.get(v.fromId);return b?parkingSlotPose(b,parkingSpace(b,v.citizenId)):null;}if(v.phase==='stuck'&&v.heldPose)return v.heldPose;const ground=v.path?.length?positionOnMotion(motionPlan(v),motionDistance(v)):null;return v.vehicleTech==='fly'&&ground?{...ground,altitude:5}:ground;}
+ if(v.lotPath){const p=parkingPose(v);return v.vehicleTech==='fly'&&p?{...p,altitude:4}:p;}if(v.phase==='departing'){const b=state.buildings.get(v.fromId);return b?parkingSlotPose(b,parkingSpace(b,v.citizenId)):null;}if(v.phase==='stuck'&&v.heldPose)return v.vehicleTech==='fly'?{...v.heldPose,altitude:5}:v.heldPose;const ground=v.path?.length?positionOnMotion(motionPlan(v),motionDistance(v)):null;return v.vehicleTech==='fly'&&ground?{...ground,altitude:5}:ground;}
 // Visual trip status only: never changes deadlines, happiness or vehicle motion.
 const CAR_STATUS_COLORS={green:'#64c887',orange:'#efa54d',red:'#e36b6b'};
 const CAR_STATUS_EMOJI={orange:'😥',red:'😡'};
@@ -5369,7 +5369,7 @@ function emergencyRightReroute(v,alerts){
  // jump cannot overlap another car or intrude into the oncoming direction.
  if(!cellAvailable(node,direction,rightLane,v.id)||!cellAvailable(next,direction,rightLane,v.id))return false;
  for(const other of nearbyParkingCars(targetPose,1.5)){
-  if(other.id===v.id)continue;
+  if(other.id===v.id||isAirTraffic(other))continue;
   const p=vehiclePosition(other);
   if(!p||Math.hypot(p.x-targetPose.x,p.y-targetPose.y)>1.5)continue;
   for(const offset of [-.45,0,.6]){
