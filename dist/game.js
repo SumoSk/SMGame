@@ -868,7 +868,10 @@ function parkingVisuals(b){
 }
 function drawParking2D(b){for(const r of parkingVisuals(b)){const points=[[r.u-r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v+r.h/2],[r.u-r.w/2,r.v+r.h/2]].map(([u,v])=>{const p=lotPoint(b,u,v);return screen(p.x-.5,p.y-.5);});poly(points,r.color);}for(const cid of b.parked||[]){if(parkingIsMoving(cid))continue;const i=parkingSpace(b,cid),p=parkingSlotPose(b,i);if(p){const q=screen(p.x,p.y);drawTechCarShape(q[0],q[1],p.angle,citizenCarColor(cid),cam.z,state.citizens.get(cid)?.vehicleTech);}}}
 
-const runtimeErrors=[];for(const type of ['error','unhandledrejection'])window.addEventListener(type,e=>{runtimeErrors.push({at:new Date().toISOString(),message:String(e.message||e.reason?.stack||e.reason||type).slice(0,4000)});if(runtimeErrors.length>20)runtimeErrors.shift();});
+const BUG_CAPTURE_STORAGE_KEY='smcity-bug-capture-v1';
+let bugCaptureEnabled=false;
+try{bugCaptureEnabled=localStorage.getItem(BUG_CAPTURE_STORAGE_KEY)==='on';}catch(_){}
+const runtimeErrors=[];for(const type of ['error','unhandledrejection'])window.addEventListener(type,e=>{if(!bugCaptureEnabled)return;runtimeErrors.push({at:new Date().toISOString(),message:String(e.message||e.reason?.stack||e.reason||type).slice(0,4000)});if(runtimeErrors.length>20)runtimeErrors.shift();});
 let state,cam={x:150,y:150,z:1.25,angle:Math.PI/4,elevation:Math.PI*50/180},view={w:innerWidth,h:innerHeight,dpr:1},tool='hand',category='roads',selected=null,hover=null,drag=null,pendingRoadPreview=null,pendingDemolitionPreview=null,roadPreviewCache=null,movingBuildingId=null,constructionAnchor=null,heat=false,debug=false,last=0,uiTick=0,news=[],toastTimer,follow=null;
 const id=(x,y)=>y*W+x,xy=i=>[i%W,Math.floor(i/W)],valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function reset(city='phuket'){
@@ -4668,10 +4671,27 @@ function explainRoadTraversal(v,pos){
   occupant:o??null,reservationId:res?.id??null,occupants,capacityCounts:{sameDirection:same,total},
   blockers,allowed};
 }
-// Keep a small local history of what the engine actually decided. Never send until player clicks remove.
-const vehicleStopHistories=new WeakMap();
+// Opt-in bug evidence is independent of physical traffic safety and routing.
+let vehicleStopHistories=new WeakMap();
+function setBugCaptureEnabled(enabled){
+ enabled=!!enabled;
+ if(enabled===bugCaptureEnabled)return;
+ bugCaptureEnabled=enabled;
+ // Reset immediately in both directions: no pre-toggle history can be reported.
+ vehicleStopHistories=new WeakMap();runtimeErrors.length=0;
+ if(state?.vehicles)for(const v of state.vehicles.values()){
+  delete v.lastStoppedBarrier;delete v.lastRoadTraversalBlock;
+  delete v.lastJunctionDenial;delete v.lastQueueDenial;delete v.lastJunctionExitCheck;
+  // Keep the owner ID for live deadlock recovery, but discard detailed evidence on OFF.
+  if(!enabled&&v.lastPhysicalBlock){delete v.lastPhysicalBlock.ownerPose;delete v.lastPhysicalBlock.distance;}
+  // lastPhysicalBlock is a live traffic-safety signal for paired-deadlock recovery.
+ }
+ try{localStorage.setItem(BUG_CAPTURE_STORAGE_KEY,enabled?'on':'off');}catch(_){}
+ if(selected?.kind==='vehicle'||selected?.kind==='citizen')renderInspector(true);
+ toast(enabled?'เริ่มบันทึกหลักฐานบัคจากตอนนี้แล้วค่ะ':'ปิดบันทึกหลักฐานบัคแล้ว · ยังเอารถออกได้ตามปกติ');
+}
 function rememberVehicleStop(v,plan,s,blocked){
- if(!blocked||v.phase!=='driving')return;
+ if(!bugCaptureEnabled||!blocked||v.phase!=='driving')return;
  const g=plan.junctions.find(x=>x.clear>=s&&x.stop-s<3);
  const incoming=g?motionDirection(v.path,g.pos-1):null,lane=g?plan.lanes[g.pos-1]:null;
  const signal=g?signalColor(g.node,incoming,lane):null;
@@ -4689,7 +4709,7 @@ function rememberVehicleStop(v,plan,s,blocked){
  vehicleStopHistories.set(v,list);
 }
 function noteVehicleJunctionDenial(v,node,code,details={}){
- v.lastJunctionDenial={gameTime:state.time,node,code,...details};
+ if(bugCaptureEnabled)v.lastJunctionDenial={gameTime:state.time,node,code,...details};
  return false;
 }
 function ownedRoadSpace(node,d,l,exclude){
@@ -4700,6 +4720,8 @@ function ownedRoadSpace(node,d,l,exclude){
 }
 // Only called for a player-requested tow. No city-wide logging, no automatic uploads.
 function captureTowedVehicleEvidence(v){
+ // Never reconstruct a report from pre-toggle data or an unobserved stop.
+ if(!bugCaptureEnabled||!vehicleStopHistories.get(v)?.length)return null;
  const plan=motionPlan(v),s=motionDistance(v,plan),pose=vehiclePosition(v),current=Number.isFinite(v.pos)?v.pos:0;
  const nextJunction=plan.junctions.find(g=>g.clear>=s);
  const direction=nextJunction?motionDirection(v.path,nextJunction.pos-1):motionDirection(v.path,current);
@@ -4802,7 +4824,7 @@ function towVehicle(id,incidentForce=false,playerForce=false){
  }}
  if(follow===id)follow=null;return true;
 }
-function vehicleRecoveryActions(v){if(!v)return '';const incident=incidentForVehicle.get(v.id);return (incident?row('⚠️ เหตุจราจร','ต้นเหตุ '+incident.vehicles.length+' คัน · หยุด '+Math.round(incident.stalled)+' นาที')+action('🚨 ดูเหตุการณ์','incident-resolve',v.id):'')+row('เหตุผลที่หยุด',escapeSaveText(v.stopReason||(['departing','gate_waiting'].includes(v.phase)?'รอออกเดินทาง':'กำลังเดินทาง')))+(v.phase==='stuck'||v.departureNoRoute?action('ลองหาเส้นทางใหม่','reroute',v.id):'') +action('เอารถออก · ส่งรายงานบัค','tow',v.id);}
+function vehicleRecoveryActions(v){if(!v)return '';const incident=incidentForVehicle.get(v.id);return (incident?row('⚠️ เหตุจราจร','ต้นเหตุ '+incident.vehicles.length+' คัน · หยุด '+Math.round(incident.stalled)+' นาที')+action('🚨 ดูเหตุการณ์','incident-resolve',v.id):'')+row('เหตุผลที่หยุด',escapeSaveText(v.stopReason||(['departing','gate_waiting'].includes(v.phase)?'รอออกเดินทาง':'กำลังเดินทาง')))+(v.phase==='stuck'||v.departureNoRoute?action('ลองหาเส้นทางใหม่','reroute',v.id):'') +action(bugCaptureEnabled?'เอารถออก · ส่งรายงานบัค':'เอารถออก','tow',v.id);}
 function immigration(){if(computeStats().happy<TOURISM.residentHappiness)return;let n=0;for(const b of state.buildings.values()){const t=CATALOG[b.key];if(!t.residents||!b.access.length||b.failedRouteVersion===state.version)continue;const free=Math.max(0,t.residents-b.residents.size-b.reservedResidents-homeImmigrationLocks(b));for(let k=0;k<free&&n<16;k++){const c=newCitizen(b);const gates=[...state.gates].sort((a,z)=>distance(a,id(b.x,b.y))-distance(z,id(b.x,b.y)));let success=false;for(const gate of gates)if(createTrip(c,'moveIn',null,b.id,gate,null,state.time+1440)){success=true;n++;break;}if(!success){state.citizens.delete(c.id);b.failedRouteVersion=state.version;break;}}if(n>=16)break;}}
 function junctionConnector(v,pos){
  const plan=motionPlan(v),g=plan.junctions.find(g=>g.pos===pos);if(!g)return null;
@@ -4891,13 +4913,13 @@ function queueAllows(v,pos,connector,precheckedExit=null){
    (q.id===v.id&&precheckedExit!==null?precheckedExit:junctionExitAvailable(car,q.pos))&&
    !(front&&front.distance<q.distance-.01);
  };
- if(!eligible(own)){const head=fronts.get(own.connector.incoming+':'+own.connector.laneIn)?.first;v.lastQueueDenial={gameTime:state.time,code:'self_not_eligible',headId:head?.id??null,ownDistance:own.distance};return false;}
+ if(!eligible(own)){const head=fronts.get(own.connector.incoming+':'+own.connector.laneIn)?.first;if(bugCaptureEnabled)v.lastQueueDenial={gameTime:state.time,code:'self_not_eligible',headId:head?.id??null,ownDistance:own.distance};return false;}
  const priority=junctionPriority(own,node);
  for(const other of queue){
   if(other.id===v.id||!eligible(other)||!connectorsConflict(connector,other.connector))continue;
   const p=junctionPriority(other,node);
   if(p<priority||p===priority&&(other.at<own.at||other.at===own.at&&
-   (other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id))){v.lastQueueDenial={gameTime:state.time,code:'other_vehicle_priority',blockerId:other.id,blockerPriority:p,ownPriority:priority,blockerDistance:other.distance,ownDistance:own.distance};return false;}
+   (other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id))){if(bugCaptureEnabled)v.lastQueueDenial={gameTime:state.time,code:'other_vehicle_priority',blockerId:other.id,blockerPriority:p,ownPriority:priority,blockerDistance:other.distance,ownDistance:own.distance};return false;}
  }
  return true;
 }
@@ -4907,7 +4929,7 @@ function junctionExitAvailable(v,pos){
   // The next signalized junction controls its own red light and exit queue.
   // Do not make entry into this junction depend on a downstream green light.
   if(k>pos&&signalRequired(v.path[k]))break;
-  if(!roadTraversalAvailable(v,k)){const node=v.path[k],d=motionDirection(v.path,k),lane=plannedLane(v,k);v.lastJunctionExitCheck={gameTime:state.time,code:'road_space_unavailable',node,direction:d,lane,space:ownedRoadSpace(node,d,lane,v.id),admission:explainRoadTraversal(v,k)};return false;}
+  if(!roadTraversalAvailable(v,k)){if(bugCaptureEnabled){const node=v.path[k],d=motionDirection(v.path,k),lane=plannedLane(v,k);v.lastJunctionExitCheck={gameTime:state.time,code:'road_space_unavailable',node,direction:d,lane,space:ownedRoadSpace(node,d,lane,v.id),admission:explainRoadTraversal(v,k)};}return false;}
  }
  // A free *logical* lane is not enough if a car is physically sitting at the
  // downstream side of the junction (for example during a lane change).
@@ -4919,11 +4941,11 @@ function junctionExitAvailable(v,pos){
     const ix=Math.floor(pose.x/2),iy=Math.floor(pose.y/2);
     for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)
      for(const other of trafficSpatial.cells.get((ix+dx)+':'+(iy+dy))?.values()||[])
-      if(other.id!==v.id&&Math.hypot(other.pose.x-pose.x,other.pose.y-pose.y)<.8&&capsulesOverlap(pose,other.pose)){v.lastJunctionExitCheck={gameTime:state.time,code:'physical_exit_collision',ownerId:other.id,ownerPose:other.pose,ownerPhase:state.vehicles.get(other.id)?.phase??null};return false;}
+      if(other.id!==v.id&&Math.hypot(other.pose.x-pose.x,other.pose.y-pose.y)<.8&&capsulesOverlap(pose,other.pose)){if(bugCaptureEnabled)v.lastJunctionExitCheck={gameTime:state.time,code:'physical_exit_collision',ownerId:other.id,ownerPose:other.pose,ownerPhase:state.vehicles.get(other.id)?.phase??null};return false;}
    }
   }
  }
- v.lastJunctionExitCheck={gameTime:state.time,code:'exit_clear'};return true;
+ if(bugCaptureEnabled)v.lastJunctionExitCheck={gameTime:state.time,code:'exit_clear'};return true;
 }
 // Retry only stalled green admissions; never scan the city or discard a live owner's claim.
 const junctionClaimRetries=new WeakMap();
@@ -5172,7 +5194,7 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
   near.push(p);nearIds.push(id);
  }
  if(!near.length)return mergeLimit;let safe=s;
- for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(let j=0;j<near.length;j++)if(capsulesOverlap(p,near[j])){v.lastPhysicalBlock={gameTime:state.time,ownerId:nearIds[j],ownerPose:near[j],distance:along,reason:'physical_capsule_overlap'};return Math.min(mergeLimit,Math.max(s,safe-.025));}safe=along;if(along===end)break;}
+ for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(let j=0;j<near.length;j++)if(capsulesOverlap(p,near[j])){v.lastPhysicalBlock=bugCaptureEnabled?{gameTime:state.time,ownerId:nearIds[j],ownerPose:near[j],distance:along,reason:'physical_capsule_overlap'}:{gameTime:state.time,ownerId:nearIds[j],reason:'physical_capsule_overlap'};return Math.min(mergeLimit,Math.max(s,safe-.025));}safe=along;if(along===end)break;}
  return mergeLimit;
 }
 function motionBarrier(v,plan,s,budget=-1){
@@ -5183,7 +5205,7 @@ function motionBarrier(v,plan,s,budget=-1){
  const nextPos=v.pos+1;
  if(nextPos<v.path.length&&!roadTraversalAvailable(v,nextPos)){
   const nextNode=v.path[nextPos],nextDirection=motionDirection(v.path,nextPos),nextLane=plannedLane(v,nextPos);
-  v.lastRoadTraversalBlock={gameTime:state.time,code:'road_traversal_unavailable',node:nextNode,direction:nextDirection,lane:nextLane,space:ownedRoadSpace(nextNode,nextDirection,nextLane,v.id),admission:explainRoadTraversal(v,nextPos)};
+  if(bugCaptureEnabled)v.lastRoadTraversalBlock={gameTime:state.time,code:'road_traversal_unavailable',node:nextNode,direction:nextDirection,lane:nextLane,space:ownedRoadSpace(nextNode,nextDirection,nextLane,v.id),admission:explainRoadTraversal(v,nextPos)};
   const cellLimit=Math.max(s,plan.nodes[nextPos]-TRAFFIC_RULES.vehicleHalfLength*2-.08);if(cellLimit<limit){limit=cellLimit;reason='รถคันหน้าขวาง';}
  }
  const lookahead=Math.max(4,(v.speed||0)*(v.speed||0)/9.6+1,budget>=0?budget+.5:0);
@@ -5501,7 +5523,7 @@ function advanceVehicles(realDt,gameDt){
   refreshMotionReservations(v,plan,s);
   if(s-initial>1e-7)v.lastMovedAt=state.time;
   if(blocked&&s-initial<1e-7){
-   v.wait+=gameDt;v.stopReason=blocked;v.lastStoppedBarrier={gameTime:state.time,reason:blocked,node:v.path[v.pos],distance:s,limit:barrier.limit,speed:v.speed};rememberVehicleStop(v,plan,s,blocked);state.roads.get(v.path[v.pos]).wait=Math.min(10,state.roads.get(v.path[v.pos]).wait+realDt);
+   v.wait+=gameDt;v.stopReason=blocked;if(bugCaptureEnabled){v.lastStoppedBarrier={gameTime:state.time,reason:blocked,node:v.path[v.pos],distance:s,limit:barrier.limit,speed:v.speed};rememberVehicleStop(v,plan,s,blocked);}state.roads.get(v.path[v.pos]).wait=Math.min(10,state.roads.get(v.path[v.pos]).wait+realDt);
   }else{v.wait=0;v.stopReason=blocked||'';}
   updateTrafficSpatial(v);
   }finally{updateParkingRoadSpatial(v);}
@@ -6168,10 +6190,11 @@ $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)
  if(a==='signal-ai-buy'){if(selected?.kind==='road'&&selected.id===v)openAISignalUpgrade(v);return;}
  if(a.startsWith('signal-')){if(selected?.kind!=='road'||selected.id!==v)return;if(a==='signal-save'){const rawEW=String($('signalEW').value).trim(),rawNS=String($('signalNS').value).trim(),eastWest=Number(rawEW),northSouth=Number(rawNS);if(!rawEW||!rawNS||!editSignal(v,{eastWest,northSouth})){toast('ตั้งเวลาไฟเขียวต่อทิศ 5–240 นาที (จำนวนเต็ม) ค่ะ');return;}toast('บันทึกเวลาไฟแยกนี้แล้วค่ะ');}else{const key=a==='signal-manual'?'manual':a==='signal-switch'?'switch':a==='signal-auto'?'auto':'';if(!controlSignal(v,key))return;toast(key==='manual'?'เปิดโหมดควบคุมไฟเองแล้วค่ะ':key==='switch'?'สลับไฟแล้ว · รอแดงทุกทิศ '+SIGNAL_CLEAR_MINUTES+' นาที':'กลับสู่ไฟอัตโนมัติแล้วค่ะ');}renderInspector(true);return;}
  if(a==='incident-resolve'){openTrafficIncident(v);return;}if(a==='tow'){
- const vehicle=state.vehicles.get(v),evidence=vehicle?captureTowedVehicleEvidence(vehicle):null;
+ const vehicle=state.vehicles.get(v),evidence=bugCaptureEnabled&&vehicle?captureTowedVehicleEvidence(vehicle):null;
  if(towVehicle(v,false,true)){
   selected=null;$('inspector').classList.add('hidden');updateUI();
-  if(!evidence){toast('เอารถออกแล้ว · ไม่มีข้อมูลรถให้รายงาน');}
+  if(!bugCaptureEnabled){toast('เอารถออกแล้ว · ไม่ได้เก็บหรือส่งรายงานบัค');}
+  else if(!evidence){toast('เอารถออกแล้ว · ยังไม่มีประวัติบัคหลังเปิดบันทึก');}
   else if(typeof window.SMGameAccount?.submitVehicleBugReport!=='function')toast('เอารถออกแล้ว แต่ยังส่งรายงานไม่ได้ · ระบบรายงานไม่พร้อม');
   else{
    toast('เอารถออกแล้ว · กำลังส่งหลักฐานบัค…');
@@ -6660,10 +6683,12 @@ async function sendCurrentMapToAi(){
 function openCityReport(){
  const dev=window.SMGameCreatorCanOpen===true;
  modal('<div class="menu-heading"><span class="menu-logo">⚠</span><div><span class="eyebrow">SMCITY · BUG REPORTS</span><h2>รายงานรถบัค</h2></div></div>'+
- '<p>ผู้เล่นส่งรายงานเฉพาะตอนกด <b>เอารถออก · ส่งรายงานบัค</b> ที่รถค้าง ระบบจับหลักฐานก่อนเอารถออก ไม่ติดตามรถอัตโนมัติ</p>'+
+ '<div class="smcity-menu-list" role="group" aria-label="ตั้งค่าบันทึกหลักฐานบัค"><button type="button" id="bugCaptureToggle" role="switch" aria-checked="'+String(bugCaptureEnabled)+'"><span class="menu-symbol">'+(bugCaptureEnabled?'●':'○')+'</span><span><b>บันทึกหลักฐานบัค · '+(bugCaptureEnabled?'เปิด':'ปิด')+'</b><small>'+(bugCaptureEnabled?'เริ่มเก็บเหตุการณ์ใหม่ · กดเอารถออกเพื่อส่งรายงาน':'ไม่บันทึกหลักฐานและไม่ส่งรายงาน · เกมทำงานปกติ')+'</small></span><span class="menu-chevron">'+(bugCaptureEnabled?'✓':'›')+'</span></button></div>'+
+ '<p>ปิดไว้จะไม่เก็บประวัติบัค เปิดแล้วจึงเริ่มเก็บหลักฐานใหม่ และส่งเฉพาะตอนกด <b>เอารถออก · ส่งรายงานบัค</b> เท่านั้น ระบบจราจรและการแก้รถค้างยังทำงานตามปกติ</p>'+
  (dev?'<p>Dev เท่านั้น · ข้อมูลจาก Supabase</p><div id="vehicleBugReportItems">กำลังโหลดรายงาน…</div><div class="actions"><button id="vehicleBugRefresh" class="primary">รีเฟรช</button><button id="vehicleBugClose">กลับไปเล่น</button></div>':
  '<p>รายงานที่ผู้เล่นส่งจะถูกเก็บให้ Dev ตรวจใน Supabase โดยผู้เล่นทั่วไปไม่สามารถเปิดดูรายงานของผู้อื่นได้</p><div class="actions"><button id="vehicleBugClose" class="primary">กลับไปเล่น</button></div>'));
  $('vehicleBugClose').onclick=closeModal;
+ $('bugCaptureToggle').onclick=()=>{setBugCaptureEnabled(!bugCaptureEnabled);openCityReport();};
  if(!dev)return;
  let generation=0;
  const refresh=async()=>{
@@ -6721,7 +6746,7 @@ function openGraphicsMenu(){
  }
 }
 function openMainMenu(){
- modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b></span><span class="menu-chevron">›</span></button><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b></span><span class="menu-chevron">›</span></button><button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>รายงานรถบัค</b></span><span class="menu-chevron">›</span></button><button type="button" id="graphicsMenu"><span class="menu-symbol">◈</span><span><b>ตั้งค่ากราฟิก</b></span><span class="menu-chevron">›</span></button><button type="button" id="helpMenu"><span class="menu-symbol">?</span><span><b>คู่มือเล่นเกม</b></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
+ modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b></span><span class="menu-chevron">›</span></button><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b></span><span class="menu-chevron">›</span></button><button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>รายงานรถบัค</b><small>บันทึกหลักฐาน: '+(bugCaptureEnabled?'เปิด':'ปิด')+'</small></span><span class="menu-chevron">›</span></button><button type="button" id="graphicsMenu"><span class="menu-symbol">◈</span><span><b>ตั้งค่ากราฟิก</b></span><span class="menu-chevron">›</span></button><button type="button" id="helpMenu"><span class="menu-symbol">?</span><span><b>คู่มือเล่นเกม</b></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
  const creatorAnchor=$('reportMenu');
  if(window.SMGameCreatorCanOpen&&creatorAnchor){
   const button=document.createElement('button');
@@ -6749,6 +6774,6 @@ window.SMGameCreatorMetrics=()=>{
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target-360;daily();state.time=target;missionAutoPulse();for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร ความสุข จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({DECOR_KINDS,LANDSCAPE_KINDS,moveLandscape,deleteLandscape,beginMoveLandscape,pickLandscapeAt,BUILDING_CHAINS,buildingQuotaStatus,beginMoveBuilding,moveBuilding,straightIntercityPath,updateIntercityFreight,deliveryNightAt,buildDeliveryRun,updateNightDeliveries,startDeliveryReturn,assistedBuildingPlacement,getDemolitionPreview,finishCanvasInteraction,get state(){return state;},get cam(){return cam;},get selected(){return selected;},get carStatusDiamondsVisible(){return carStatusDiamondsVisible;},get aiPinsVisible(){return aiPinsVisible;},toggleAIPinLabels,activateAISignalPin,updateAISignalPins,buyAISignal,openAISignalUpgrade,smartSignalStep,aiSignalQueuePressure,get graphicQuality(){return graphicQuality;},applyGraphicQuality,openGraphicsMenu,get canvasCarMarkerHits(){return canvasCarMarkerHits;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,CITIZEN_TRAITS,VEHICLE_TECHS,openVehicleUpgrade,syncCitizenVehicleTech,vehicleTechCounts,vehiclePosition,advanceSkyVehicle,citizenServicePreference,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,captureTowedVehicleEvidence,explainRoadTraversal,rememberVehicleStop,updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalSlots,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,mergeRoadKeys,parkingClaimed,prepareParkingMerges,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({DECOR_KINDS,LANDSCAPE_KINDS,moveLandscape,deleteLandscape,beginMoveLandscape,pickLandscapeAt,BUILDING_CHAINS,buildingQuotaStatus,beginMoveBuilding,moveBuilding,straightIntercityPath,updateIntercityFreight,deliveryNightAt,buildDeliveryRun,updateNightDeliveries,startDeliveryReturn,assistedBuildingPlacement,getDemolitionPreview,finishCanvasInteraction,get state(){return state;},get cam(){return cam;},get selected(){return selected;},get carStatusDiamondsVisible(){return carStatusDiamondsVisible;},get aiPinsVisible(){return aiPinsVisible;},toggleAIPinLabels,activateAISignalPin,updateAISignalPins,buyAISignal,openAISignalUpgrade,smartSignalStep,aiSignalQueuePressure,get graphicQuality(){return graphicQuality;},applyGraphicQuality,openGraphicsMenu,get canvasCarMarkerHits(){return canvasCarMarkerHits;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,CITIZEN_TRAITS,VEHICLE_TECHS,openVehicleUpgrade,syncCitizenVehicleTech,vehicleTechCounts,vehiclePosition,advanceSkyVehicle,citizenServicePreference,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,captureTowedVehicleEvidence,explainRoadTraversal,rememberVehicleStop,setBugCaptureEnabled,get bugCaptureEnabled(){return bugCaptureEnabled;},updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalSlots,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,mergeRoadKeys,parkingClaimed,prepareParkingMerges,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();startNewCity();requestAnimationFrame(frame);
 })();
