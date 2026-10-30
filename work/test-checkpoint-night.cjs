@@ -2,6 +2,10 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {pathToFileURL}=require('node:url');
 (async()=>{
+ // The renderer's shared 7-Eleven sign atlas needs a canvas even in Node.
+ global.document??={createElement:()=>({width:512,height:512,getContext:()=>({
+  fillRect(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){},fillText(){}
+ })})};
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
  const text=fs.readFileSync('dist/renderer3d.js','utf8')
   .replace(/import \* as THREE from '[^']+';/,'')
