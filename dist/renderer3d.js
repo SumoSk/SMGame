@@ -132,10 +132,10 @@ function hash(a,b=0){return ((Math.sin(a*127.1+b*311.7)*43758.5453)%1+1)%1;}
 // deterministic. One mipmapped noise atlas serves every surface (no downloads,
 // per-frame geometry, game RNG or changes to the buildable grid).
 const TERRAIN_PALETTES={
- phuket:['#526b3d','#82965b','#b0a36d','#9a8864'],
- bangkok:['#657544','#91a367','#b4ad7d','#8d8066'],
- chiangmai:['#49623c','#7c9558','#aaa46b','#8b795b'],
- korat:['#6c7843','#9ca566','#b7a272','#a18362']
+ phuket:['#52764c','#8faa71','#c2b589','#968363'],
+ bangkok:['#597858','#91a77a','#b7b398','#96896c'],
+ chiangmai:['#476b4b','#87a477','#a7ae83','#8a7e64'],
+ korat:['#748556','#a6b47d','#c3b58b','#a49473']
 };
 function landscapeNoise(){
  const size=128,data=new Uint8Array(size*size*4);let seed=743923;
@@ -186,6 +186,12 @@ function landscapeMaterial(city,kind,noise){
    turf=mix(turf,${c(palette[2])},dry);
    float soil=smoothstep(.70,.87,speckle)*(.24+dry*.4);
    turf=mix(turf,${c(palette[3])},soil);
+   // Large, soft vegetation islands connect parks, verges and empty plots
+   // without additional draw calls, textures or changes to the game map.
+   float meadow=smoothstep(.36,.79,landNoise(p/19.0+vec2(8.0,24.0)));
+   turf=mix(turf,${c(palette[1])},meadow*.13);
+   float organicEdge=sin(p.x*.37+sin(p.y*.23)*.6)*sin(p.y*.31+sin(p.x*.19)*.7);
+   turf*=.97+.045*organicEdge;
    // Occasional soft lawn clearings, with restrained mowing bands.
    float lawn=smoothstep(.70,.88,broad)*(1.0-dry);
    float mowing=.5+.5*sin((p.x*.71+p.y*.34)*3.14159);
@@ -202,6 +208,10 @@ function landscapeMaterial(city,kind,noise){
    turf=mix(turf,${c('#b5aa7b')},shore*.72);`;
   if(city==='bangkok')fragment+=`float bank=abs(p.x-(125.0+sin(p.y*.047)*5.0))-4.0;
    turf=mix(turf,${c('#827c59')},(1.0-smoothstep(0.0,1.6,bank))*.68);`;
+  if(city==='korat')fragment+=`// Fine cultivated-field texture for the drier Northeast biome.
+   float farm=smoothstep(.57,.84,landNoise(p/25.0+vec2(34.0,16.0)));
+   float rows=.5+.5*sin(p.x*2.75+sin(p.y*.19)*.75);
+   turf*=1.0-farm*rows*.045;`;
   fragment+='diffuseColor.rgb*=turf;';
  }else if(kind==='sand'||kind==='wetSand'){
   const wet=kind==='wetSand';
@@ -1086,6 +1096,18 @@ export class TrafficRenderer{
     const size=.08+hash(n,37)*.27;
     details.add(LEAF,['#9b9984','#c2b79a','#aaa98c'][n%3],x,-.07,z,size,size*.36,size*.71,0,n,0);
    }
+   // Small offshore rock groups at the Phuket shoreline. Strictly offshore,
+   // outside all driveable/buildable land; baked once and GPU-instanced.
+   for(let n=0;n<13;n++){
+    const z=28+hash(n,28)*242,shore=this.coast(z),x=shore-8-hash(n,72)*18;
+    const radius=.65+hash(n,33)*1.25;
+    for(let l=0;l<3;l++){
+     const a=l*2.39996+hash(n,9)*TAU,dist=l===0?0:radius*(.35+.2*hash(l,n));
+     const px=x+Math.cos(a)*dist,pz=z+Math.sin(a)*dist,s=.45+hash(n+l,41)*.7;
+     details.add(LEAF,['#798e83','#9a9b87','#647e73'][l],px,-.11+s*.29,pz,
+      radius*s,.38*s,radius*s,0,a,0,null,false,'stone');
+    }
+   }
   }
   const group=details.build();this.scene.add(group);this.terrainGroup.push(group);this.treeKey='';
  }
@@ -1341,14 +1363,57 @@ export class TrafficRenderer{
   for(let yy=iz-1;yy<=iz+1;yy++)for(let xx=ix-1;xx<=ix+1;xx++){const index=yy*300+xx;if(state.footprint[index]>=0||state.buildGrid[index]>=0)return false;}
   return true;
  };
- const types=['shade','banyan','flower','pine','shrub','palm'];
+ // Organic groves replace a perfectly even scattering of six repeated
+ // trees. City-specific species and non-selectable undergrowth reuse the
+ // existing instanced geometry; no per-frame mesh allocations or physics.
+ const biomeTrees={
+  phuket:['palm','palm','rain','shade','banyan','flower','shrub'],
+  bangkok:['rain','banyan','willow','shade','flower','jacaranda','oak'],
+  chiangmai:['pine','cedar','oak','shade','flower','cherry','cypress'],
+  korat:['shade','oak','rain','shrub','maple','flower','banyan'],
+  london:['oak','willow','maple','shade','cherry','cypress','rain']
+ };
+ const species=biomeTrees[state.city]||biomeTrees.korat;
+ const shrubColors=state.city==='chiangmai'?['#487e58','#64976a','#7da67c']:
+  state.city==='korat'?['#77965d','#91a66c','#acb478']:
+  state.city==='phuket'?['#4e9470','#69a77b','#8bb895']:
+  ['#548b65','#78a57c','#91b695'];
+ const flowerColors=state.city==='chiangmai'?['#e9b1d4','#b5a4d9','#f6c4cf']:
+  state.city==='korat'?['#f0cd82','#e8a4b0','#eac18d']:
+  ['#e8a4c0','#d6b6ec','#f1c77e'];
  for(let z=cellZ*18-span;z<cellZ*18+span;z+=2.7)for(let x=cellX*18-span;x<cellX*18+span;x+=2.7){
-  if(hash(x,z)<.70)continue;
+  // Use coherent landscape groves without increasing average tree density.
+  const grove=hash(Math.floor(x/14)+23,Math.floor(z/14)+57);
+  if(hash(x,z)<(grove>.53?.56:.82))continue;
   const tx=x+hash(z,x)*1.8,tz=z+hash(x+7,z)*1.8,ix=Math.floor(tx),iz=Math.floor(tz);
   if(!clear(tx,tz)||hidden.has(iz*300+ix))continue;
-  const variety=hash(tx+12,tz+3),kind=state.city==='phuket'&&variety>.56?'palm':types[Math.min(types.length-1,Math.floor(variety*types.length))];
+  const variety=hash(tx+12,tz+3);
+  let kind=species[Math.min(species.length-1,Math.floor(variety*species.length))];
+  if(state.city==='phuket'&&tx<this.coast(tz)+13&&variety>.25)kind='palm';
+  if(state.city==='bangkok'&&Math.abs(tx-(125+Math.sin(tz*.047)*5))<14&&variety>.38)kind='willow';
+  const near=this.graphicQuality==='veryHigh'||Math.hypot(tx-cam.x,tz-cam.y)<27;
   b.pickId=++pickId;this.landscapePicks.set(pickId,{auto:true,x:tx,y:tz,kind});
-  this.tree(b,tx,tz,(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),kind,(this.graphicQuality==='veryHigh'||Math.hypot(tx-cam.x,tz-cam.y)<27)?'near':'far');
+  this.tree(b,tx,tz,(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),kind,near?'near':'far');
+  // Selectable trees remain selectable, but their understory isn't a new
+  // interactable game object or something that persists in saves.
+  b.pickId=null;
+  if(!near||hash(tx+31,tz+7)<.44)continue;
+  for(let k=0;k<3;k++){
+   const angle=k*2.39996+hash(tx+1,tz)*6.2832,rad=.34+.40*hash(tx+k,tz+4);
+   const px=tx+Math.cos(angle)*rad,pz=tz+Math.sin(angle)*rad;
+   if(!clear(px,pz))continue;
+   const color=shrubColors[(k+Math.floor(hash(tx,tz+2)*3))%shrubColors.length];
+   const size=.15+.08*hash(px,pz);
+   b.add(HEDGE_LEAF,color,px,.15,pz,size,.13,size,0,angle,0,null,false,'foliage');
+   if(k===1||hash(px+8,pz)> .76){
+    const color=flowerColors[(k+Math.floor(hash(px,pz+9)*3))%flowerColors.length];
+    for(let petal=0;petal<4;petal++){
+     const a=petal*TAU/4;
+     b.add(FLOWER_PETAL,color,px+Math.cos(a)*.085,.286,pz+Math.sin(a)*.085,
+      .052,.022,.041,0,a,0,null,false,'flower');
+    }
+   }
+  }
  }
  for(const t of state.plantedTrees||[]){
   if(!Number.isFinite(t.x)||!Number.isFinite(t.y)||t.x<0||t.y<0||t.x>=300||t.y>=300||Math.abs(t.x-cellX*18)>span+3||Math.abs(t.y-cellZ*18)>span+3)continue;
