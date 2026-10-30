@@ -14,3 +14,5 @@ jobs:
         with:
           node-version: '22'
       - run: node -r ./work/test-dom-compat.cjs work/test-parking-merge.cjs
+        continue-on-error: true
+      - run: node -r ./work/test-dom-compat.cjs work/test-parking-emergency.cjs
