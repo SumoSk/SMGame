@@ -71,13 +71,13 @@ const CAR_WARP_BEAM=new THREE.CylinderGeometry(1,1,1,16,1,true);
 const VEHICLE_TECH_COLORS=Object.freeze({speed:'#FF1744',smart:'#00BFFF',fly:'#FFE600',warp:'#00FF66'});
 const UP=new THREE.Vector3(0,1,0),TAU=Math.PI*2;
 const DAYLIGHT=[
- [0,'#1a2941','#adc4e5',.35,.78,.64,1],[180,'#101d34','#8b9fc6',.26,.68,.57,1],
- [240,'#101e35','#899ec7',.28,.70,.58,1],[330,'#425677','#d0d7de',.7,1.02,.72,.86],
+ [0,'#081322','#91a7cd',.19,.55,.61,1],[180,'#07101e','#879dc4',.14,.49,.56,1],
+ [240,'#081321','#899ec7',.17,.52,.58,1],[330,'#425677','#d0d7de',.7,1.02,.72,.86],
  [390,'#d5a383','#ffe6b8',1.7,1.64,.91,.30],[510,'#8cc6d4','#fff4df',3.15,2.23,1.03,0],
  [720,'#98d1de','#fff5e0',3.67,2.44,1.09,0],[900,'#92c3c9','#ffe8c2',2.95,2.14,1.02,0],
  [1020,'#e9a475','#ffcc90',1.98,1.63,.94,.15],[1080,'#b47c88','#ffbe9d',.93,1.19,.8,.54],
- [1140,'#415875','#b7c6df',.50,.90,.67,.98],[1260,'#273a55','#a0b8dd',.39,.8,.65,1],
- [1440,'#1a2941','#adc4e5',.35,.78,.64,1]
+ [1140,'#172942','#9cb7df',.36,.72,.67,.98],[1260,'#0c1b2d','#8aa8d6',.24,.61,.62,1],
+ [1440,'#081322','#91a7cd',.19,.55,.61,1]
 ];
 const smooth=t=>{t=Math.min(1,Math.max(0,t));return t*t*(3-2*t);};
 function lightAt(time){
@@ -94,14 +94,14 @@ function lightAt(time){
 // Headline hours: bright buildings through 22:00, deepest night at 04:00,
 // blue-hour recovery from 05:00 and the original sunrise from 06:00 onward.
 const CITY_VISIBILITY=[
- [0,1.42,.91,.18,.22,.14],[180,1.28,.85,.11,.20,.18],
- [240,1.10,.82,.08,.18,.20],[300,1.24,.85,.10,.20,.17],
- [330,1.38,.88,.12,.21,.13],[360,1.52,.90,.13,.20,.10],
+ [0,.78,.83,.10,.12,.07],[180,.73,.82,.08,.10,.06],
+ [240,.70,.82,.07,.09,.06],[300,.77,.83,.09,.11,.07],
+ [330,.97,.86,.12,.13,.09],[360,1.20,.90,.13,.18,.10],
  [390,1.64,.91,.10,.18,.06],[510,2.23,1.03,0,0,0],
  [720,2.44,1.09,0,0,0],[900,2.14,1.02,0,0,0],
- [1020,1.63,.94,.08,.10,.04],[1080,1.50,.94,.20,.20,.07],
- [1140,1.50,.96,.26,.24,.10],[1260,1.50,.96,.26,.24,.10],
- [1320,1.50,.96,.26,.24,.10],[1440,1.42,.91,.18,.22,.14]
+ [1020,1.63,.94,.08,.10,.04],[1080,1.02,.88,.14,.17,.08],
+ [1140,.92,.86,.13,.16,.08],[1260,.84,.85,.12,.14,.08],
+ [1320,.81,.84,.11,.13,.07],[1440,.78,.83,.10,.12,.07]
 ];
 function cityVisibilityAt(time){
  const minute=((time%1440)+1440)%1440;
@@ -906,9 +906,9 @@ export class TrafficRenderer{
  updateWeatherLight(state){
   const sun=lightAt(state.time),air=climateAt(state.time,state.city),visibility=cityVisibilityAt(state.time);
   this.scene.background.copy(sun.sky).lerp(new THREE.Color('#738999'),air.cloud*.22+air.rain*.38);
-  this.skyLight.intensity=Math.max(1.10,visibility.ambient*(1-air.cloud*.14-air.rain*.24));
+  this.skyLight.intensity=Math.max(.68,visibility.ambient*(1-air.cloud*.14-air.rain*.24));
   this.light.color.copy(sun.sun).lerp(new THREE.Color('#dfe9f0'),air.cloud*.25);
-  this.light.intensity=Math.max(.60,sun.strength*(1-air.cloud*.18-air.rain*.36));
+  this.light.intensity=Math.max(.22,sun.strength*(1-air.cloud*.18-air.rain*.36));
   this.renderer.toneMappingExposure=Math.max(.82,visibility.exposure*(1-air.rain*.09));
   const solar=Math.max(0,Math.sin((sun.minute-360)/720*Math.PI)),az=sun.minute/1440*Math.PI*2;
   this.light.position.set(this.cam.x+Math.cos(az)*65,27+solar*68,this.cam.y+Math.sin(az)*65);
@@ -925,7 +925,7 @@ export class TrafficRenderer{
     mesh.material.opacity=(architecturalLED?.98:.78)*glow;
     mesh.material.emissiveIntensity=architecturalLED?2.0+glow*.55:.70+glow*.55;
    });
-   if(this.streetGlow)this.streetGlow.material.opacity=.24*glow;
+   if(this.streetGlow)this.streetGlow.material.opacity=.38*glow;
    this.lastGlow=glow;
   }
   // Breathing cyan reactor light: only existing instanced materials are
@@ -1446,7 +1446,8 @@ export class TrafficRenderer{
  if(roadside.plants?.length){const group=hedges.build(true);group.userData.roadsidePlants=true;this.roadGroup.add(group);}
  for(const [color,positions]of paint){if(!positions.length)continue;const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.computeVertexNormals();const material=new THREE.MeshStandardMaterial({color,roughness:.83,metalness:0,side:THREE.DoubleSide});const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.userData.baseColor=color;mesh.userData.nightRole='road-marking';this.roadGroup.add(mesh);}
  if(previewOnly)return;
- const gates=new Batch();for(let n=0;n<state.gates.length;n++){const i=state.gates[n],x=i%300,z=Math.floor(i/300),angle=n%2?0:Math.PI/2;gates.box('#dfddd0',x,1.9,z,4.9,.2,.45,angle);for(const sign of[-1,1]){const dx=n%2?0:sign*2.2,dz=n%2?sign*2.2:0;gates.box('#ede9d5',x+dx,.95,z+dz,.2,1.9,.2);}gates.box('#2f746c',x,2.15,z,3.7,.42,.16,angle);}this.roadGroup.add(gates.build());
+ // Customs-style checkpoints are decorative; all four original road gates and traffic rules remain unchanged.
+ // The actual offices, lifted arms, canopies and nighttime LEDs are added after rebuilding the lamp group.
  // Decorative street lighting; no changes to roads, routing or collision.
  this.disposeGroup(this.lampGroup);this.streetGlow=null;
  const poles=new Batch(),spots=[];
@@ -1485,8 +1486,59 @@ export class TrafficRenderer{
   for(let i=0;i<spots.length;i++){d.position.set(spots[i][0],.151,spots[i][1]);d.rotation.set(-Math.PI/2,0,0);d.scale.set(1,1,1);d.updateMatrix();halos.setMatrixAt(i,d.matrix);}
   halos.instanceMatrix.needsUpdate=true;halos.frustumCulled=false;this.streetGlow=halos;this.lampGroup.add(halos);
  }
+ this.buildBorderCheckpoints(state);
  this.lastGlow=-1;this.lastWet=-1;this.lastNightVisibility=-1;
 }
+
+ buildBorderCheckpoints(state){
+  // Four fixed customs stations, outside the usable city plots. No physics or
+  // traffic signal is involved: raised barrier arms never block a vehicle.
+  const model=new Batch(),lights=new Batch();
+  for(let n=0;n<state.gates.length;n++){
+   const node=state.gates[n],baseX=node%300,baseZ=Math.floor(node/300);
+   const inward=[[0,1],[-1,0],[0,-1],[1,0]][n];
+   const normal=[-inward[1],inward[0]],angle=n%2?Math.PI/2:0;
+   const place=(side,forward)=>({x:baseX+normal[0]*side+inward[0]*forward,
+    z:baseZ+normal[1]*side+inward[1]*forward});
+   const box=(batch,color,side,forward,y,width,height,depth,lit=false)=>{
+    const p=place(side,forward);batch.box(color,p.x,y,p.z,width,height,depth,angle,null,lit,lit?'night-checkpoint':'matte');
+   };
+   // High, open canopy and modest roadside passport-control offices.
+   for(const side of [-1,1]){
+    box(model,'#53636a',side*2.72,-.12,1.30,.17,2.60,.20);
+    box(model,'#c7d5d8',side*3.55,-2.25,.90,2.16,1.78,2.25);
+    box(model,'#284956',side*3.55,-2.25,1.92,2.39,.24,2.50);
+    box(model,'#305c70',side*3.55,-1.04,1.06,1.58,.79,.052);
+    box(model,'#a7d7d9',side*3.55,-1.006,1.10,1.27,.51,.021);
+    box(model,'#50666f',side*3.55,-3.39,.74,1.55,.68,.045);
+    box(model,'#f5ce89',side*3.55,-1.019,1.15,1.18,.30,.026);
+    box(lights,'#ffe8ad',side*3.55,-.97,1.18,1.28,.11,.055,true);
+    box(lights,'#62d5ea',side*3.55,-2.25,2.055,1.63,.043,.16,true);
+    // Barrier pivot and a raised red/white arm on each approaching lane.
+    box(model,'#e5d6b5',side*1.81,.84,.59,.28,1.08,.32);
+    box(model,'#293e47',side*1.81,.84,1.17,.31,.18,.35);
+    const tilt=.98,dx=-side*Math.cos(tilt),dy=Math.sin(tilt);
+    for(let k=0;k<7;k++){
+     const t=(k+.5)*.21,p=place(side*1.81+dx*t,.84);
+     const color=k%2?'#d85244':'#f3f2e6';
+     if(n%2)model.add(BOX,color,p.x,1.23+dy*t,p.z,.115,.11,.24,side>0?-.62:.62,0,0);
+     else model.add(BOX,color,p.x,1.23+dy*t,p.z,.24,.11,.115,0,0,side>0?2.16:.98);
+    }
+    box(lights,'#79e99d',side*1.81,.84,1.48,.20,.22,.11,true);
+   }
+   box(model,'#f3f0e5',0,-.10,2.60,6.07,.16,1.86);
+   box(model,'#244650',0,-.10,2.76,6.24,.21,2.03);
+   box(model,'#174d59',0,.93,2.32,3.85,.55,.17);
+   box(model,'#e9dac0',0,.935,2.29,2.85,.21,.19);
+   box(lights,'#77e4ee',0,1.011,2.53,4.35,.055,.12,true);
+   box(lights,'#ffdca0',0,-1.15,2.57,4.48,.054,.10,true);
+   // Small daylight-visible inspection/stop markings in the two open lanes.
+   for(const side of [-.82,.82])for(let stripe=0;stripe<3;stripe++)
+    box(model,stripe%2?'#f1e5c5':'#d5e8e0',side,1.75+stripe*.32,.144,1.04,.012,.11);
+  }
+  this.roadGroup.add(model.build(false));
+  this.lampGroup.add(lights.build(false));
+ }
 
  updateAISignalGlow(state){
   if(!this.aiSignalGroup)return;
