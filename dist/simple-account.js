@@ -139,3 +139,114 @@
     }).catch(()=>{try{localStorage.removeItem(storageKey);}catch{}});
   }catch{}
 })();
+
+;(() => {
+  // Creator-only account management, using an independently verified server role.
+  const dialog=document.getElementById('smcityCreator');
+  const wrap=dialog?.querySelector('.cr-wrap');
+  if(!wrap||typeof window.SMGameCreatorOpen!=='function')return;
+  const panel=document.createElement('section');
+  panel.className='cr-account-admin';
+  panel.innerHTML='<div class="cr-toolbar"><div><h3>จัดการบัญชีผู้เล่น</h3><p>ผู้สร้างดูรายชื่อและตั้งรหัสใหม่ได้ ไม่ต้องรู้รหัสเดิม</p></div><button type="button" id="crAccountRefresh">รีเฟรช</button></div>'+
+    '<div class="cr-account-filters"><label>ประเภทบัญชี <select id="crAccountKind"><option value="simple">บัญชีเกมแบบง่าย</option><option value="legacy">บัญชีเดิม (อีเมล)</option></select></label>'+
+    '<label>ค้นหาผู้เล่น <input id="crAccountSearch" type="search" autocomplete="off" placeholder="ชื่อผู้เล่น / อีเมล"></label></div>'+
+    '<p id="crAccountStatus" role="status" aria-live="polite">เปิดหน้าผู้สร้างเพื่อดูข้อมูลบัญชี</p>'+
+    '<div class="cr-table-box"><table><thead><tr><th>ผู้เล่น</th><th>สร้างบัญชี</th><th>จัดการ</th></tr></thead><tbody id="crAccountRows"></tbody></table></div>';
+  wrap.insertBefore(panel,wrap.lastElementChild);
+  const css=document.createElement('style');
+  css.textContent='#smcityCreator .cr-account-admin{display:grid;gap:9px}'+
+    '#smcityCreator .cr-account-filters{display:flex;flex-wrap:wrap;gap:8px}'+
+    '#smcityCreator .cr-account-filters label{display:grid;gap:4px;flex:1;min-width:150px;font-size:12px}'+
+    '#smcityCreator .cr-account-filters input,#smcityCreator .cr-account-filters select,#smcityCreator .cr-account-admin input[type=password]{width:100%;box-sizing:border-box;padding:8px;border:1px solid #aebbc3;border-radius:8px;background:#fff;color:#1d2e35}'+
+    '#smcityCreator .cr-account-admin .cr-table-box{max-height:30dvh}'+
+    '#smcityCreator .cr-account-admin td:last-child{min-width:140px}'+
+    '#smcityCreator .cr-account-admin td button{margin:2px;white-space:nowrap}'+
+    ':root.smcity-gray-ui #smcityCreator .cr-account-filters input,:root.smcity-gray-ui #smcityCreator .cr-account-filters select,:root.smcity-gray-ui #smcityCreator .cr-account-admin input[type=password]{background:#292e35;color:#fff;border-color:#59616b}';
+  document.head.appendChild(css);
+  const $=id=>panel.querySelector('#'+id);
+  const rows=$('crAccountRows'),search=$('crAccountSearch'),kind=$('crAccountKind'),status=$('crAccountStatus');
+  let accounts=[],busy=false,revision=0;
+  const dateText=value=>{
+    const d=new Date(value);return Number.isNaN(d.getTime())?'—':d.toLocaleString('th-TH',{dateStyle:'short'});
+  };
+  function authorized(){
+    return dialog.open&&window.SMGameCreatorCanOpen===true&&
+      !!window.SMGameAccount?.user&&typeof window.SMGameCreatorRequest==='function';
+  }
+  function render(){
+    rows.replaceChildren();
+    const q=search.value.trim().toLocaleLowerCase('th');
+    const matched=accounts.filter(a=>String(a.username||'').toLocaleLowerCase('th').includes(q)||
+      String(a.email||'').toLocaleLowerCase('th').includes(q));
+    if(!matched.length){
+      const tr=document.createElement('tr'),td=document.createElement('td');
+      td.colSpan=3;td.textContent=accounts.length?'ไม่พบผู้เล่นที่ค้นหา':'ยังไม่มีบัญชี';
+      tr.appendChild(td);rows.appendChild(tr);return;
+    }
+    for(const item of matched){
+      const tr=document.createElement('tr');
+      const label=document.createElement('td');
+      const name=document.createElement('strong');name.textContent=item.username||item.email||'ผู้เล่น';
+      label.append(name);
+      if(item.email&&item.username){
+        const email=document.createElement('small');email.textContent=' '+item.email;
+        label.append(email);
+      }
+      const created=document.createElement('td');created.textContent=dateText(item.created_at||item.createdAt);
+      const actions=document.createElement('td');
+      const change=document.createElement('button');change.type='button';change.textContent='ตั้งรหัสใหม่';
+      change.addEventListener('click',()=>{
+        actions.replaceChildren();
+        const field=document.createElement('input');field.type='password';field.autocomplete='new-password';
+        field.placeholder='รหัสผ่านใหม่';field.setAttribute('aria-label','รหัสผ่านใหม่สำหรับ '+(item.username||item.email||'บัญชี'));
+        const save=document.createElement('button');save.type='button';save.textContent='บันทึก';
+        const cancel=document.createElement('button');cancel.type='button';cancel.textContent='ยกเลิก';
+        cancel.addEventListener('click',()=>{field.value='';render();});
+        save.addEventListener('click',async()=>{
+          if(!authorized())return;
+          const password=field.value;
+          if(!password){status.textContent='กรอกรหัสผ่านใหม่ก่อนค่ะ';return;}
+          const token=revision,mode=kind.value;
+          field.value='';save.disabled=true;
+          status.textContent='กำลังตั้งรหัสผ่านให้ '+(item.username||item.email)+'…';
+          try{
+            if(mode==='simple')await window.SMGameCreatorRequest('reset-simple-password',{accountId:item.id,password});
+            else await window.SMGameCreatorRequest('reset-account-password',{userId:item.id,password});
+            if(token!==revision||!authorized())return;
+            status.textContent='ตั้งรหัสผ่านใหม่สำเร็จสำหรับ '+(item.username||item.email)+' ค่ะ';
+            render();
+          }catch(error){
+            if(token===revision&&authorized())status.textContent='เปลี่ยนรหัสผ่านไม่สำเร็จ: '+(error.message||'ไม่ทราบสาเหตุ');
+            save.disabled=false;
+          }
+        });
+        actions.append(field,save,cancel);field.focus();
+      });
+      actions.append(change);tr.append(label,created,actions);rows.append(tr);
+    }
+  }
+  async function refresh(){
+    if(busy||!authorized())return;
+    const ticket=++revision,mode=kind.value;
+    busy=true;status.textContent='กำลังโหลดบัญชี…';
+    try{
+      const result=await window.SMGameCreatorRequest(mode==='simple'?'list-simple-accounts':'list-accounts');
+      if(ticket!==revision||!authorized())return;
+      accounts=Array.isArray(result.accounts)?result.accounts:[];
+      render();status.textContent='พบ '+accounts.length+' บัญชี'+(mode==='legacy'?' (แสดงสูงสุด 100 รายการ)':' (แสดงสูงสุด 200 รายการ)');
+    }catch(error){
+      if(ticket!==revision||!dialog.open)return;
+      accounts=[];rows.replaceChildren();status.textContent='โหลดบัญชีไม่สำเร็จ: '+(error.message||'ไม่ทราบสาเหตุ');
+    }finally{busy=false;}
+  }
+  search.addEventListener('input',render);
+  kind.addEventListener('change',()=>{revision++;accounts=[];rows.replaceChildren();void refresh();});
+  $('crAccountRefresh').addEventListener('click',()=>void refresh());
+  dialog.addEventListener('close',()=>{revision++;accounts=[];rows.replaceChildren();search.value='';});
+  const original=window.SMGameCreatorOpen;
+  window.SMGameCreatorOpen=function(...args){
+    const result=original.apply(this,args);
+    if(authorized())void refresh();
+    return result;
+  };
+})();
