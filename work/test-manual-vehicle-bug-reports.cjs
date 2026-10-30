@@ -1,0 +1,26 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const fixture=fs.readFileSync('work/test-adaptive-traffic.cjs','utf8').split('let {car}=roadScene(false);')[0];
+new Function('require',fixture+`
+  const {car,leader}=roadScene(false);
+  car.wait=52;
+  const evidence=game.captureTowedVehicleEvidence(car);
+  assert.equal(evidence.kind,'manual_tow_only');
+  assert.equal(evidence.vehicle.id,310);
+  assert.equal(evidence.vehicle.node,car.path[car.pos]);
+  assert.equal(evidence.diagnosis.certainty,'not_proven');
+  assert(Array.isArray(evidence.roadSpace)&&evidence.roadSpace.length>0);
+  assert(evidence.nearbyVehicles.some(v=>v.id===leader.id),'traffic neighbors recorded');
+  const old=game.snapshot();
+  assert.equal(game.snapshot(),old,'diagnostic must not change save on repeated read');
+  car.lastJunctionDenial={gameTime:game.state.time,node:car.path[6],code:'conflicting_junction_lease',ownerId:311};
+  const another=game.captureTowedVehicleEvidence(car);
+  assert.equal(another.diagnosis.certainty,'not_proven','cannot claim proven without actual junction barrier');
+  assert.equal(typeof game.towVehicle,'function');
+  console.log('PASS: manual tow captures real vehicle and neighbors, refuses unverified root cause, keeps removal action');
+`)(require);
+const src=fs.readFileSync('dist/game.js','utf8');
+assert(src.includes("if(a==='tow'){"),'existing tow button preserved');
+assert(src.includes('submitVehicleBugReport(evidence)'), 'upload only from manual tow click');
+assert(!src.includes("name:'ส่ง AI'"), 'obsolete report actions hidden');
+console.log('PASS: single manual report entry and upload trigger only at tow button');
