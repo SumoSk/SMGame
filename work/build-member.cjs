@@ -1,4 +1,5 @@
 const path = require('node:path');
+const fs = require('node:fs');
 const esbuild = require('esbuild');
 const root = path.resolve(__dirname, '..');
 
@@ -13,3 +14,6 @@ esbuild.buildSync({
   charset: 'utf8',
   legalComments: 'none',
 });
+// Keep the standalone simple game-account client in published builds.
+fs.copyFileSync(path.join(root, 'work/simple-account.js'),path.join(root, 'dist/simple-account.js'));
+
