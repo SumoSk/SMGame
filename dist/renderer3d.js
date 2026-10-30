@@ -1742,6 +1742,43 @@ export class TrafficRenderer{
    }
   };
 
+  if(t.kind==='civic'){
+   // Five connected government wings around an open planted courtyard. All
+   // geometry is instanced; low quality retains the same distinctive outline.
+   const cx=W/2,depth=t.buildingZoneDepth||t.plotHeight/2,cz=depth/2;
+   const radius=Math.min(W*.40,depth*.43),wall=.68,height=1.50;
+   block('#d5d8cc',cx,.11,cz,W-.40,.18,depth-.20,'stone');
+   block('#81a378',cx,.22,cz,radius*1.35,.06,radius*1.35,'foliage');
+   for(let side=0;side<5;side++){
+    const a=-Math.PI/2+side*Math.PI*2/5,b=a+Math.PI*2/5;
+    const x1=cx+Math.cos(a)*radius,z1=cz+Math.sin(a)*radius;
+    const x2=cx+Math.cos(b)*radius,z2=cz+Math.sin(b)*radius;
+    const x=(x1+x2)/2,z=(z1+z2)/2,len=Math.hypot(x2-x1,z2-z1)+.25;
+    const angle=-Math.atan2(z2-z1,x2-x1),p=point(x,z);
+    for(const [color,y,h,w,d,glow,finish]of[
+     ['#cbd2ce',.90,height,len,wall,false,'stone'],
+     ['#52697a',1.69,.15,len+.08,wall+.10,false,'metal'],
+     ['#ebe5d3',.31,.16,len+.06,wall+.05,false,'stone']])
+     batch.add(BOX,color,p.x-.5,y,p.y-.5,w,h,d,0,turn+angle,0,id,glow,finish);
+    const n=this.graphicQuality==='low'?3:6;
+    for(let j=0;j<n;j++){
+     const f=(j+.5)/n,u=x1+(x2-x1)*f,v=z1+(z2-z1)*f;
+     const normal=a+Math.PI/5,q=point(u+Math.cos(normal)*(wall/2+.015),v+Math.sin(normal)*(wall/2+.015));
+     for(const y of [.68,1.20])batch.add(BOX,'#ffe1ac',q.x-.5,y,q.y-.5,.22,.24,.025,0,turn+angle,0,id,true,'night-civic');
+    }
+   }
+   // Civic forecourt and flag; no physical light objects or per-frame meshes.
+   block('#adbdb9',cx,.23,depth-.55,1.70,.10,.75,'stone');
+   block('#52758a',cx,.66,depth-.83,.62,.80,.08,'glass');
+   pole('#879caa',cx+.95,1.18,depth-.50,.025,2.15,'metal');
+   block('#c35052',cx+1.16,2.08,depth-.50,.43,.14,.025,'metal');
+   block('#e6e8df',cx+1.16,1.95,depth-.50,.43,.13,.025,'metal');
+   block('#34567e',cx+1.16,1.81,depth-.50,.43,.15,.025,'metal');
+   for(const u of[cx-radius*.46,cx+radius*.46])planted(u,cz,.30);
+   for(const u of[.65,W-.65])lantern(u,depth-.42);
+   return;
+  }
+
   // MODERN FACTORY CAMPUS — a new lightweight architectural model for ALL
   // four factory tiers. Uses only the pre-existing building half of each lot.
   // Completely independent of parking, frontage nodes, roads and production

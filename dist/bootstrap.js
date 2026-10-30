@@ -1,5 +1,5 @@
-import { TrafficRenderer } from './renderer3d.js?v=v46-release-20261031-1';
+import { TrafficRenderer } from './renderer3d.js?v=8de3ba20352e';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
-await import('./game.js?v=v46-password-20261031-1');
-await import('./member.js?v=v46-dev-simple-20261031-1');
-await import('./simple-account.js?v=v46-dev-simple-20261031-1');
+await import('./game.js?v=548b649867da');
+await import('./member.js?v=0192e592dd74');
+await import('./simple-account.js?v=37e0921a86fa');
