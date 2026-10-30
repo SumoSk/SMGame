@@ -1,0 +1,21 @@
+name: Exact vehicle denial diagnostics tests
+on:
+  push:
+    branches:
+      - test/vehicle-decision-trace-2026-10-30
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check dist/game.js
+      - run: node -r ./work/test-dom-compat.cjs work/test-vehicle-block-trace.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-manual-vehicle-bug-reports.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-adaptive-traffic.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-lane-change-safety.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
