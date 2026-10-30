@@ -15,11 +15,12 @@
   let account=null,token=null,pending=null,working=false,requestRevision=0;
   let legacyBypassSubmit=false,legacyAttempt=null;
   const active=()=>!!(account&&token&&!legacyUser());
+  window.SMGameSimpleSessionToken=()=>active()?token:null;
   function setAccount(user,session){
     account=user||null;token=session||null;
     try{if(user&&session)localStorage.setItem(storageKey,session);else localStorage.removeItem(storageKey);}catch{}
     window.SMGameOnAuthChanged?.(!!(user||legacyUser()));
-    if(!user)window.SMGameCreatorAuthRefresh?.();
+    setTimeout(()=>window.SMGameCreatorAuthRefresh?.(),0);
   }
   async function call(action,fields={},session=token){
     const headers={'Content-Type':'application/json',apikey:key};
