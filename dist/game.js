@@ -4667,10 +4667,15 @@ function captureTowedVehicleEvidence(v){
  const fresh=!!recent&&state.time-recent.gameTime>=0&&state.time-recent.gameTime<=2;
  const actualBarrier=v.lastStoppedBarrier||null;
  const physical=v.lastPhysicalBlock||null;
+ const roadBlock=v.lastRoadTraversalBlock||null;
+ const verifiedRoad=!!roadBlock&&state.time-roadBlock.gameTime>=0&&state.time-roadBlock.gameTime<=2&&actualBarrier?.reason==='รถคันหน้าขวาง';
  const verifiedPhysical=!!physical&&state.time-physical.gameTime>=0&&state.time-physical.gameTime<=2&&actualBarrier?.reason==='เว้นระยะรถ';
  const diagnosis=fresh&&nextJunction?.node===recent.node&&actualBarrier?.reason==='คิวแยก'&&recent.code!=='red_signal'?{
   certainty:'observed_rejection',code:recent.code,gameTime:recent.gameTime,
   proof:recent,explanation:'บันทึกจากเงื่อนไขที่ปฏิเสธรถจริงในรอบคำนวณล่าสุด'
+ }:verifiedRoad?{
+  certainty:'observed_rejection',code:'road_traversal_unavailable',gameTime:roadBlock.gameTime,
+  proof:roadBlock,explanation:'การเคลื่อนที่ถูกปฏิเสธที่ช่องถนนถัดไปในรอบคำนวณจริง'
  }:verifiedPhysical?{
   certainty:'observed_rejection',code:'physical_body_blocked',gameTime:physical.gameTime,
   proof:physical,explanation:'พบรถคันที่ตรวจตัวถังแล้วขวางการเคลื่อนที่จริง'
@@ -4688,7 +4693,7 @@ function captureTowedVehicleEvidence(v){
    nextJunction:nextJunction?{node:nextJunction.node,pos:nextJunction.pos,entry:nextJunction.entry,stop:nextJunction.stop,clear:nextJunction.clear,
     direction,lane:inLane,signal:signalColor(nextJunction.node,direction,inLane)}:null},
   diagnosis,lastStoppedBarrier:actualBarrier,
-  lastJunctionDenial:recent,lastQueueDenial:v.lastQueueDenial||null,latestPhysicalBlock:v.lastPhysicalBlock||null,
+  lastJunctionDenial:recent,lastQueueDenial:v.lastQueueDenial||null,latestRoadBlock:roadBlock,latestPhysicalBlock:v.lastPhysicalBlock||null,
   junctionLease:junctionSpace?JSON.parse(JSON.stringify(junctionSpace)):null,
   roadSpace:owned,queueAtClick:queues,
   nearbyVehicles:nearby,nearbyRoads:roads, runtimeErrors:runtimeErrors.slice(-5),
@@ -5103,6 +5108,8 @@ function motionBarrier(v,plan,s,budget=-1){
  let limit=physical,reason=Number.isFinite(physical)?'เว้นระยะรถ':'';
  const nextPos=v.pos+1;
  if(nextPos<v.path.length&&!roadTraversalAvailable(v,nextPos)){
+  const nextNode=v.path[nextPos],nextDirection=motionDirection(v.path,nextPos),nextLane=plannedLane(v,nextPos);
+  v.lastRoadTraversalBlock={gameTime:state.time,code:'road_traversal_unavailable',node:nextNode,direction:nextDirection,lane:nextLane,space:ownedRoadSpace(nextNode,nextDirection,nextLane,v.id)};
   const cellLimit=Math.max(s,plan.nodes[nextPos]-TRAFFIC_RULES.vehicleHalfLength*2-.08);if(cellLimit<limit){limit=cellLimit;reason='รถคันหน้าขวาง';}
  }
  const lookahead=Math.max(4,(v.speed||0)*(v.speed||0)/9.6+1,budget>=0?budget+.5:0);
