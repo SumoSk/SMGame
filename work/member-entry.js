@@ -349,6 +349,7 @@ if (gate) {
   if (typeof document.createElement === 'function' && typeof navigator !== 'undefined') {
   // Per-page visit telemetry is kept separate from saves and the simulation.
   const creatorEndpoint = SUPABASE_URL + '/functions/v1/smgame-creator-presence';
+  const creatorUser = () => user || window.SMGameAccount?.user || null;
   const creatorSession = crypto.randomUUID();
   let creatorVisitor;
   try {
@@ -376,6 +377,7 @@ if (gate) {
     const { data } = await auth.auth.getSession();
     const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
     if (data?.session?.access_token) headers.Authorization = 'Bearer ' + data.session.access_token;
+    else if (window.SMGameSimpleSessionToken?.()) headers.Authorization = 'Bearer ' + window.SMGameSimpleSessionToken();
     const res = await fetch(creatorEndpoint, { method: 'POST', headers, body: JSON.stringify({ action, ...values }) });
     const payload = await res.json();
     if (!res.ok) throw Error(payload.message || 'ระบบสถิติไม่พร้อม');
@@ -514,12 +516,12 @@ if (gate) {
   const creatorLiveStatus = () => cr('crLiveStatus');
   creatorDialog.addEventListener('close', () => { creatorLiveRevision++; });
   async function creatorRequestLiveCity(item, button) {
-    if (creatorLiveBusy || !creatorAllowed || !creatorDialog.open || !user) return;
+    if (creatorLiveBusy || !creatorAllowed || !creatorDialog.open || !creatorUser()) return;
     creatorLiveBusy = true;
     button.disabled = true;
-    const revision = ++creatorLiveRevision, expectedUserId = user.id;
+    const revision = ++creatorLiveRevision, expectedUserId = creatorUser().id;
     const active = () => revision === creatorLiveRevision && creatorAllowed &&
-      creatorDialog.open && user?.id === expectedUserId;
+      creatorDialog.open && creatorUser()?.id === expectedUserId;
     creatorLiveStatus().textContent = 'กำลังขอสำเนาเมืองจาก ' + item.display_name + '…';
     try {
       const ticket = await creatorRequest('request-live-snapshot', { sessionId: item.session_id });
@@ -567,7 +569,7 @@ if (gate) {
   }
   window.SMGameCreatorRequest = creatorRequest;
   window.SMGameCreatorOpen = () => {
-    if (!creatorAllowed || !user) return;
+    if (!creatorAllowed || !creatorUser()) return;
     window.SMGameCloseDialog?.();
     creatorDialog.showModal();
     void creatorReload();
@@ -576,13 +578,13 @@ if (gate) {
   cr('crRefresh').addEventListener('click', () => void creatorReload());
   creatorDialog.addEventListener('click', event => { if (event.target === creatorDialog) creatorDialog.close(); });
   window.SMGameCreatorAuthRefresh = async () => {
-    const ticket = ++creatorAccessCounter, expected = user?.id;
+    const ticket = ++creatorAccessCounter, expected = creatorUser()?.id;
     creatorAllowed = false; window.SMGameCreatorCanOpen = false;
     if (creatorDialog.open) creatorDialog.close();
     if (!expected) return;
     try {
       const result = await creatorRequest('access');
-      if (ticket !== creatorAccessCounter || user?.id !== expected) return;
+      if (ticket !== creatorAccessCounter || creatorUser()?.id !== expected) return;
       creatorAllowed = result.developer === true;
       window.SMGameCreatorCanOpen = creatorAllowed;
     } catch { if (ticket === creatorAccessCounter) window.SMGameCreatorCanOpen = false; }
