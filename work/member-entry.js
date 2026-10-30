@@ -328,7 +328,7 @@ if (gate) {
     },
     async changePassword(currentPassword, newPassword) {
       if (!user?.email) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
-      if (!currentPassword || newPassword?.length < 8) throw Error('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษรค่ะ');
+      if (!currentPassword || !newPassword) throw Error('กรุณากรอกรหัสผ่านปัจจุบันและรหัสผ่านใหม่ค่ะ');
       if (currentPassword === newPassword) throw Error('รหัสผ่านใหม่ต้องแตกต่างจากเดิมค่ะ');
       const { error: checkError } = await auth.auth.signInWithPassword({
         email: user.email, password: currentPassword,
