@@ -1,0 +1,24 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const fixture=fs.readFileSync('work/test-adaptive-traffic.cjs','utf8').split('let {car}=roadScene(false);')[0];
+new Function('require',fixture+`
+  let {car}=roadScene(false,false);
+  car.wait=0;car.stopReason='';
+  const before=game.state.vehicles.size;
+  assert.equal(game.canTowVehicle(car),false,'automatic tow eligibility unchanged');
+  const evidence=game.captureTowedVehicleEvidence(car);
+  assert.equal(evidence.vehicle.id,car.id);
+  assert.equal(evidence.diagnosis.certainty,'not_proven','a healthy car must not be falsely reported as a traffic failure');
+  assert.equal(game.towVehicle(car.id),false,'automatic/manual legacy tow still rejects active unblocked car');
+  assert.equal(game.state.vehicles.size,before);
+  assert.equal(game.towVehicle(car.id,false,true),true,'player click may remove any active car');
+  assert(!game.state.vehicles.has(car.id),'selected vehicle removed');
+  assert.equal(game.state.vehicles.size,before-1);
+  console.log('PASS: ordinary vehicle may be manually removed; automatic tow guard unchanged');
+`)(require);
+const code=fs.readFileSync('dist/game.js','utf8');
+assert(code.includes("+action('เอารถออก · ส่งรายงานบัค','tow',v.id);")||code.includes("+action('เอารถออก · ส่งรายงานบัค','tow',v.id)"),'button always shown');
+assert(code.includes("const vehicle=state.vehicles.get(v),evidence=vehicle?captureTowedVehicleEvidence(vehicle):null;"),'capture before removal for any car');
+assert(code.includes("if(towVehicle(v,false,true))"),'player-only override used');
+assert(code.includes("submitVehicleBugReport(evidence)"),'upload from existing tow action preserved');
+console.log('PASS: inspector button and manual-only evidence submission linked');
