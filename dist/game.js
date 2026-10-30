@@ -4758,8 +4758,8 @@ function captureTowedVehicleEvidence(v){
   evidenceNotes:['observed_signal หมายถึงเห็นไฟแดงขณะรายงาน ไม่ได้ยืนยันว่ารอปกติตลอดช่วง','admission.blockers บอกข้อที่ทำให้ช่องถนนไม่ผ่าน รวมถึงจำนวนรถในทิศเดียวกัน','stopHistory และข้อมูลรถข้างเคียงเป็นรอบการตัดสินใจที่เก็บไว้ในเครื่อง ไม่ได้ส่งอัตโนมัติ','queueAtClick เป็นข้อมูล ณ เวลากดปุ่ม ไม่ใช่หลักฐานว่าคิวในเฟรมก่อนหน้าเหมือนกัน']};
 }
 function canTowVehicle(v){return !!v&&(v.phase==='stuck'||v.departureNoRoute||v.wait>=48);}
-function towVehicle(id,incidentForce=false){
- const v=state.vehicles.get(id);if(!v||(!incidentForce&&!canTowVehicle(v)))return false;
+function towVehicle(id,incidentForce=false,playerForce=false){
+ const v=state.vehicles.get(id);if(!v||(!incidentForce&&!playerForce&&!canTowVehicle(v)))return false;
  if(incidentForce){
   grandSignalRelease(v);
   for(const b of state.buildings.values())if(b.grandSignal?.holder===id)b.grandSignal.holder=null;
@@ -4786,7 +4786,7 @@ function towVehicle(id,incidentForce=false){
  }}
  if(follow===id)follow=null;return true;
 }
-function vehicleRecoveryActions(v){if(!v)return '';const incident=incidentForVehicle.get(v.id);return (incident?row('⚠️ เหตุจราจร','ต้นเหตุ '+incident.vehicles.length+' คัน · หยุด '+Math.round(incident.stalled)+' นาที')+action('🚨 ดูเหตุการณ์','incident-resolve',v.id):'')+row('เหตุผลที่หยุด',escapeSaveText(v.stopReason||(['departing','gate_waiting'].includes(v.phase)?'รอออกเดินทาง':'กำลังเดินทาง')))+(v.phase==='stuck'||v.departureNoRoute?action('ลองหาเส้นทางใหม่','reroute',v.id):'')+(canTowVehicle(v)?action('เอารถออก · ส่งรายงานบัค','tow',v.id):'');}
+function vehicleRecoveryActions(v){if(!v)return '';const incident=incidentForVehicle.get(v.id);return (incident?row('⚠️ เหตุจราจร','ต้นเหตุ '+incident.vehicles.length+' คัน · หยุด '+Math.round(incident.stalled)+' นาที')+action('🚨 ดูเหตุการณ์','incident-resolve',v.id):'')+row('เหตุผลที่หยุด',escapeSaveText(v.stopReason||(['departing','gate_waiting'].includes(v.phase)?'รอออกเดินทาง':'กำลังเดินทาง')))+(v.phase==='stuck'||v.departureNoRoute?action('ลองหาเส้นทางใหม่','reroute',v.id):'') +action('เอารถออก · ส่งรายงานบัค','tow',v.id);}
 function immigration(){if(computeStats().happy<TOURISM.residentHappiness)return;let n=0;for(const b of state.buildings.values()){const t=CATALOG[b.key];if(!t.residents||!b.access.length||b.failedRouteVersion===state.version)continue;const free=Math.max(0,t.residents-b.residents.size-b.reservedResidents-homeImmigrationLocks(b));for(let k=0;k<free&&n<16;k++){const c=newCitizen(b);const gates=[...state.gates].sort((a,z)=>distance(a,id(b.x,b.y))-distance(z,id(b.x,b.y)));let success=false;for(const gate of gates)if(createTrip(c,'moveIn',null,b.id,gate,null,state.time+1440)){success=true;n++;break;}if(!success){state.citizens.delete(c.id);b.failedRouteVersion=state.version;break;}}if(n>=16)break;}}
 function junctionConnector(v,pos){
  const plan=motionPlan(v),g=plan.junctions.find(g=>g.pos===pos);if(!g)return null;
@@ -6149,8 +6149,8 @@ $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)
  if(a==='signal-ai-buy'){if(selected?.kind==='road'&&selected.id===v)openAISignalUpgrade(v);return;}
  if(a.startsWith('signal-')){if(selected?.kind!=='road'||selected.id!==v)return;if(a==='signal-save'){const rawEW=String($('signalEW').value).trim(),rawNS=String($('signalNS').value).trim(),eastWest=Number(rawEW),northSouth=Number(rawNS);if(!rawEW||!rawNS||!editSignal(v,{eastWest,northSouth})){toast('ตั้งเวลาไฟเขียวต่อทิศ 5–240 นาที (จำนวนเต็ม) ค่ะ');return;}toast('บันทึกเวลาไฟแยกนี้แล้วค่ะ');}else{const key=a==='signal-manual'?'manual':a==='signal-switch'?'switch':a==='signal-auto'?'auto':'';if(!controlSignal(v,key))return;toast(key==='manual'?'เปิดโหมดควบคุมไฟเองแล้วค่ะ':key==='switch'?'สลับไฟแล้ว · รอแดงทุกทิศ '+SIGNAL_CLEAR_MINUTES+' นาที':'กลับสู่ไฟอัตโนมัติแล้วค่ะ');}renderInspector(true);return;}
  if(a==='incident-resolve'){openTrafficIncident(v);return;}if(a==='tow'){
- const vehicle=state.vehicles.get(v),evidence=vehicle&&canTowVehicle(vehicle)?captureTowedVehicleEvidence(vehicle):null;
- if(towVehicle(v)){
+ const vehicle=state.vehicles.get(v),evidence=vehicle?captureTowedVehicleEvidence(vehicle):null;
+ if(towVehicle(v,false,true)){
   selected=null;$('inspector').classList.add('hidden');updateUI();
   if(!evidence){toast('เอารถออกแล้ว · ไม่มีข้อมูลรถให้รายงาน');}
   else if(typeof window.SMGameAccount?.submitVehicleBugReport!=='function')toast('เอารถออกแล้ว แต่ยังส่งรายงานไม่ได้ · ระบบรายงานไม่พร้อม');
