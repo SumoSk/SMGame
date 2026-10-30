@@ -804,7 +804,7 @@ class Batch{
 export class TrafficRenderer{
  constructor(canvas){
  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.96;
- this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new THREE.OrthographicCamera(-30,30,20,-20,.1,500);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#e8f7ff','#698057',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
+ this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new URLSearchParams(window.location.search).get('camera')==='ortho'?new THREE.OrthographicCamera(-30,30,20,-20,.1,1500):new THREE.PerspectiveCamera(35,innerWidth/Math.max(1,innerHeight),.1,1500);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#e8f7ff','#698057',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
  this.ray=new THREE.Raycaster();this.ground=new THREE.Plane(UP,0);this.ndc=new THREE.Vector2();this.point=new THREE.Vector3();this.lastKey='';this.roadKey='';this.buildKey='';this.treeKey='';this.previewKey='';this.buildingMeshes=null;this.cameraKey='';this.cam=null;this.w=innerWidth;this.h=innerHeight;this.materials=[];
  this.graphicQuality='medium';this.lastBuildingDetailLevel=null;
  this.aiSignalGroup=new THREE.Group();this.aiSignalKey='';this.aiSignalGlows=[];
@@ -950,7 +950,32 @@ export class TrafficRenderer{
    });this.lastWet=air.wet;
   }
  }
- updateCamera(cam){this.cam=cam;const half=this.h/(2*26*cam.z),aspect=this.w/this.h;this.camera.left=-half*aspect;this.camera.right=half*aspect;this.camera.top=half;this.camera.bottom=-half;const angle=cam.angle??Math.PI/4,elevation=Math.max(Math.PI*35/180,Math.min(Math.PI*78/180,cam.elevation??Math.PI*50/180)),radius=Math.hypot(90,86),horizontal=radius*Math.cos(elevation);cam.elevation=elevation;this.camera.position.set(cam.x+Math.sin(angle)*horizontal,radius*Math.sin(elevation),cam.y+Math.cos(angle)*horizontal);this.camera.lookAt(cam.x,0,cam.y);this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();this.light.position.set(cam.x-45,90,cam.y-35);this.light.target.position.set(cam.x,0,cam.y);this.light.target.updateMatrixWorld();}
+ updateCamera(cam){
+  this.cam=cam;
+  const aspect=this.w/Math.max(1,this.h),zoom=Math.max(.22,cam.z);
+  const angle=cam.angle??Math.PI/4;
+  const elevation=Math.max(Math.PI*35/180,Math.min(Math.PI*78/180,cam.elevation??Math.PI*50/180));
+  cam.elevation=elevation;
+  let radius;
+  if(this.camera.isPerspectiveCamera){
+   // Match the orthographic view's scale at the city focus, then introduce genuine depth.
+   // This keeps construction and zoom controls intact while testing perspective only.
+   this.camera.aspect=aspect;
+   const viewHeight=this.h/(26*zoom);
+   radius=Math.max(12,viewHeight/(2*Math.tan(this.camera.fov*Math.PI/360)));
+  }else{
+   // Comparison mode: append ?camera=ortho to the experimental preview URL.
+   const half=this.h/(2*26*zoom);
+   this.camera.left=-half*aspect;this.camera.right=half*aspect;
+   this.camera.top=half;this.camera.bottom=-half;
+   radius=Math.hypot(90,86);
+  }
+  const horizontal=radius*Math.cos(elevation);
+  this.camera.position.set(cam.x+Math.sin(angle)*horizontal,radius*Math.sin(elevation),cam.y+Math.cos(angle)*horizontal);
+  this.camera.lookAt(cam.x,0,cam.y);
+  this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
+  this.light.position.set(cam.x-45,90,cam.y-35);this.light.target.position.set(cam.x,0,cam.y);this.light.target.updateMatrixWorld();
+ }
  screen(x,z,height=0){this.point.set(x,height/18,z).project(this.camera);return[(this.point.x+1)*this.w/2,(1-this.point.y)*this.h/2];}
  world(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const p=new THREE.Vector3();this.ray.ray.intersectPlane(this.ground,p);return[p.x,p.z];}
  pickBuilding(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const hits=this.ray.intersectObjects(this.buildingGroup.children,true);for(const h of hits){const id=h.object.userData.ids?.[h.instanceId];if(id!=null)return id;}return null;}
@@ -6977,7 +7002,7 @@ export class TrafficRenderer{
   this.camera.updateMatrixWorld(true);
   frustum.setFromProjectionMatrix(this.carViewMatrix.multiplyMatrices(
    this.camera.projectionMatrix,this.camera.matrixWorldInverse));
-  const pixelsPerUnit=this.h/(this.camera.top-this.camera.bottom);
+  const centrePixelsPerUnit=this.camera.isPerspectiveCamera?this.h/(2*this.camera.position.distanceTo(new THREE.Vector3(cam.x,0,cam.y))*Math.tan(this.camera.fov*Math.PI/360)):this.h/(this.camera.top-this.camera.bottom);
   this.carLODStats={near:0,medium:0,far:0,culled:0};
   const add=(x,z,angle,c,id,fallback,v=null,buildingId=null,altitude=0)=>{
    point.set(x,.22+altitude,z);
@@ -6987,7 +7012,8 @@ export class TrafficRenderer{
    const tech=v?.vehicleTech??c?.vehicleTech??'normal';
    const upgraded=Object.hasOwn(VEHICLE_TECH_COLORS,tech);
    const kind=carClassFor(c,id,tech,v),car={x,z,angle,color:upgraded?VEHICLE_TECH_COLORS[tech]:carPaintFor(c,id,kind,fallback),kind,altitude};
-   const apparentLength=VEHICLE_STYLES[kind][0]*pixelsPerUnit;
+   const pixelScale=this.camera.isPerspectiveCamera?this.h/(2*Math.max(.1,this.camera.position.distanceTo(point))*Math.tan(this.camera.fov*Math.PI/360)):centrePixelsPerUnit;
+   const apparentLength=VEHICLE_STYLES[kind][0]*pixelScale;
    const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
    // Low uses the cheapest proxy at every distance, while preserving car picking.
@@ -7172,13 +7198,17 @@ export class TrafficRenderer{
    this.carSelectionFrame.renderOrder=5;this.carSelectionFrame.frustumCulled=false;this.scene.add(this.carSelectionFrame);
    this.carMarkerDummy=new THREE.Object3D();this.carMarkerTint=new THREE.Color();this.carMarkerPoint=new THREE.Vector3();
   }
-  const mesh=this.carMarkerMesh,d=this.carMarkerDummy,unit=(this.camera.top-this.camera.bottom)/this.h,up=new THREE.Vector3(0,1,0).applyQuaternion(this.camera.quaternion),pixels=Math.min(18,Math.max(12,this.cam.z*12))*2;
+  const mesh=this.carMarkerMesh,d=this.carMarkerDummy,up=new THREE.Vector3(0,1,0).applyQuaternion(this.camera.quaternion),pixels=Math.min(18,Math.max(12,this.cam.z*12))*2;
+  const forward=new THREE.Vector3();this.camera.getWorldDirection(forward);const tanHalf=this.camera.isPerspectiveCamera?Math.tan(this.camera.fov*Math.PI/360):0;
   this.carIndicatorHits=[];this.carSelectionFrame.visible=false;let count=0;
   for(const record of records){
    const style=VEHICLE_STYLES[record.kind],roof=.18+style[2]/2+style[5]*1.08;
    if(record.focused){const frame=this.carSelectionFrame;frame.visible=true;frame.position.set(record.x,roof/2+.035+(record.altitude||0),record.z);frame.rotation.set(0,-record.angle,0);frame.scale.set(style[0]+.09,roof+.04,style[1]+.08);}
    if(!showDiamonds||!Object.hasOwn({orange:0,red:1},record.status))continue;
-   d.position.set(record.x,roof+.025+(record.altitude||0),record.z).addScaledVector(up,(pixels*.5+2)*unit);this.carMarkerPoint.copy(d.position).project(this.camera);
+   const worldY=roof+.025+(record.altitude||0);
+   const depth=(record.x-this.camera.position.x)*forward.x+(worldY-this.camera.position.y)*forward.y+(record.z-this.camera.position.z)*forward.z;
+   const unit=this.camera.isPerspectiveCamera?2*Math.max(.1,depth)*tanHalf/this.h:(this.camera.top-this.camera.bottom)/this.h;
+   d.position.set(record.x,worldY,record.z).addScaledVector(up,(pixels*.5+2)*unit);this.carMarkerPoint.copy(d.position).project(this.camera);
    const p=this.carMarkerPoint;if(p.x< -1.03||p.x>1.03||p.y< -1.03||p.y>1.03||p.z< -1||p.z>1)continue;
    d.quaternion.copy(this.camera.quaternion);d.scale.set(pixels*unit,pixels*unit,1);d.updateMatrix();mesh.setMatrixAt(count,d.matrix);
    mesh.geometry.getAttribute('emotionOffset').setX(count,record.status==='red'?1:0);count++;
