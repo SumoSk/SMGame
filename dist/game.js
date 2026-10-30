@@ -4666,9 +4666,14 @@ function captureTowedVehicleEvidence(v){
  const recent=v.lastJunctionDenial||null;
  const fresh=!!recent&&state.time-recent.gameTime>=0&&state.time-recent.gameTime<=2;
  const actualBarrier=v.lastStoppedBarrier||null;
- const diagnosis=fresh&&nextJunction?.node===recent.node?{
+ const physical=v.lastPhysicalBlock||null;
+ const verifiedPhysical=!!physical&&state.time-physical.gameTime>=0&&state.time-physical.gameTime<=2&&actualBarrier?.reason==='เว้นระยะรถ';
+ const diagnosis=fresh&&nextJunction?.node===recent.node&&actualBarrier?.reason==='คิวแยก'&&recent.code!=='red_signal'?{
   certainty:'observed_rejection',code:recent.code,gameTime:recent.gameTime,
   proof:recent,explanation:'บันทึกจากเงื่อนไขที่ปฏิเสธรถจริงในรอบคำนวณล่าสุด'
+ }:verifiedPhysical?{
+  certainty:'observed_rejection',code:'physical_body_blocked',gameTime:physical.gameTime,
+  proof:physical,explanation:'พบรถคันที่ตรวจตัวถังแล้วขวางการเคลื่อนที่จริง'
  }:{
   certainty:'not_proven',code:'insufficient_direct_trace',
   explanation:'ไม่พบหลักฐานการปฏิเสธล่าสุดที่สัมพันธ์กับทางแยกนี้ ไม่สรุปสาเหตุจากภาพหรือข้อความหยุด'
@@ -4683,7 +4688,7 @@ function captureTowedVehicleEvidence(v){
    nextJunction:nextJunction?{node:nextJunction.node,pos:nextJunction.pos,entry:nextJunction.entry,stop:nextJunction.stop,clear:nextJunction.clear,
     direction,lane:inLane,signal:signalColor(nextJunction.node,direction,inLane)}:null},
   diagnosis,lastStoppedBarrier:actualBarrier,
-  lastJunctionDenial:recent,latestPhysicalBlock:v.lastPhysicalBlock||null,
+  lastJunctionDenial:recent,lastQueueDenial:v.lastQueueDenial||null,latestPhysicalBlock:v.lastPhysicalBlock||null,
   junctionLease:junctionSpace?JSON.parse(JSON.stringify(junctionSpace)):null,
   roadSpace:owned,queueAtClick:queues,
   nearbyVehicles:nearby,nearbyRoads:roads, runtimeErrors:runtimeErrors.slice(-5),
@@ -4807,13 +4812,13 @@ function queueAllows(v,pos,connector,precheckedExit=null){
    (q.id===v.id&&precheckedExit!==null?precheckedExit:junctionExitAvailable(car,q.pos))&&
    !(front&&front.distance<q.distance-.01);
  };
- if(!eligible(own))return false;
+ if(!eligible(own)){const head=fronts.get(own.connector.incoming+':'+own.connector.laneIn)?.first;v.lastQueueDenial={gameTime:state.time,code:'self_not_eligible',headId:head?.id??null,ownDistance:own.distance};return false;}
  const priority=junctionPriority(own,node);
  for(const other of queue){
   if(other.id===v.id||!eligible(other)||!connectorsConflict(connector,other.connector))continue;
   const p=junctionPriority(other,node);
   if(p<priority||p===priority&&(other.at<own.at||other.at===own.at&&
-   (other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id)))return false;
+   (other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id))){v.lastQueueDenial={gameTime:state.time,code:'other_vehicle_priority',blockerId:other.id,blockerPriority:p,ownPriority:priority,blockerDistance:other.distance,ownDistance:own.distance};return false;}
  }
  return true;
 }
@@ -4879,7 +4884,7 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
  let exitAvailable=junctionExitAvailable(v,pos);
  if(!exitAvailable&&urgentGreen&&recoverOrphanJunctionClaims(v,i))exitAvailable=junctionExitAvailable(v,pos);
  if(!exitAvailable)return noteVehicleJunctionDenial(v,i,'junction_exit_blocked',{exitCheck:v.lastJunctionExitCheck||null});
- if(!ignoreSignal&&!urgentGreen&&!queueAllows(v,pos,connector,true))return noteVehicleJunctionDenial(v,i,'queue_arbitration_denied',{incoming:connector.incoming,lane:connector.laneIn,queueCount:state.junctionQueues?.get(i)?.length||0});
+ if(!ignoreSignal&&!urgentGreen&&!queueAllows(v,pos,connector,true))return noteVehicleJunctionDenial(v,i,'queue_arbitration_denied',{incoming:connector.incoming,lane:connector.laneIn,queueCount:state.junctionQueues?.get(i)?.length||0,denial:v.lastQueueDenial||null});
  v.lastJunctionDenial=null;return true;
 }
 function ownsJunctionPass(v,pos){return v.junctionPasses?.some(p=>p.pos===pos&&p.node===v.path[pos]);}
@@ -5062,7 +5067,7 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
  if(!candidates.length)return Infinity;
  let lo=0,hi=plan.pieces.length-1;
  while(lo<hi){const mid=(lo+hi)>>1;if(plan.pieces[mid].endDistance<s)lo=mid+1;else hi=mid;}
- const at=plan.pieces[lo],piece=at?.line&&at.startDistance<=s&&at.endDistance>=end?at:null,near=[];let mergeLimit=Infinity;
+ const at=plan.pieces[lo],piece=at?.line&&at.startDistance<=s&&at.endDistance>=end?at:null,near=[],nearIds=[];let mergeLimit=Infinity;
  for(const id of candidates){
   const otherCar=state.vehicles.get(id);
   // Road cars ghost through parked, departing and route-stuck vehicles, not through moving same-lane leaders.
@@ -5085,10 +5090,10 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
    if(motionDirection(v.path,v.pos)===motionDirection(otherCar.path,otherCar.pos)&&plannedLane(v,v.pos)!==plannedLane(otherCar,otherCar.pos)&&across>=.32)continue;
    if(across>=.32)continue;
   }
-  near.push(p);
+  near.push(p);nearIds.push(id);
  }
  if(!near.length)return mergeLimit;let safe=s;
- for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(const other of near)if(capsulesOverlap(p,other))return Math.min(mergeLimit,Math.max(s,safe-.025));safe=along;if(along===end)break;}
+ for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(let j=0;j<near.length;j++)if(capsulesOverlap(p,near[j])){v.lastPhysicalBlock={gameTime:state.time,ownerId:nearIds[j],ownerPose:near[j],distance:along,reason:'physical_capsule_overlap'};return Math.min(mergeLimit,Math.max(s,safe-.025));}safe=along;if(along===end)break;}
  return mergeLimit;
 }
 function motionBarrier(v,plan,s,budget=-1){
