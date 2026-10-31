@@ -22,6 +22,7 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-lifestyles.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-tourism.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-saves.cjs
+      - run: node work/test-save-compression.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-night-delivery.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-green-light-release.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-flight-traffic-layer.cjs
