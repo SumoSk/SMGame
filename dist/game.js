@@ -2918,27 +2918,44 @@ function renderCitizenDashboard(force=false){
    ' · '+escapeSaveText(lifestyleName(p.plan))+' · '+escapeSaveText(issue)+'</small></span><span class="citizen-person-score"><strong class="'+score+'">'+Math.round(p.mood)+'%</strong><em>Performance</em></span></button>';
  };
  const total=fmt(m.population),mean=Math.round(m.average);
- const html='<div class="citizen-kpis">'+tile(total,'ประชาชนในเมือง')+tile(mean+'%','Performance เฉลี่ย')+
-  tile(fmt(m.unhappy),'Performance ต่ำกว่า 60%',m.unhappy>0)+tile(fmt(m.critical),'วิกฤต ต่ำกว่า 40%',m.critical>0)+
-  tile(fmt(m.jobless),'ยังไม่มีงาน')+tile(fmt(m.travel),'กำลังเดินทาง')+
-  tile(fmt(m.waiting),'รถรอนาน ≥ 8 นาทีเกม')+tile(fmt(m.issues),'คนที่ควรดูแล',m.issues>0)+'</div>'+
-  '<div class="citizen-pair">'+
-   section('ลักษณะนิสัย','อ้างอิงโปรไฟล์ประชาชน',traits.map((count,i)=>bar(CITIZEN_TRAITS[i],count,m.population,i===3?'cool':'')).join(''))+
-   section('ระดับ Performance','สัดส่วนปัจจุบัน',bar('ดี 80–100%',moods[3],m.population)+
-    bar('ปานกลาง 60–79%',moods[2],m.population,'cool')+bar('ต่ำ 40–59%',moods[1],m.population,'warning')+
-    bar('วิกฤต 0–39%',moods[0],m.population,'danger'))+'</div>'+
-  section('รูปแบบชีวิตวันนี้','เปลี่ยนได้รายวัน · สัดส่วนจริงตามงานและสถานที่',data.lifestyles.map((count,i)=>bar(LIFESTYLES[i].name,count,m.population)).join(''))+
-  section('ชีวิตประจำวัน · อยู่ที่ไหน','นับตามสถานะปัจจุบัน','<div class="citizen-signal-grid">'+
-   [['อยู่บ้าน',locations.home],['อยู่ที่ทำงาน',locations.work],['กำลังใช้บริการ',locations.service],['เดินทาง',locations.travel],['อื่น ๆ',locations.other],['ปรับออกเช้าหลังมาสาย',m.adaptive]].map(([label,num])=>'<div><b>'+fmt(num)+'</b><small>'+label+'</small></div>').join('')+'</div>')+
-  section('ช่วงเวลาเดินทางที่วางแผนไว้','ประมาณการทุกกิจกรรม 00–24 น. · รวมกะข้ามคืน ไม่ใช่จำนวนรถจริง',
-   '<div class="citizen-rush-chart">'+rush.map((count,i)=>'<div class="citizen-rush-col"><div class="citizen-rush-bar" title="'+fmt(count)+' กิจกรรม" style="height:'+
-    Math.max(2,Math.round(count/Math.max(1,...rush)*61))+'px"></div><small>'+String(i*2).padStart(2,'0')+'</small></div>').join('')+'</div>')+
-  section('ปัญหาที่ระบบตรวจพบ','ค้างอยู่หรือเพิ่งเกิดขึ้น',
-   '<div class="citizen-issues">'+(problems.length?problems.map(([label,count])=>'<span class="citizen-issue">'+escapeSaveText(label)+' <strong>'+fmt(count)+'</strong></span>').join(''):'<span class="citizen-note">ยังไม่พบปัญหาที่ค้างอยู่</span>')+'</div>')+
-  section('รายชื่อประชาชนที่ต้องติดตาม',fmt(records.length)+' คนตามตัวกรอง',
+ const cityScore=Math.round(ensurePerformance().official);
+ const focus=problems[0],hasIssues=m.issues>0;
+ const currentFilterName=CITIZEN_FILTERS.find(([key])=>key===citizenFilter)?.[1]||'ทั้งหมด';
+ const advancedBefore=$('citizensDashboardBody')?.querySelector?.('[data-citizen-advanced]')?.open===true;
+ const html='<div class="citizen-overview-heading"><span>ภาพรวมประชาชน</span><small>ข้อมูลสด '+timeText(state.time)+' น.</small></div>'+
+  '<div class="citizen-kpis citizen-kpis-primary">'+
+   tile(total,'ประชาชนในเมือง')+
+   tile(cityScore+'%','Performance เมือง')+
+   tile(fmt(m.travel),'กำลังเดินทาง')+
+   tile(fmt(m.issues),'ควรติดตาม',hasIssues)+'</div>'+
+  '<div class="citizen-mini-metrics">'+[
+   ['Performance เฉลี่ยรายคน',mean+'%'],['ไม่มีงาน',fmt(m.jobless)+' คน'],
+   ['วิกฤต ต่ำกว่า 40%',fmt(m.critical)+' คน'],['รถรอนาน ≥ 8 นาที',fmt(m.waiting)+' คัน']
+  ].map(([label,value],i)=>'<div class="citizen-mini-metric'+((i===1&&m.jobless>0||i===2&&m.critical>0||i===3&&m.waiting>0)?' needs-attention':'')+'"><span>'+label+'</span><strong>'+value+'</strong></div>').join('')+'</div>'+
+  '<div class="citizen-focus'+(hasIssues?' needs-attention':' is-clear')+'">'+
+   '<div class="citizen-focus-icon" aria-hidden="true">'+(hasIssues?'!':'✓')+'</div>'+
+   '<div class="citizen-focus-text"><small>สิ่งที่ควรดูตอนนี้</small><strong>'+(hasIssues?'มีประชาชน '+fmt(m.issues)+' คนที่ต้องติดตาม':'ยังไม่พบประชาชนที่เข้าข่ายต้องติดตาม')+'</strong>'+
+   '<span>'+(hasIssues&&focus?'พบมากสุด: '+escapeSaveText(focus[0])+' ('+fmt(focus[1])+' คน)':'ติดตามการเดินทางและภารกิจของชาวเมืองได้จากรายการด้านล่าง')+'</span></div>'+
+   (hasIssues?'<button type="button" data-citizen-jump="issues">ดูรายชื่อ</button>':'')+'</div>'+
+  section('ปัญหาที่ระบบตรวจพบ','นับตามเหตุที่กำลังพบ',
+   '<div class="citizen-issues">'+(problems.length?problems.map(([label,count])=>'<span class="citizen-issue">'+escapeSaveText(label)+' <strong>'+fmt(count)+'</strong></span>').join(''):'<span class="citizen-note">ยังไม่มีปัญหาที่ตรวจพบในขณะนี้</span>')+'</div>')+
+  section('รายชื่อประชาชนที่ต้องติดตาม',fmt(records.length)+' คนตามตัวกรอง · '+escapeSaveText(currentFilterName),
    '<div class="citizen-results">'+(shown.length?shown.map(card).join(''):'<div class="citizen-empty">ยังไม่พบประชาชนตามเงื่อนไขนี้ค่ะ</div>')+'</div>'+
-   (shown.length<records.length?'<button class="citizen-more" data-citizen-more="1">ดูเพิ่มอีก 40 คน</button>':'')+
-   '<p class="citizen-note">“ความคิด/ความกังวล” ประเมินจากPerformance ปัญหาล่าสุด งาน และการเดินทางของตัวละคร ไม่ใช่คำพูดหรือความคิดเห็นจริงของประชาชน</p>');
+    (shown.length<records.length?'<button class="citizen-more" data-citizen-more="1">ดูเพิ่มอีก 40 คน</button>':'')+
+    '<p class="citizen-note">เรียง Performance ต่ำไปสูง · เลือกประชาชนเพื่อดูการเดินทางและกิจวัตร</p>')+
+  '<details class="citizen-advanced" data-citizen-advanced'+(advancedBefore?' open':'')+'><summary><span>▤ ข้อมูลเชิงลึก</span><small>สถานที่ · Performance · รูปแบบชีวิต · ช่วงเวลาเดินทาง</small></summary><div class="citizen-advanced-content">'+
+    section('ชีวิตประจำวัน · อยู่ที่ไหน','นับตามสถานะปัจจุบัน','<div class="citizen-signal-grid">'+
+      [['อยู่บ้าน',locations.home],['อยู่ที่ทำงาน',locations.work],['กำลังใช้บริการ',locations.service],['เดินทาง',locations.travel],['อื่น ๆ',locations.other],['ปรับออกเช้าหลังมาสาย',m.adaptive]].map(([label,num])=>'<div><b>'+fmt(num)+'</b><small>'+label+'</small></div>').join('')+'</div>')+
+    section('ระดับ Performance','สัดส่วนประชาชนตามคะแนน',bar('ดี 80–100%',moods[3],m.population)+
+      bar('ปานกลาง 60–79%',moods[2],m.population,'cool')+bar('ต่ำ 40–59%',moods[1],m.population,'warning')+
+      bar('วิกฤต 0–39%',moods[0],m.population,'danger'))+
+    section('รูปแบบชีวิตวันนี้','เปลี่ยนได้รายวัน · สัดส่วนจริงตามงานและสถานที่',data.lifestyles.map((count,i)=>bar(LIFESTYLES[i].name,count,m.population)).join(''))+
+    section('ลักษณะนิสัย','อ้างอิงโปรไฟล์ประชาชน',traits.map((count,i)=>bar(CITIZEN_TRAITS[i],count,m.population,i===3?'cool':'')).join(''))+
+    section('ช่วงเวลาเดินทางที่วางแผนไว้','ประมาณการกิจกรรม 00–24 น. · ไม่ใช่จำนวนรถจริง',
+     '<div class="citizen-rush-chart">'+rush.map((count,i)=>'<div class="citizen-rush-col"><div class="citizen-rush-bar" title="'+fmt(count)+' กิจกรรม" style="height:'+
+       Math.max(2,Math.round(count/Math.max(1,...rush)*61))+'px"></div><small>'+String(i*2).padStart(2,'0')+'</small></div>').join('')+'</div>')+
+    '<p class="citizen-note">ข้อความปัญหาอ้างอิงสถานะและผลการเดินทางของตัวละคร ไม่ใช่ความคิดเห็นที่ประชาชนพูดจริง</p>'+
+  '</div></details>';
  const body=$('citizensDashboardBody'),scroll=body.scrollTop;body.innerHTML=html;body.scrollTop=scroll;
 }
 const TREE_KINDS=[
@@ -6505,6 +6522,8 @@ $('citizenFilters').onclick=e=>{const b=e.target.closest('[data-citizen-filter]'
 $('citizensDashboardBody').onclick=e=>{
  const person=e.target.closest('[data-citizen-id]');
  if(person){const id=Number(person.dataset.citizenId);if(state.citizens.has(id)){hideCitizenDashboard();selected={kind:'citizen',id};renderInspector(true);}return;}
+ const jump=e.target.closest('[data-citizen-jump]');
+ if(jump?.dataset.citizenJump==='issues'){citizenFilter='issues';citizenPage=0;renderCitizenDashboard(true);$('citizensDashboardBody').querySelector?.('.citizen-results')?.scrollIntoView?.({block:'nearest'});return;}
  if(e.target.closest('[data-citizen-more]')){citizenPage++;renderCitizenDashboard(true);}
 };$('pause').onclick=()=>{state.speed=state.speed?0:1;updateUI();};document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{state.speed=+b.dataset.speed;updateUI();});$('closeInspector').onclick=()=>{selected=null;$('inspector').classList.add('hidden');follow=null;};document.querySelectorAll('[data-inspect]').forEach(b=>b.onclick=()=>{selected={kind:b.dataset.inspect};renderInspector();});
 let pointers=new Map(),pinch=null,pendingTap=null,lastTap=null;
