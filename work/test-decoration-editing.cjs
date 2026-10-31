@@ -42,10 +42,22 @@ assert.equal(JSON.stringify(g.state.plantedTrees),beforeMigration,'remove only r
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
  const source=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
  const {Renderer,Batch}=new Function('THREE',source+'return{Renderer:TrafficRenderer,Batch};')(THREE),r=Object.create(Renderer.prototype);
+ const thaiKinds=g.DECOR_KINDS.filter(k=>/^(thai_|industrial_|temple_|landmark_)/.test(k.key));
+ assert.equal(thaiKinds.length,24,'all new Thai decorations must be present');
  for(const kind of g.DECOR_KINDS)for(let turn=0;turn<4;turn++){
   const b=new Batch();b.pickId=7;assert(r.decoration(b,150,150,kind.key,turn));
   const parts=[...b.data.values()].flatMap(a=>a.items);assert(parts.length>1,kind.key+' needs a distinct model');
-  for(const p of parts){assert([p.x,p.y,p.z,p.sx,p.sy,p.sz,p.rx,p.ry,p.rz].every(Number.isFinite),kind.key);assert.equal(p.buildingId,7);}
+  for(const p of parts){
+   assert([p.x,p.y,p.z,p.sx,p.sy,p.sz,p.rx,p.ry,p.rz].every(Number.isFinite),kind.key);
+   assert.equal(p.buildingId,7);
+   if(/^(thai_|industrial_|temple_|landmark_)/.test(kind.key)){
+    // All shared mesh instances must be half their authored dimensions and
+    // remain centered on the same cell for each of the four rotations.
+    assert(p.sx<=2.8&&p.sy<=1.7&&p.sz<=1.9,kind.key+' is not half-size');
+    assert(Math.abs(p.x-150)<1.7&&Math.abs(p.z-150)<1.7,kind.key+' moved off its placement cell');
+    assert(p.y>=0&&p.y<=2.65,kind.key+' vertical placement is outside the half-size envelope');
+   }
+  }
  }
  r.treeGroup=new THREE.Group();r.buildingGroup=new THREE.Group();r.graphicQuality='medium';r.coast=()=>125;
  r.trees(g.state,{x:185,y:185});assert(r.landscapePicks.size>0);
