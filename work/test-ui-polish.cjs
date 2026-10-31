@@ -42,7 +42,7 @@ assert(source.includes('id="cityAdvisorTickerMessage" class="city-advisor-text" 
 assert(source.includes('<div class="build-dock" id="buildDock">'),'original construction frame must remain intact');
 
 const gameMenuId='smcity-game-menus-20261101';
-const gameMenu=source.match(new RegExp('<style id="'+gameMenuId+'">([\s\S]*?)</style>'))?.[1];
+const gameMenu=source.split('<style id="'+gameMenuId+'">')[1]?.split('</style>')[0];
 assert(gameMenu&&gameMenu.length>12000,'game-menu skin missing from source');
 for(const [name,html] of [['hosted',built],['standalone',standalone]]){
   assert(html.includes('id="'+gameMenuId+'"'),name+' game-menu theme missing');
