@@ -6934,3 +6934,155 @@ list-style:none!important;color:var(--sm-panel-ink)!important;font-size:12px!imp
  #citizensDashboard .citizen-mini-metric{flex-direction:row!important;align-items:center!important}
  #citizensDashboard .citizen-focus button{margin-left:0!important}
 }
+
+/* SMCITY 5.1 city level rail and loot chest — CSS-only decoration, no 3D work. */
+body>.bottom .city-level-strip{
+ box-sizing:border-box!important;display:grid!important;grid-column:1/-1!important;grid-row:3!important;
+ grid-template-columns:minmax(0,1fr) auto!important;gap:5px!important;align-items:stretch!important;
+ min-width:0!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important;
+ font-family:"Noto Sans Thai",Tahoma,system-ui,sans-serif!important;
+}
+body>.bottom .city-level-strip button{box-sizing:border-box!important;appearance:none!important;border-radius:10px!important;
+ cursor:pointer!important;min-width:0!important;min-height:0!important;line-height:1.3!important;margin:0!important;font-family:inherit!important}
+body>.bottom .city-level-button{
+ display:flex!important;align-items:center!important;gap:8px!important;
+ padding:5px 9px!important;background:linear-gradient(120deg,#e6f2ea,#fafaf5)!important;
+ border:1px solid rgba(66,134,94,.28)!important;color:#173c2e!important;text-align:left!important;
+}
+body>.bottom .city-level-button:hover{border-color:#42a071!important}
+body>.bottom .city-level-emblem{flex:none!important;display:flex!important;align-items:center!important;gap:4px!important;
+ padding:4px 7px!important;border-radius:7px!important;background:#226b4e!important;color:#fff!important;
+ font-size:9px!important;font-weight:850!important;white-space:nowrap!important}
+body>.bottom .city-level-emblem strong{font-size:14px!important;font-weight:900!important;line-height:1!important}
+body>.bottom .city-level-detail{min-width:0!important;flex:1!important;display:flex!important;flex-direction:column!important;gap:4px!important}
+body>.bottom .city-level-progress-head{display:flex!important;justify-content:space-between!important;align-items:center!important;
+ gap:7px!important;min-width:0!important}
+body>.bottom .city-level-progress-head b{font-size:9px!important;font-weight:800!important;color:#235c43!important;white-space:nowrap!important}
+body>.bottom .city-level-progress-head small{font-size:8px!important;color:#547569!important;white-space:nowrap!important}
+body>.bottom .city-level-track{width:100%!important;height:5px!important;display:block!important;overflow:hidden!important;border-radius:99px!important;
+ background:#c6d9cd!important}
+body>.bottom .city-level-track i{display:block!important;height:100%!important;max-width:100%!important;border-radius:99px!important;
+ background:linear-gradient(90deg,#3c9870,#79d5a0)!important;transition:width .25s ease!important}
+body>.bottom .city-crate-badge{flex:none!important;font-size:11px!important;font-weight:850!important;color:#28614b!important;
+ background:#d7e8db!important;border:1px solid #c9d9cb!important;border-radius:8px!important;padding:5px 7px!important;white-space:nowrap!important}
+body>.bottom .city-crate-badge.has-crates{background:#f9e7af!important;border-color:#e5c974!important;color:#805509!important}
+body>.bottom .city-ai-quota-button{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;
+ padding:4px 10px!important;background:linear-gradient(140deg,#ecf4fe,#ddeafb)!important;border:1px solid #c2d5f0!important;
+ color:#245081!important;font-size:11px!important;font-weight:900!important;white-space:nowrap!important}
+body>.bottom .city-ai-quota-button>span:first-child{font-size:20px!important;color:#2f86c0!important}
+body>.bottom .city-ai-quota-button b{font-size:14px!important;font-variant-numeric:tabular-nums!important}
+body>.bottom .city-ai-quota-button small{display:block!important;font-size:8px!important;font-weight:650!important;color:#557ea5!important}
+body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+ grid-template-rows:26px minmax(0,1fr) 40px!important;
+}
+:root.smcity-gray-ui body>.bottom .city-level-button{background:linear-gradient(110deg,#19372e,#24413b)!important;
+ color:#f2fff8!important;border-color:#3c6656!important}
+:root.smcity-gray-ui body>.bottom .city-level-progress-head b{color:#e0fae9!important}
+:root.smcity-gray-ui body>.bottom .city-level-progress-head small{color:#bad3c5!important}
+:root.smcity-gray-ui body>.bottom .city-level-track{background:#34554a!important}
+:root.smcity-gray-ui body>.bottom .city-ai-quota-button{background:#1d324e!important;border-color:#385a87!important;color:#b8deff!important}
+:root.smcity-gray-ui body>.bottom .city-ai-quota-button small{color:#9dbce2!important}
+@media(max-width:1100px){
+ body>.bottom .city-level-button{gap:4px!important;padding:4px 5px!important}
+ body>.bottom .city-level-progress-head small{font-size:7px!important}
+ body>.bottom .city-ai-quota-button{gap:3px!important;padding:3px 6px!important}
+ body>.bottom .city-level-emblem{padding:3px 5px!important}
+ body>.bottom .city-crate-badge{padding:4px 5px!important;font-size:10px!important}
+}
+@media(max-width:720px) and (orientation:portrait){
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+  grid-template-rows:24px minmax(0,1fr) 32px!important;
+ }
+ body>.bottom .city-level-strip{gap:3px!important}
+ body>.bottom .city-level-button{gap:3px!important;padding:3px 5px!important}
+ body>.bottom .city-level-track{height:4px!important}
+ body>.bottom .city-level-progress-head small{font-size:7px!important}
+ body>.bottom .city-ai-quota-button{padding:3px 5px!important}
+ body>.bottom .city-level-emblem{font-size:7px!important}
+ body>.bottom .city-level-emblem strong{font-size:12px!important}
+ body>.bottom .city-level-progress-head b{font-size:8px!important}
+ body>.bottom .city-ai-quota-button>span:first-child{font-size:15px!important}
+ body>.bottom .city-ai-quota-button b{font-size:11px!important}
+ body>.bottom .city-ai-quota-button small{font-size:7px!important}
+ body>.bottom .city-crate-badge{font-size:9px!important}
+}
+@media(max-width:720px) and (orientation:landscape) and (max-height:500px){
+ body>.bottom>.control-deck:not(.tools-collapsed){
+  grid-template-rows:68px 69px minmax(0,1fr)!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+  height:68px!important;max-height:68px!important;grid-template-rows:19px minmax(0,1fr) 23px!important;
+ }
+ body>.bottom .city-level-strip{gap:3px!important}
+ body>.bottom .city-level-button{padding:2px 4px!important}
+ body>.bottom .city-level-emblem{padding:2px 4px!important}
+ body>.bottom .city-level-progress-head small{display:none!important}
+ body>.bottom .city-level-track{height:3px!important}
+ body>.bottom .city-ai-quota-button{padding:2px 4px!important}
+}
+@media(max-width:370px){
+ body>.bottom .city-level-progress-head small{display:none!important}
+ body>.bottom .city-level-emblem{gap:2px!important}
+ body>.bottom .city-level-button{gap:2px!important;padding:2px 3px!important}
+ body>.bottom .city-crate-badge{padding:3px!important}
+ body>.bottom .city-ai-quota-button>span:first-child{display:none!important}
+}
+/* Reward opening modal: one lightweight HTML/CSS animation, no WebGL. */
+#dialog:has(.sm-level-reward)[open]{width:min(490px,calc(100vw - 22px))!important;max-width:490px!important;
+ max-height:calc(100dvh - 30px)!important;padding:0!important;overflow:auto!important;
+ border:1px solid rgba(222,198,126,.55)!important;border-radius:20px!important;box-shadow:0 28px 80px #081f1d66!important;
+ background:#101f29!important}
+#dialog .sm-level-reward{box-sizing:border-box!important;position:relative!important;isolation:isolate!important;
+ padding:32px 26px 24px!important;text-align:center!important;overflow:hidden!important;
+ background:radial-gradient(ellipse at 50% 30%,#315c65 0%,#172f38 48%,#102129 100%)!important;
+ color:#f0f6f1!important;font-family:"Noto Sans Thai",Tahoma,system-ui,sans-serif!important}
+#dialog .sm-level-reward:before{content:"";position:absolute;z-index:-1;inset:0;opacity:.26;
+ background:repeating-linear-gradient(120deg,transparent 0,transparent 30px,#9bd6c8 31px,transparent 32px)}
+#dialog .sm-level-kicker{font-size:10px!important;letter-spacing:2px!important;font-weight:900!important;color:#bcd6c7!important}
+#dialog .sm-level-shine{position:absolute!important;top:42px!important;left:50%!important;
+ transform:translateX(-50%)!important;font-size:180px!important;color:#dec17e!important;opacity:.08!important;pointer-events:none!important}
+#dialog .sm-level-chest,#dialog .sm-level-prize{position:relative!important;display:grid!important;place-items:center!important;
+ width:132px!important;height:132px!important;border-radius:33px!important;margin:22px auto 18px!important;
+ background:radial-gradient(circle at 28% 25%,#ffe9b5 0%,#c5a75c 54%,#80673d 100%)!important;
+ box-shadow:0 0 0 8px #ffe1a512,0 0 65px #fbd17a50,inset 0 2px 8px #fff7d4!important;
+ font-size:70px!important;color:#513d15!important}
+#dialog .sm-level-chest{animation:smLevelFloat 2.5s ease-in-out infinite!important}
+#dialog .sm-level-prize{animation:smLevelReveal .45s ease-out both!important;font-size:65px!important}
+@keyframes smLevelFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes smLevelReveal{from{transform:scale(.7);opacity:.4}to{transform:scale(1);opacity:1}}
+#dialog .sm-level-reward h2{font-size:22px!important;font-weight:900!important;line-height:1.35!important;
+ margin:12px 0 6px!important;color:#fff6df!important}
+#dialog .sm-level-reward p{max-width:390px!important;font-size:11px!important;line-height:1.8!important;
+ margin:7px auto 17px!important;color:#d8e2db!important}
+#dialog .sm-level-result-label{display:block!important;font-size:11px!important;font-weight:800!important;color:#f8d988!important}
+#dialog .sm-level-result-value{display:block!important;font-size:29px!important;font-weight:950!important;color:#ffdfa0!important;
+ line-height:1.35!important;font-variant-numeric:tabular-nums!important}
+#dialog .sm-level-reward-foot{display:flex!important;justify-content:space-between!important;gap:8px!important;
+ padding:12px 13px!important;border:1px solid #b4d4c234!important;border-radius:11px!important;background:#fff1d70e!important;
+ color:#e6e9e2!important;font-size:10px!important;font-weight:750!important}
+#dialog .sm-level-reward-list{display:flex!important;justify-content:center!important;flex-wrap:wrap!important;gap:6px!important;margin:14px 0 7px!important}
+#dialog .sm-level-reward-list span{padding:7px 8px!important;border-radius:999px!important;background:#ffffff18!important;border:1px solid #ffffff25!important;
+ font-size:10px!important;color:#f2e3c1!important;white-space:nowrap!important}
+#dialog .sm-level-odds{display:block!important;color:#b8c8c2!important;font-size:9px!important;margin:10px 0!important}
+#dialog .sm-level-actions{display:flex!important;flex-direction:column!important;gap:8px!important;margin-top:18px!important}
+#dialog .sm-level-actions button{min-height:42px!important;padding:10px 16px!important;border-radius:11px!important;
+ border:1px solid #d5c89a52!important;font-family:inherit!important;font-size:12px!important;font-weight:850!important;cursor:pointer!important;
+ background:#ffffff16!important;color:#e5eee9!important}
+#dialog .sm-level-actions button.primary{background:linear-gradient(110deg,#f7d98b,#c6a25a)!important;
+ border-color:#f6de9a!important;color:#3b2d18!important;box-shadow:0 5px 16px #0003!important}
+#dialog .sm-level-actions button:hover{filter:brightness(1.08)!important}
+#dialog .sm-ai-credit-info .sm-level-prize{background:linear-gradient(135deg,#d9efff,#3e8cc5)!important;color:#fff!important}
+#dialog.ai-upgrade-center .ai-checkout-actions{display:flex!important;flex-wrap:wrap!important;gap:7px!important}
+#dialog.ai-upgrade-center #confirmAiCredit{background:#258467!important;color:white!important;border:1px solid #258467!important}
+@media(max-width:520px){
+ #dialog .sm-level-reward{padding:25px 17px 19px!important}
+ #dialog .sm-level-chest,#dialog .sm-level-prize{width:112px!important;height:112px!important;font-size:58px!important}
+ #dialog .sm-level-reward h2{font-size:20px!important}
+ #dialog .sm-level-result-value{font-size:25px!important}
+ #dialog .sm-level-reward-foot{flex-wrap:wrap!important}
+}
+@media(prefers-reduced-motion:reduce){
+ #dialog .sm-level-chest,#dialog .sm-level-prize{animation:none!important}
+ body>.bottom .city-level-track i{transition:none!important}
+}
+
