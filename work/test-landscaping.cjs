@@ -29,7 +29,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert.equal(get('categories').innerHTML,'','old Buildings/Landscape/City Data group row must be empty');
  assert(get('subcategories').innerHTML.includes('data-category="landscape"'),'landscaping is in primary construction tabs');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'landscape'}})}});
- const landscapeGroups=['trees','flowers','shrubs','desert','water','stone','paths','street','lights','art','manage'];
+ const landscapeGroups=['trees','flowers','shrubs','desert','water','stone','paths','street','lights','art','thai_street','thai_factory','thai_temple','thai_landmark','manage'];
  const decorationTools=new Set();
  for(const group of landscapeGroups){
   assert(get('tools').innerHTML.includes('data-landscape-group="'+group+'"'),group+' subgroup is missing');
