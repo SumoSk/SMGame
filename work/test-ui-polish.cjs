@@ -25,7 +25,8 @@ for(const needle of needs)assert(style.includes(needle),'missing UI protection: 
 assert(!style.includes('width:min(600px,'),'avoid enlarging existing menu/dialog widths');
 for(const id of ['cityCommandBar','cityLevelButton','cityLevelProgress','cityCrateBadge','cityLevelCelebration','saveGameQuick','dialog','memberGate','citizensDashboard','touristsDashboard','buildVariantPopup','cityAdvisorTickerMessage'])
   assert(source.includes('id="'+id+'"'),'UI anchor removed: '+id);
-const command=source.slice(source.indexOf('id="cityCommandBar"'),source.indexOf('id="cityLeftRail"'));
+const start=source.indexOf('id="cityCommandBar"');
+const command=source.slice(start,source.indexOf('</section>',start));
 for(const id of ['day','clock','pause','skip','toggleBuildingLabels','toggleCarDiamonds','toggleAIPins','toggleEyeComfort','toggleDock'])
   assert(command.includes('id="'+id+'"'),'command control missing: '+id);
 assert(source.includes('message.title=value; panel.title=value;'),'long notice should remain readable without failing DOM stubs');
