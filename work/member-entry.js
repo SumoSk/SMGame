@@ -228,6 +228,8 @@ if (gate) {
     else setUser(data.session?.user);
   }).catch(error => setNotice('เชื่อมต่อระบบสมาชิกไม่ได้: ' + error.message, true));
 
+  window.SMGameLegacyAccessToken=async()=>{const {data,error}=await auth.auth.getSession();if(error)throw error;return data.session?.access_token||null;};
+  window.SMGameCloudUploadSigned=async(path,token,blob)=>{const {error}=await auth.storage.from('smcity-city-saves').uploadToSignedUrl(path,token,blob,{contentType:blob.type,cacheControl:'0'});if(error)throw error;return true;};
   window.SMGameAccount = {
     get user() { return user; },
     get displayName() { return user?.user_metadata?.username || user?.email || 'ผู้เล่น'; },
