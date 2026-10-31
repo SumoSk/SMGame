@@ -67,14 +67,20 @@
     return (result.saves||[]).map(s=>({id:s.slot_id,name:s.name,savedAt:Date.parse(s.updated_at)}));
   };
   api.getSave=async slotId=>{
-    if(!active())return old.getSave(slotId);
+    if(!active()){
+      const raw=await old.getSave(slotId);
+      return window.SMGameSaveCodec?.decode?window.SMGameSaveCodec.decode(raw):raw;
+    }
     const result=await call('get-save',{slotId});
     if(!result.data||typeof result.data!=='object'||Array.isArray(result.data))throw Error('เซฟไม่ถูกต้อง');
-    return JSON.stringify(result.data);
+    const raw=JSON.stringify(result.data);
+    return window.SMGameSaveCodec?.decode?window.SMGameSaveCodec.decode(raw):raw;
   };
   api.save=async(name,slotId,serialized)=>{
-    if(!active())return old.save(name,slotId,serialized);
-    const result=await call('put-save',{name,slotId,data:JSON.parse(serialized)});
+    // Covers new accounts, legacy accounts, and quick saves after login.
+    const packed=window.SMGameSaveCodec?.encode?await window.SMGameSaveCodec.encode(serialized):serialized;
+    if(!active())return old.save(name,slotId,packed);
+    const result=await call('put-save',{name,slotId,data:JSON.parse(packed)});
     if(result.slotId!==slotId)throw Error('ตรวจสอบการบันทึกเกมไม่สำเร็จ');
   };
   api.deleteSave=async slotId=>active()?call('delete-save',{slotId}):old.deleteSave(slotId);
