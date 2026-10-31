@@ -394,7 +394,7 @@ body>.city-level-strip :is(.city-level-button,.city-ai-quota-button){overflow:hi
 #dialog[open]:not(.construction-confirm):not(.road-preview-confirm):not(:has(.sm-level-reward)){
   box-sizing:border-box!important;position:fixed!important;
   inset:0!important;margin:auto!important;transform:none!important;translate:none!important;
-  width:min(600px,calc(100vw - 24px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)))!important;
+  /* Keep each dialog's native width; only cap it at the viewport edge. */
   min-width:0!important;max-width:calc(100vw - 24px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
   max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
   overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain;
