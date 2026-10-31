@@ -26,12 +26,11 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
  assert.equal(g.snapshot(),initial,'opening/closing menus preserves the guest city');
  assert(get('dialogContent').innerHTML.includes('class="smcity-report-list"')===false,'main menu must not inline report content');
  get('menu').onclick();assert(get('dialogContent').innerHTML.includes('id="reportMenu"'),'main menu contains Report');
- get('reportMenu').onclick();assert(get('dialogContent').innerHTML.includes('class="smcity-report-list"'),'Report has its own detail screen');
- assert(get('dialogContent').innerHTML.includes('data-report-action="sendAi"'),'Report contains Send AI');
- assert(get('dialogContent').innerHTML.includes('data-report-action="cityReport"'),'Report contains city diagnostics');
- assert(get('dialogContent').innerHTML.includes('data-report-action="incidentLog"'),'Report contains incident log');
- get('reportMenuBack').onclick();assert(get('dialogContent').innerHTML.includes('id="reportMenu"'),'Report back returns to main menu');
- get('menuClose').onclick();assert(!get('dialog').open);
+ get('reportMenu').onclick();assert(get('dialogContent').innerHTML.includes('id="bugCaptureToggle"'),'Report opens the current vehicle bug-report controls');
+ assert(get('dialogContent').innerHTML.includes('รายงานรถบัค'),'Report is labeled as vehicle-bug reporting');
+ assert(get('dialogContent').innerHTML.includes('ส่งรายงานบัค'),'Report preserves the manual bug-report action');
+ get('vehicleBugClose').onclick();assert(!get('dialog').open,'Bug-report back returns to the game');
+ get('menu').onclick();get('menuClose').onclick();assert(!get('dialog').open);
  assert(g.dockItems('reports').some(x=>x.key==='cityReport'),'all report actions still available programmatically');
  // A guest clicking Save is prompted to sign up; successful signup auto-saves
  // the pending city and opens Save/Load with that save listed.
