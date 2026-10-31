@@ -26,7 +26,18 @@ assert(html.includes('v5.1')&&dist.includes('v5.1'));
 assert(css.includes('SMCITY 5.1 city level rail and loot chest'));
 assert(css.includes('SMCITY 5.1: cinematic level-up celebration'),'celebration styles included');
 assert(css.includes('#cityLevelCelebration[hidden]'),'hidden overlay must not block gameplay');
-assert(css.includes('body>.bottom>.city-level-strip'),'level rail outside metrics grid');
+assert(css.includes('body>.city-level-strip'),'level widget must be fixed to viewport, not bottom toolbar');
+for(const h of [html,dist]){
+ assert(h.indexOf('class="city-level-strip"')>0 && h.indexOf('class="city-level-strip"')<h.indexOf('<div class="bottom">'),'level widget must precede the unchanged bottom toolbar');
+}
+const marker='/* SMCITY 5.1 city level rail and loot chest';
+const markerPos=css.indexOf(marker);
+assert(markerPos>0,'compact overlay stylesheet must exist');
+const baseCss=css.slice(0,markerPos).replace(/\s+$/,'')+'\n';
+const gitBlob=require('node:crypto').createHash('sha1')
+ .update('blob '+Buffer.byteLength(baseCss)+'\0') // replace below with actual NUL
+ .update(baseCss).digest('hex');
+assert.equal(gitBlob,'89ca09717be444c242602f2995575259336b9187','original 5.0 toolbar stylesheet must be byte-for-byte preserved');
 assert(css.includes('inset:0!important;top:0!important;right:0!important;bottom:0!important;left:0!important;'),'reward dialog must be viewport-centered');
 for(const h of [html,dist])assert(h.includes('id="cityLevelCelebration"'),'celebration overlay in game entry');
 const getLevel=()=>game.cityLevelStatus();
