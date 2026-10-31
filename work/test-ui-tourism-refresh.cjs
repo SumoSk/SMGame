@@ -15,36 +15,21 @@ let game;
 const ctx={document:{getElementById:get,querySelector:node,querySelectorAll:()=>[],activeElement:null},window:{addEventListener:noop,__TRAFFIC_TEST_HARNESS__:value=>game=value},innerWidth:1360,innerHeight:900,devicePixelRatio:1,requestAnimationFrame:noop,setTimeout:noop,clearTimeout:noop,localStorage:{getItem:()=>null,setItem:noop},console};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync('dist/game.js','utf8'),ctx);
 game.reset();
-// The five primary categories are rebuilt rather than flattened.
-const primary=get('categories').innerHTML;
-for(const key of ['build','green','insights','traffic','manage'])
- assert(primary.includes('data-dock-group="'+key+'"'),'missing main category '+key);
-assert(get('subcategories').hidden===false,'building subcategories must be available');
-assert(get('subcategories').innerHTML.includes('data-category="roads"'),'roads submenu absent');
-assert(get('subcategories').innerHTML.includes('data-category="hotel"'),'hotel submenu absent');
-let rail=get('tools').innerHTML;
-assert(rail.includes('data-tool="small"'),'road tools should show for starting building tab');
-assert(!rail.includes('data-tool="citizenDashboard"'),'tools from other categories must not be flattened into the build rail');
-const pressGroup=key=>get('categories').onclick({target:{closest:sel=>sel==='[data-dock-group]'?{dataset:{dockGroup:key}}:null}});
+// Direct construction tabs and right-side actions replace the retired group row.
+assert.equal(get('categories').innerHTML,'');
+assert.equal(get('subcategories').hidden,false);
+const tabs=get('subcategories').innerHTML;
+for(const key of ['roads','home','work','food','leisure','civic','landscape'])assert(tabs.includes('data-category="'+key+'"'));
+assert(!tabs.includes('data-category="hotel"'));
 const pressSub=key=>get('subcategories').onclick({target:{closest:sel=>sel==='[data-category]'?{dataset:{category:key}}:null}});
-pressSub('food');
-assert(get('tools').innerHTML.includes('data-tool="restaurant_small"'),'restaurant must show under buildings > food');
-assert(!get('tools').innerHTML.includes('data-tool="small"'),'road tools should not pollute food submenu');
-pressGroup('green');
-assert(get('subcategories').hidden&&get('subcategories').innerHTML==='','decoration must open directly');
-assert(get('tools').innerHTML.includes('data-tool="tree:shade"'),'decorations missing tree tools');
-pressGroup('traffic');
-assert(get('subcategories').hidden,'traffic must open directly');
-assert(get('tools').innerHTML.includes('data-tool="signalManage"'),'traffic controls missing');
-pressGroup('insights');
-assert(get('subcategories').hidden&&get('subcategories').innerHTML==='','city data must have NO submenu');
-rail=get('tools').innerHTML;
-for(const key of ['citizenDashboard','touristDashboard','tracking'])
- assert(rail.includes('data-tool="'+key+'"'),'city data missing direct action '+key);
-assert(!rail.includes('data-tool="small"'),'city data must not include construction');
-assert(!rail.includes('data-tool="hand"'),'removed map exploration tool should stay removed');
-get('tools').onclick({target:{closest:sel=>sel==='[data-tool]'?{dataset:{tool:'touristDashboard',category:'tourists'}}:null}});
-assert(!get('touristsDashboard').classList.contains('hidden'),'tourist dashboard opens from flat tool rail');
+pressSub('home');let rail=get('tools').innerHTML;assert(rail.includes('data-tool="hotel_small"')&&rail.includes('data-tool="home_starter"'));
+pressSub('leisure');rail=get('tools').innerHTML;assert(rail.includes('data-tool="casino_small"')&&rail.includes('data-tool="park_small"'));
+pressSub('civic');assert(get('tools').innerHTML.includes('data-tool="civic_starter"'));
+pressSub('food');assert(get('tools').innerHTML.includes('data-tool="restaurant_small"'));assert(!get('tools').innerHTML.includes('data-tool="small"'));
+pressSub('landscape');assert(get('tools').innerHTML.includes('data-tool="tree:shade"'));
+for(const key of ['citizenDashboard','touristDashboard','signalManage'])assert(page.includes('data-city-shortcut="'+key+'"'));
+get('cityQuickModes').onclick({target:{closest:sel=>sel==='[data-city-shortcut]'?{dataset:{cityShortcut:'touristDashboard'}}:null}});
+assert(!get('touristsDashboard').classList.contains('hidden'),'tourist dashboard opens from right-side action');
 require('./test-building-fixtures.cjs')(game);game.state.money=1e8;game.state.time=720;
 const hotel=game.buildBuilding('hotel_small',245,148-game.CATALOG.hotel_small.plotHeight,true);
 const restaurant=game.buildBuilding('restaurant_small',190,148-game.CATALOG.restaurant_small.plotHeight,true);
@@ -76,3 +61,4 @@ service.activityUntil=710;service.itinerary[0].status='done';
 data=game.touristDashboardData();assert.equal(data.stats.service,0,'finished activity must not remain active');
 assert.equal(data.stats.hotel,1,'hotel guest remains present');
 console.log(JSON.stringify({passed:true,categoryDock:true,cityDataDirect:true,lowGlare:true,serviceLive:true,hotelLive:true,filters:true,rightInspector:true}));
+
