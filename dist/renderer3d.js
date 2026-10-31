@@ -1743,52 +1743,8 @@ export class TrafficRenderer{
    }
   };
 
-  if(t.kind==='civic'){
-   // All five wings sit inside the building zone; the front cross-aisle stays driveable.
-   const compact=!!t.compactCottage;
-   const siteBack=compact?.16:t.parkingZoneDepth+.06;
-   const siteFront=compact?1.28:(t.frontageV??t.plotHeight-.57)-.43;
-   const depth=siteFront-siteBack,cx=W/2,cz=(siteBack+siteFront)/2;
-   const radiusX=compact?1.14:Math.min(W*.38,(W-1.85)/2);
-   const radiusZ=compact?.45:depth*.47;
-   const wall=compact?.30:.56,height=compact?1.17:1.52;
-   const wallY=.27+height/2,roofY=.27+height+.08;
-   block('#d2d8d4',cx,.105,cz,W-.16,.16,depth-.015,'stone');
-   block('#88a987',cx,.19,cz,radiusX*.91,.04,radiusZ*.94,'foliage');
-   for(let side=0;side<5;side++){
-    const a=-Math.PI/2+side*Math.PI*2/5,b=a+Math.PI*2/5;
-    const x1=cx+Math.cos(a)*radiusX,z1=cz+Math.sin(a)*radiusZ;
-    const x2=cx+Math.cos(b)*radiusX,z2=cz+Math.sin(b)*radiusZ;
-    const x=(x1+x2)/2,z=(z1+z2)/2,dx=x2-x1,dz=z2-z1;
-    const len=Math.hypot(dx,dz),angle=-Math.atan2(dz,dx),p=point(x,z);
-    for(const [color,y,h,w,d,finish] of [
-     ['#cbd4d1',wallY,height,len+.15,wall,'stone'],
-     ['#4d6375',roofY,.16,len+.24,wall+.10,'metal'],
-     ['#ece8d9',.28,.17,len+.18,wall+.045,'stone']])
-     batch.add(BOX,color,p.x-.5,y,p.y-.5,w,h,d,0,turn+angle,0,id,false,finish);
-    let nx=dz/len,nz=-dx/len;
-    if(nx*(x-cx)+nz*(z-cz)<0){nx=-nx;nz=-nz;}
-    const n=this.graphicQuality==='low'?3:6;
-    for(let j=0;j<n;j++){
-     const f=(j+.5)/n,u=x1+dx*f,v=z1+dz*f;
-     const q=point(u+nx*(wall/2+.027),v+nz*(wall/2+.027));
-     for(const y of (compact?[.64,1.08]:[.69,1.27]))
-      batch.add(BOX,'#ffe2ae',q.x-.5,y,q.y-.5,compact?.16:.22,.20,.023,0,turn+angle,0,id,true,'night-civic');
-    }
-   }
-   // Flush front-door detailing, but never intrude on the shared driving lane.
-   const frontFace=cz+Math.sin(Math.PI*3/10)*radiusZ;
-   block('#435d70',cx,.70,frontFace+.13,compact?.50:.78,.88,.10,'glass');
-   block('#e1e9e6',cx,roofY-.16,frontFace+.13,compact?.79:1.08,.15,.12,'stone');
-   block('#b7c6be',cx,.103,frontFace+.19,compact?1.05:1.67,.025,.29,'stone');
-   block('#879fa8',cx,1.04,frontFace+.20,compact?.81:1.21,.09,.23,'metal');
-   pole('#879caa',cx+radiusX*.68,1.08,frontFace-.02,.020,2.06,'metal');
-   for(const [color,y] of [['#c35052',1.95],['#e6e8df',1.81],['#34567e',1.68]])
-    block(color,cx+radiusX*.81,y,frontFace-.02,.32,.12,.024,'metal');
-   for(const u of [cx-radiusX*.33,cx+radiusX*.33])planted(u,cz,compact?.16:.25);
-   for(const u of [compact?.34:.96,W-(compact?.34:.96)])lantern(u,siteFront-.24);
-   return;
-  }
+  // Old civic save plots remain as parking-only placeholders without buildings.
+  if(t.kind==='civic')return;
 
   // MODERN FACTORY CAMPUS — a new lightweight architectural model for ALL
   // four factory tiers. Uses only the pre-existing building half of each lot.
