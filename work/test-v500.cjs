@@ -45,6 +45,26 @@ test('old 60-space stations remain loadable without losing their plots',()=>{
  assert.equal(old.key,'civic_legacy');assert.equal(old.parkingSlots.length,60);
  assert.deepEqual([g.buildingBounds(old).w,g.buildingBounds(old).h],[11,13]);
 });
+test('grouped build boxes pop upward and keep every existing tier',()=>{
+ city();
+ const tabs=node('subcategories'),tray=node('tools'),popup=node('buildVariantPopup');
+ tabs.onclick({target:{closest:()=>({dataset:{category:'home'}})}});
+ assert(tray.innerHTML.includes('data-build-kind="home"'));
+ assert(tray.innerHTML.includes('data-build-kind="hotel"'));
+ assert(!tray.innerHTML.includes('data-tool="home_starter"'));
+ tray.onclick({target:{closest:selector=>selector==='[data-build-kind]'?{dataset:{buildKind:'home'}}:null}});
+ assert.equal(popup.hidden,false);
+ for(const key of ['home_starter','home_large','home_dual','home_grand'])
+  assert(popup.innerHTML.includes('data-tool="'+key+'"'),key);
+ assert(!popup.innerHTML.includes('data-tool="hotel_starter"'));
+ popup.onclick({target:{closest:selector=>selector==='[data-tool]'?{dataset:{tool:'home_dual'}}:null}});
+ assert.equal(g.state.buildings.size>0,true); // unchanged city fixture
+ assert(popup.innerHTML.includes('aria-pressed="true"'));
+ tabs.onclick({target:{closest:()=>({dataset:{category:'work'}})}});
+ assert.equal(popup.hidden,true);
+ assert(tray.innerHTML.includes('data-build-kind="office"'));
+ assert(tray.innerHTML.includes('data-build-kind="factory"'));
+});
 assert(fs.readFileSync('index.html','utf8').includes('<small>ภารกิจ :</small>'));
 console.log(JSON.stringify({passed:true,checks},null,2));
 
