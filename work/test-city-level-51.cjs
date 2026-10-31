@@ -23,14 +23,16 @@ const html=fs.readFileSync('index.html','utf8'),dist=fs.readFileSync('dist/index
  css=fs.readFileSync('dist/style.css','utf8');
 for(const h of [html,dist])for(const id of ['cityLevelButton','cityLevelValue','cityLevelProgress','cityLevelNext','cityLevelBar','cityCrateBadge','cityAiQuotaButton','cityAiQuotaValue'])assert(h.includes('id="'+id+'"'),id);
 assert(html.includes('v5.1')&&dist.includes('v5.1'));
-assert(css.includes('SMCITY 5.1 city level rail and loot chest'));
+assert(css.includes('SMCITY 5.1: one-row compact level HUD'));
 assert(css.includes('SMCITY 5.1: cinematic level-up celebration'),'celebration styles included');
 assert(css.includes('#cityLevelCelebration[hidden]'),'hidden overlay must not block gameplay');
 assert(css.includes('body>.city-level-strip'),'level widget must be fixed to viewport, not bottom toolbar');
+assert(css.includes('flex-direction:row!important'),'level and AI must share one horizontal row');
+assert(css.includes('height:38px!important'),'compact HUD must stay one line high');
 for(const h of [html,dist]){
  assert(h.indexOf('class="city-level-strip"')>0 && h.indexOf('class="city-level-strip"')<h.indexOf('<div class="bottom">'),'level widget must precede the unchanged bottom toolbar');
 }
-const marker='/* SMCITY 5.1 city level rail and loot chest';
+const marker='/* SMCITY 5.1: one-row compact level HUD';
 const markerPos=css.indexOf(marker);
 assert(markerPos>0,'compact overlay stylesheet must exist');
 const baseCss=css.slice(0,markerPos).replace(/\s+$/,'')+'\n';
@@ -44,7 +46,7 @@ const getLevel=()=>game.cityLevelStatus();
 assert.equal(getLevel().peakPopulation,18,'starter should include 18 residents');
 assert.equal(getLevel().level,1);
 assert.equal(getLevel().next,20);
-assert.equal(get('cityLevelProgress').textContent,'สูงสุด 18 / 20 คน');
+assert.equal(get('cityLevelProgress').textContent,'สูงสุด 18/20');
 assert.equal(game.updateCityLevel(20),1);
 const levelScene=get('cityLevelCelebration');
 assert.equal(levelScene.hidden,false,'reaching a level should show celebration');
@@ -100,7 +102,7 @@ assert.equal(game.buyAISignal(junction,'credit'),false,'cannot buy AI on same ju
 assert.equal(game.state.money,0);
 game.updateCityLevelHud(18);
 assert.equal(get('cityLevelValue').textContent,'4');
-assert.equal(get('cityLevelProgress').textContent,'สูงสุด 120 / 170 คน');
+assert.equal(get('cityLevelProgress').textContent,'สูงสุด 120/170');
 assert.equal(get('cityAiQuotaValue').textContent,'0');
 assert.equal(get('cityCrateBadge').textContent,'🎁 0');
 game.ensureCityLevel().pending.push({level:4,kind:'money'});
