@@ -282,6 +282,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-action{
  height:24px;min-height:24px;max-height:24px;
  padding:3px 7px;align-items:center;cursor:default
 }
+body>.bottom>#cityAdvisorTicker .city-advisor-dismiss[hidden]{display:none!important}
 body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  height:24px;min-height:24px;max-height:24px;
  display:grid;place-items:center
@@ -470,7 +471,8 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  const dismiss=document.getElementById('cityAdvisorTickerDismiss');
  if(!panel||!message||!dismiss)return;
  const actions={home:'เพิ่มบ้าน',work:'เพิ่มที่ทำงาน',shop:'เพิ่มร้านค้า',restaurant:'เพิ่มร้านอาหาร',mall:'เพิ่มห้าง',park:'เพิ่มสวน',pub:'เพิ่มสถานบันเทิง',casino:'เพิ่มคาสิโน',hotel:'เพิ่มโรงแรม'};
- let lastKey='',urgentIndex=0,tipIndex=0,nextMessageAt=0,snoozeUntil=0,pauseUntil=0,hovered=false,broken=false;
+ let lastKey='',tipIndex=0,nextMessageAt=0,snoozeUntil=0,pauseUntil=0,hovered=false,broken=false;
+ let pinnedKind='',pinnedText='';
  const digits=value=>{const n=Number(String(value||'').replace(/[−–]/g,'-').replace(/[^\d-]/g,''));return Number.isFinite(n)?n:0;};
  const text=id=>document.getElementById(id)?.textContent||'';
  const show=value=>{
@@ -479,7 +481,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
   if(!panel.classList.contains('is-visible'))panel.classList.add('is-visible');
  };
  const hide=()=>{panel.classList.remove('is-visible');panel.hidden=true;};
- dismiss.addEventListener('click',()=>{hide();snoozeUntil=Date.now()+90000;nextMessageAt=snoozeUntil;});
+ dismiss.addEventListener('click',()=>{if(pinnedKind)return;hide();snoozeUntil=Date.now()+90000;nextMessageAt=snoozeUntil;});
  panel.addEventListener('pointerenter',()=>{hovered=true;});
  panel.addEventListener('pointerleave',()=>{hovered=false;pauseUntil=Date.now()+7000;});
  panel.addEventListener('focusin',()=>{pauseUntil=Date.now()+12000;});
@@ -517,15 +519,23 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
   if(broken||document.hidden)return;
   const now=Date.now(),data=collect();
   if(!data.ready){show('ผู้ช่วยเมือง: กำลังตรวจความต้องการ');return;}
+  if(data.pending.length){
+   // Keep one warning unchanged across every timer tick and game day. Only a
+   // successful matching construction can remove it from the saved queue.
+   let item=data.pending.find(x=>x.kind===pinnedKind);
+   if(!item){
+    item=data.pending[0];pinnedKind=item.kind;
+    const detail=item.latest>0?'ขาด '+item.latest.toLocaleString('th-TH'):'เคยขาด '+item.peak.toLocaleString('th-TH');
+    pinnedText='⚠️ '+item.name+' '+detail+' คน — '+(actions[item.kind]||'เพิ่มอาคาร')+' (รอสร้าง)';
+   }
+   dismiss.hidden=true;show(pinnedText);return;
+  }
+  if(pinnedKind){pinnedKind='';pinnedText='';dismiss.hidden=false;nextMessageAt=0;snoozeUntil=0;}
   if(now<snoozeUntil||hovered||now<pauseUntil||now<nextMessageAt)return;
   let selected=null;
-  if(data.pending.length){
-   const item=data.pending[urgentIndex++%data.pending.length];
-   const detail=item.latest>0?'ขาด '+item.latest.toLocaleString('th-TH'):'เคยขาด '+item.peak.toLocaleString('th-TH');
-   selected={key:'pending-'+item.kind,value:'⚠️ '+item.name+' '+detail+' คน — '+(actions[item.kind]||'เพิ่มอาคาร')+' (รอสร้าง)'};
-  }else if(data.live.length&&!window.SMGameDemandNotices){
-   // Fallback while the game module is still loading.
-   const item=data.live[urgentIndex++%data.live.length];
+  if(data.live.length&&!window.SMGameDemandNotices){
+   // A fallback is shown only before the game-side save state is ready.
+   const item=data.live[0];
    selected={key:'live-'+item.kind,value:'⚠️ '+item.name+' ขาด '+item.amount.toLocaleString('th-TH')+' คน — '+(actions[item.kind]||'เพิ่มอาคาร')};
   }
   if(!selected){
