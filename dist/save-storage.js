@@ -29,7 +29,7 @@
   }finally{clearTimeout(timer);}
  }
  async function sha256(bytes){
-  const b=bytes instanceof ArrayBuffer?bytes:bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);
+  const b=Object.prototype.toString.call(bytes)==='[object ArrayBuffer]'?bytes:bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);
   const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',b));
   return Array.from(hash,n=>n.toString(16).padStart(2,'0')).join('');
  }
