@@ -654,7 +654,7 @@ dialog.member-gate .member-card :is(input,button){box-sizing:border-box!importan
  const text=id=>document.getElementById(id)?.textContent||'';
  const show=value=>{
   if(message.textContent!==value)message.textContent=value;
-   message.title=value; panel.setAttribute('aria-label',value);
+   message.title=value; panel.title=value;
   if(panel.hidden)panel.hidden=false;
   if(!panel.classList.contains('is-visible'))panel.classList.add('is-visible');
  };
