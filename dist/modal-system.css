@@ -546,3 +546,75 @@ dialog.member-gate .member-card .member-back {
   #dialog[open]{animation:none!important}
   #dialog #dialogContent button {transition:none!important}
 }
+
+
+/* SMCITY save dialog v5: compact, one-row saves, collapsed secondary actions. */
+#dialog:has(.save-workspace)[open]{
+ width:min(428px,calc(100vw - 20px))!important;
+ max-width:calc(100vw - 20px)!important;
+ max-height:min(82dvh,calc(100dvh - 26px))!important;
+ padding:16px!important;
+ overflow-y:auto!important;
+ border-radius:16px!important;
+}
+#dialog:has(.save-workspace) #dialogContent{padding-right:0!important;min-width:0}
+#dialog:has(.save-workspace)>.dialog-close-top{width:29px!important;height:29px!important;min-width:29px!important;min-height:29px!important;top:10px!important;right:10px!important;border-radius:8px!important;font-size:19px!important}
+#dialog #dialogContent .save-workspace{font-size:12px!important;line-height:1.45!important;color:var(--sm-pop-ink)!important}
+#dialog .save-panel-head{padding:0 36px 11px 0!important;margin:0 0 13px!important;border-bottom:1px solid var(--sm-pop-line)!important}
+#dialog .save-panel-head h2,#dialog .save-status-copy h2,#dialog .save-confirm h2{font-size:16px!important;line-height:1.35!important;font-weight:750!important;margin:0!important;color:var(--sm-pop-ink)!important}
+#dialog .save-panel-head p{font-size:11px!important;margin:3px 0 0!important;color:var(--sm-pop-muted)!important}
+#dialog .save-create-compact{margin:0 0 13px!important;padding:0!important;background:transparent!important;border:0!important}
+#dialog .save-create-compact label{display:block;font-size:11px!important;font-weight:700!important;margin-bottom:6px!important}
+#dialog .save-create-row{display:grid;grid-template-columns:minmax(0,1fr) 86px;gap:7px;align-items:stretch}
+#dialog #onlineSaveName{width:100%!important;min-width:0!important;min-height:37px!important;height:37px!important;padding:6px 10px!important;margin:0!important;font-size:13px!important;border-radius:9px!important}
+#dialog #dialogContent .save-create-row #onlineCreate{min-height:37px!important;height:37px!important;padding:5px 8px!important;border-radius:9px!important;font-size:12px!important}
+#dialog #onlineSaveError,#dialog #onlineImportError{font-size:11px!important;margin:5px 0 0!important;color:var(--sm-pop-danger)!important}
+#dialog #onlineSaveError:empty,#dialog #onlineImportError:empty{display:none!important}
+#dialog .save-list-heading{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin:0 0 4px!important}
+#dialog .save-list-heading h3{font-size:12px!important;font-weight:700!important;margin:0!important}
+#dialog .save-list-heading>span{font-size:10px!important;color:var(--sm-pop-muted)!important}
+#dialog .save-slot-list{display:grid!important;gap:0!important;min-width:0!important;max-height:min(37dvh,360px)!important;overflow-y:auto!important;overscroll-behavior:contain;border-top:1px solid var(--sm-pop-line)!important;border-bottom:1px solid var(--sm-pop-line)!important;scrollbar-width:thin}
+#dialog #dialogContent .save-slot-card{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;align-items:start!important;padding:7px 1px!important;margin:0!important;border:0!important;border-bottom:1px solid var(--sm-pop-line)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;min-width:0!important}
+#dialog .save-slot-card:last-child{border-bottom:0!important}
+#dialog .save-slot-heading{display:block!important;min-width:0!important;padding-top:3px!important}
+#dialog .save-slot-heading>div{min-width:0!important}
+#dialog #dialogContent .save-slot-heading h3{font-size:12px!important;font-weight:650!important;line-height:1.35!important;margin:0 0 3px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+#dialog .save-slot-heading time{display:block!important;font-size:10px!important;line-height:1.3!important;color:var(--sm-pop-muted)!important}
+#dialog .save-slot-controls{display:flex;align-items:flex-start;gap:5px;min-width:0}
+#dialog #dialogContent .save-slot-controls>button{min-height:32px!important;height:32px!important;padding:4px 12px!important;border-radius:8px!important;font-size:11px!important}
+#dialog .save-slot-more{display:block;min-width:32px;width:32px;position:relative}
+#dialog .save-slot-more>summary{list-style:none;display:grid;place-items:center;width:32px;min-height:32px;border:1px solid var(--sm-pop-line);border-radius:8px;background:var(--sm-pop-card);color:var(--sm-pop-muted);cursor:pointer;font-size:20px;line-height:1}
+#dialog .save-slot-more>summary::-webkit-details-marker{display:none}
+#dialog .save-slot-more[open]>summary{background:var(--sm-pop-hover);color:var(--sm-pop-ink)}
+#dialog #dialogContent .save-slot-actions{display:grid!important;gap:4px!important;width:98px!important;margin-top:5px!important;position:relative!important;left:auto!important;right:auto!important;background:transparent!important}
+#dialog #dialogContent .save-slot-actions button{flex:none!important;width:100%!important;min-height:31px!important;height:31px!important;padding:5px 6px!important;border-radius:7px!important;font-size:11px!important;line-height:1.2!important;white-space:nowrap!important}
+#dialog .save-mini-state{font-size:12px!important;text-align:center!important;padding:16px 8px!important;margin:0!important;color:var(--sm-pop-muted)!important}
+#dialog .save-backup{margin:8px 0 0!important;padding:0!important;border:0!important}
+#dialog .save-backup>summary{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;font-size:11px!important;font-weight:650!important;color:var(--sm-pop-ink)!important;padding:7px 0!important;cursor:pointer}
+#dialog .save-backup>summary span{font-size:10px;font-weight:400;color:var(--sm-pop-muted)}
+#dialog .save-backup-body{padding:10px!important;border:1px solid var(--sm-pop-line)!important;border-radius:9px!important;background:var(--sm-pop-card)!important}
+#dialog .save-backup-body label{display:block!important;font-size:11px!important;margin-bottom:5px!important}
+#dialog #onlineImport{font-size:11px!important;width:100%!important;max-width:100%!important;padding:6px!important}
+#dialog #dialogContent .save-backup-body button{min-height:33px!important;margin-top:8px!important;padding:5px 9px!important;font-size:11px!important}
+#dialog .save-panel-footer{display:flex!important;justify-content:flex-end!important;margin:9px 0 0!important;padding:8px 0 0!important;border-top:1px solid var(--sm-pop-line)!important}
+#dialog #dialogContent .save-panel-footer button{min-height:32px!important;padding:5px 16px!important;font-size:11px!important}
+#dialog .save-status-row{display:flex;align-items:flex-start;gap:11px;padding:5px 28px 5px 0!important;min-height:0!important;text-align:left!important}
+#dialog .save-status-symbol{display:grid;place-items:center;flex:0 0 33px;width:33px;height:33px;border-radius:9px;background:var(--sm-pop-raised);color:var(--sm-pop-primary);font-size:19px;font-weight:700}
+#dialog .save-status-row.error .save-status-symbol{color:var(--sm-pop-danger)}
+#dialog .save-status-copy{min-width:0}
+#dialog .save-status-copy strong{display:block;font-size:12px!important;line-height:1.4!important;margin-top:3px;overflow-wrap:anywhere}
+#dialog .save-status-copy p{font-size:11px!important;line-height:1.45!important;margin:4px 0 0!important;overflow-wrap:anywhere}
+#dialog .save-hint{margin:8px 0!important;font-size:10px!important;color:var(--sm-pop-muted)!important}
+#dialog .save-operation-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;margin-top:14px}
+#dialog #dialogContent .save-operation-actions button{min-height:35px!important;padding:6px 10px!important;border:1px solid var(--sm-pop-line)!important;border-radius:8px!important;font-size:11px!important;font-weight:650!important;line-height:1.35!important;background:var(--sm-pop-card)!important;color:var(--sm-pop-ink)!important}
+#dialog #dialogContent .save-operation-actions button.primary{background:var(--sm-pop-primary)!important;border-color:var(--sm-pop-primary)!important;color:var(--sm-pop-on-primary)!important}
+#dialog #dialogContent .save-operation-actions button.danger{color:var(--sm-pop-danger)!important;border-color:var(--sm-pop-danger)!important}
+#dialog .save-confirm{padding:3px 0 0!important}
+#dialog .save-confirm>p{font-size:12px!important;line-height:1.6!important;margin:9px 0 0!important;color:var(--sm-pop-muted)!important}
+@media(max-width:480px){
+ #dialog:has(.save-workspace)[open]{width:calc(100vw - 18px)!important;max-width:calc(100vw - 18px)!important;padding:13px!important}
+ #dialog .save-create-row{grid-template-columns:minmax(0,1fr) 76px;gap:6px}
+ #dialog #onlineSaveName{font-size:16px!important}
+ #dialog .save-slot-list{max-height:min(36dvh,320px)!important}
+}
+@media(prefers-reduced-motion:reduce){#dialog .save-status-row.saving .save-status-symbol{animation:none!important}}
