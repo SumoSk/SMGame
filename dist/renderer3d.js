@@ -1111,7 +1111,210 @@ export class TrafficRenderer{
   const group=details.build();this.scene.add(group);this.terrainGroup.push(group);this.treeKey='';
  }
 
+
+ // Thai streetscape is scenery only: shared primitive geometries, instanced by Batch.
+ // No collision, traffic node, citizen schedule, upkeep or building footprint is created.
+ thaiDecoration(batch,x,z,kind,rotation=0){
+  if(!/^(thai_|industrial_|temple_|landmark_)/.test(kind))return false;
+  const angle=(rotation||0)*Math.PI/2,c=Math.cos(angle),s=Math.sin(angle);
+  const point=(u,v)=>[x+u*c+v*s,z-u*s+v*c];
+  const box=(col,u,y,v,w,h,d,ry=0,rx=0,rz=0)=>{
+   const p=point(u,v);batch.add(BOX,col,p[0],y,p[1],w,h,d,rx,angle+ry,rz);
+  };
+  const cyl=(col,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CYL,col,p[0],y,p[1],rad,h,rad);};
+  const ball=(col,u,y,v,rad)=>{const p=point(u,v);batch.add(BALL,col,p[0],y,p[1],rad,rad,rad);};
+  const cone=(col,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CONE,col,p[0],y,p[1],rad,h,rad,0,angle,0);};
+  const roof=(col,u,v,w,d,base,rise)=>{
+   const p=point(u,v);batch.add(PITCHED_ROOF,col,p[0],base,p[1],w,rise,d,0,angle,0);
+  };
+  const thaiRoof=(u,v,w,d,base,rise,col='#aa363b')=>{
+   roof(col,u,v,w,d,base,rise);
+   box('#e4bd67',u,base+.04,v,w+.18,.10,d+.18);
+   box('#ddad54',u,base+rise-.04,v,w*.12,.10,d+.10);
+   for(const q of[-1,1]){box('#efc975',u+q*(w/2+.06),base+.20,v,.075,.42,.09,0,0,q*.27);}
+  };
+  const window=(u,y,v,w=.45,h=.55)=>{box('#365c70',u,y,v,w,h,.035);box('#d0ddd8',u,y,v+.026,w,.045,.018);};
+  const column=(u,v,h,col='#f4e6ca')=>{cyl(col,u,h/2,v,.095,h);box('#d4b46a',u,h-.05,v,.3,.11,.3);};
+  const palmFruit=(u,y,v,col)=>{ball(col,u,y,v,.18);ball('#ffe39b',u+.11,y+.05,v+.04,.06);};
+  const signs=(u,y,v,w,col='#be453d')=>{
+   box('#f5e6c3',u,y,v,w,.48,.12);
+   box(col,u,y+.19,v+.065,w-.10,.08,.012);
+   for(let i=0;i<5;i++)box(i%2?'#c65c45':'#5d8c68',u+(i-2)*w*.15,y-.05,v+.067,w*.10,.065,.012);
+  };
+  switch(kind){
+   case 'thai_grocery':{
+    box('#e6d2ae',0,.68,0,2.85,1.32,2.05);roof('#7c4941',0,0,3.18,2.28,1.34,.62);
+    box('#d86155',0,1.45,1.12,2.5,.50,.14);signs(0,1.54,1.23,2.34,'#4b8d6e');
+    box('#5b4f40',0,.56,1.035,1.05,1.08,.06);window(-.91,.78,1.045,.62,.66);
+    for(const v of[-.4,.1])box('#917552',.90,.32,v,.46,.64,.40);
+    for(let i=0;i<4;i++)box(['#caa256','#95a973','#d47b63','#8aa3ab'][i],.92,.40+i*.21,1.11,.44,.18,.34);
+    break;
+   }
+   case 'thai_food_cart':{
+    box('#d6c6a0',0,.91,0,1.65,.13,.92);box('#7b6d53',0,.35,0,1.43,.1,.78);
+    for(const u of[-.60,.60])for(const v of[-.33,.33])cyl('#333d43',u,.22,v,.19,.12);
+    for(const u of[-.73,.73])cyl('#9b9c89',u,1.52,0,.045,1.25);
+    roof('#d54c36',0,0,2.05,1.35,2.10,.40);box('#f3d66d',0,2.08,.54,1.85,.12,.05);
+    cyl('#b4bdc2',-.35,1.05,0,.23,.19);cyl('#e7d6a6',.30,1.01,0,.22,.10);
+    break;
+   }
+   case 'thai_noodle_shop':{
+    box('#ddceb6',0,.72,0,2.9,1.42,1.88);thaiRoof(0,0,3.25,2.22,1.43,.52,'#a64032');
+    box('#e2bd57',0,1.58,1.03,2.46,.34,.10);signs(0,1.65,1.11,2.3,'#b23e3d');
+    box('#835f42',-.69,.49,1.01,1.12,.79,.12);box('#e6e4dd',-.64,.94,1.15,.37,.10,.30);
+    for(const u of[.32,.79]){cyl('#c6c2b5',u,.52,1.17,.19,.08);cyl('#d1af65',u,.58,1.17,.16,.045);}
+    break;
+   }
+   case 'thai_coffee_shop':{
+    box('#d6a875',0,.77,0,2.75,1.50,2.10);roof('#5b493d',0,0,3.02,2.32,1.52,.68);
+    box('#355e59',0,1.61,1.10,2.25,.34,.07);box('#eeddb8',.78,.70,1.09,.62,1.02,.05);
+    window(-.61,.87,1.085,.86,.85);box('#6c4636',.76,.56,1.15,.46,.66,.1);
+    cyl('#f6f0de',0,1.95,1.17,.17,.05);box('#f6f0de',0,1.98,1.17,.28,.06,.12);
+    break;
+   }
+   case 'thai_fruit_stall':{
+    for(const u of[-.9,.9])cyl('#6a5b48',u,1.05,0,.06,2.06);
+    roof('#d99835',0,0,2.52,1.50,2.00,.44);box('#b57b43',0,.71,.30,2.35,.12,.76);
+    for(let i=0;i<7;i++){const u=(i%4-1.5)*.54,v=i>3?.48:.18;palmFruit(u,.91,v,['#d49c41','#d45448','#75a65a'][i%3]);}
+    box('#6d5239',0,.29,.23,2.02,.57,.65);break;
+   }
+   case 'thai_market_tables':{
+    cyl('#cfb78a',0,.52,0,.08,.98);cyl('#e0c46f',0,1.73,0,.06,1.50);cone('#d44943',0,2.15,0,1.16,.55);
+    cyl('#c8a67d',0,.98,0,.72,.12);
+    for(const a of[0,Math.PI/2,Math.PI,Math.PI*1.5]){
+     const u=Math.cos(a)*1.08,v=Math.sin(a)*1.08;box('#548c83',u,.36,v,.62,.09,.42);for(const side of[-1,1])box('#d7cec1',u+side*.19,.16,v,.055,.34,.05);
+    }break;
+   }
+   case 'industrial_container':{
+    box('#bb6450',0,1.12,0,3.62,2.18,1.52);
+    for(let i=0;i<12;i++)box(i%2?'#a64c45':'#ce7a62',(i-5.5)*.29,1.12,.773,.075,1.95,.04);
+    for(const v of[-.81,.81])for(const u of[-1.76,1.76])box('#7c4b40',u,1.08,v,.085,2.12,.09);
+    for(const u of[-1.27,1.27])box('#f4d9a8',u,.31,.78,.25,.13,.012);break;
+   }
+   case 'industrial_pallets':{
+    for(const [u,v,h] of[[-.72,-.38,.63],[.70,-.34,.87],[.02,.51,1.07]]){
+     box('#9b6e49',u,.13,v,1.05,.12,.72);
+     for(const q of[-.32,0,.32])box('#634d37',u+q,.055,v,.12,.11,.65);
+     for(let j=0;j<Math.round(h/.25);j++)box(j%2?'#c6a780':'#d5b88c',u,.32+j*.24,v,.87,.22,.59);
+    }break;
+   }
+   case 'industrial_drums':{
+    for(let i=0;i<6;i++){const u=(i%3-1)*.54,v=Math.floor(i/3)*.64-.31,col=i%3===0?'#bf7548':i%3===1?'#3d7690':'#828a73';
+     cyl(col,u,.45,v,.22,.85);cyl('#495557',u,.88,v,.23,.08);cyl('#5f625d',u,.07,v,.225,.10);
+     box('#d3cd9d',u,.48,v+.23,.19,.14,.015);
+    }break;
+   }
+   case 'industrial_guardhouse':{
+    box('#d2d5cf',0,.84,0,1.68,1.57,1.45);roof('#465865',0,0,1.95,1.74,1.57,.36);
+    window(-.45,1.02,.75,.58,.56);window(.43,1.02,.75,.55,.56);
+    box('#63706c',0,.42,-.74,.63,.82,.06);box('#e6b865',0,1.76,.80,1.05,.22,.06);
+    break;
+   }
+   case 'industrial_loading_dock':{
+    box('#9fa6a8',0,.37,0,4.06,.72,2.30);box('#5c6871',0,.78,-.85,3.85,.22,.30);
+    for(const u of[-1.35,0,1.35]){box('#445560',u,1.26,-1.10,1.06,.87,.08);box('#e0ad52',u,.87,-1.17,.84,.085,.02);}
+    for(let i=0;i<4;i++)box(i%2?'#d7a65e':'#5d6770',0,.11,1.17+i*.15,3.2,.06,.095);
+    break;
+   }
+   case 'industrial_fence':{
+    for(let i=0;i<7;i++){const u=(i-3)*.50;cyl('#526069',u,.82,0,.045,1.60);if(i<6)for(let j=0;j<3;j++)box('#839397',u+.25,.38+j*.42,0,.035,.35,.03);}
+    for(const h of[.20,1.42])box('#54646a',0,h,0,3.2,.075,.08);break;
+   }
+   case 'temple_gate':{
+    for(const u of[-1.62,1.62]){box('#f0e1be',u,1.25,0,.40,2.50,.52);box('#ceaa62',u,2.38,0,.53,.20,.68);}
+    box('#dfc285',0,2.45,0,3.63,.50,.84);thaiRoof(0,0,4.22,1.45,2.73,.80);
+    for(const u of[-1.08,1.08])cone('#d6aa56',u,3.28,0,.14,.53);
+    break;
+   }
+   case 'temple_ubosot':{
+    box('#c1b7a4',0,.15,0,5.15,.30,3.40);box('#f4e5c8',0,1.40,0,4.42,2.20,2.92);
+    for(const u of[-1.90,1.90])for(const v of[-1.17,0,1.17])column(u,v,2.47);
+    box('#b58844',0,1.04,1.50,.78,1.45,.08);for(const u of[-.45,0,.45])box('#edca70',u,.18,1.75,.38,.12,.70);
+    thaiRoof(0,0,5.20,3.52,2.58,1.05,'#b44539');thaiRoof(0,0,4.05,2.62,3.63,.60,'#af4939');
+    for(const v of[-1.63,1.63]){box('#ddb66e',0,3.10,v,1.10,.68,.15);cone('#e6bc59',0,4.17,v,.13,.55);}
+    break;
+   }
+   case 'temple_chedi':{
+    for(const [y,rad,h] of[[.17,1.38,.34],[.48,1.1,.32],[.81,.88,.35]])cyl('#e6d7b2',0,y,0,rad,h);
+    cyl('#d8ab58',0,1.34,0,.70,.72);cone('#dfb85e',0,2.22,0,.82,1.75);
+    for(let i=0;i<4;i++){const y=2.75+i*.28;cyl(i%2?'#d7a44e':'#f5d78a',0,y,0,.34-i*.06,.10);}
+    cone('#edcc77',0,3.48,0,.16,.70);ball('#fff0b2',0,3.89,0,.08);break;
+   }
+   case 'temple_sala':{
+    box('#c7bea8',0,.18,0,3.92,.36,2.95);
+    for(const u of[-1.57,1.57])for(const v of[-1.12,1.12])column(u,v,2.55);
+    thaiRoof(0,0,4.47,3.35,2.65,.92,'#a74639');
+    box('#9a7654',0,.55,0,2.35,.27,1.55);box('#e3c38b',0,2.30,0,3.58,.12,2.62);
+    break;
+   }
+   case 'temple_bell_tower':{
+    box('#c5b28c',0,.13,0,1.75,.26,1.74);
+    for(const u of[-.66,.66])for(const v of[-.65,.65])column(u,v,2.55,'#e6cfa2');
+    thaiRoof(0,0,2.22,2.14,2.64,.76,'#ae463b');cyl('#a47e46',0,1.53,0,.07,.51);
+    cone('#b99b55',0,1.18,0,.39,.59);ball('#ddbb6a',0,.79,0,.14);break;
+   }
+   case 'temple_guardians':{
+    for(const u of[-.78,.78]){
+     box('#d3b88a',u,.15,0,.84,.30,.82);cyl('#ceaf63',u,.66,0,.32,.75);
+     ball('#dbba6a',u,1.14,0,.31);cone('#e7c66c',u,1.53,0,.26,.55);
+     ball('#ae7b46',u-.11,1.18,.25,.065);ball('#ae7b46',u+.11,1.18,.25,.065);
+     for(const side of[-1,1])ball('#e6be67',u+side*.32,.69,.17,.16);
+    }break;
+   }
+   case 'temple_bodhi':{
+    cyl('#9f7752',0,1.05,0,.28,2.1);
+    for(const [u,v,y,sz] of[[-.66,-.25,2.12,.96],[.61,-.15,2.16,.95],[0,.44,2.26,1.05],[.08,-.12,2.68,.83]]){
+     ball('#5e9a66',u,y,v,sz);ball('#7db37a',u+.18,y+.13,v+.14,sz*.45);
+    }
+    for(const a of[-.58,.58])box('#9c7755',a,.20,.05,.13,.35,.12,0,0,a*.45);
+    box('#d9bc7d',0,.09,0,1.55,.18,1.60);break;
+   }
+   case 'landmark_city_gate':{
+    for(const u of[-2.05,2.05]){box('#d7c4a0',u,1.40,0,.76,2.8,1.08);box('#9a5945',u,2.8,0,.88,.17,1.15);}
+    box('#e6cba0',0,2.89,0,4.86,.42,1.14);thaiRoof(0,0,5.36,1.58,3.06,.85,'#87443b');
+    box('#d4a65d',0,2.38,.61,2.63,.58,.13);box('#f7e4a7',0,3.94,0,.20,.39,.25);break;
+   }
+   case 'landmark_clocktower':{
+    box('#c0b39e',0,.22,0,2.25,.44,2.25);box('#efe0c3',0,2.06,0,1.42,3.30,1.42);
+    for(const y of[.90,2.00,3.14])box('#b5875f',0,y,0,1.56,.18,1.56);
+    box('#d8a957',0,3.96,0,2.0,.38,1.94);thaiRoof(0,0,2.19,2.05,4.13,.63,'#a64339');
+    for(const v of[-.77,.77]){
+     cyl('#f6ecd0',0,3.37,v,.42,.12);
+     box('#514d45',0,3.37,v+(v>0?.09:-.09),.045,.48,.02);
+     box('#514d45',.11,3.39,v+(v>0?.10:-.10),.30,.045,.02);
+    }break;
+   }
+   case 'landmark_monument':{
+    for(const [y,w,d] of[[.18,2.8,2.8],[.43,2.12,2.10],[.69,1.66,1.62]])box('#d5c9b2',0,y,0,w,.23,d);
+    box('#9d8d79',0,1.50,0,.95,1.35,.95);cone('#c2b69e',0,2.63,0,.64,1.12);
+    ball('#e4c981',0,3.26,0,.25);for(const u of[-.47,.47])box('#dacaa6',u,1.47,.49,.10,1.30,.09);break;
+   }
+   case 'landmark_spirit_house':{
+    box('#a9a08b',0,.14,0,.92,.28,.91);cyl('#c5b4a0',0,.84,0,.18,1.18);
+    box('#eed89d',0,1.61,0,1.18,.45,1.00);for(const u of[-.45,.45])column(u,.39,.42,'#ddaf65');
+    thaiRoof(0,0,1.46,1.32,1.85,.45,'#aa483c');
+    for(const u of[-.55,.55])cone('#ddad5b',u,2.20,.08,.11,.37);
+    box('#cd8d5a',0,1.58,.56,.27,.20,.24);break;
+   }
+   case 'landmark_welcome_sign':{
+    for(const u of[-2.20,2.20]){
+     box('#d5b67d',u,1.35,0,.35,2.70,.45);cone('#d29e52',u,2.90,0,.20,.48);
+    }
+    box('#8f4c42',0,2.56,0,4.46,.74,.42);box('#e0bd74',0,2.56,.24,4.18,.57,.06);
+    box('#9a383c',0,2.76,.29,3.86,.11,.04);
+    // Raised decorative glyph strokes keep the sign light: no per-item font textures.
+    for(let i=0;i<9;i++){const u=(i-4)*.41;
+     box('#654d3e',u,2.53,.29,.22,.11,.014);
+     if(i%3!==1)box('#654d3e',u-.06,2.58,.29,.05,.09,.013);
+    }
+    box('#79a565',0,.08,.10,4.88,.16,.90);break;
+   }
+   default:return false;
+  }
+  return true;
+ }
  decoration(batch,x,z,kind,rotation=0){
+  if(this.thaiDecoration(batch,x,z,kind,rotation))return true;
   const r=(rotation||0)*Math.PI/2,c=Math.cos(r),s=Math.sin(r),point=(u,v)=>[x+u*c+v*s,z-u*s+v*c];
   const box=(color,u,y,v,w,h,d,ry=0,rx=0,rz=0)=>{const p=point(u,v);batch.add(BOX,color,p[0],y,p[1],w,h,d,rx,r+ry,rz);};
   const cyl=(color,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CYL,color,p[0],y,p[1],rad,h,rad);};
