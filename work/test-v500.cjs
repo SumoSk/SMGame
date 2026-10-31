@@ -37,6 +37,23 @@ test('no government building construction or category',()=>{
  assert.equal(g.BUILDING_CHAINS.civic,undefined);assert.equal(g.dockItems('civic').length,0);
  for(const key of ['civic_starter','civic_small','civic_legacy'])assert.equal(g.buildBuilding(key,211,140,true),false);
 });
+test('persistent demand warnings survive days and saves until a matching building is built',()=>{
+ const {build}=city();
+ g.observeDemandNotices([{kind:'park',name:'สวน',amount:20},{kind:'shop',name:'ร้านค้า',amount:5}]);
+ assert.equal(g.demandNoticeList().length,2);
+ g.state.time+=5*1440;
+ g.observeDemandNotices([{kind:'park',name:'สวน',amount:0},{kind:'shop',name:'ร้านค้า',amount:0}]);
+ assert.equal(g.demandNoticeList().length,2,'a natural demand drop must not clear an unbuilt warning');
+ assert(g.loadGame(true,null,g.snapshot()),'reload original city');
+ assert.equal(g.demandNoticeList().length,2,'alerts must be part of the save');
+ assert(build('park_small',237),'one matching park is constructed');
+ assert.deepEqual(Array.from(g.demandNoticeList(),x=>x.kind),['shop'],'only the park warning clears');
+ g.observeDemandNotices([{kind:'park',name:'สวน',amount:20},{kind:'shop',name:'ร้านค้า',amount:5}]);
+ assert.deepEqual(Array.from(g.demandNoticeList(),x=>x.kind),['shop'],'an uncleared shortage should not immediately re-alert after building');
+ g.observeDemandNotices([{kind:'park',name:'สวน',amount:0}]);
+ g.observeDemandNotices([{kind:'park',name:'สวน',amount:8}]);
+ assert.deepEqual(Array.from(g.demandNoticeList(),x=>x.kind),['shop','park'],'a new shortage after recovery may alert again');
+});
 test('old 60-space stations remain loadable without losing their plots',()=>{
  const {home}=city(),save=JSON.parse(g.snapshot()),b=save.buildings.find(([id])=>id===home.id)[1];
  const originalId=home.id;b.key='civic_starter';b.y=135;b.parkingSlots=Array(60).fill(null);
