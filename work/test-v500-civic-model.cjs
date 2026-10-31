@@ -11,7 +11,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{pathToFileURL}
  assert.equal(g.dockItems('civic').length,0);
  for(const key of ['civic_starter','civic_small','civic_legacy']){
   const t=g.CATALOG[key];assert(t.legacyOnly);
-  assert(g.checkParkingBuilding(key,160,140).error.includes('ออกจากระบบสร้าง'));
+  assert.equal(g.buildBuilding(key,160,140,true),false,'retired type cannot be constructed');
   for(const quality of ['low','medium','veryHigh'])for(let rotation=0;rotation<4;rotation++){
    const renderer=Object.create(TrafficRenderer.prototype);renderer.graphicQuality=quality;renderer.parking={parkingVisuals:g.parkingVisuals,lotPoint:g.lotPoint};
    const b={key,id:100,x:80,y:80,rotation,parked:new Set(),parkingSlots:Array(t.parkingCapacity).fill(null)};
