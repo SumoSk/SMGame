@@ -18,7 +18,7 @@ test('work planning leaves enough travel time and retains the appointment',()=>{
  const {game:g,home,restaurant}=city(),c=resident(g,home);c.profile.trait=0;c.workId=restaurant.id;restaurant.workers.add(c.id);
  let p,day=0;do{p=g.planForDay(c,day++);}while(!p.works&&day<10);
  check(p.works,'workday found');const work=p.steps.find(s=>s.kind==='work'),estimate=g.buildingTravelEstimate(c,home.id,restaurant.id);
- check(work.at+estimate.totalMinutes<=work.deadline,'work departure must fit route');equal(p.travelPlanningVersion,1);
+ check(work.at+estimate.totalMinutes<=work.deadline,'work departure must fit route');equal(p.travelPlanningVersion,g.TRAVEL_PLANNING.version);
  const appointment=p.desiredArrival;g.ensureRoutine(c).advance+=30;equal(g.planForDay(c,p.day).desiredArrival,appointment,'appointment is fixed');
 });
 test('equal trip weights, no happiness changes or congestion surcharge',()=>{
@@ -65,7 +65,7 @@ test('save migration preserves active journeys and happiness while rebuilding un
  const id=c.vehicleId,started=g.state.vehicles.get(id).startedAt,happy=c.happy;
  check(g.loadGame(true,null,g.snapshot()),'save loads');
  const restored=g.state.citizens.get(c.id);equal(restored.vehicleId,id);equal(restored.happy,happy);equal(g.state.vehicles.get(id).startedAt,started);
- equal(restored.lifePlans[1].travelPlanningVersion,1);equal(g.state.events.filter(e=>e.citizenId===c.id&&e.day===1&&e.action==='lifeStart').length,1);
+ equal(restored.lifePlans[1].travelPlanningVersion,g.TRAVEL_PLANNING.version);equal(g.state.events.filter(e=>e.citizenId===c.id&&e.day===1&&e.action==='lifeStart').length,1);
 });
 test('live trip gets the same budget as planning and simulation still advances',()=>{
  const {game:g,home,restaurant}=city(),c=resident(g,home);
