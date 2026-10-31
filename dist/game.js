@@ -185,22 +185,35 @@ function freeParkingSpace(b,cid){if(!b?.parkingSlots)return;const i=b.parkingSlo
 function parkingFree(b){let incoming=0;for(const v of state.vehicles.values())if(v.toId===b.id&&v.citizenId)incoming++;return Math.max(0,CATALOG[b.key].parkingCapacity-b.parked.size-incoming);}
 function parkingIsMoving(cid){const c=state.citizens.get(cid),v=state.vehicles.get(c?.vehicleId);return !!v&&(!!v.lotPath||['air_lift','air_cruise','air_land','warp_charge'].includes(v.phase));}
 function parkingPose(v){if(!v.lotPath)return null;return lotPathPose(v.lotPath,v.lotDistance||0);}
+const parkingPathGeometries=new WeakMap();
+function parkingPathGeometry(points){
+ let shape=parkingPathGeometries.get(points);
+ if(shape&&shape.coordinates.length===points.length*2){
+  let same=true;for(let i=0;i<points.length;i++)if(shape.coordinates[i*2]!==points[i].x||shape.coordinates[i*2+1]!==points[i].y){same=false;break;}
+  if(same)return shape;
+ }
+ shape={coordinates:[],lengths:[],bends:[]};
+ for(let i=0;i<points.length;i++){
+  const b=points[i];shape.coordinates.push(b.x,b.y);
+  if(i)shape.lengths[i-1]=Math.hypot(b.x-points[i-1].x,b.y-points[i-1].y);
+  if(!i||i===points.length-1)continue;
+  const a=points[i-1],c=points[i+1],x=b.x-a.x,y=b.y-a.y,p=c.x-b.x,q=c.y-b.y,la=Math.hypot(x,y),lb=Math.hypot(p,q);
+  shape.bends[i]=la<.12||lb<.12||Math.abs(x*q-y*p)<.08*la*lb?null:{r:Math.min(.14,la*.25,lb*.25),ux:x/la,uy:y/la,vx:p/lb,vy:q/lb};
+ }
+ parkingPathGeometries.set(points,shape);return shape;
+}
 function lotPathPose(points,distance){
  let d=Math.max(0,distance);
+ const shape=parkingPathGeometry(points);
  const curve=(a,b,c,t)=>{
   const u=1-t,x=u*u*a.x+2*u*t*b.x+t*t*c.x,y=u*u*a.y+2*u*t*b.y+t*t*c.y;
   const dx=u*(b.x-a.x)+t*(c.x-b.x),dy=u*(b.y-a.y)+t*(c.y-b.y);
   return{x,y,angle:Math.atan2(dy*.78,dx)};
  };
- const bend=(a,b,c)=>{
-  const x=b.x-a.x,y=b.y-a.y,p=c.x-b.x,q=c.y-b.y,la=Math.hypot(x,y),lb=Math.hypot(p,q);
-  if(la<.12||lb<.12||Math.abs(x*q-y*p)<.08*la*lb)return null;
-  return{r:Math.min(.14,la*.25,lb*.25),ux:x/la,uy:y/la,vx:p/lb,vy:q/lb};
- };
  for(let i=1;i<points.length;i++){
-  const a=points[i-1],b=points[i],len=Math.hypot(b.x-a.x,b.y-a.y);
-  const prev=i>1?bend(points[i-2],a,b):null;
-  const next=i+1<points.length?bend(a,b,points[i+1]):null;
+  const a=points[i-1],b=points[i],len=shape.lengths[i-1];
+  const prev=shape.bends[i-1];
+  const next=shape.bends[i];
   if(prev&&d<=prev.r){
    const r=prev.r,p={x:a.x-prev.ux*r,y:a.y-prev.uy*r},q={x:a.x+prev.vx*r,y:a.y+prev.vy*r};
    return curve(p,a,q,Math.max(0,Math.min(1,(d+r)/(2*r))));
@@ -280,11 +293,18 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
 function canLeaveParkingSpace(v,points){
  // Reserve enough room to clear the bay before joining the one-way aisle.
  const mergeLength=lotPathLength(points.slice(0,2))+.7;
+ const samples=[];
+ for(let d=0;d<=mergeLength;d+=.12)samples.push(lotPathPose(points,d));
+ const bounds=poses=>{let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;for(const p of poses){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}return{minX,minY,maxX,maxY};};
+ const own=bounds(samples);
  for(const other of parkingLotCars(v.lotBuilding)){
   if(other.id===v.id||other.lotBuilding!==v.lotBuilding||!other.lotPath)continue;
-  for(let d=0;d<=mergeLength;d+=.12){const p=lotPathPose(points,d);
-   for(let ahead=0;ahead<=1.5;ahead+=.15)if(lotCarsOverlap(p,lotPathPose(other.lotPath,(other.lotDistance||0)+ahead),.06))return false;
-  }
+  // Sample each unchanged path once, rather than once per opposing sample.
+  const upcoming=[];for(let ahead=0;ahead<=1.5;ahead+=.15)upcoming.push(lotPathPose(other.lotPath,(other.lotDistance||0)+ahead));
+  const theirs=bounds(upcoming);
+  // One block exceeds the collision routine's maximum center distance at .06.
+  if(own.maxX+1<theirs.minX||theirs.maxX+1<own.minX||own.maxY+1<theirs.minY||theirs.maxY+1<own.minY)continue;
+  for(const p of samples)for(const q of upcoming)if(lotCarsOverlap(p,q,.06))return false;
  }return true;
 }
 function parkingAccess(b){

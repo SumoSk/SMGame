@@ -42,7 +42,7 @@ function boot(source=fs.readFileSync('dist/game.js','utf8')){
  for(let trial=0;trial<500;trial++){
   const queue=Array.from({length:1+Math.floor(rand()*24)},(_,i)=>({id:Math.floor(rand()*12),pos:i,at:Math.floor(rand()*8),distance:Math.floor(rand()*8)/2,connector:{incoming:Math.floor(rand()*4),laneIn:Math.floor(rand()*2)}}));
   const state={time:20,junctionQueues:new Map([[1,queue]]),vehicles:new Map(queue.map(q=>[q.id,{id:q.id}]))};
-  const deps={state,signalRequired:()=>true,signalAllows:(n,d)=>d!==trial%4,junctionExitAvailable:v=>v.id%3!==trial%3,connectorsConflict:(a,b)=>a.incoming!==b.incoming,junctionPriority:q=>q.id%3};
+  const deps={state,bugCaptureEnabled:false,trafficQueueKey:(v,node)=>node,isAirTraffic:()=>false,signalRequired:()=>true,signalAllows:(n,d)=>d!==trial%4,junctionExitAvailable:v=>v.id%3!==trial%3,connectorsConflict:(a,b)=>a.incoming!==b.incoming,junctionPriority:q=>q.id%3};
   const compile=code=>new Function(...Object.keys(deps),code+'return queueAllows;')(...Object.values(deps));
   const before=compile(reference),after=compile(queueCode);
   for(const q of queue){const v={id:q.id,path:[]};v.path[q.pos]=1;assert.equal(after(v,q.pos,q.connector,true),before(v,q.pos,q.connector,true));}
@@ -68,3 +68,4 @@ function boot(source=fs.readFileSync('dist/game.js','utf8')){
  console.log(`PASS: 200 cars x 120 steps identical; physical checks ${uncached.queries} -> ${cached.queries}; 500 queue scenarios match original rules`);
  console.log('PASS: stationary pose reuse/invalidation, heat skips cars and clears picking, heat exit, building revisions/state replacement');
 })().catch(e=>{console.error(e);process.exitCode=1});
+

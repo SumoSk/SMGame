@@ -16,6 +16,7 @@ jobs:
       - run: node --check dist/game.js && node --check dist/renderer3d.js
       - run: node -r ./work/test-dom-compat.cjs work/test-travel-happiness.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mission-dashboard.cjs
+      - run: node work/test-v500-parking-cost.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-v500.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-v500-civic-model.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-lifestyles.cjs
@@ -26,3 +27,21 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-flight-traffic-layer.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-london-showcase.cjs
 
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix /tmp/smcity-browser playwright
+      - run: /tmp/smcity-browser/node_modules/.bin/playwright install --with-deps chromium
+      - run: node work/test-v500-browser.cjs
+        env:
+          PLAYWRIGHT_MODULE: /tmp/smcity-browser/node_modules/playwright
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smcity-5-browser-qa
+          path: browser-qa
