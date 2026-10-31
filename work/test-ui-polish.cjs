@@ -40,4 +40,28 @@ for(const id of ['day','clock','pause','skip','toggleBuildingLabels','toggleCarD
 assert(source.includes('message.title=value; panel.title=value;'),'long notice should remain readable without failing DOM stubs');
 assert(source.includes('id="cityAdvisorTickerMessage" class="city-advisor-text" tabindex="0"'),'notice should be keyboard-scrollable');
 assert(source.includes('<div class="build-dock" id="buildDock">'),'original construction frame must remain intact');
+
+const gameMenuId='smcity-game-menus-20261101';
+const gameMenu=source.match(new RegExp('<style id="'+gameMenuId+'">([\s\S]*?)</style>'))?.[1];
+assert(gameMenu&&gameMenu.length>12000,'game-menu skin missing from source');
+for(const [name,html] of [['hosted',built],['standalone',standalone]]){
+  assert(html.includes('id="'+gameMenuId+'"'),name+' game-menu theme missing');
+}
+for(const selector of [
+ '#memberGate[open]','#memberGate .member-card','#memberGate #memberTitle',
+ '#memberGate .member-tabs button.active','#memberGate .member-form input',
+ '#memberGate #memberSubmit','#memberGate #memberRetrySave[hidden]',
+ '#dialog:has(.save-workspace)[open]','#dialog #dialogContent .save-slot-card',
+ '#dialog #dialogContent .save-slot-more[open] .save-slot-actions>button',
+ '#dialog:has(.smcity-menu-list)[open]','#dialog:has(.account-identity)[open]',
+ '@media(max-width:520px)','@media(prefers-reduced-motion:reduce)'
+]) assert(gameMenu.includes(selector),'missing game themed menu style: '+selector);
+for(const id of ['memberGate','memberEmail','memberPassword','memberSubmit','memberRetrySave','memberClose','memberBack','memberDevQuick']){
+  assert(source.includes('id="'+id+'"'),'account control lost: '+id);
+}
+for(const control of ['save-workspace','save-slot-card','save-slot-more','save-backup','save-operation-actions']){
+  assert(gameMenu.includes(control),'save presentation scope missing: '+control);
+}
+assert(!gameMenu.includes('pointer-events:none'),'game menus must remain interactive');
+
 console.log('PASS: SMCITY UX polish source checks, safe edges, small text, scrollable command row, dialogs and reward UI.');
