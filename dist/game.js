@@ -1956,7 +1956,7 @@ function trackingEndpoint(v,origin=false){
  const [x,y]=xy(node);return {point:{x:x+.5,y:y+.5},name:origin?trackingOrigin(v):trackingDestination(v)};
 }
 let canvasCarMarkerHits=[];
-let carStatusDiamondsVisible=false;
+let carStatusDiamondsVisible=true;
 function drawCarIndicators2D(){
  canvasCarMarkerHits=[];
  const add=(pose,v,cid,buildingId=null)=>{
@@ -4553,18 +4553,36 @@ function missionReportMarkup(which='current'){
  ['ช่องถนนทั้งหมด',int(summary.roads)],['อาคารทั้งหมด',int(summary.buildings)],['โรงแรม',int(summary.hotels)],['ต้นไม้ที่ปลูกเอง',int(summary.trees)]
  ]:[];
  const isPrevious=which==='previous',dayLabel='วันที่ '+(s.day+1);
+ const endingMoney=isPrevious?s.endingMoney:state.money;
+ const netTone=financeDelta>0?'gain':financeDelta<0?'loss':'flat';
+ const netValue=financeDelta===0?money(0):moneySigned(financeDelta);
+ const rate=s.rate==null?0:Math.max(0,Math.min(100,s.rate));
+ const missionHeadline=s.total===0?'ยังไม่มีผลการเดินทาง':s.rate>=80?'การเดินทางดีมาก':s.rate>=50?'ยังมีทริปที่ต้องปรับปรุง':'การเดินทางต้องเร่งแก้ไข';
+ const trafficHeadline=s.peakWaiting>Math.max(5,Math.round(s.peakCars*.25))?'รถรอคิวหนาแน่น':'จราจรยังอยู่ในระดับควบคุมได้';
+ const financialHeadline=financeDelta>0?'เงินในเมืองเพิ่มขึ้น':financeDelta<0?'เงินในเมืองลดลง':'เงินในเมืองยังไม่เปลี่ยน';
+ const financialExplanation=isPrevious?'ยอดสุทธิจริงจากเงินต้นวันถึงปิดบัญชี 06:00':'ยอดสุทธิตั้งแต่เริ่มรอบ · ยังไม่ปิดบัญชี';
+ const insight=s.total===0?'ยังไม่มีภารกิจที่ตัดสินผลในรอบนี้':int(s.success)+' จาก '+int(s.total)+' ภารกิจถึงตรงเวลา';
+ const trafficInsight=s.peakCars?'รถมากสุด '+int(s.peakCars)+' คัน · รอคิวสูงสุด '+int(s.peakWaiting)+' คัน':'ยังไม่มีรถที่บันทึกในรอบนี้';
  return '<div class="daily-report-body"><header class="sm-report-header"><span class="panel-heading-icon" aria-hidden="true">▤</span><div><h2>รายงานเมือง '+dayLabel+'</h2><p class="mission-sub">'+(isPrevious?'สรุปผลวันก่อนหน้า · ปิดบัญชีแล้ว':'สถานะระหว่างวัน · ตัวเลขเปลี่ยนตามการเล่น')+' · เวลาเกม '+timeText(s.since)+' น.</p></div></header>'+
- '<div class="mission-grid daily-report-highlights">'+[
- ['ภารกิจสำเร็จ',int(s.success)],['อัตราสำเร็จ',percent(s.rate)],['ภารกิจไม่สำเร็จ',int(s.failed)],
- ['เฉลี่ยต่อบล็อก',fraction(s.secondsPerBlock)+' วินาที'],['รายรับที่บันทึกได้',money(revenue)],['เงินเปลี่ยนสุทธิ',moneySigned(financeDelta)]
- ].map(([a,b])=>'<div class="mission-card"><small>'+a+'</small><strong>'+b+'</strong></div>').join('')+'</div>'+
+ '<section class="sm-daily-hero sm-daily-'+netTone+'" aria-label="สรุปการเงินเมือง"><div class="sm-daily-hero-top"><span>💰 ภาพรวมการเงิน</span><span class="sm-daily-period">'+(isPrevious?'ปิดรอบแล้ว':'ระหว่างวัน')+'</span></div>'+
+ '<div class="sm-daily-hero-number"><small>เงินเปลี่ยนสุทธิ</small><strong>'+netValue+'</strong></div>'+
+ '<div class="sm-daily-hero-bottom"><span>'+financialHeadline+'</span><small>'+financialExplanation+'</small></div></section>'+
+ '<div class="mission-grid daily-report-highlights sm-daily-finance-grid">'+[
+ ['income','รายรับรวม','+'+money(revenue),'รวมเงินที่บันทึกแล้ว'],
+ ['expense','รายจ่ายรวม','−'+money(expense),'ค่าดูแลและการก่อสร้าง'],
+ ['balance','เงินคงเหลือ',money(endingMoney),'ยอดเงินปัจจุบัน']
+ ].map(([tone,title,value,note])=>'<div class="mission-card sm-daily-finance sm-daily-finance-'+tone+'"><small>'+title+'</small><strong>'+value+'</strong><span>'+note+'</span></div>').join('')+'</div>'+
+ '<div class="sm-daily-dashboard-stats">'+
+ '<section class="sm-daily-mini"><div class="sm-daily-mini-top"><span>🎯 ผลภารกิจ</span><strong>'+percent(s.rate)+'</strong></div><div class="sm-daily-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Math.round(rate)+'" aria-label="อัตราภารกิจสำเร็จ"><span style="width:'+rate.toFixed(1)+'%"></span></div><b>'+missionHeadline+'</b><small>'+insight+' · ไม่สำเร็จ '+int(s.failed)+'</small></section>'+
+ '<section class="sm-daily-mini"><div class="sm-daily-mini-top"><span>🚗 ภาพรวมจราจร</span><strong>'+int(s.peakWaiting)+' คัน</strong></div><div class="sm-daily-traffic-caption">จำนวนรถรอสูงสุด</div><b>'+trafficHeadline+'</b><small>'+trafficInsight+'</small></section></div>'+
+ '<details class="sm-daily-details"><summary><span>▤ ดูรายงานฉบับละเอียด</span><small>ประชากร · ภารกิจ · การเดินทาง · การเงิน</small></summary>'+
  '<div class="daily-report-sections">'+
  panel('👥 ประชากรและนักท่องเที่ยว',[['ย้ายเข้าใหม่',int(s.populationIn)+' คน'],['ย้ายออก / ถูกนำออก',int(s.populationOut)+' คน'],['นักท่องเที่ยวเข้าเมือง',int(s.touristsIn)+' คน'],['นักท่องเที่ยวออกเมือง',int(s.touristsOut)+' คน'],...snapshotRows.slice(0,7),['จำนวนประชากรสูงสุด',int(s.peakPopulation)+' คน'],['Performance ต่ำสุดระหว่างวัน',fraction(s.happyMin)+'%'],['Performance สูงสุดระหว่างวัน',fraction(s.happyMax)+'%']])+
  panel('🎯 ผลภารกิจทั้งหมด',[['ภารกิจตัดสินผลแล้ว',int(s.total)],['สำเร็จตามเป้าหมาย',int(s.success)],['ตรงเวลา',int(s.ontime)],['สำเร็จแต่สาย',int(s.late)],['ไปไม่ทัน',int(s.missed)],['ไม่มีเส้นทาง / ใช้บริการไม่ได้',int(s.unavailable)],['ยกเลิกภารกิจ',int(s.cancelled)],['ยังเดินทางอยู่ ณ ตอนนี้',isPrevious?'—':int(s.active)],...typeRows,...serviceRows])+
  panel('🚗 รายงานการเดินทาง',[['เริ่มเดินทางรวม',int(s.tripsStarted)+' เที่ยว'],['ถึงจุดหมายจริง',int(s.tripsArrived)+' เที่ยว'],['เวลาเฉลี่ยเมื่อถึง',fraction(s.average)+' นาทีในเกม'],['ความเร็วเฉลี่ย',fraction(s.secondsPerBlock)+' วินาทีในเกม/บล็อก'],['ระยะทางทริปที่มีผลและวัดได้',int(s.roadBlocks)+' บล็อก'],['เฉลี่ยเวลารถติด',fraction(s.congestionAverage)+' นาทีในเกม'],...tripRows,['รถที่มากที่สุดระหว่างวัน',int(s.peakCars)+' คัน'],['รถรอคิวสูงสุด',int(s.peakWaiting)+' คัน'],...snapshotRows.slice(7,12)])+
  panel('💰 การเงินและการก่อสร้าง',[['เงินต้นวัน',money(s.openingMoney)],['รายได้ภาษีที่ปิดบัญชี',isPrevious?money(s.taxRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้ธุรกิจที่ปิดบัญชี',isPrevious?money(s.businessRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้จากนักท่องเที่ยว',money(s.touristsRevenue)],['เงินคืน / ส่วนลดนักท่องเที่ยว',money(s.touristsDiscount)],['เงินรางวัลแก้จราจร',money(s.incidentReward)],['ปรับภาษีหลังปิดบัญชี',moneySigned(s.taxAdjustments)],['ค่าดูแลเมือง',isPrevious?money(s.maintenanceCost):'สรุปเมื่อสิ้นวัน'],['ก่อสร้างถนน',money(s.roadCost)],['สร้างอาคาร',money(s.buildingCost)],['ถนนเพิ่ม / ปรับปรุง',int(s.roadsBuilt)+' บล็อก'],['อาคารสร้างใหม่',int(s.buildingsBuilt)+' แห่ง'],['อาคารรื้อถอน',int(s.buildingsRemoved)+' แห่ง'],['ยอดเงินสุทธิเปลี่ยน',moneySigned(financeDelta)],['เงินคงเหลือ',money(isPrevious?s.endingMoney:state.money)]])+
  panel('🏙️ โครงสร้างเมืองและสภาพการจราจร',snapshotRows.slice(12))+
- '</div><details class="panel-help report-reading"><summary>วิธีอ่านรายงาน</summary><p>รายงานแสดงวันนี้และวันล่าสุด ไม่เก็บย้อนหลัง 7 วัน · ภาษีและรายได้ธุรกิจสรุปเมื่อจบวัน</p><p>วินาที/บล็อก = เวลาเดินทางรวมของเที่ยวที่ถึง × 60 ÷ ระยะทางรวมที่วัดได้</p></details></div>';
+ '</div></details><details class="panel-help report-reading"><summary>วิธีอ่านรายงาน</summary><p>รายงานแสดงวันนี้และวันล่าสุด ไม่เก็บย้อนหลัง 7 วัน · ภาษีและรายได้ธุรกิจสรุปเมื่อจบวัน</p><p>วินาที/บล็อก = เวลาเดินทางรวมของเที่ยวที่ถึง × 60 ÷ ระยะทางรวมที่วัดได้</p></details></div>';
 }
 function openMissionDashboard(which='current'){
  if(missionAutoOpenDay>=0)missionAutoClose(true);
@@ -6461,7 +6479,7 @@ function syncCarStatusDiamondVisibility(){
  const hidden=!carStatusDiamondsVisible,button=$('toggleCarDiamonds');
  if(!button)return;
  button.classList.toggle('is-hidden',hidden);
- button.setAttribute('aria-pressed',String(hidden));
+ button.setAttribute('aria-pressed',String(carStatusDiamondsVisible));
  button.setAttribute('aria-label',hidden?'แสดงสถานะรถใกล้สายหรือสายแล้ว':'ซ่อนสถานะรถใกล้สายหรือสายแล้ว');
  button.title=hidden?'แสดงสถานะรถ · 😥 ใกล้สาย · 😡 สายแล้ว':'ซ่อนสถานะรถ · รถปกติไม่แสดงสัญลักษณ์';
  const caption=$('toggleCarDiamondsText');
