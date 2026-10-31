@@ -317,7 +317,176 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
   pointer-events:none;user-select:none;
  }
 }
-</style><link rel="stylesheet" href="dist/modal-system.css?v=saveui-mobile-v2-20261031"></head>
+</style><link rel="stylesheet" href="dist/modal-system.css?v=saveui-mobile-v2-20261031"><style id="smcity-ux-audit-20261101">
+/* SMCITY UX audit 2026-11-01: typography, safe edges, and overflow only.
+   Keep the v5.0 construction frame and simulation logic untouched. */
+:root{--smcity-readable-small:11px}
+#cityCommandBar{
+  box-sizing:border-box!important;
+  max-width:calc(100vw - 16px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+  overflow-x:auto!important;overflow-y:hidden!important;
+  overscroll-behavior-x:contain;touch-action:pan-x;
+  scrollbar-width:thin;scrollbar-color:var(--smg-border,#8ba8a2) transparent;
+}
+#cityCommandBar .dock-head{
+  flex-wrap:nowrap!important;width:max-content!important;min-width:100%!important;
+  max-width:none!important;justify-content:flex-start!important;
+}
+#cityCommandBar .dock-timebar{flex:0 0 auto!important;overflow:visible!important}
+#cityCommandBar .dock-speed{flex:0 0 auto!important;overflow:visible!important}
+#cityCommandBar,#cityCommandBar *{
+  font-size:10.5px!important;line-height:1.3!important;
+}
+#cityCommandBar #clock{font-size:13px!important;font-weight:850!important}
+#cityCommandBar #day{font-size:10.5px!important}
+#cityCommandBar button{
+  font-size:10.5px!important;min-width:23px!important;
+  min-height:26px!important;height:26px!important;max-height:26px!important;
+  padding:3px 5px!important;
+}
+body>.bottom>.city-advisor-mini{
+  max-width:calc(100vw - 20px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+  font-size:11px!important;min-height:31px!important;height:31px!important;max-height:31px!important;
+}
+body>.bottom>.city-advisor-mini .city-advisor-action{
+  min-width:0!important;min-height:25px!important;height:25px!important;max-height:25px!important;
+}
+body>.bottom>.city-advisor-mini .city-advisor-text{
+  min-width:0!important;max-width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;
+  text-overflow:clip!important;white-space:nowrap!important;
+  scrollbar-width:none;touch-action:pan-x;overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+body>.bottom>.city-advisor-mini .city-advisor-text::-webkit-scrollbar{display:none}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) .metric-text>small{
+  font-size:10.5px!important;flex:0 1 auto!important;min-width:0!important;
+  max-width:55%!important;overflow:hidden!important;text-overflow:ellipsis!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) .metric-text>strong{
+  font-size:11.5px!important;flex:0 0 auto!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric .metric-delta{
+  font-size:10px!important;line-height:1.2!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric .metric-text{
+  min-width:0!important;max-width:100%!important;overflow:hidden!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-control-heading :is(strong,.mini-demand-legend){
+  font-size:10.5px!important;line-height:1.25!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need>span,
+body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need-values :is(b,strong){
+  font-size:10.5px!important;line-height:1.25!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool .tool-name{
+  font-size:11.5px!important;line-height:1.25!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool .tool-price{
+  font-size:10.5px!important;
+}
+body>.city-level-strip .city-level-progress-head b{
+  font-size:11px!important;line-height:1.3!important;
+}
+body>.city-level-strip .city-level-emblem{font-size:10px!important}
+body>.city-level-strip .city-crate-badge{font-size:11px!important}
+body>.city-level-strip .city-ai-quota-button{font-size:11px!important}
+body>.city-level-strip :is(.city-level-button,.city-ai-quota-button){overflow:hidden!important}
+#dialog[open]:not(.construction-confirm):not(.road-preview-confirm):not(:has(.sm-level-reward)){
+  box-sizing:border-box!important;position:fixed!important;
+  inset:0!important;margin:auto!important;transform:none!important;translate:none!important;
+  /* Keep each dialog's native width; only cap it at the viewport edge. */
+  min-width:0!important;max-width:calc(100vw - 24px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+  max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+  overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain;
+}
+#dialog #dialogContent{box-sizing:border-box!important;max-width:100%!important;min-width:0!important;overflow-wrap:anywhere!important}
+#dialog #dialogContent :is(.actions,.ai-checkout-actions,.save-operation-actions){flex-wrap:wrap!important;max-width:100%!important}
+#dialog #dialogContent :is(button,input,textarea,select){max-width:100%!important;box-sizing:border-box!important}
+#dialog #dialogContent :is(.save-workspace,.save-slot-list,.save-slot-card,.save-slot-controls,.save-slot-heading){
+  box-sizing:border-box!important;min-width:0!important;max-width:100%!important;
+}
+#dialog .save-panel-head p,#dialog .save-create-compact label,#dialog .save-backup-body label,
+#dialog .save-slot-heading time,#dialog .save-status-copy p,#dialog .save-hint{
+  font-size:12px!important;line-height:1.5!important;
+}
+#dialog .save-list-heading>span,#dialog .save-backup>summary span,
+#dialog #dialogContent .save-slot-controls>button,
+#dialog #dialogContent .save-slot-more[open] .save-slot-actions>button,
+#dialog #dialogContent .save-panel-footer button,
+#dialog #dialogContent .save-operation-actions button{
+  font-size:12px!important;line-height:1.35!important;
+}
+#dialog #dialogContent .save-slot-heading h3{
+  font-size:13px!important;line-height:1.4!important;overflow-wrap:anywhere!important;
+}
+#dialog .save-slot-more[open]>summary::after{font-size:12px!important}
+#dialog .save-workspace :is(.save-panel-footer,.save-list-section){min-width:0!important}
+#dialog:has(.sm-level-reward) .sm-level-reward p{font-size:13px!important;line-height:1.65!important}
+#dialog .sm-level-result-label,#dialog .sm-level-odds,
+#dialog .sm-level-reward-list span,#dialog .sm-level-reward-foot{font-size:12px!important;line-height:1.45!important}
+#dialog .sm-level-actions button{font-size:14px!important;line-height:1.4!important}
+#dialog .sm-level-reward-foot>span{min-width:0!important}
+#cityLevelCelebration .sm-level-celebration-card{
+  max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+  overflow-x:hidden!important;overflow-y:auto!important;pointer-events:auto!important;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+}
+#cityLevelCelebration .sm-level-celebration-eyebrow{font-size:11px!important}
+#cityLevelCelebration .sm-level-celebration-open{min-height:42px!important;font-size:13px!important}
+:is(#inspector,.citizens-dashboard,#missionDailyAuto):not(.hidden){
+  box-sizing:border-box!important;
+  max-width:calc(100vw - 20px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+  overflow-x:hidden!important;overflow-wrap:anywhere;
+}
+:is(#inspector,.citizens-dashboard) :is(.detail-row,.citizen-person,.citizen-kpi){min-width:0;overflow-wrap:anywhere}
+:is(#inspector,.citizens-dashboard) :is(input,button){max-width:100%;box-sizing:border-box}
+#inspector :is(.detail-row>span,.signal-note,.inspect-section p){font-size:11.5px!important;line-height:1.55!important}
+#inspector :is(.detail-row>strong,.signal-control h3,.signal-direction){font-size:12px!important;line-height:1.45!important}
+#buildVariantPopup:not([hidden]){
+  box-sizing:border-box!important;
+  max-width:calc(100vw - 16px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+  max-height:calc(100dvh - 25px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+  overflow-x:hidden!important;overflow-y:auto!important;
+}
+#buildVariantPopup .tool-name{font-size:12px!important;line-height:1.35!important;overflow-wrap:anywhere!important}
+#buildVariantPopup .tool-price{font-size:11px!important}
+#smcityWelcome .smcity-welcome-close{top:4px!important;right:4px!important;transform:none!important}
+dialog.member-gate[open]{
+  box-sizing:border-box!important;max-width:calc(100vw - 22px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+  max-height:calc(100dvh - 22px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+  overflow-x:hidden!important;overflow-y:auto!important;
+}
+dialog.member-gate .member-card{box-sizing:border-box!important;max-width:100%!important;min-width:0!important}
+dialog.member-gate .member-card :is(input,button){box-sizing:border-box!important;max-width:100%!important}
+@media(max-width:520px){
+  #cityCommandBar,#cityCommandBar *{font-size:10px!important}
+  #cityCommandBar button{font-size:10px!important;min-height:25px!important;height:25px!important;max-height:25px!important}
+  #cityCommandBar #day{font-size:10px!important}
+  body>.city-level-strip .city-level-progress-head b{font-size:10.5px!important}
+  body>.bottom>.city-advisor-mini{font-size:10.5px!important}
+  #dialog #dialogContent .save-slot-card:not(:has(.save-slot-more[open])){
+    grid-template-columns:minmax(0,1fr)!important;row-gap:6px!important;
+  }
+  #dialog #dialogContent .save-slot-card:not(:has(.save-slot-more[open]))>.save-slot-controls{
+    grid-column:1!important;justify-content:flex-start!important;
+  }
+  #dialog .save-slot-controls>button{min-width:68px!important}
+  .citizens-dashboard .citizens-top h2{font-size:15px!important;overflow-wrap:anywhere!important}
+}
+@media(max-width:375px){
+  body>.city-level-strip .city-level-progress-head b{font-size:10px!important}
+  body>.city-level-strip .city-ai-quota-button{font-size:10.5px!important}
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need-values{flex-basis:78px!important;width:78px!important;min-width:78px!important}
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need>span{font-size:10px!important}
+}
+@media(max-height:500px) and (orientation:landscape){
+  #cityLevelCelebration .sm-level-celebration-card{max-height:calc(100dvh - 12px)!important}
+  #dialog[open]:not(.construction-confirm):not(.road-preview-confirm){max-height:calc(100dvh - 12px)!important}
+}
+@media(prefers-reduced-motion:reduce){
+  #cityCommandBar *,#cityLevelCelebration .sm-level-celebration-card{scroll-behavior:auto!important}
+}
+</style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
 <aside id="cameraPitchRail" aria-label="ควบคุมมุมก้มเงยกล้อง" hidden>
@@ -367,7 +536,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
    </button>
    <button type="button" id="cityAiQuotaButton" class="city-ai-quota-button" title="ดูโควต้า AI สำหรับติดตั้งทางแยกฟรี"><span aria-hidden="true">✦</span><span>AI <b id="cityAiQuotaValue">0</b><small>โควต้า</small></span></button>
   </div>
-<div class="bottom"><details id="cityAdvisor" class="city-advisor" open><summary><span class="advisor-avatar" aria-hidden="true">อ</span><span><small>ที่ปรึกษาเมือง</small><strong id="advisorHeadline">มาดูเมืองของเรากันค่ะ</strong></span><span class="advisor-chevron" aria-hidden="true">⌄</span></summary><div class="advisor-body"><p id="advisorOverview"></p><div class="advisor-columns"><section><h3>สิ่งที่ไปได้ดี</h3><ul id="advisorGood"></ul></section><section><h3>เรื่องที่ควรดูแล</h3><ul id="advisorProblems"></ul></section></div><div class="advisor-next"><h3>ทำอะไรก่อนดี</h3><ol id="advisorNext"></ol></div></div></details><div id="cityAdvisorTicker" class="city-advisor-mini is-visible" role="status" aria-live="polite" aria-atomic="true"><span class="city-advisor-action"><span class="city-advisor-spark" aria-hidden="true">✦</span><span id="cityAdvisorTickerMessage" class="city-advisor-text">ผู้ช่วยเมือง: กำลังตรวจความต้องการ</span></span><button type="button" id="cityAdvisorTickerDismiss" class="city-advisor-dismiss" aria-label="ปิดคำแนะนำชั่วคราว" title="ซ่อนคำแนะนำชั่วคราว">×</button></div><span id="hint" class="ui-legacy-hidden" hidden aria-hidden="true"></span><section id="cityCommandBar" class="city-command-bar" aria-label="เวลา ความเร็ว และการแสดงผลเมือง"><div class="dock-head"><div class="dock-timebar"><div class="dock-clock" aria-label="วัน วันที่ และเวลาในเกม"><span id="day">วันจันทร์ · วันที่ 1</span><strong id="clock">06:00</strong></div><div class="dock-speed"><div class="playback"><button id="pause" title="หยุดหรือเล่นต่อ">Ⅱ</button><button data-speed="1" class="active">1×</button><button data-speed="2">2×</button><button data-speed="5">5×</button><button data-speed="10">10×</button><button data-speed="20">20×</button><button id="skip" type="button" aria-label="ข้ามไปเช้าวันใหม่" title="ข้ามไปเช้าวันใหม่"><span class="skip-day-label">ข้ามวัน</span> <span aria-hidden="true">↠</span></button></div><span id="status">ทุกการเดินทาง เริ่มจากเมืองที่คุณสร้าง</span><span class="edition">THAILAND / SANDBOX</span></div></div><span class="dock-display-actions" role="group" aria-label="ตัวเลือกการแสดงผล"><button id="toggleBuildingLabels" type="button" class="is-hidden toggle-building-labels" aria-pressed="true" aria-label="เปิดป้ายอาคารบนแผนที่" title="ซ่อนหรือแสดงชื่อและตัวเลขบนป้ายอาคาร"><span class="toggle-building-labels-icon" aria-hidden="true">▣</span> <span id="toggleBuildingLabelsText">เปิดป้าย</span></button><button id="toggleCarDiamonds" type="button" class="toggle-car-diamonds" aria-pressed="true" aria-label="ซ่อนสถานะรถใกล้สายหรือสายแล้ว" title="ซ่อนสถานะรถ · 😥 ใกล้สาย · 😡 สายแล้ว"><span class="toggle-car-diamonds-icon" aria-hidden="true">😥</span> <span id="toggleCarDiamondsText">ซ่อนสถานะ</span></button><button id="toggleAIPins" type="button" class="is-hidden toggle-ai-pins" aria-pressed="true" aria-label="แสดงปุ่ม AI ที่ทางแยก" title="ซ่อนหรือแสดงปุ่ม AI ที่ทางแยก"><span class="toggle-ai-pins-icon" aria-hidden="true">✦</span> <span id="toggleAIPinsText">เปิด AI</span></button><button id="toggleEyeComfort" type="button" class="toggle-eye-comfort" aria-pressed="false" aria-label="เปิดธีมดำตัวหนังสือขาว" title="สลับธีมดำ / ธีมปกติ"><span aria-hidden="true">◐</span> <span class="command-theme-label">ขาว/ดำ</span></button></span><button id="toggleDock" type="button" class="toggle-dock" aria-controls="dockBody" aria-expanded="true" aria-label="หุบแถบเครื่องมือ"><span id="toggleDockIcon" aria-hidden="true">⌄</span> <span id="toggleDockText">หุบเครื่องมือ</span></button></div></section><div class="control-deck" aria-label="แผงควบคุมเมือง">
+<div class="bottom"><details id="cityAdvisor" class="city-advisor" open><summary><span class="advisor-avatar" aria-hidden="true">อ</span><span><small>ที่ปรึกษาเมือง</small><strong id="advisorHeadline">มาดูเมืองของเรากันค่ะ</strong></span><span class="advisor-chevron" aria-hidden="true">⌄</span></summary><div class="advisor-body"><p id="advisorOverview"></p><div class="advisor-columns"><section><h3>สิ่งที่ไปได้ดี</h3><ul id="advisorGood"></ul></section><section><h3>เรื่องที่ควรดูแล</h3><ul id="advisorProblems"></ul></section></div><div class="advisor-next"><h3>ทำอะไรก่อนดี</h3><ol id="advisorNext"></ol></div></div></details><div id="cityAdvisorTicker" class="city-advisor-mini is-visible" role="status" aria-live="polite" aria-atomic="true"><span class="city-advisor-action"><span class="city-advisor-spark" aria-hidden="true">✦</span><span id="cityAdvisorTickerMessage" class="city-advisor-text" tabindex="0">ผู้ช่วยเมือง: กำลังตรวจความต้องการ</span></span><button type="button" id="cityAdvisorTickerDismiss" class="city-advisor-dismiss" aria-label="ปิดคำแนะนำชั่วคราว" title="ซ่อนคำแนะนำชั่วคราว">×</button></div><span id="hint" class="ui-legacy-hidden" hidden aria-hidden="true"></span><section id="cityCommandBar" class="city-command-bar" aria-label="เวลา ความเร็ว และการแสดงผลเมือง"><div class="dock-head"><div class="dock-timebar"><div class="dock-clock" aria-label="วัน วันที่ และเวลาในเกม"><span id="day">วันจันทร์ · วันที่ 1</span><strong id="clock">06:00</strong></div><div class="dock-speed"><div class="playback"><button id="pause" title="หยุดหรือเล่นต่อ">Ⅱ</button><button data-speed="1" class="active">1×</button><button data-speed="2">2×</button><button data-speed="5">5×</button><button data-speed="10">10×</button><button data-speed="20">20×</button><button id="skip" type="button" aria-label="ข้ามไปเช้าวันใหม่" title="ข้ามไปเช้าวันใหม่"><span class="skip-day-label">ข้ามวัน</span> <span aria-hidden="true">↠</span></button></div><span id="status">ทุกการเดินทาง เริ่มจากเมืองที่คุณสร้าง</span><span class="edition">THAILAND / SANDBOX</span></div></div><span class="dock-display-actions" role="group" aria-label="ตัวเลือกการแสดงผล"><button id="toggleBuildingLabels" type="button" class="is-hidden toggle-building-labels" aria-pressed="true" aria-label="เปิดป้ายอาคารบนแผนที่" title="ซ่อนหรือแสดงชื่อและตัวเลขบนป้ายอาคาร"><span class="toggle-building-labels-icon" aria-hidden="true">▣</span> <span id="toggleBuildingLabelsText">เปิดป้าย</span></button><button id="toggleCarDiamonds" type="button" class="toggle-car-diamonds" aria-pressed="true" aria-label="ซ่อนสถานะรถใกล้สายหรือสายแล้ว" title="ซ่อนสถานะรถ · 😥 ใกล้สาย · 😡 สายแล้ว"><span class="toggle-car-diamonds-icon" aria-hidden="true">😥</span> <span id="toggleCarDiamondsText">ซ่อนสถานะ</span></button><button id="toggleAIPins" type="button" class="is-hidden toggle-ai-pins" aria-pressed="true" aria-label="แสดงปุ่ม AI ที่ทางแยก" title="ซ่อนหรือแสดงปุ่ม AI ที่ทางแยก"><span class="toggle-ai-pins-icon" aria-hidden="true">✦</span> <span id="toggleAIPinsText">เปิด AI</span></button><button id="toggleEyeComfort" type="button" class="toggle-eye-comfort" aria-pressed="false" aria-label="เปิดธีมดำตัวหนังสือขาว" title="สลับธีมดำ / ธีมปกติ"><span aria-hidden="true">◐</span> <span class="command-theme-label">ขาว/ดำ</span></button></span><button id="toggleDock" type="button" class="toggle-dock" aria-controls="dockBody" aria-expanded="true" aria-label="หุบแถบเครื่องมือ"><span id="toggleDockIcon" aria-hidden="true">⌄</span> <span id="toggleDockText">หุบเครื่องมือ</span></button></div></section><div class="control-deck" aria-label="แผงควบคุมเมือง">
  <section class="city-dashboard" aria-label="ภาพรวมเมือง">
   <div class="dashboard-heading"><div class="dashboard-title" aria-label="SMCITY เวอร์ชัน 5.1"><strong>SMCITY</strong><small>v5.1</small></div><div class="dashboard-actions"><button type="button" id="help" aria-label="วิธีเล่น" title="วิธีเล่น" hidden>?</button></div></div>
   <div class="stats dashboard-stats" aria-label="ตัวชี้วัดของเมือง"><button type="button" class="city-metric metric-money" data-inspect="money" aria-label="งบประมาณ — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 9h20M17 14h.01"/></svg></span><span class="metric-text"><small>งบประมาณ</small><strong id="money">฿500,000</strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-population" data-inspect="population" aria-label="ประชาชน — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M2.5 20v-2a6.5 6.5 0 0 1 13 0v2M17 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 2.5 4.5V20"/></svg></span><span class="metric-text"><small>ประชาชน :</small><strong id="population">0 <span class="metric-delta" data-change="flat" title="เปลี่ยนแปลงสุทธิตั้งแต่เริ่มวัน">(0)</span></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-tourists" data-inspect="tourists" aria-label="นักท่องเที่ยว — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="14" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2M4 12h16M9 11v3m6-3v3"/></svg></span><span class="metric-text"><small>นักท่องเที่ยว :</small><strong id="tourists">0 <span class="metric-delta" data-change="flat" title="เปลี่ยนแปลงสุทธิตั้งแต่เริ่มวัน">(0)</span></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-happiness" data-inspect="happiness" aria-label="ภารกิจ — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c2.5 3 5.5 3 8 0M8 9h.01M16 9h.01"/></svg></span><span class="metric-text"><small>ภารกิจ :</small><strong id="happy">100<em>%</em></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-traffic" data-inspect="traffic" aria-label="การจราจร — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="3"/><circle cx="12" cy="7" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="17" r="1"/></svg></span><span class="metric-text"><small>จราจร :</small><strong id="flow">100<em>%</em></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button></div>
@@ -485,6 +654,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  const text=id=>document.getElementById(id)?.textContent||'';
  const show=value=>{
   if(message.textContent!==value)message.textContent=value;
+   message.title=value; panel.title=value;
   if(panel.hidden)panel.hidden=false;
   if(!panel.classList.contains('is-visible'))panel.classList.add('is-visible');
  };
