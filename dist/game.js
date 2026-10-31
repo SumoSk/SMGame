@@ -6760,13 +6760,14 @@ let cloudSaveOperation=null;
 function showCloudSaveStatus(operation){
  const saving=operation.status==='saving',success=operation.status==='success';
  const heading=saving?'กำลังบันทึก':success?'บันทึกสำเร็จ':'บันทึกไม่สำเร็จ';
- operation.revision=modal('<div class="save-workspace"><section class="cloud-save-status '+operation.status+'" role="status" aria-live="polite" aria-busy="'+saving+'">'+
-  '<span class="cloud-save-symbol" aria-hidden="true">'+(saving?'◌':success?'✓':'!')+'</span><h2>'+heading+'</h2><strong>'+escapeSaveText(operation.name)+'</strong>'+
-  '<p id="cloudSaveStateText">'+(saving?'กำลังเตรียมและส่งข้อมูลเมือง…':success?'เซิร์ฟเวอร์ยืนยันว่าบันทึกเมืองแล้วค่ะ':escapeSaveText(operation.error||'กรุณาลองอีกครั้งค่ะ'))+'</p>'+
-  (saving?'<p>เมืองขนาดใหญ่อาจใช้เวลาสักครู่ กรุณาอย่ารีเฟรชหรือปิดหน้านี้ระหว่างบันทึกค่ะ</p>':'')+'</section><div class="actions">'+
-  (!saving&&!success?'<button id="cloudSaveRetry" class="primary">ลองบันทึกอีกครั้ง</button><button id="cloudSaveBackup">ดาวน์โหลดไฟล์เมืองสำรอง</button>':'')+
-  (!saving?'<button id="cloudSaveList" class="'+(success?'primary':'')+'">ดูรายการเซฟ</button>':'')+
-  '<button id="cloudSaveBack">'+(saving?'กลับไปเล่นระหว่างรอ':'กลับไปเล่น')+'</button></div></div>');
+ operation.revision=modal('<div class="save-workspace save-operation"><div class="save-status-row '+operation.status+'" role="status" aria-live="polite" aria-busy="'+saving+'">'+
+  '<span class="save-status-symbol" aria-hidden="true">'+(saving?'◌':success?'✓':'!')+'</span><div class="save-status-copy"><h2>'+heading+'</h2><strong>'+escapeSaveText(operation.name)+'</strong>'+
+  '<p id="cloudSaveStateText">'+(saving?'กำลังเตรียมและส่งข้อมูลเมือง…':success?'เซิร์ฟเวอร์ยืนยันว่าบันทึกเมืองแล้วค่ะ':escapeSaveText(operation.error||'กรุณาลองอีกครั้งค่ะ'))+'</p></div></div>'+
+  (saving?'<p class="save-hint">รอจนกว่าจะขึ้นว่าบันทึกสำเร็จ ก่อนปิดหรือรีเฟรชเกม</p>':'')+
+  '<div class="save-operation-actions">'+
+  (!saving&&!success?'<button id="cloudSaveRetry" class="primary">ลองอีกครั้ง</button><button id="cloudSaveBackup">ดาวน์โหลดสำรอง</button>':'')+
+  (!saving?'<button id="cloudSaveList" class="'+(success?'primary':'')+'">รายการเซฟ</button>':'')+
+  '<button id="cloudSaveBack">'+(saving?'กลับไปเล่น':'ปิด')+'</button></div></div>');
  $('cloudSaveBack').onclick=closeModal;
  if(!saving)$('cloudSaveList').onclick=openCloudSaveDialog;
  if(!saving&&!success){
@@ -6799,29 +6800,48 @@ async function saveCloudCity(name,slotId,retry=null){
   toast('บันทึกไม่สำเร็จ: '+operation.error);return false;
  }
 }
+function confirmSaveAction(title,body,confirmText,callback,danger=false){
+ modal('<div class="save-workspace save-confirm"><h2>'+escapeSaveText(title)+'</h2><p>'+escapeSaveText(body)+'</p>'+
+ '<div class="save-operation-actions"><button id="cancelDialog">ยกเลิก</button><button id="confirmDialog" class="'+(danger?'danger':'primary')+'">'+escapeSaveText(confirmText)+'</button></div></div>');
+ $('cancelDialog').onclick=openCloudSaveDialog;
+ $('confirmDialog').onclick=()=>{closeModal();callback();};
+}
 async function openCloudSaveDialog(){
  if(cloudSaveOperation?.status==='saving'){showCloudSaveStatus(cloudSaveOperation);return;}
  const api=window.SMGameAccount;
  if(!api?.user){if(api?.openPanel)api.openPanel();else if(api?.requestSaveLogin)api.requestSaveLogin(snapshot(),'');else toast('กรุณาเข้าสู่ระบบก่อนเซฟค่ะ');return;}
  const accountId=api.user.id;
- const revision=modal('<div class="save-workspace">'+panelHeading('▣','เซป/โหลด')+'<p class="panel-empty" role="status">กำลังอ่านเซฟของคุณ…</p><div class="actions"><button id="saveLoadingClose">กลับไปเล่น</button></div></div>');
+ const revision=modal('<div class="save-workspace save-compact"><header class="save-panel-head"><h2>เซฟเกม</h2></header><p class="save-mini-state" role="status">กำลังโหลดรายการเซฟ…</p><div class="save-panel-footer"><button id="saveLoadingClose">ปิด</button></div></div>');
  $('saveLoadingClose').onclick=closeModal;
  let slots;
  try{slots=await api.listSaves();if(dialogRevision!==revision||api.user?.id!==accountId)return;}
- catch(e){console.error('Online saves:',e);if(dialogRevision===revision){$('dialogContent').innerHTML='<div class="save-workspace">'+panelHeading('▣','เซป/โหลด')+'<p class="panel-empty" role="alert">อ่านรายการเซฟไม่สำเร็จ กรุณาลองอีกครั้งค่ะ</p><div class="actions"><button id="saveListRetry" class="primary">ลองอีกครั้ง</button><button id="saveListClose">กลับไปเล่น</button></div></div>';$('saveListRetry').onclick=openCloudSaveDialog;$('saveListClose').onclick=closeModal;}return;}
+ catch(e){
+  console.error('Online saves:',e);
+  if(dialogRevision===revision){
+   $('dialogContent').innerHTML='<div class="save-workspace save-compact"><header class="save-panel-head"><h2>เซฟเกม</h2></header><p class="save-mini-state" role="alert">อ่านรายการเซฟไม่สำเร็จ กรุณาลองใหม่ค่ะ</p><div class="save-operation-actions"><button id="saveListRetry" class="primary">ลองอีกครั้ง</button><button id="saveListClose">ปิด</button></div></div>';
+   $('saveListRetry').onclick=openCloudSaveDialog;$('saveListClose').onclick=closeModal;
+  }return;
+ }
  const rows=slots.map((slot,i)=>{
-  const when=Number.isFinite(slot.savedAt)?new Date(slot.savedAt).toLocaleString('th-TH'):'';
-  return '<article class="save-slot-card"><div class="save-slot-heading"><span class="save-slot-icon" aria-hidden="true">▣</span><div><h3>'+escapeSaveText(slot.name)+'</h3><time>'+escapeSaveText(when)+'</time></div></div><div class="actions save-slot-actions"><button type="button" class="primary" id="onlineLoad'+i+'">โหลดเมือง</button><button type="button" id="onlineOverwrite'+i+'">เขียนทับ</button><button type="button" class="danger" id="onlineDelete'+i+'">ลบเซฟ</button></div></article>';
+  const when=Number.isFinite(slot.savedAt)?new Date(slot.savedAt).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'}):'ไม่ระบุเวลา';
+  return '<article class="save-slot-card" role="listitem"><div class="save-slot-heading"><div><h3 title="'+escapeSaveText(slot.name)+'">'+escapeSaveText(slot.name)+'</h3><time>'+escapeSaveText(when)+'</time></div></div>'+
+   '<div class="save-slot-controls"><button type="button" class="primary" id="onlineLoad'+i+'">โหลด</button>'+
+   '<details class="save-slot-more"><summary aria-label="จัดการเซฟ '+escapeSaveText(slot.name)+'" title="จัดการเซฟ">⋯</summary>'+
+   '<div class="save-slot-actions"><button type="button" id="onlineOverwrite'+i+'">เขียนทับ</button><button type="button" class="danger" id="onlineDelete'+i+'">ลบเซฟ</button></div></details></div></article>';
  }).join('');
- modal(`<div class="save-workspace">${panelHeading('▣','เซป/โหลด')}
-  <section class="save-create-card"><label for="onlineSaveName">บันทึกเมืองปัจจุบัน</label>
-  <input id="onlineSaveName" maxlength="80" autocomplete="off" value="${escapeSaveText((state.city==='london'?'เมืองตัวอย่าง ลอนดอน':CITIES[state.city].name+' วันที่ '+(Math.floor(state.time/1440)+1)))}">
-  <p id="onlineSaveError" role="status" aria-live="polite"></p>
-  <div class="actions"><button id="onlineCreate" class="primary">บันทึกเป็นเซฟใหม่</button></div></section>
-  <div class="save-list-heading"><h3>เซฟของฉัน</h3><span>${fmt(slots.length)} รายการ</span></div>
-  <div class="save-slot-list">${rows||'<p class="panel-empty">ยังไม่มีเซฟที่บันทึกไว้</p>'}</div>
-  <section class="save-create-card"><label for="onlineImport">ไฟล์เมืองสำรองในเครื่อง</label><input id="onlineImport" type="file" accept=".json,application/json"><p id="onlineImportError" role="status" aria-live="polite"></p><button type="button" id="onlineExport">ดาวน์โหลดเมืองปัจจุบัน (.json)</button></section>
-  <div class="actions panel-footer"><button id="onlineClose">กลับไปเล่น</button></div></div>`);
+ const defaultName=state.city==='london'?'เมืองตัวอย่าง ลอนดอน':CITIES[state.city].name+' วันที่ '+(Math.floor(state.time/1440)+1);
+ modal('<div class="save-workspace save-compact"><header class="save-panel-head"><div><h2>เซฟเกม</h2><p>บันทึกและโหลดเมืองของคุณ</p></div></header>'+
+  '<section class="save-create-compact"><label for="onlineSaveName">บันทึกเมืองปัจจุบัน</label>'+
+  '<div class="save-create-row"><input id="onlineSaveName" maxlength="80" autocomplete="off" value="'+escapeSaveText(defaultName)+'">'+
+  '<button id="onlineCreate" type="button" class="primary">บันทึก</button></div>'+
+  '<p id="onlineSaveError" role="status" aria-live="polite"></p></section>'+
+  '<section class="save-list-section"><div class="save-list-heading"><h3>เซฟของฉัน</h3><span>'+fmt(slots.length)+' รายการ</span></div>'+
+  '<div class="save-slot-list" role="list">'+(rows||'<p class="save-mini-state">ยังไม่มีเซฟเกม</p>')+'</div></section>'+
+  '<details class="save-backup"><summary>ไฟล์สำรอง <span>นำเข้า / ดาวน์โหลด</span></summary>'+
+  '<div class="save-backup-body"><label for="onlineImport">นำเข้าไฟล์เมือง (.json)</label>'+
+  '<input id="onlineImport" type="file" accept=".json,application/json"><p id="onlineImportError" role="status" aria-live="polite"></p>'+
+  '<button type="button" id="onlineExport">ดาวน์โหลดเมืองปัจจุบัน</button></div></details>'+
+  '<div class="save-panel-footer"><button id="onlineClose">ปิด</button></div></div>');
  $('onlineClose').onclick=closeModal;
  $('onlineExport').onclick=()=>{try{downloadCityBackup(snapshot(),CITIES[state.city].name);toast('ดาวน์โหลดสำเนาเมืองปัจจุบันแล้วค่ะ');}catch(error){toast('ดาวน์โหลดไม่ได้: '+(error?.message||'กรุณาลองอีกครั้ง'));}};
  $('onlineImport').onchange=async event=>{
@@ -6830,38 +6850,35 @@ async function openCloudSaveDialog(){
    if(file.size>64000000)throw Error('ไฟล์ใหญ่เกิน 64 MB');
    const raw=await decodeCloudCity(await file.text());
    validateSave(JSON.parse(raw));
-   closeModal();
-   confirmAction('เปิดเมืองจากไฟล์สำรอง','เมืองที่กำลังเล่นและยังไม่ได้บันทึกจะถูกแทนที่ แต่เซฟออนไลน์เดิมจะไม่เปลี่ยนแปลง',()=>loadGame(false,null,raw));
+   confirmSaveAction('เปิดเมืองจากไฟล์สำรอง','เมืองที่กำลังเล่นและยังไม่บันทึกจะถูกแทนที่ เซฟออนไลน์เดิมไม่เปลี่ยนแปลง','เปิดเมือง',()=>loadGame(false,null,raw));
   }catch(error){console.error('City backup import failed:',error);$('onlineImportError').textContent='นำเข้าไม่ได้: '+(error?.message||'ไฟล์ไม่ถูกต้อง');}
  };
  const newSlotId='cloud-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
  $('onlineCreate').onclick=async()=>{
   const button=$('onlineCreate'),error=$('onlineSaveError'),name=$('onlineSaveName').value.trim().slice(0,80);
-  if(!name){error.textContent='กรุณาตั้งชื่อเซฟค่ะ';return;}
+  if(!name){error.textContent='กรุณาตั้งชื่อเซฟค่ะ';$('onlineSaveName').focus();return;}
   button.disabled=true;
   try{await saveCloudCity(name,newSlotId);}
   finally{button.disabled=false;}
  };
  slots.forEach((slot,i)=>{
   $('onlineLoad'+i).onclick=()=>{
-   confirmAction('โหลดเซฟ “'+escapeSaveText(slot.name)+'”','เมืองปัจจุบันที่ยังไม่ได้บันทึกจะถูกแทนที่',async()=>{
+   confirmSaveAction('โหลดเมือง “'+slot.name+'”','เมืองที่กำลังเล่นและยังไม่บันทึกจะถูกแทนที่','โหลดเมือง',async()=>{
     if(typeof api.getSave!=='function'){if(loadGame(false,null,slot.data))toast('โหลดเซฟออนไลน์แล้วค่ะ');return;}
-    const loading=modal('<div class="save-workspace">'+panelHeading('▣','โหลดเมือง')+'<p role="status">กำลังโหลดเมืองที่เลือก…</p><div class="actions"><button id="saveLoadCancel">ยกเลิก</button></div></div>');
+    const loading=modal('<div class="save-workspace save-operation"><div class="save-status-row saving"><span class="save-status-symbol" aria-hidden="true">◌</span><div class="save-status-copy"><h2>กำลังโหลดเมือง</h2><p>กำลังอ่านข้อมูลเซฟ…</p></div></div><div class="save-operation-actions"><button id="saveLoadCancel">กลับไปเล่น</button></div></div>');
     $('saveLoadCancel').onclick=closeModal;
     try{const raw=await decodeCloudCity(await api.getSave(slot.id));if(dialogRevision!==loading||api.user?.id!==accountId)return;closeModal();if(loadGame(false,null,raw))toast('โหลดเซฟออนไลน์แล้วค่ะ');}
     catch(e){console.error('Online load failed:',e);if(dialogRevision!==loading)return;closeModal();toast('โหลดเมืองไม่สำเร็จ: '+(e.message||'กรุณาลองใหม่'));}
    });
   };
   $('onlineOverwrite'+i).onclick=()=>{
-   confirmAction('เขียนทับ “'+escapeSaveText(slot.name)+'”','เซฟออนไลน์เดิมจะถูกแทนที่ด้วยเมืองที่กำลังเล่น',async()=>{
-    await saveCloudCity(slot.name,slot.id);
-   });
+   confirmSaveAction('เขียนทับ “'+slot.name+'”','ข้อมูลเดิมในเซฟนี้จะถูกแทนที่ด้วยเมืองปัจจุบัน','เขียนทับ',async()=>{await saveCloudCity(slot.name,slot.id);});
   };
   $('onlineDelete'+i).onclick=()=>{
-   confirmAction('ลบเซฟ “'+escapeSaveText(slot.name)+'”','ลบเซฟนี้ออกจากบัญชีออนไลน์ถาวร และไม่สามารถกู้คืนจากเกมได้',async()=>{
-    const revision=dialogRevision;try{await api.deleteSave(slot.id);toast('ลบเซฟออนไลน์แล้วค่ะ');if(dialogRevision===revision)await openCloudSaveDialog();}
-    catch(e){console.error('Cloud delete failed:',e);toast('ลบเซฟไม่สำเร็จ กรุณาลองใหม่ค่ะ');}
-   });
+   confirmSaveAction('ลบเซฟ “'+slot.name+'”','ลบเซฟออนไลน์นี้ถาวร และไม่สามารถกู้จากเกมได้','ลบเซฟ',async()=>{
+    const currentRevision=dialogRevision;try{await api.deleteSave(slot.id);toast('ลบเซฟออนไลน์แล้วค่ะ');if(dialogRevision===currentRevision)await openCloudSaveDialog();}
+    catch(e){console.error('Cloud delete failed:',e);toast('ลบเซฟไม่สำเร็จ: '+(e.message||'กรุณาลองใหม่'));if(dialogRevision===currentRevision)await openCloudSaveDialog();}
+   },true);
   };
  });
 }
