@@ -1116,9 +1116,9 @@ export class TrafficRenderer{
  // No collision, traffic node, citizen schedule, upkeep or building footprint is created.
  thaiDecoration(batch,x,z,kind,rotation=0){
   if(!/^(thai_|industrial_|temple_|landmark_)/.test(kind))return false;
-  // All 24 Thai decorations are uniformly half-size, anchored at their original
-  // ground placement. No save coordinates, collision rules or other meshes change.
-  const scale=.5,angle=(rotation||0)*Math.PI/2,c=Math.cos(angle),s=Math.sin(angle);
+  // All 24 Thai decorations are 35% of authored size (30% smaller than the prior 50%),
+  // grounded at the same point; saved positions, collisions and simulation are untouched.
+  const scale=.35,angle=(rotation||0)*Math.PI/2,c=Math.cos(angle),s=Math.sin(angle);
   const point=(u,v)=>[x+scale*(u*c+v*s),z+scale*(-u*s+v*c)];
   const box=(col,u,y,v,w,h,d,ry=0,rx=0,rz=0)=>{
    const p=point(u,v);batch.add(BOX,col,p[0],y*scale,p[1],w*scale,h*scale,d*scale,rx,angle+ry,rz);
@@ -1130,10 +1130,26 @@ export class TrafficRenderer{
    const p=point(u,v);batch.add(PITCHED_ROOF,col,p[0],base*scale,p[1],w*scale,rise*scale,d*scale,0,angle,0);
   };
   const thaiRoof=(u,v,w,d,base,rise,col='#aa363b')=>{
+   // Thai gable roof: uncluttered pitched tiles, thin EAVE trim and raised finials.
+   // Former broad wooden-looking roof slabs / cross-beams are intentionally removed.
    roof(col,u,v,w,d,base,rise);
-   box('#e4bd67',u,base+.04,v,w+.18,.10,d+.18);
-   box('#ddad54',u,base+rise-.04,v,w*.12,.10,d+.10);
-   for(const q of[-1,1]){box('#efc975',u+q*(w/2+.06),base+.20,v,.075,.42,.09,0,0,q*.27);}
+   // Follow the long eaves, not across the roof surface.
+   for(const side of[-1,1]){
+    box('#d5af63',u,base+.045,v+side*(d/2-.045),w+.12,.055,.10);
+    for(const end of[-1,1]){
+     const ux=u+end*(w/2-.09),vz=v+side*(d/2-.08);
+     cone('#eed38b',ux,base+.17,vz,.055,.31);
+    }
+   }
+   // Narrow crest and curved gable finials: no exposed transverse timbers.
+   box('#e9bb65',u,base+rise+.035,v,w+.10,.045,.07);
+   for(const end of[-1,1]){
+    const ux=u+end*(w/2+.015);
+    cone('#dbb86c',ux,base+rise+.22,v,.075,.38);
+    ball('#f5dea2',ux,base+rise+.42,v,.052);
+    // Small gold "bai raka" accents near each gable end.
+    for(const side of[-1,1])cone('#dbb86c',ux,base+.21,v+side*d*.30,.046,.22);
+   }
   };
   const window=(u,y,v,w=.45,h=.55)=>{box('#365c70',u,y,v,w,h,.035);box('#d0ddd8',u,y,v+.026,w,.045,.018);};
   const column=(u,v,h,col='#f4e6ca')=>{cyl(col,u,h/2,v,.095,h);box('#d4b46a',u,h-.05,v,.3,.11,.3);};
@@ -1233,7 +1249,8 @@ export class TrafficRenderer{
     for(const u of[-1.90,1.90])for(const v of[-1.17,0,1.17])column(u,v,2.47);
     box('#b58844',0,1.04,1.50,.78,1.45,.08);for(const u of[-.45,0,.45])box('#edca70',u,.18,1.75,.38,.12,.70);
     thaiRoof(0,0,5.20,3.52,2.58,1.05,'#b44539');thaiRoof(0,0,4.05,2.62,3.63,.60,'#af4939');
-    for(const v of[-1.63,1.63]){box('#ddb66e',0,3.10,v,1.10,.68,.15);cone('#e6bc59',0,4.17,v,.13,.55);}
+    // Ornamental roof tips replace the previous exposed crosswise gable bars.
+    for(const v of[-1.63,1.63]){cone('#e6bc59',0,4.17,v,.13,.55);ball('#f1d58b',0,3.78,v,.09);}
     break;
    }
    case 'temple_chedi':{
