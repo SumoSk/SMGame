@@ -2129,14 +2129,25 @@ export class TrafficRenderer{
  }
  this.treeGroup.add(b.build());
  }
- pickLandscape(x,y){
-  if(!this.treeGroup.visible||!this.landscapePicks)return null;
+ pickLandscapes(x,y){
+  if(!this.treeGroup.visible||!this.landscapePicks)return [];
   this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);
-  const hit=this.ray.intersectObjects(this.treeGroup.children,true).find(h=>this.landscapePicks.has(h.object.userData.ids?.[h.instanceId]));
-  if(!hit)return null;
-  const blocker=this.ray.intersectObjects(this.buildingGroup.children,true)[0];if(blocker&&blocker.distance<hit.distance-.01)return null;
-  return this.landscapePicks.get(hit.object.userData.ids[hit.instanceId]);
+  const blocker=this.ray.intersectObjects(this.buildingGroup.children,true)[0];
+  const candidates=[],seen=new Set();
+  // A single prop can create dozens of primitive intersections: de-duplicate
+  // by the original saved item, not by InstancedMesh or surface triangle.
+  for(const hit of this.ray.intersectObjects(this.treeGroup.children,true)){
+   const choice=this.landscapePicks.get(hit.object.userData.ids?.[hit.instanceId]);
+   if(!choice)continue;
+   if(blocker&&blocker.distance<hit.distance-.01&&!choice.item)continue;
+   const id=choice.item||('auto:'+choice.x+':'+choice.y);
+   if(seen.has(id))continue;
+   seen.add(id);candidates.push(choice);
+   if(candidates.length>=32)break;
+  }
+  return candidates;
  }
+ pickLandscape(x,y){return this.pickLandscapes(x,y)[0]||null;}
  // Clearing all three road layers is essential after destruction:
  // permanent meshes, ghost preview meshes, and the traffic heat overlay.
  // Otherwise a paused game can display a stale asphalt-coloured heat tile.
@@ -8086,7 +8097,7 @@ export class TrafficRenderer{
   let selected=null,best=Infinity;for(const hit of this.carIndicatorHits||[]){const d=Math.hypot(x-hit.x,y-hit.y);if(d<=hit.radius&&d<best){best=d;selected=hit.selection;}}return selected;
  }
  createRoute(){this.routeLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:'#fff1a0',transparent:true,opacity:.95}));this.routeLine.renderOrder=4;this.scene.add(this.routeLine);}
- preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview=null,demolitionPreview=null){const key=[roadPreview?.key,demolitionPreview?.key,tool,hover?.x,hover?.y,hover?.placement?.rotation,hover?.placement?.error,drag?.cells?.join(','),selected?.kind,selected?.id,selected?.record?.item?.x??selected?.record?.x,selected?.record?.item?.y??selected?.record?.y,state.landscapeVersion,state.version,state.buildings.size].join(':');if(key===this.previewKey)return;this.previewKey=key;this.disposeGroup(this.previewGroup);const boxes=[];const moving=drag?.landscape?.item||drag?.landscape||hover?.landscape?.item||hover?.landscape;if(moving&&hover){const b=new Batch();if(!this.decoration(b,hover.x+.5,hover.y+.5,moving.kind,moving.rotation||0))this.tree(b,hover.x+.5,hover.y+.5,1,moving.kind);const ghost=b.build(false);ghost.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.5;}});this.previewGroup.add(ghost);}if(hover&&CATALOG[tool]){const t=CATALOG[tool],check=hover.placement||checkBuilding(tool,hover.x,hover.y),ok=!check.error,ghost={key:tool,id:-1,x:hover.x,y:hover.y,rotation:check.rotation||0},bounds=this.parking.buildingBounds(ghost);boxes.push([hover.x+bounds.w/2,hover.y+bounds.h/2,bounds.w,bounds.h,ok?'#d9f788':'#ff947f']);const b=new Batch();this.building(b,ghost,CATALOG);const model=b.build(false);model.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.52;}});this.previewGroup.add(model);}else if(roadPreview){
+ preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview=null,demolitionPreview=null){const key=[roadPreview?.key,demolitionPreview?.key,tool,hover?.x,hover?.y,hover?.rawX?.toFixed?.(2),hover?.rawY?.toFixed?.(2),hover?.snap,hover?.placement?.rotation,hover?.placement?.error,drag?.cells?.join(','),selected?.kind,selected?.id,selected?.record?.item?.x??selected?.record?.x,selected?.record?.item?.y??selected?.record?.y,state.landscapeVersion,state.version,state.buildings.size].join(':');if(key===this.previewKey)return;this.previewKey=key;this.disposeGroup(this.previewGroup);const boxes=[];const moving=drag?.landscape?.item||drag?.landscape||hover?.landscape?.item||hover?.landscape;if(moving&&hover){const b=new Batch(),px=hover.snap?hover.x+.5:Math.round((hover.rawX??hover.x+.5)*100)/100,pz=hover.snap?hover.y+.5:Math.round((hover.rawY??hover.y+.5)*100)/100;if(!this.decoration(b,px,pz,moving.kind,moving.rotation||0))this.tree(b,px,pz,1,moving.kind);const ghost=b.build(false);ghost.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.5;}});this.previewGroup.add(ghost);}if(hover&&CATALOG[tool]){const t=CATALOG[tool],check=hover.placement||checkBuilding(tool,hover.x,hover.y),ok=!check.error,ghost={key:tool,id:-1,x:hover.x,y:hover.y,rotation:check.rotation||0},bounds=this.parking.buildingBounds(ghost);boxes.push([hover.x+bounds.w/2,hover.y+bounds.h/2,bounds.w,bounds.h,ok?'#d9f788':'#ff947f']);const b=new Batch();this.building(b,ghost,CATALOG);const model=b.build(false);model.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.52;}});this.previewGroup.add(model);}else if(roadPreview){
   const receiver={roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),disposeGroup:this.disposeGroup,parking:this.parking};
   TrafficRenderer.prototype.makeRoads.call(receiver,roadPreview.state,ROADS,roadPreview.junction,true);
   receiver.roadGroup.position.y=.035;receiver.signalGroup.position.y=.035;
@@ -8098,9 +8109,9 @@ export class TrafficRenderer{
   const b=demolitionPreview.building;if(b)boxes.push([b.x+b.w/2,b.y+b.h/2,b.w,b.h,'#281919',.60,true]);
  }
  if(selected?.kind==='building'){const b=state.buildings.get(selected.id);if(b){const {w,h}=this.parking.buildingBounds(b);boxes.push([b.x+w/2,b.y+h/2,w,h,'#fff1a1']);}}
- if(selected?.kind==='landscape'){const item=selected.record?.item||selected.record;if(item)boxes.push([item.x,item.y,1.8,1.8,'#fff1a1']);}
+ if(selected?.kind==='landscape'){const item=selected.record?.item||selected.record;if(item){const small=COMPACT_DECORATION_KEYS.has(item.kind)||EXTRA_DECORATION_KEYS.has(item.kind)||/^(thai_|industrial_|temple_|landmark_)/.test(item.kind);boxes.push([item.x,item.y,small?.75:1.8,small?.75:1.8,'#fff1a1']);}}
  if(hover&&(tool.startsWith('tree:')||tool==='treeRow'||tool==='treeBrush')){
-  const x=hover.x+.5,z=hover.y+.5,i=hover.y*300+hover.x;
+  const x=hover.snap?hover.x+.5:Math.round((hover.rawX??hover.x+.5)*100)/100,z=hover.snap?hover.y+.5:Math.round((hover.rawY??hover.y+.5)*100)/100,i=hover.y*300+hover.x;
   if(hover.x>=0&&hover.y>=0&&hover.x<300&&hover.y<300){
    const batch=new Batch(),kind=tool.startsWith('tree:')?tool.slice(5):'shade';
    this.tree(batch,x,z,kind==='shrub'?.65:1,kind);
