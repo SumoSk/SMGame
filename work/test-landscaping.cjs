@@ -48,8 +48,9 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(!homeCards.includes('tool-parking'),'building cards must not show redundant parking capacity');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'food'}})}});
  assert(get('tools').innerHTML.includes('data-build-kind="shop"'));
- get('tools').onclick({target:{closest:selector=>selector==='[data-build-kind]'?{dataset:{buildKind:'shop'}}:null}});
- assert(get('buildVariantPopup').innerHTML.includes('class="tool-capacity">12</span>'),'shop popup must show service capacity');
+ assert(get('tools').innerHTML.includes('data-build-kind="mall"'));
+ get('tools').onclick({target:{closest:selector=>selector==='[data-build-kind]'?{dataset:{buildKind:'mall'}}:null}});
+ assert(get('buildVariantPopup').innerHTML.includes('class="tool-capacity">12</span>'),'mall popup must show service capacity');
  // Traffic tools moved into the right-side rail; landscaping navigation remains unchanged.
  assert(!get('categories').innerHTML.includes('data-dock-group="traffic"'),'Traffic top-level dock group must be absent');
  assert(fs.readFileSync('index.html','utf8').includes('data-city-shortcut="signalManage"'),'traffic signal control is available in the right rail');
