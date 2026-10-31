@@ -20,7 +20,7 @@ test('every kind requires one build for each subsequent allowance',()=>{
    if(i){assert.equal(quota(g,key),0);assert.equal(g.buildBuilding(key,x+2,5,true),false,'spent allowance cannot be reused');}
   }
   // A new starter starts another cycle rather than permanently unlocking a tier.
-  build(g,chain[0],285);assert.equal(quota(g,chain[1]),1);
+  build(g,chain[0],285);if(chain.length>1)assert.equal(quota(g,chain[1]),1);else assert.equal(quota(g,chain[0]),Infinity,'single-tier civic service remains buildable');
  }
 });
 test('five starters accumulate five small allowances and spend one at a time',()=>{
@@ -125,8 +125,10 @@ test('new-city starter village earns allowances and keeps existing preset buildi
  const {game:g}=fresh();g.startNewCity();
  assert.equal(g.state.buildings.size,12);
  for(const [kind,chain] of Object.entries(g.BUILDING_CHAINS)){
+  if(chain.length===1){assert.equal(quota(g,chain[0]),Infinity);continue;}
   assert.equal(quota(g,chain[1]),kind==='home'?3:1);
   assert.equal(quota(g,chain[2]),0);assert.equal(quota(g,chain[3]),0);
  }
 });
 console.log(JSON.stringify(results,null,2));if(results.some(r=>!r.passed))process.exitCode=1;
+

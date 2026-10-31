@@ -991,7 +991,7 @@ function migratePerformance(saved){
  // calendars adopt 5.0. Legacy result arrays never become retroactive failures.
  for(const c of state.citizens.values()){
   if(c.tourist||!c.resident||c.removed)continue;
-  for(const key of Object.keys(c.lifePlans||{}))if(+key>Math.floor(state.time/1440)&&c.lifeRun?.day!==+key){c.scheduled.delete(+key);delete c.lifePlans[key];}
+  for(const key of Object.keys(c.lifePlans||{}))if(+key>Math.floor(state.time/1440)&&c.lifeRun?.day!==+key&&c.lifePlans[key]?.version!==500){c.scheduled.delete(+key);delete c.lifePlans[key];}
   c.performanceVersion=5;
  }
  state.events=state.events.filter(e=>e.action!=='lifeStart'||e.day<=Math.floor(state.time/1440)||state.citizens.get(e.citizenId)?.lifePlans?.[e.day]);eventHeapify();
@@ -3485,9 +3485,23 @@ function travelEstimate(path){
  const roadMinutes=blocks*TRAVEL_PLANNING.minutesPerBlock;
  return{blocks,roadMinutes,accessMinutes:TRAVEL_PLANNING.accessMinutes,waitMinutes:TRAVEL_PLANNING.waitMinutes,totalMinutes:Math.ceil(roadMinutes+TRAVEL_PLANNING.accessMinutes+TRAVEL_PLANNING.waitMinutes)};
 }
+// Daily plans share static travel estimates. Live trips still check routes and
+// capacity afresh; a road edit or a changed driveway invalidates these entries.
+const planningTravelCaches=new WeakMap();
 function buildingTravelEstimate(c,from,to){
  if(from===to)return{blocks:0,roadMinutes:0,accessMinutes:0,waitMinutes:0,totalMinutes:0};
- return travelEstimate(tripRoute(from,to,null,null,c?.locationId===from?c.id:null));
+ const source=state.buildings.get(from),target=state.buildings.get(to);
+ if(!source||!target)return travelEstimate(tripRoute(from,to,null,null,c?.locationId===from?c.id:null));
+ const citizenId=c?.locationId===from?c.id:null;
+ const assigned=CATALOG[source.key].dualParking&&citizenId!=null?lotSlots(source)[parkingSpace(source,citizenId)]:null;
+ let cache=planningTravelCaches.get(state);
+ if(!cache||cache.version!==state.version){cache={version:state.version,entries:new Map()};planningTravelCaches.set(state,cache);}
+ const key=from+'|'+to+'|'+(assigned?.zone??'all'),entry=cache.entries.get(key);
+ if(entry&&entry.source===source&&entry.target===target&&entry.fromAccess===source.access&&entry.toAccess===target.access)return entry.estimate?{...entry.estimate}:null;
+ const estimate=travelEstimate(tripRoute(from,to,null,null,citizenId));
+ if(cache.entries.size>=4096)cache.entries.delete(cache.entries.keys().next().value);
+ cache.entries.set(key,{source,target,fromAccess:source.access,toAccess:target.access,estimate});
+ return estimate?{...estimate}:null;
 }
 function nextPlannedWork(c,plan,index,at){
  const today=Math.floor(at/1440),plans=[plan,lifePlan(c,today),lifePlan(c,today+1)].filter(Boolean),options=[];
@@ -6575,7 +6589,7 @@ function loadGame(silent=false,slotId=null,rawOverride=null){const previous={sta
   ensureRoutine(c);
   if(!c.dailyPlan||!Number.isFinite(c.dailyPlan.day))c.dailyPlan=planForDay(c,Math.floor(state.time/1440));
  }
- syncCitizenVehicleTech();migrateTravelPlanning();migratePerformance(s.performance);state.speed=0;scanIncidents(true);renderTools();updateUI();if(!silent)toast('โหลดเมืองพร้อมลานจอดแล้ว กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+(state.city==='london'?'UNITED KINGDOM':'THAILAND')+' · สร้างเมืองในแบบคุณ</small>';renderTools();updateUI();if(!silent)toast(e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
+ syncCitizenVehicleTech();migratePerformance(s.performance);migrateTravelPlanning();state.speed=0;scanIncidents(true);renderTools();updateUI();if(!silent)toast('โหลดเมืองพร้อมลานจอดแล้ว กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+(state.city==='london'?'UNITED KINGDOM':'THAILAND')+' · สร้างเมืองในแบบคุณ</small>';renderTools();updateUI();if(!silent)toast(e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
 // A developer can load a copy into the current session; no other user's save is changed.
 window.SMGameLoadCreatorSave=(raw,name)=>{
  if(!window.SMGameCreatorCanOpen||!window.SMGameAccount?.user||typeof raw!=='string'||!raw)return false;

@@ -1,7 +1,7 @@
 name: SMCITY 5.0 rules
 on:
   push:
-    branches: [version-5.0]
+    branches: [version-5.0, main]
   pull_request:
 permissions:
   contents: read
@@ -14,6 +14,8 @@ jobs:
         with:
           node-version: '22'
       - run: node --check dist/game.js && node --check dist/renderer3d.js
+      - run: node -r ./work/test-dom-compat.cjs work/test-travel-happiness.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-mission-dashboard.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-v500.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-v500-civic-model.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-lifestyles.cjs
@@ -23,3 +25,4 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-green-light-release.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-flight-traffic-layer.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-london-showcase.cjs
+
