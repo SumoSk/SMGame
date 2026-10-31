@@ -8,13 +8,13 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert.equal(g.plantLandscape(150,150,'shade'),true,'player decorations can occupy roads');
  assert.equal(g.eraseLandscape(150.5,150.5),true);
  assert.equal(g.plantLandscape(190,190,'flower'),true);
- assert.equal(g.plantLandscape(190,190,'shade'),false,'duplicate plant must be ignored');
+ assert.equal(g.plantLandscape(190,190,'shade'),true,'decorations may overlap exactly');
  assert.equal(g.plantLandscape(194,190,'palm'),true);
  const before=g.snapshot();
  assert(g.loadGame(true,null,before),'the new save must load');
- assert.deepEqual(Array.from(g.state.plantedTrees,t=>t.kind),['flower','palm']);
+ assert.deepEqual(Array.from(g.state.plantedTrees,t=>t.kind),['flower','shade','palm']);
  assert.equal(g.eraseLandscape(190.5,190.5),true);
- assert.equal(g.state.plantedTrees.length,1);
+ assert.equal(g.state.plantedTrees.length,2);
  assert.equal(g.eraseLandscape(198.5,198.5),true,'automatic planting exclusions must persist');
  assert(g.state.hiddenAutoTrees.length>0);
  assert(g.loadGame(true,null,g.snapshot()));
@@ -29,7 +29,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert.equal(get('categories').innerHTML,'','old Buildings/Landscape/City Data group row must be empty');
  assert(get('subcategories').innerHTML.includes('data-category="landscape"'),'landscaping is in primary construction tabs');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'landscape'}})}});
- const landscapeGroups=['trees','flowers','shrubs','desert','water','stone','paths','street','lights','art','thai_street','thai_factory','thai_temple','thai_landmark','manage'];
+ const landscapeGroups=['trees','flowers','shrubs','desert','water','stone','paths','street','lights','art','thai_street','thai_factory','thai_temple','thai_landmark','nature_sets','manage'];
  const decorationTools=new Set();
  for(const group of landscapeGroups){
   assert(get('tools').innerHTML.includes('data-landscape-group="'+group+'"'),group+' subgroup is missing');
