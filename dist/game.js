@@ -4573,7 +4573,7 @@ function missionReportMarkup(which='current'){
  ['balance','เงินคงเหลือ',money(endingMoney),'ยอดเงินปัจจุบัน']
  ].map(([tone,title,value,note])=>'<div class="mission-card sm-daily-finance sm-daily-finance-'+tone+'"><small>'+title+'</small><strong>'+value+'</strong><span>'+note+'</span></div>').join('')+'</div>'+
  '<div class="sm-daily-dashboard-stats">'+
- '<section class="sm-daily-mini"><div class="sm-daily-mini-top"><span>🎯 ผลภารกิจ</span><strong>'+percent(s.rate)+'</strong></div><div class="sm-daily-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Math.round(rate)+'" aria-label="อัตราภารกิจสำเร็จ"><span style="width:'+rate.toFixed(1)+'%"></span></div><b>'+missionHeadline+'</b><small>'+insight+' · ไม่สำเร็จ '+int(s.failed)+'</small></section>'+
+ '<section class="sm-daily-mini"><div class="sm-daily-mini-top"><span>🎯 ผลภารกิจ</span><strong>'+percent(s.rate)+'</strong></div><div class="sm-daily-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Math.round(rate)+'" aria-label="อัตราภารกิจสำเร็จ"><span style="width:'+rate.toFixed(1)+'%"></span></div><b>'+missionHeadline+'</b><small>'+insight+' · ภารกิจไม่สำเร็จ '+int(s.failed)+'</small></section>'+
  '<section class="sm-daily-mini"><div class="sm-daily-mini-top"><span>🚗 ภาพรวมจราจร</span><strong>'+int(s.peakWaiting)+' คัน</strong></div><div class="sm-daily-traffic-caption">จำนวนรถรอสูงสุด</div><b>'+trafficHeadline+'</b><small>'+trafficInsight+'</small></section></div>'+
  '<details class="sm-daily-details"><summary><span>▤ ดูรายงานฉบับละเอียด</span><small>ประชากร · ภารกิจ · การเดินทาง · การเงิน</small></summary>'+
  '<div class="daily-report-sections">'+
