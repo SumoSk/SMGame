@@ -1330,6 +1330,234 @@ export class TrafficRenderer{
    }
    default:return false;
   }
+  // Extra small-scale architectural details use the SAME cached instanced
+  // primitives as the original models, not separate meshes or scene updates.
+  // Keep the rich silhouettes on Medium/High without per-frame work.
+  const brass='#dbb76f',cream='#f1dfb8',umber='#8b6544',dark='#504a43',
+        glaze='#426a72',red='#af4b3f',foliage='#5d9867';
+  const motif=(u,y,v)=>{
+   box(brass,u,y,v,.24,.26,.045);ball('#fff0b9',u,y,v+.025,.064);
+  };
+  const porchLight=(u,y,v)=>{
+   box(dark,u,y+.095,v,.055,.11,.06);
+   ball('#f5d8a3',u,y,v,.10);
+  };
+  const planter=(u,v)=>{
+   box('#b9906c',u,.18,v,.33,.36,.32);
+   ball(foliage,u,.52,v,.23);
+  };
+  const roofPattern=(u,v,w,d,base,rise)=>{
+   // Ceramic tile studs follow both SLOPES. Unlike the old roof bars, these
+   // do not bridge the roof across its length or cover the pitched silhouette.
+   for(const side of[-1,1])for(const t of[.24,.46,.69,.87]){
+    const height=base+rise*(1-t)+.035,zz=v+side*d*t*.50;
+    for(let j=-3;j<=3;j++){
+     const xx=u+j*w*.115;
+     ball(j%2?'#c36b55':'#df9270',xx,height,zz,.028);
+    }
+   }
+  };
+  switch(kind){
+   case 'thai_grocery':
+    for(let i=0;i<6;i++)box(i%2?'#f7dbc0':'#5a9d7d',(i-2.5)*.36,1.23,1.26,.30,.07,.18);
+    for(const u of[-1.10,1.07]){planter(u,1.05);porchLight(u,1.65,1.25);}
+    for(let j=0;j<3;j++){box('#e7cfaa',-.90,.34+j*.25,1.10,.47,.10,.07);}
+    box(glaze,.43,.42,1.10,.42,.66,.03);break;
+   case 'thai_food_cart':
+    for(const u of[-.60,.60])for(const v of[-.33,.33]){
+     cyl('#b1b6b0',u,.22,v,.09,.14);ball(dark,u,.22,v,.045);
+    }
+    for(const u of[-.25,0,.25]){cyl('#e8bd6e',u,1.01,.37,.075,.17);}
+    box('#e8e1cb',.52,1.18,.35,.30,.23,.04);
+    for(const u of[-.65,.65])box('#f5d3a2',u,1.9,.53,.20,.13,.05);
+    break;
+   case 'thai_noodle_shop':
+    for(const u of[-1.12,-.35,.42,1.10]){box('#f4d184',u,1.38,1.12,.12,.21,.07);}
+    for(const u of[-1.11,1.10]){porchLight(u,1.10,1.12);}
+    box('#385765',.58,.82,1.16,.65,.48,.045);
+    for(let i=0;i<3;i++)cyl(i%2?'#f4e1c5':'#c6c4b8',.30+i*.30,.70,1.24,.13,.075);
+    break;
+   case 'thai_coffee_shop':
+    for(const u of[-.84,-.30,.30,.84])box('#e5be7b',u,1.68,1.23,.37,.11,.13);
+    for(const u of[-1.17,1.12])planter(u,1.15);
+    box('#3b655a',-.62,.88,1.15,.08,.97,.08);
+    box('#f5e8c8',-.61,1.35,1.16,.90,.09,.05);
+    for(const u of[-.17,.18])cyl('#e5e0cc',u,.93,1.17,.13,.18);
+    break;
+   case 'thai_fruit_stall':
+    for(let i=0;i<6;i++){
+     const u=(i%3-1)*.66,v=.25+Math.floor(i/3)*.32;
+     box('#a0764c',u,.54,v,.55,.17,.29);
+     for(const j of[-.16,0,.16])ball(['#d77a4b','#9db668','#dbbd4d'][(i+j*100+20|0)%3],u+j,.70,v,.10);
+    }
+    for(const u of[-.96,.96])porchLight(u,1.62,.61);
+    box('#eedbb5',0,1.23,.74,.58,.27,.06);break;
+   case 'thai_market_tables':
+    for(let i=0;i<8;i++){
+     const a=i*Math.PI/4;
+     ball(i%2?'#f5cf79':'#ed7e68',Math.cos(a)*.78,2.03,Math.sin(a)*.78,.07);
+    }
+    for(const u of[-.25,.28]){cyl('#fff3df',u,1.08,.28,.11,.16);ball('#dfb276',u,1.18,.28,.07);}
+    for(const v of[-.32,.32])box('#b56b4a',.42,.65,v,.24,.10,.30);break;
+   case 'industrial_container':
+    for(const u of[-1.66,1.66])for(const v of[-.69,.69]){
+     box('#d7af67',u,2.13,v,.23,.085,.15);
+     box('#6b615a',u,.14,v,.20,.17,.19);
+    }
+    for(let i=0;i<6;i++)box('#f0d79b',(i-2.5)*.23,1.66,.785,.09,.08,.016);
+    box('#f1ddad',-.85,.40,.790,.68,.30,.022);break;
+   case 'industrial_pallets':
+    for(const [u,v,h] of[[-.72,-.38,.63],[.70,-.34,.87],[.02,.51,1.07]]){
+     for(const du of[-.35,.35])box('#8b7664',u+du,.57+h*.40,v,.05,h,.63);
+     box('#496d73',u,.57+h*.58,v,.60,.07,.045);
+    }
+    for(const u of[-.66,.67])box('#6a5848',u,.22,.15,.05,.36,.18);break;
+   case 'industrial_drums':
+    for(let i=0;i<6;i++){
+     const u=(i%3-1)*.54,v=Math.floor(i/3)*.64-.31;
+     cyl('#c9bfac',u,.93,v,.07,.045);
+     box(i%2?'#d1ab65':'#e1d4ba',u,.49,v+.24,.25,.04,.018);
+    }
+    box('#5c6865',0,.035,0,1.85,.07,1.22);break;
+   case 'industrial_guardhouse':
+    for(const u of[-.54,.54]){box('#526369',u,.88,.79,.07,.79,.05);}
+    box('#dbb357',1.36,.46,.84,2.8,.09,.16);
+    box('#d64c48',1.12,.46,.938,.35,.10,.023);
+    cyl('#657171',.15,1.95,.04,.045,.25);
+    box('#303f45',.21,2.10,.09,.27,.12,.15);
+    box('#48715d',0,1.48,.81,.66,.12,.03);
+    break;
+   case 'industrial_loading_dock':
+    for(const u of[-1.85,1.85])for(const v of[-.85,.85])cyl('#e1b569',u,.92,v,.035,.49);
+    for(let i=0;i<7;i++)box(i%2?'#d9ae64':'#516774',(i-3)*.52,.06,1.43,.38,.045,.10);
+    for(const u of[-1.25,0,1.25]){box('#f5d9a8',u,1.65,-1.13,.31,.09,.05);porchLight(u,1.75,-1.15);}
+    break;
+   case 'industrial_fence':
+    for(const u of[-1.1,0,1.1]){box('#ddb45f',u,1.38,.10,.26,.17,.03);}
+    box('#e6e0cb',0,.86,.12,.73,.30,.04);
+    for(let i=0;i<6;i++)box('#5d7780',(i-2.5)*.38,.87,.16,.027,.18,.022);
+    break;
+   case 'temple_gate':
+    roofPattern(0,0,4.22,1.45,2.73,.80);
+    for(const u of[-1.62,1.62]){
+     motif(u,1.73,.29);motif(u,1.18,.29);
+     box('#ba764f',u,1.03,.29,.13,1.82,.08);
+     cone(brass,u,2.65,0,.13,.44);
+    }
+    for(const u of[-1.04,-.52,0,.52,1.04])ball(brass,u,2.47,.48,.095);
+    for(const u of[-1.1,1.1]){cyl('#e8cf8d',u,.38,.25,.23,.62);}
+    break;
+   case 'temple_ubosot':
+    roofPattern(0,0,5.20,3.52,2.58,1.05);
+    roofPattern(0,0,4.05,2.62,3.63,.60);
+    for(const v of[-1.48,1.48]){
+     for(const u of[-1.46,-.75,.75,1.46]){
+      box('#a66c4d',u,1.55,v,.39,.95,.08);
+      box(brass,u,1.55,v+(v>0?.05:-.05),.32,.85,.07);
+      ball('#e8c97e',u,1.78,v+(v>0?.10:-.10),.09);
+     }
+    }
+    for(const u of[-1.90,1.90])for(const v of[-1.17,0,1.17]){
+     box(brass,u,.39,v,.27,.16,.28);box(brass,u,2.31,v,.27,.15,.28);
+    }
+    for(let i=0;i<4;i++)box(i%2?'#e5d5b6':'#c9b591',0,.06+i*.07,1.96+i*.24,1.28-i*.10,.10,.39);
+    for(const u of[-1.52,1.52]){cone(brass,u,2.51,1.55,.12,.38);ball('#edd790',u,2.79,1.55,.08);}
+    box(brass,0,1.22,1.58,.62,.055,.06);
+    break;
+   case 'temple_chedi':
+    for(let i=0;i<8;i++){
+     const a=i*Math.PI/4,u=Math.cos(a)*.84,v=Math.sin(a)*.84;
+     box(brass,u,.88,v,.17,.28,.10,Math.PI/2-a);
+     ball('#f7e8af',u,1.08,v,.075);
+    }
+    for(const y of[1.03,1.75,2.35,3.09])cyl('#f3dca3',0,y,0,.48-Math.max(0,y-2.35)*.12,.045);
+    for(const a of[0,Math.PI/2,Math.PI,Math.PI*1.5])ball(brass,Math.cos(a)*1.2,.31,Math.sin(a)*1.2,.15);
+    break;
+   case 'temple_sala':
+    roofPattern(0,0,4.47,3.35,2.65,.92);
+    for(const u of[-1.57,1.57])for(const v of[-1.12,1.12]){
+     box(brass,u,.43,v,.23,.12,.23);
+     box(brass,u,2.34,v,.24,.12,.24);
+    }
+    for(const v of[-.88,.88]){box('#9b7250',0,.67,v,2.7,.21,.35);}
+    for(const u of[-1.35,1.35]){box(cream,u,1.02,0,.13,.81,2.01);}
+    for(const u of[-.90,-.30,.30,.90])ball(brass,u,2.47,1.32,.08);
+    break;
+   case 'temple_bell_tower':
+    roofPattern(0,0,2.22,2.14,2.64,.76);
+    for(const u of[-.66,.66])for(const v of[-.65,.65]){
+     box(brass,u,.27,v,.25,.13,.26);box(brass,u,2.40,v,.26,.16,.26);
+    }
+    for(const u of[-.17,.17])cyl('#bc9562',u,1.29,.35,.02,1.0);
+    box('#e4c37f',0,1.70,0,1.05,.07,.13);
+    ball(brass,0,.74,0,.13);
+    break;
+   case 'temple_guardians':
+    for(const u of[-.78,.78]){
+     motif(u,.52,.36);ball('#f1d37e',u-.14,1.22,.25,.067);
+     ball('#f1d37e',u+.14,1.22,.25,.067);
+     for(const a of[-.22,.22])cone(brass,u+a,1.65,.02,.10,.24);
+     for(const side of[-1,1])box('#c79c57',u+side*.25,.47,.09,.13,.19,.12);
+     box('#a36b45',u,.19,.43,.60,.06,.05);
+    }break;
+   case 'temple_bodhi':
+    for(const u of[-.45,0,.45]){
+     box('#b58a5c',u,.25,.22,.08,.49,.09,0,0,u*.35);
+     ball('#e6c574',u,2.32,.42,.09);
+    }
+    for(const v of[-.55,.55])ball('#b5d188',.22,2.48,v,.24);
+    for(const u of[-.61,.63])cyl('#d9bb79',u,.17,.45,.045,.34);
+    break;
+   case 'landmark_city_gate':
+    for(const u of[-2.05,2.05]){
+     for(const y of[.55,1.30,2.13])motif(u,y,.57);
+     box(brass,u,2.67,.57,.60,.08,.07);
+    }
+    for(const u of[-1.15,-.55,0,.55,1.15])ball(brass,u,2.42,.70,.08);
+    porchLight(-1.69,2.34,.61);porchLight(1.69,2.34,.61);
+    roofPattern(0,0,5.36,1.58,3.06,.85);
+    break;
+   case 'landmark_clocktower':
+    roofPattern(0,0,2.19,2.05,4.13,.63);
+    for(const v of[-.77,.77]){
+     for(let i=0;i<8;i++){
+      const a=i*Math.PI/4;
+      ball(dark,Math.cos(a)*.31,3.37+Math.sin(a)*.31,v+(v>0?.14:-.14),.032);
+     }
+    }
+    for(const u of[-.60,.60])for(const y of[1.3,2.50]){
+     box('#4a7476',u,y,.73,.24,.38,.045);box(brass,u,y+.25,.74,.31,.055,.046);
+    }
+    for(const u of[-.65,.65])cone(brass,u,4.18,.02,.12,.37);
+    break;
+   case 'landmark_monument':
+    for(const u of[-.72,.72])motif(u,1.38,.55);
+    for(const a of[0,Math.PI/2,Math.PI,Math.PI*1.5]){
+     const u=Math.cos(a)*1.25,v=Math.sin(a)*1.25;
+     cyl(brass,u,.50,v,.045,.67);
+     ball('#f1d89e',u,.89,v,.07);
+    }
+    box('#b38b5a',0,1.28,.54,.73,.38,.09);
+    break;
+   case 'landmark_spirit_house':
+    for(const u of[-.38,.38]){
+     ball('#f7d38c',u,1.79,.49,.09);
+     cyl('#dcb178',u,1.19,.40,.055,.46);
+    }
+    for(const v of[-.30,0,.30])ball(v===0?'#ecae9a':'#e9d071',.51,1.48,v,.08);
+    for(const u of[-.34,0,.34])cone(brass,u,2.16,.11,.075,.22);
+    box('#bd874d',0,.38,.46,.55,.09,.38);
+    break;
+   case 'landmark_welcome_sign':
+    for(const u of[-2.20,2.20]){motif(u,1.30,.28);motif(u,2.09,.28);}
+    for(let i=0;i<8;i++){
+     const u=(i-3.5)*.58;
+     ball(i%2?'#e7ad8b':'#f5d68a',u,.27,.58,.17);
+     ball(foliage,u,.23,.43,.15);
+    }
+    for(const u of[-1.65,1.65]){porchLight(u,2.47,.38);}
+    break;
+  }
   return true;
  }
  decoration(batch,x,z,kind,rotation=0){
