@@ -1116,16 +1116,18 @@ export class TrafficRenderer{
  // No collision, traffic node, citizen schedule, upkeep or building footprint is created.
  thaiDecoration(batch,x,z,kind,rotation=0){
   if(!/^(thai_|industrial_|temple_|landmark_)/.test(kind))return false;
-  const angle=(rotation||0)*Math.PI/2,c=Math.cos(angle),s=Math.sin(angle);
-  const point=(u,v)=>[x+u*c+v*s,z-u*s+v*c];
+  // All 24 Thai decorations are uniformly half-size, anchored at their original
+  // ground placement. No save coordinates, collision rules or other meshes change.
+  const scale=.5,angle=(rotation||0)*Math.PI/2,c=Math.cos(angle),s=Math.sin(angle);
+  const point=(u,v)=>[x+scale*(u*c+v*s),z+scale*(-u*s+v*c)];
   const box=(col,u,y,v,w,h,d,ry=0,rx=0,rz=0)=>{
-   const p=point(u,v);batch.add(BOX,col,p[0],y,p[1],w,h,d,rx,angle+ry,rz);
+   const p=point(u,v);batch.add(BOX,col,p[0],y*scale,p[1],w*scale,h*scale,d*scale,rx,angle+ry,rz);
   };
-  const cyl=(col,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CYL,col,p[0],y,p[1],rad,h,rad);};
-  const ball=(col,u,y,v,rad)=>{const p=point(u,v);batch.add(BALL,col,p[0],y,p[1],rad,rad,rad);};
-  const cone=(col,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CONE,col,p[0],y,p[1],rad,h,rad,0,angle,0);};
+  const cyl=(col,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CYL,col,p[0],y*scale,p[1],rad*scale,h*scale,rad*scale);};
+  const ball=(col,u,y,v,rad)=>{const p=point(u,v);batch.add(BALL,col,p[0],y*scale,p[1],rad*scale,rad*scale,rad*scale);};
+  const cone=(col,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CONE,col,p[0],y*scale,p[1],rad*scale,h*scale,rad*scale,0,angle,0);};
   const roof=(col,u,v,w,d,base,rise)=>{
-   const p=point(u,v);batch.add(PITCHED_ROOF,col,p[0],base,p[1],w,rise,d,0,angle,0);
+   const p=point(u,v);batch.add(PITCHED_ROOF,col,p[0],base*scale,p[1],w*scale,rise*scale,d*scale,0,angle,0);
   };
   const thaiRoof=(u,v,w,d,base,rise,col='#aa363b')=>{
    roof(col,u,v,w,d,base,rise);
