@@ -6528,6 +6528,31 @@ function showPlayerManual(){
 $('help').onclick=showPlayerManual;
 
 function snapshot(){return JSON.stringify({format:2,performance:ensurePerformance(),buildingQuota:state.buildingQuota,intercityHour:state.intercityHour,deliveryRun:state.deliveryRun,vehicleTechUnit:'cars',vehicleTechLevels:state.vehicleTechLevels,morningPlanningDay:state.morningPlanningDay,parkingVersion:PARKING_VERSION,missionStats:state.missionStats,city:state.city,money:state.money,incidentRewards:state.incidentRewards,time:state.time,nextId:state.nextId,profileSeq:state.profileSeq,tourism:state.tourism,plantedTrees:state.plantedTrees,hiddenAutoTrees:state.hiddenAutoTrees,nextTouristAt:state.nextTouristAt,roads:[...state.roads].map(([i,r])=>[i,{...r,links:[...r.links]}]),buildings:[...state.buildings].map(([i,b])=>[i,{...b,residents:[...b.residents],workers:[...b.workers],visitors:[...b.visitors],parked:[...b.parked],guests:[...(b.guests||[])]}]),citizens:[...state.citizens].map(([i,c])=>[i,{...c,scheduled:[...c.scheduled],failKinds:[...c.failKinds]}]),vehicles:[...state.vehicles].map(([i,v])=>[i,{...v,pathSet:[...v.pathSet]}]),signals:[...state.signals],signalDefaults:state.signalDefaults,events:state.events,cam,news});}
+// Compact, lossless cloud saves. Old uncompressed saves still load unchanged.
+const SM_CITY_COMPRESSION='smcity-gzip-json-v1';
+async function encodeCloudCity(raw){
+ if(typeof raw!=='string'||!raw)throw Error('ข้อมูลเซฟไม่ถูกต้อง');
+ if(raw.startsWith('{"__smcityPacked":'))return raw;
+ if(raw.length<32768||typeof CompressionStream!=='function'||typeof Blob!=='function'||typeof Response!=='function'||typeof btoa!=='function')return raw;
+ try{
+  const bytes=new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+  let binary='';for(let i=0;i<bytes.length;i+=16384)binary+=String.fromCharCode(...bytes.subarray(i,i+16384));
+  const packed=JSON.stringify({__smcityPacked:SM_CITY_COMPRESSION,payload:btoa(binary)});
+  return packed.length<raw.length*.95?packed:raw;
+ }catch(error){console.warn('City save compression unavailable:',error);return raw;}
+}
+async function decodeCloudCity(raw){
+ if(typeof raw!=='string'||!raw)throw Error('ข้อมูลเซฟไม่ถูกต้อง');
+ const obj=JSON.parse(raw);
+ if(!obj||typeof obj!=='object'||!Object.hasOwn(obj,'__smcityPacked'))return raw;
+ if(obj.__smcityPacked!==SM_CITY_COMPRESSION||typeof obj.payload!=='string'||obj.payload.length>32000000)throw Error('ไฟล์เซฟบีบอัดไม่ถูกต้อง');
+ if(typeof DecompressionStream!=='function'||typeof Blob!=='function'||typeof Response!=='function'||typeof atob!=='function')throw Error('เบราว์เซอร์ไม่รองรับเซฟบีบอัด');
+ const bytes=Uint8Array.from(atob(obj.payload),ch=>ch.charCodeAt(0));
+ const cityRaw=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+ if(cityRaw.length>64000000||JSON.parse(cityRaw)?.format!==2)throw Error('ข้อมูลเมืองไม่ถูกต้อง');
+ return cityRaw;
+}
+window.SMGameSaveCodec={encode:encodeCloudCity,decode:decodeCloudCity};
 const SAVE_KEY='traffic-fixer-thailand-saves-v2',LEGACY_SAVE_KEY='traffic-fixer-thailand-v1';
 const escapeSaveText=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function readLocalSaveSlots(){
@@ -6698,7 +6723,7 @@ window.SMGameLoadCreatorSave=(raw,name)=>{
  const cleanName=escapeSaveText(String(name||'เมืองผู้เล่น').slice(0,80));
  confirmAction('โหลดสำเนาเซฟ “'+cleanName+'”',
   'เมืองปัจจุบันที่ยังไม่ได้บันทึกจะถูกแทนที่ด้วยสำเนาเซฟ แต่เซฟต้นฉบับของผู้เล่นจะไม่เปลี่ยนแปลง',
-  ()=>{if(loadGame(false,null,raw))toast('โหลดสำเนาเซฟผู้เล่นสำเร็จค่ะ');});
+  async()=>{try{const city=await decodeCloudCity(raw);if(loadGame(false,null,city))toast('โหลดสำเนาเซฟผู้เล่นสำเร็จค่ะ');}catch(error){console.error('Creator save decoding failed:',error);toast('โหลดเซฟไม่ได้: '+(error?.message||'ข้อมูลเมืองไม่ถูกต้อง'));}});
  return true;
 };
 // Serialize only on a creator-triggered request; never send the full city in regular heartbeats.
@@ -6753,7 +6778,9 @@ async function saveCloudCity(name,slotId,retry=null){
   if(api.user?.id!==accountId)throw Error('บัญชีผู้ใช้เปลี่ยน กรุณาเข้าสู่ระบบอีกครั้งค่ะ');
   operation.serialized??=snapshot();
   if(dialogRevision===operation.revision)$('cloudSaveStateText').textContent='กำลังบันทึกเมืองบนเซิร์ฟเวอร์…';
-  await api.save(name,slotId,operation.serialized);
+  const packed=await encodeCloudCity(operation.serialized);
+  if(dialogRevision===operation.revision)$('cloudSaveStateText').textContent='กำลังส่งข้อมูลเมืองแบบบีบอัด…';
+  await api.save(name,slotId,packed);
   operation.status='success';
   if(dialogRevision===operation.revision)showCloudSaveStatus(operation);
   toast('บันทึกสำเร็จ: '+name);return true;
@@ -6800,7 +6827,7 @@ async function openCloudSaveDialog(){
     if(typeof api.getSave!=='function'){if(loadGame(false,null,slot.data))toast('โหลดเซฟออนไลน์แล้วค่ะ');return;}
     const loading=modal('<div class="save-workspace">'+panelHeading('▣','โหลดเมือง')+'<p role="status">กำลังโหลดเมืองที่เลือก…</p><div class="actions"><button id="saveLoadCancel">ยกเลิก</button></div></div>');
     $('saveLoadCancel').onclick=closeModal;
-    try{const raw=await api.getSave(slot.id);if(dialogRevision!==loading||api.user?.id!==accountId)return;closeModal();if(loadGame(false,null,raw))toast('โหลดเซฟออนไลน์แล้วค่ะ');}
+    try{const raw=await decodeCloudCity(await api.getSave(slot.id));if(dialogRevision!==loading||api.user?.id!==accountId)return;closeModal();if(loadGame(false,null,raw))toast('โหลดเซฟออนไลน์แล้วค่ะ');}
     catch(e){console.error('Online load failed:',e);if(dialogRevision!==loading)return;closeModal();toast('โหลดเมืองไม่สำเร็จ: '+(e.message||'กรุณาลองใหม่'));}
    });
   };
