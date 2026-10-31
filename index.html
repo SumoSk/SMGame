@@ -605,6 +605,353 @@ dialog.member-gate .member-card :is(input,button){box-sizing:border-box!importan
 @media(prefers-reduced-motion:reduce){
   #cityCommandBar *,#cityLevelCelebration .sm-level-celebration-card{scroll-behavior:auto!important}
 }
+</style><style id="smcity-game-menus-20261101">
+/* SMCITY GAME MENUS — visual skin only. Account, save/load and game menu
+   event handlers, storage keys, modal dismissal, and data remain unchanged. */
+#memberGate[open]{
+  box-sizing:border-box!important;width:min(410px,calc(100vw - 22px))!important;
+  max-width:calc(100vw - 22px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+  max-height:calc(100dvh - 22px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+  padding:0!important;margin:auto!important;zoom:1!important;
+  background:transparent!important;border:0!important;box-shadow:none!important;
+  overflow-x:hidden!important;overflow-y:auto!important;
+  color-scheme:dark;
+}
+#memberGate::backdrop,#dialog:has(.save-workspace)::backdrop,
+#dialog:has(.smcity-menu-list)::backdrop,#dialog:has(.account-identity)::backdrop{
+  background:rgba(5,18,25,.72)!important;
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+}
+#memberGate .member-card{
+  box-sizing:border-box!important;position:relative!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  max-height:none!important;overflow:visible!important;
+  margin:0!important;padding:20px 22px 21px!important;
+  border:1px solid #6ba7ab!important;border-radius:19px!important;
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(61,137,154,.26),transparent 62%),
+    linear-gradient(155deg,#153b49 0%,#112d39 55%,#0e2734 100%)!important;
+  color:#effbf5!important;text-align:center!important;
+  box-shadow:0 0 0 4px rgba(77,177,189,.12),0 22px 68px rgba(0,13,20,.7),inset 0 1px 0 rgba(255,255,255,.14)!important;
+  font:500 12px/1.55 "Noto Sans Thai",Tahoma,system-ui,sans-serif!important;
+  isolation:isolate;
+}
+#memberGate .member-card::before{
+  content:"SMCITY  /  PLAYER HUB";display:block;
+  width:max-content;max-width:calc(100% - 38px);margin:0 auto 12px;
+  padding:4px 12px;border:1px solid rgba(126,211,218,.32);
+  border-radius:999px;background:rgba(69,141,155,.14);
+  color:#a9e8e4;font:800 10px/1.45 system-ui,sans-serif;letter-spacing:1.25px;
+}
+#memberGate #memberDevQuick.member-mark{
+  display:grid!important;place-items:center!important;
+  width:45px!important;height:45px!important;margin:0 auto 10px!important;
+  border:1px solid #8fd8d0!important;border-radius:14px!important;
+  background:linear-gradient(145deg,#2b7581,#1b475d)!important;
+  box-shadow:0 3px 18px rgba(89,188,197,.22),inset 0 1px 0 #ffffff33!important;
+  color:#f9d88f!important;font-size:27px!important;
+}
+#memberGate #memberTitle{
+  margin:0 0 5px!important;color:#fff9de!important;
+  font-size:21px!important;line-height:1.3!important;font-weight:850!important;
+  letter-spacing:-.35px!important;text-shadow:0 1px 10px rgba(5,15,21,.36);
+}
+#memberGate #memberIntro{
+  margin:0 0 15px!important;color:#bdd8d7!important;
+  font-size:12px!important;line-height:1.55!important;max-width:315px;display:block;
+  margin-left:auto!important;margin-right:auto!important;
+}
+#memberGate #memberClose{
+  top:10px!important;right:10px!important;z-index:5!important;
+  display:grid!important;place-items:center!important;
+  width:33px!important;height:33px!important;min-width:33px!important;
+  padding:0!important;border:1px solid #659ba0!important;
+  border-radius:9px!important;background:#143540!important;
+  color:#d3edf0!important;font-size:23px!important;
+}
+#memberGate .member-tabs{
+  box-sizing:border-box!important;display:grid!important;
+  grid-template-columns:1fr 1fr!important;gap:5px!important;
+  width:100%!important;margin:0 0 14px!important;padding:5px!important;
+  border:1px solid #426877!important;border-radius:12px!important;
+  background:#091f2baa!important;
+}
+#memberGate .member-tabs button{
+  min-width:0!important;min-height:37px!important;height:37px!important;
+  border:1px solid transparent!important;border-radius:9px!important;
+  color:#bed7dc!important;background:transparent!important;
+  font:750 12px/1.3 "Noto Sans Thai",Tahoma,sans-serif!important;
+}
+#memberGate .member-tabs button.active{
+  border-color:#79cad4!important;
+  background:linear-gradient(145deg,#317f89,#205667)!important;
+  color:#fff!important;box-shadow:inset 0 1px 0 #ffffff3d,0 2px 10px #0005!important;
+}
+#memberGate .member-form{display:grid!important;gap:10px!important;min-width:0;text-align:left}
+#memberGate .member-form label{display:grid!important;gap:5px!important;color:#d7eeee!important;font-size:12px!important;font-weight:650!important}
+#memberGate .member-form input{
+  box-sizing:border-box!important;width:100%!important;min-width:0!important;
+  height:43px!important;min-height:43px!important;padding:8px 12px!important;
+  border:1px solid #577e89!important;border-radius:10px!important;
+  background:#081f2c!important;color:#f2f9f5!important;
+  font:500 14px/1.4 "Noto Sans Thai",Tahoma,sans-serif!important;
+  box-shadow:inset 0 2px 6px #0002!important;
+}
+#memberGate .member-form input::placeholder{color:#a0b9c1!important;opacity:1}
+#memberGate .member-form input:focus-visible{border-color:#8ce5db!important;outline:2px solid #60b8b9!important;outline-offset:1px}
+#memberGate #memberNotice{min-height:0;margin:0!important;text-align:center!important;color:#bbe9c9!important;font-size:11px!important;line-height:1.5!important;overflow-wrap:anywhere}
+#memberGate #memberNotice:empty{display:none!important}
+#memberGate #memberNotice.error{color:#ffc0b4!important}
+#memberGate #memberSubmit,#memberGate #memberRetrySave{
+  box-sizing:border-box!important;display:block!important;width:100%!important;
+  min-width:0!important;min-height:43px!important;height:auto!important;
+  padding:10px 12px!important;border:1px solid #ffe8ae!important;
+  border-radius:11px!important;background:linear-gradient(125deg,#ffe4a0,#d8ad60)!important;
+  color:#27362d!important;font:850 13px/1.45 "Noto Sans Thai",Tahoma,sans-serif!important;
+  box-shadow:inset 0 1px 0 #ffffff9a,0 5px 15px rgba(0,11,18,.28)!important;
+}
+#memberGate #memberRetrySave[hidden]{display:none!important}
+#memberGate #memberSubmit:disabled{opacity:.6!important}
+#memberGate #memberBack{
+  width:100%!important;min-height:37px!important;margin-top:9px!important;
+  padding:7px 10px!important;border:1px solid #4d7581!important;border-radius:10px!important;
+  background:#183c4c!important;color:#d9e9eb!important;
+  font-size:12px!important;font-weight:650!important;
+}
+#memberGate :is(button,input):focus-visible{outline:2px solid #cbeebf!important;outline-offset:2px}
+#memberGate button:hover:not(:disabled){filter:brightness(1.09)}
+/* Game menus and save slots share one dark, map-inspired palette. */
+#dialog:is(:has(.save-workspace),:has(.smcity-menu-list),:has(.account-identity))[open]{
+  --sm-pop-surface:#102c38;--sm-pop-card:#173a48;--sm-pop-raised:#214b57;
+  --sm-pop-ink:#edf9f6;--sm-pop-muted:#b8d0d2;--sm-pop-line:#466e78;
+  --sm-pop-primary:#f1d28e;--sm-pop-on-primary:#25342a;
+  --sm-pop-hover:#285463;--sm-pop-danger:#ffb6a9;
+  box-sizing:border-box!important;
+  border:1px solid #76b6be!important;border-radius:18px!important;
+  color:#edf9f6!important;
+  background:
+    radial-gradient(ellipse at 90% 0%,rgba(54,133,153,.23),transparent 62%),
+    linear-gradient(165deg,#153b49,#0e2733)!important;
+  box-shadow:0 0 0 4px #64b9c01e,0 24px 75px #06151cb5,inset 0 1px 0 #ffffff21!important;
+  color-scheme:dark;scrollbar-color:#5a92a0 transparent!important;
+}
+#dialog:is(:has(.save-workspace),:has(.smcity-menu-list),:has(.account-identity)) .dialog-close-top{
+  border:1px solid #54828b!important;background:#153946!important;
+  color:#d8eff0!important;border-radius:9px!important;
+  width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;
+}
+#dialog:is(:has(.save-workspace),:has(.smcity-menu-list),:has(.account-identity)) #dialogContent{
+  color:#edf9f6!important;min-width:0!important;overflow-wrap:anywhere!important;
+}
+#dialog:is(:has(.save-workspace),:has(.smcity-menu-list),:has(.account-identity)) #dialogContent :is(h2,h3,strong,b,label){
+  color:#effaf6!important;
+}
+#dialog:has(.save-workspace)[open]{
+  width:min(465px,calc(100vw - 20px))!important;max-width:calc(100vw - 20px)!important;
+  padding:17px!important;overflow-x:hidden!important;overflow-y:auto!important;
+}
+#dialog .save-panel-head{
+  position:relative!important;min-width:0!important;
+  margin:0 0 13px!important;padding:0 38px 11px 0!important;
+  border-bottom:1px solid #507781!important;
+}
+#dialog .save-panel-head::before{
+  content:"CITY ARCHIVE  /  SMCITY";display:block;
+  color:#8ed8df!important;font:750 10px/1.4 system-ui,sans-serif!important;
+  letter-spacing:1.05px;margin:0 0 5px!important;
+}
+#dialog .save-panel-head h2,#dialog .save-status-copy h2,#dialog .save-confirm h2{
+  color:#fff4d5!important;font-size:19px!important;line-height:1.25!important;font-weight:850!important;
+}
+#dialog .save-panel-head p{color:#c3dce0!important;font-size:12px!important}
+#dialog #dialogContent .save-create-compact{
+  box-sizing:border-box!important;min-width:0!important;
+  margin:0 0 15px!important;padding:11px!important;
+  border:1px solid #416f76!important;border-radius:13px!important;
+  background:linear-gradient(130deg,#214e58,#193a48)!important;
+}
+#dialog .save-create-compact label{font-size:12px!important;color:#f1f8eb!important;margin-bottom:8px!important}
+#dialog .save-create-row{grid-template-columns:minmax(0,1fr) 88px!important;gap:7px!important}
+#dialog #onlineSaveName,#dialog .save-backup-body input{
+  box-sizing:border-box!important;min-width:0!important;
+  border:1px solid #648e98!important;background:#0b2632!important;
+  color:#f4f9f6!important;border-radius:9px!important;
+}
+#dialog #onlineSaveName{height:41px!important;min-height:41px!important;font-size:14px!important}
+#dialog #onlineSaveName:focus-visible{border-color:#91e4d9!important;outline:2px solid #91e4d9!important;outline-offset:1px}
+#dialog #dialogContent .save-create-row #onlineCreate,
+#dialog #dialogContent .save-slot-controls>button.primary,
+#dialog #dialogContent .save-operation-actions>button.primary{
+  border:1px solid #ffe7ad!important;border-radius:9px!important;
+  background:linear-gradient(120deg,#ffe3a1,#d5ab60)!important;
+  color:#213831!important;font-size:12.5px!important;font-weight:850!important;
+  box-shadow:inset 0 1px 0 #ffffff8a,0 3px 10px #0004!important;
+}
+#dialog #dialogContent .save-create-row #onlineCreate{height:41px!important;min-height:41px!important}
+#dialog .save-list-heading{margin:0 0 8px!important}
+#dialog .save-list-heading h3{font-size:13px!important;color:#ecfcf6!important}
+#dialog .save-list-heading>span{
+  color:#a6e1e7!important;font-size:11px!important;
+  background:#275666!important;border:1px solid #4d8690!important;
+  border-radius:999px!important;padding:3px 8px!important;
+}
+#dialog #dialogContent .save-slot-list{
+  display:grid!important;gap:8px!important;padding:2px 2px 5px!important;
+  border:0!important;scrollbar-width:thin!important;
+  overflow-x:hidden!important;overflow-y:auto!important;
+}
+#dialog #dialogContent .save-slot-card{
+  box-sizing:border-box!important;min-width:0!important;
+  border:1px solid #436e79!important;border-radius:11px!important;
+  padding:10px 9px!important;margin:0!important;
+  background:linear-gradient(120deg,#1a4351,#163640)!important;
+  box-shadow:inset 0 1px 0 #ffffff13,0 3px 8px #00151b30!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;gap:8px!important;transition:border-color .16s,background-color .16s;
+}
+#dialog #dialogContent .save-slot-card:hover{border-color:#86cdd0!important}
+#dialog #dialogContent .save-slot-heading{min-width:0!important}
+#dialog #dialogContent .save-slot-heading h3{
+  color:#f1f9ee!important;font-size:13px!important;font-weight:760!important;
+  line-height:1.35!important;margin:0 0 4px!important;
+  white-space:normal!important;overflow-wrap:anywhere!important;
+}
+#dialog .save-slot-heading h3::before{content:"▣";color:#f3d188;display:inline-block;margin-right:6px}
+#dialog .save-slot-heading time{font-size:11px!important;color:#b4cdd1!important}
+#dialog .save-slot-controls{align-items:center!important;min-width:0!important}
+#dialog #dialogContent .save-slot-controls>button{
+  min-height:37px!important;height:auto!important;padding:7px 12px!important;
+  border-radius:8px!important;
+}
+#dialog .save-slot-more>summary{
+  border:1px solid #517c86!important;background:#254d5b!important;
+  color:#ebf6f1!important;border-radius:8px!important;
+  min-height:37px!important;
+}
+#dialog .save-slot-more[open]>summary{background:#376879!important;color:#fff!important}
+#dialog #dialogContent .save-slot-more[open] .save-slot-actions>button{
+  box-sizing:border-box!important;min-height:38px!important;height:auto!important;
+  background:#234e5b!important;border:1px solid #5e8791!important;
+  color:#f0f9f6!important;border-radius:8px!important;
+}
+#dialog #dialogContent .save-slot-more[open] .save-slot-actions>button.danger{
+  background:#52343b!important;border-color:#a5686d!important;color:#ffd7cf!important;
+}
+#dialog .save-backup{
+  margin-top:12px!important;padding:0 11px!important;
+  border:1px solid #456d77!important;border-radius:11px!important;
+  background:#173a47!important;
+}
+#dialog .save-backup>summary{
+  color:#dbf0ec!important;min-height:40px!important;font-size:12px!important;
+}
+#dialog .save-backup>summary span{color:#a7c8ce!important;font-size:11px!important}
+#dialog .save-backup-body{
+  border:1px solid #46717b!important;background:#102d39!important;
+  margin:0 0 11px!important;padding:10px!important;
+}
+#dialog .save-panel-footer{border-top:1px solid #426872!important}
+#dialog #dialogContent .save-panel-footer button,
+#dialog #dialogContent .save-operation-actions>button:not(.primary),
+#dialog #dialogContent .save-backup-body button{
+  border:1px solid #59818b!important;background:#214857!important;
+  color:#e9f6f2!important;border-radius:9px!important;
+  min-height:36px!important;font-weight:700!important;
+}
+#dialog .save-status-symbol{border:1px solid #538995!important;background:#234c59!important;color:#f6d48e!important}
+#dialog .save-status-copy :is(strong,p),#dialog .save-hint,
+#dialog .save-mini-state,#dialog .save-confirm>p{color:#c6dade!important}
+#dialog .save-status-row.error .save-status-symbol{color:#ffb4a4!important}
+#dialog .save-confirm{min-width:0!important}
+#dialog .save-workspace :is(input,button,summary){touch-action:manipulation}
+#dialog:has(.smcity-menu-list)[open]{width:min(420px,calc(100vw - 20px))!important;padding:19px!important}
+#dialog:has(.smcity-menu-list) .menu-heading{
+  border-bottom:1px solid #4d7680!important;padding-bottom:12px!important;margin-bottom:13px!important;
+}
+#dialog:has(.smcity-menu-list) .menu-logo{
+  display:grid!important;place-items:center!important;
+  width:39px!important;height:39px!important;flex:0 0 39px!important;
+  border:1px solid #71bbc2!important;border-radius:11px!important;
+  background:linear-gradient(145deg,#397e8b,#1b475a)!important;
+  color:#ffe3a2!important;font-size:19px!important;
+}
+#dialog:has(.smcity-menu-list) .menu-heading h2{color:#fff3d3!important;font-size:19px!important}
+#dialog:has(.smcity-menu-list) #dialogContent .smcity-menu-list{
+  display:grid!important;gap:8px!important;
+}
+#dialog:has(.smcity-menu-list) #dialogContent .smcity-menu-list>button{
+  min-height:54px!important;padding:9px 11px!important;
+  border:1px solid #466f7b!important;border-radius:11px!important;
+  background:linear-gradient(120deg,#1c4755,#193846)!important;
+  color:#f3faf5!important;box-shadow:inset 0 1px 0 #ffffff19!important;
+  text-align:left!important;
+}
+#dialog:has(.smcity-menu-list) .smcity-menu-list>button:is(:hover,:focus-visible){
+  border-color:#92d8d7!important;background:#265765!important;
+}
+#dialog:has(.smcity-menu-list) .smcity-menu-list .menu-symbol{
+  color:#f1d18b!important;font-size:20px!important;
+}
+#dialog:has(.smcity-menu-list) .smcity-menu-list .menu-chevron{
+  color:#a5d6dc!important;font-size:19px!important;
+}
+#dialog:has(.smcity-menu-list) .smcity-menu-list b{font-size:13px!important}
+#dialog:has(.smcity-menu-list) .smcity-menu-list small{font-size:11px!important;color:#bed4da!important}
+#dialog:has(.smcity-menu-list) #dialogContent .menu-resume{
+  display:block!important;width:100%!important;min-height:41px!important;margin-top:13px!important;
+  background:linear-gradient(120deg,#fce0a1,#d8ad62)!important;
+  color:#23362c!important;border:1px solid #ffe7b5!important;
+  font-size:13px!important;font-weight:850!important;
+}
+#dialog:has(.account-identity)[open]{width:min(440px,calc(100vw - 20px))!important;padding:20px!important}
+#dialog:has(.account-identity) .account-identity{
+  display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px!important;
+  background:#1a4350!important;border:1px solid #477986!important;
+  border-radius:12px!important;padding:12px!important;color:#eff8f5!important;
+}
+#dialog:has(.account-identity) .account-avatar{color:#f5d391!important;font-size:21px!important}
+#dialog:has(.account-identity) .account-identity small{color:#a9d9d6!important}
+#dialog:has(.account-identity) .account-password{
+  border:1px solid #477781!important;border-radius:12px!important;
+  background:#173946!important;margin:11px 0!important;padding:10px 12px!important;
+}
+#dialog:has(.account-identity) .account-password summary{color:#f2f8f3!important;font-size:13px!important}
+#dialog:has(.account-identity) .account-password input{
+  max-width:100%!important;background:#0c2834!important;color:#f3f8f6!important;
+  border:1px solid #587e8b!important;border-radius:9px!important;font-size:14px!important;
+}
+#dialog:has(.account-identity) .account-footer{display:flex!important;flex-wrap:wrap!important;gap:8px!important}
+#dialog:has(.account-identity) .account-footer button{flex:1 1 125px!important;min-height:40px!important}
+#dialog:is(:has(.save-workspace),:has(.smcity-menu-list),:has(.account-identity)) button:focus-visible{
+  outline:2px solid #f7d994!important;outline-offset:2px!important;
+}
+@media(max-width:520px){
+ #memberGate[open]{width:calc(100vw - 18px)!important;max-height:calc(100dvh - 18px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important}
+ #memberGate .member-card{padding:16px 15px 17px!important;border-radius:16px!important}
+ #memberGate .member-card::before{margin-bottom:8px!important;font-size:9px!important}
+ #memberGate #memberDevQuick.member-mark{height:39px!important;width:39px!important;margin-bottom:8px!important}
+ #memberGate #memberTitle{font-size:19px!important}
+ #memberGate #memberIntro{font-size:11px!important;line-height:1.5!important;margin-bottom:12px!important}
+ #memberGate .member-form input{font-size:16px!important}
+ #dialog:has(.save-workspace)[open]{width:calc(100vw - 18px)!important;max-width:calc(100vw - 18px)!important;padding:13px!important}
+ #dialog:has(.smcity-menu-list)[open],#dialog:has(.account-identity)[open]{max-width:calc(100vw - 18px)!important;padding:14px!important}
+ #dialog .save-create-row{grid-template-columns:minmax(0,1fr) 76px!important}
+ #dialog #onlineSaveName{font-size:16px!important}
+ #dialog #dialogContent .save-slot-card{padding:9px 10px!important}
+ #dialog #dialogContent .save-slot-card:has(.save-slot-more[open])>.save-slot-controls{
+    grid-template-columns:58px minmax(0,1fr)!important;
+ }
+ #dialog #dialogContent .save-slot-list{max-height:min(35dvh,315px)!important}
+ #dialog:has(.account-identity) .account-password input{font-size:16px!important}
+}
+@media(max-width:350px){
+ #memberGate .member-card{padding:14px 11px!important}
+ #dialog #dialogContent .save-slot-more[open] .save-slot-actions{grid-template-columns:minmax(0,1fr)!important}
+}
+@media(prefers-reduced-motion:reduce){
+ #memberGate button,#dialog:has(.save-workspace) button,
+ #dialog:has(.smcity-menu-list) button{transition:none!important;animation:none!important}
+}
 </style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
