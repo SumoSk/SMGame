@@ -29,8 +29,23 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert.equal(get('categories').innerHTML,'','old Buildings/Landscape/City Data group row must be empty');
  assert(get('subcategories').innerHTML.includes('data-category="landscape"'),'landscaping is in primary construction tabs');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'landscape'}})}});
- assert(get('tools').innerHTML.includes('data-tool="tree:shade"'));
- assert(get('tools').innerHTML.includes('data-tool="treeBrush"'));
+ const landscapeGroups=['trees','flowers','shrubs','desert','water','stone','paths','street','lights','art','manage'];
+ const decorationTools=new Set();
+ for(const group of landscapeGroups){
+  assert(get('tools').innerHTML.includes('data-landscape-group="'+group+'"'),group+' subgroup is missing');
+  get('tools').onclick({target:{closest:sel=>sel==='[data-landscape-group]'?{dataset:{landscapeGroup:group}}:null}});
+  const markup=get('buildVariantPopup').innerHTML;
+  assert(!get('buildVariantPopup').hidden,group+' popup must open');
+  for(const match of markup.matchAll(/data-tool="([^"]+)"/g))decorationTools.add(match[1]);
+  assert(markup.includes('data-close-variants'),group+' popup must have a close control');
+ }
+ const expectedDecorationTools=[...g.TREE_KINDS,...g.DECOR_KINDS].map(k=>'tree:'+k.key).concat(['landscapeSelect','treeRow','treeBrush','eraseTree']);
+ assert.deepEqual([...decorationTools].sort(),expectedDecorationTools.sort(),'every existing decoration must be discoverable in a subgroup');
+ get('tools').onclick({target:{closest:sel=>sel==='[data-landscape-group]'?{dataset:{landscapeGroup:'trees'}}:null}});
+ assert(get('buildVariantPopup').innerHTML.includes('data-tool="tree:shade"'));
+ get('buildVariantPopup').onclick({target:{closest:sel=>sel==='[data-tool]'?{dataset:{tool:'tree:shade'}}:null}});
+ assert(get('buildVariantPopup').hidden,'selecting a tree closes the popup');
+ assert(get('tools').innerHTML.includes('data-landscape-group="trees"'),'tree group remains in the toolbar');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'roads'}})}});
  assert(get('tools').innerHTML.includes('data-tool="small"'),'small road tool must be present');
  assert(get('tools').innerHTML.includes('data-tool="medium"'),'medium road tool must be present');
