@@ -2971,6 +2971,24 @@ const DECOR_KINDS=[
  ['pond_lotus','บ่อบัว','🪷'],['pond_reeds','บ่อน้ำกอหญ้า','💧'],['waterfall','น้ำตกสวนหิน','🏞️'],['stream','ลำธารประดับ','💦'],['crystal','กลุ่มผลึกประดับ','💎'],
  ['abstract_orbit','ประติมากรรมวงโคจร','🌀'],['abstract_obelisk','เสาประติมากรรม','🔷'],
 ].map(([key,name,icon])=>({key,name,icon}));
+// Presentation-only groups. All existing decoration keys and save records remain unchanged.
+const LANDSCAPE_GROUPS=[
+ {key:'trees',name:'ต้นไม้',icon:'🌳',keys:TREE_KINDS.map(t=>t.key)},
+ {key:'flowers',name:'ดอกไม้และแปลงดอก',icon:'🌺',keys:['flower_bed','flower_arch','flowers_round','flowers_ring','flowers_red','flowers_blue','flowers_white','lavender','sunflower','tulips','lotus','clover']},
+ {key:'shrubs',name:'ไม้พุ่มและกระถาง',icon:'🪴',keys:['planter_square','planter_round','hedge','hedge_flower','fern','bamboo','reed','topiary_ball','topiary_spiral','topiary_cubes']},
+ {key:'desert',name:'พืชทะเลทราย',icon:'🌵',keys:['succulent','cactus_round','cactus_tall','agave']},
+ {key:'water',name:'บ่อน้ำและน้ำตก',icon:'💧',keys:['fountain','pond','pond_lotus','pond_reeds','waterfall','stream']},
+ {key:'stone',name:'หินและสวนกรวด',icon:'🪨',keys:['rock_cluster','pebble_bed','rock_moss','rock_tall','rock_stack','sand_garden']},
+ {key:'paths',name:'พื้นทางเดินและรั้ว',icon:'🧱',keys:['fence_white','fence_wood','fence_iron','gate','wood_deck','stone_path','tiles']},
+ {key:'street',name:'อุปกรณ์ริมถนน',icon:'🚏',keys:['trash','mailbox','bollard','flag','signpost']},
+ {key:'lights',name:'โคมไฟ',icon:'💡',keys:['street_lamp','garden_lamp']},
+ {key:'art',name:'งานศิลป์และรูปปั้น',icon:'🗿',keys:['statue','crystal','abstract_orbit','abstract_obelisk']},
+ {key:'manage',name:'จัดวางและลบ',icon:'✋',keys:['landscapeSelect','treeRow','treeBrush','eraseTree']}
+];
+function landscapeGroupForTool(t){
+ const key=t.startsWith('tree:')?t.slice(5):t;
+ return LANDSCAPE_GROUPS.find(g=>g.keys.includes(key))?.key||null;
+}
 const RETIRED_DECOR_KINDS=["bench_wood","bench_iron","picnic","umbrella","play_swing","play_slide","gazebo","bike_rack"];
 const LANDSCAPE_KINDS=[...TREE_KINDS,...DECOR_KINDS];
 let movingLandscape=null;
@@ -3186,6 +3204,7 @@ function dockSectionFor(currentCategory){
 // navigation changes; construction keys, quotas and simulation are untouched.
 const BUILD_DOCK_KINDS={home:['home','hotel'],work:['office','factory'],food:['shop','restaurant','mall'],leisure:['park','pub','casino']};
 let openBuildingKind=null;
+let openLandscapeGroup=null;
 function dockVisibleItems(group,currentCategory){
  return dockItems(currentCategory).map(item=>({...item,category:currentCategory}));
 }
@@ -3198,6 +3217,7 @@ function dockTypeItems(currentCategory){
 }
 function closeBuildingVariants(){
  openBuildingKind=null;
+ openLandscapeGroup=null;
  const popup=$('buildVariantPopup');
  if(popup){popup.hidden=true;popup.innerHTML='';}
  const tray=$('tools');
@@ -3208,8 +3228,10 @@ function closeBuildingVariants(){
 }
 function positionBuildingVariants(){
  const popup=$('buildVariantPopup'),tray=$('tools');
- if(!popup||popup.hidden||!openBuildingKind||!tray?.querySelector)return;
- const anchor=tray.querySelector('[data-build-kind="'+openBuildingKind+'"]');
+ if(!popup||popup.hidden||!tray?.querySelector)return;
+ const groupKey=category==='landscape'?openLandscapeGroup:openBuildingKind;
+ if(!groupKey)return;
+ const anchor=tray.querySelector(category==='landscape'?'[data-landscape-group="'+groupKey+'"]':'[data-build-kind="'+groupKey+'"]');
  if(!anchor?.getBoundingClientRect)return;
  const rect=anchor.getBoundingClientRect();
  // A fixed popup must live outside the clipped bottom dashboard. Dock and
@@ -3217,7 +3239,7 @@ function positionBuildingVariants(){
  const commandTop=$('cityCommandBar')?.getBoundingClientRect?.().top;
  const top=Math.min(rect.top,Number.isFinite(commandTop)?commandTop:rect.top);
  const bottom=Math.max(10,Math.ceil(innerHeight-top+8));
- const popupWidth=Math.min(228,Math.max(140,innerWidth-16));
+ const popupWidth=Math.min(category==='landscape'?270:228,Math.max(140,innerWidth-16));
  const left=Math.max(8,Math.min(innerWidth-popupWidth-8,rect.left+rect.width/2-popupWidth/2));
  popup.style.width=popupWidth+'px';
  popup.style.left=left+'px';
@@ -3226,6 +3248,16 @@ function positionBuildingVariants(){
 }
 function renderBuildingVariants(){
  const popup=$('buildVariantPopup');if(!popup)return;
+ if(category==='landscape'){
+  const group=LANDSCAPE_GROUPS.find(g=>g.key===openLandscapeGroup);
+  if(!group){popup.hidden=true;popup.innerHTML='';return;}
+  const all=dockItems('landscape'),variants=group.keys.map(key=>all.find(t=>t.key===(key==='landscapeSelect'||key==='treeRow'||key==='treeBrush'||key==='eraseTree'?key:'tree:'+key))).filter(Boolean);
+  popup.hidden=false;
+  popup.setAttribute('aria-label','เลือก'+group.name);
+  popup.innerHTML='<header class="build-variants-header"><strong>'+group.icon+' '+group.name+'</strong><span>'+variants.length+' รายการ</span><button type="button" data-close-variants aria-label="ปิดรายการตกแต่ง">×</button></header>'+
+   variants.map(t=>'<button type="button" class="tool '+(tool===t.key?'active':'')+'" data-tool="'+t.key+'" aria-pressed="'+(tool===t.key)+'" title="'+t.name+'"><span class="tool-icon">'+t.icon+'</span><span class="build-variant-info"><strong class="tool-name">'+t.name+'</strong><small class="tool-price">'+(t.sub||t.price)+'</small></span></button>').join('');
+  positionBuildingVariants();return;
+ }
  if(!openBuildingKind||!(BUILD_DOCK_KINDS[category]||[]).includes(openBuildingKind)){
   popup.hidden=true;popup.innerHTML='';return;
  }
@@ -3257,7 +3289,12 @@ function renderTools(){
  const previousGroup=tray.dataset?.currentDockGroup||'',previousCategory=tray.dataset?.currentDockCategory||'';
  const changed=previousGroup!==group.key||previousCategory!==category;
  const scroll=changed?0:tray.scrollLeft;
- if(BUILD_DOCK_KINDS[category]){
+ if(category==='landscape'){
+  tray.innerHTML=LANDSCAPE_GROUPS.map(g=>{
+   const active=openLandscapeGroup===g.key,chosen=landscapeGroupForTool(tool)===g.key;
+   return '<button type="button" class="tool build-kind-box '+(active||chosen?'active ':'')+(active?'expanded':'')+'" data-landscape-group="'+g.key+'" aria-haspopup="true" aria-controls="buildVariantPopup" aria-expanded="'+active+'" title="เลือก'+g.name+'"><span class="tool-icon">'+g.icon+'</span><span><strong class="tool-name">'+g.name+'</strong><small class="tool-price">'+g.keys.length+' รายการ</small></span></button>';
+  }).join('');
+ }else if(BUILD_DOCK_KINDS[category]){
   const types=dockTypeItems(category);
   tray.innerHTML=types.map(t=>{
    const active=openBuildingKind===t.kind,chosen=CATALOG[tool]?.kind===t.kind;
@@ -6226,6 +6263,11 @@ $('subcategories').onclick=e=>{
  selectTool('hand');
 };
 $('tools').onclick=e=>{
+ const landscape=e.target.closest('[data-landscape-group]');
+ if(landscape&&category==='landscape'){
+  openLandscapeGroup=openLandscapeGroup===landscape.dataset.landscapeGroup?null:landscape.dataset.landscapeGroup;
+  openBuildingKind=null;renderTools();return;
+ }
  const type=e.target.closest('[data-build-kind]');
  if(type){
   openBuildingKind=openBuildingKind===type.dataset.buildKind?null:type.dataset.buildKind;
@@ -6251,13 +6293,17 @@ $('buildVariantPopup').onclick=e=>{
  if(e.target.closest('[data-close-variants]')){closeBuildingVariants();renderTools();return;}
  const button=e.target.closest('[data-tool]');if(!button)return;
  const key=button.dataset.tool;
+ if(category==='landscape'){
+  if(!dockItems('landscape').some(t=>t.key===key))return;
+  closeBuildingVariants();selectTool(key);return;
+ }
  if(!CATALOG[key]||!BUILD_DOCK_KINDS[category]?.includes(CATALOG[key].kind))return;
  // Keep the same box list available for placing another building; selection
  // and all quota confirmations go through the existing selectTool() path.
  selectTool(key);
 };
 document.addEventListener('pointerdown',e=>{
- if(!openBuildingKind)return;
+ if(!openBuildingKind&&!openLandscapeGroup)return;
  if(e.target.closest?.('#buildVariantPopup,#tools,#subcategories'))return;
  closeBuildingVariants();
  renderTools();
