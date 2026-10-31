@@ -17,11 +17,17 @@ const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+deco
    return{dashboard:box('.city-dashboard'),deck:box('.control-deck'),rail:box('.city-level-strip'),
     level:box('#cityLevelButton'),ai:box('#cityAiQuotaButton'),
     population:box('#population'),citizenLabel:box('.metric-population .metric-text small'),
+    builder:box('.builder-zone'),categories:box('#categories'),tools:box('#tools'),cameraLeft:box('#cityLeftRail'),
     progress:box('#cityLevelProgress')};
   });
   assert(bounds.dashboard&&bounds.deck&&bounds.rail&&bounds.level&&bounds.ai,'HUD exists at '+width+'px');
   assert(bounds.level.width>70&&bounds.ai.width>34,'level and AI controls remain tappable at '+width+'px');
-  assert(bounds.rail.top>=-2&&bounds.rail.top<=70&&bounds.rail.left>=-2&&bounds.rail.left<=25&&bounds.rail.width<=200&&bounds.rail.right<=width-2,'compact level widget must be in the top-left viewport at '+width+'px: '+JSON.stringify(bounds));
+  assert(bounds.rail.top>=-2&&bounds.rail.top<=70&&bounds.rail.left>=-2&&bounds.rail.left<=25&&bounds.rail.width<=350&&bounds.rail.right<=width-2,'one-row level widget must be at top left at '+width+'px: '+JSON.stringify(bounds));
+  assert(bounds.rail.height<=42&&Math.abs(bounds.level.top-bounds.ai.top)<3&&Math.abs(bounds.level.bottom-bounds.ai.bottom)<3,'level button and AI credits must share one row at '+width+'px: '+JSON.stringify(bounds));
+  assert(bounds.ai.left>=bounds.level.right-2,'AI button must follow level button without overlap at '+width+'px');
+  assert(!bounds.cameraLeft||bounds.rail.bottom+3<bounds.cameraLeft.top,'level HUD must not cover camera controls at '+width+'px');
+  assert(bounds.builder&&bounds.categories&&bounds.tools&&bounds.builder.width>75,'original construction tools still visible at '+width+'px');
+  assert(bounds.builder.left>=bounds.deck.left-4&&bounds.builder.right<=bounds.deck.right+4&&bounds.builder.bottom<=bounds.deck.bottom+4,'construction frame must stay within v5.0 control deck at '+width+'px: '+JSON.stringify(bounds));
   assert(bounds.rail.bottom<=bounds.deck.top+2,'level widget must not cover the restored bottom toolbar at '+width+'px');
   assert(await page.evaluate(()=>!document.querySelector('.bottom .city-level-strip')),'level widget must not be inside the 5.0 toolbar');
   assert(bounds.population&&bounds.population.width>13&&bounds.population.top>=bounds.dashboard.top-1&&bounds.population.bottom<=bounds.dashboard.bottom+2,'population remains visible at '+width+'px: '+JSON.stringify(bounds));
