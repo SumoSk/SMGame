@@ -44,6 +44,9 @@ assert.equal(JSON.stringify(g.state.plantedTrees),beforeMigration,'remove only r
  const {Renderer,Batch}=new Function('THREE',source+'return{Renderer:TrafficRenderer,Batch};')(THREE),r=Object.create(Renderer.prototype);
  const thaiKinds=g.DECOR_KINDS.filter(k=>/^(thai_|industrial_|temple_|landmark_)/.test(k.key));
  assert.equal(thaiKinds.length,24,'all new Thai decorations must be present');
+ assert(source.includes('const scale=.35'),'new Thai models must be 35% of their original dimensions');
+ assert(!source.includes("box('#e4bd67',u,base+.04,v,w+.18,.10,d+.18)"),'old broad temple roof crossbeam must be absent');
+ assert(source.includes('roofPattern(0,0,5.20,3.52,2.58,1.05)'),'temple roof must include detailed ceramic tile motifs');
  for(const kind of g.DECOR_KINDS)for(let turn=0;turn<4;turn++){
   const b=new Batch();b.pickId=7;assert(r.decoration(b,150,150,kind.key,turn));
   const parts=[...b.data.values()].flatMap(a=>a.items);assert(parts.length>1,kind.key+' needs a distinct model');
@@ -51,18 +54,28 @@ assert.equal(JSON.stringify(g.state.plantedTrees),beforeMigration,'remove only r
    assert([p.x,p.y,p.z,p.sx,p.sy,p.sz,p.rx,p.ry,p.rz].every(Number.isFinite),kind.key);
    assert.equal(p.buildingId,7);
    if(/^(thai_|industrial_|temple_|landmark_)/.test(kind.key)){
-    // All shared mesh instances must be half their authored dimensions and
-    // remain centered on the same cell for each of the four rotations.
-    assert(p.sx<=2.8&&p.sy<=1.7&&p.sz<=1.9,kind.key+' is not half-size');
-    assert(Math.abs(p.x-150)<1.7&&Math.abs(p.z-150)<1.7,kind.key+' moved off its placement cell');
-    assert(p.y>=0&&p.y<=2.65,kind.key+' vertical placement is outside the half-size envelope');
+    // 35%-size footprint must stay on the same cell through all four rotations.
+    assert(p.sx<=2.0&&p.sy<=1.25&&p.sz<=1.35,kind.key+' exceeds 35% size envelope');
+    assert(Math.abs(p.x-150)<1.22&&Math.abs(p.z-150)<1.22,kind.key+' moved off its placement cell');
+    assert(p.y>=0&&p.y<=1.95,kind.key+' is above its 35% vertical envelope');
    }
   }
  }
+ // High detail only near camera; far items preserve silhouette without tiny ornaments.
+ let farCount=0,nearCount=0;
+ for(const kind of thaiKinds){
+  const close=new Batch(),far=new Batch();
+  assert(r.decoration(close,150,150,kind.key,0,'near'));
+  assert(r.decoration(far,150,150,kind.key,0,'far'));
+  const count=b=>[...b.data.values()].reduce((n,entry)=>n+entry.items.length,0);
+  assert(count(close)>count(far)&&count(far)>0,kind.key+' should support reduced distant detail');
+  nearCount+=count(close);farCount+=count(far);
+ }
+ assert(farCount<nearCount*.80,'distant Thai scenery should reduce instanced geometry significantly');
  r.treeGroup=new THREE.Group();r.buildingGroup=new THREE.Group();r.graphicQuality='medium';r.coast=()=>125;
  r.trees(g.state,{x:185,y:185});assert(r.landscapePicks.size>0);
  assert([...r.landscapePicks.values()].some(v=>v.item),'manual props are selectable');
  assert([...r.landscapePicks.values()].some(v=>v.auto),'automatic trees are selectable');
  for(const mesh of r.treeGroup.children[0].children)assert(mesh.userData.ids.every(id=>id==null||r.landscapePicks.has(id)));
- console.log('PASS: 80 decoration models × 4 rotations (including 24 Thai landmarks), selectable trees/props, move/delete controls, auto-tree edits, and save roundtrip');
+ console.log('PASS: 80 decorations × 4 rotations; 24 Thai models at 35% scale, ornate ceramic roofs, near/far detail LOD, selection and save roundtrip ('+farCount+'/'+nearCount+' distant/near instances)');
 })().catch(e=>{console.error(e);process.exitCode=1;});
