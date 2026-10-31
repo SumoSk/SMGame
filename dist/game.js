@@ -979,7 +979,7 @@ function updateCityLevelHud(currentPopulation){
  updateCityLevel(currentPopulation);
  const l=cityLevelStatus(),set=(id,value)=>{const n=$(id);if(n&&n.textContent!==value)n.textContent=value;};
  set('cityLevelValue',String(l.level));
- set('cityLevelProgress','สูงสุด '+fmt(l.peakPopulation)+' / '+fmt(l.next)+' คน');
+ set('cityLevelProgress','สูงสุด '+fmt(l.peakPopulation)+'/'+fmt(l.next));
  set('cityLevelNext','อีก '+fmt(l.remaining)+' คน · เลเวล '+(l.level+1));
  set('cityAiQuotaValue',fmt(l.aiCredits));
  set('cityCrateBadge','🎁 '+fmt(l.pending.length));
