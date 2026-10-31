@@ -109,7 +109,7 @@ Deno.serve(async(req:Request)=>{
    await db.from(intents).update({completed_at:new Date().toISOString()}).eq('path',path);
    // Garbage-collect the *older* backup; the active and immediate prior versions survive.
    if(prior?.previous_path&&prior.previous_path!==path&&prior.previous_path!==prior.object_path)
-     void db.storage.from(bucket).remove([prior.previous_path]).catch(()=>{});
+     await db.storage.from(bucket).remove([prior.previous_path]).catch(error=>{console.warn('Old save backup cleanup skipped',errorMessage(error));});
    return reply(200,{slotId,verified:true,bytes});
   }
   if(action==='get'){
