@@ -156,6 +156,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - run: node work/test-ui-polish.cjs
       - run: npm run test:release-fixes
       - run: npm run test:assisted-placement
       - name: Save compiled release to main
