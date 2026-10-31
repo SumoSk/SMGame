@@ -986,9 +986,12 @@ function openCityCrateResult(reward){
  '<div class="sm-level-shine" aria-hidden="true">✦</div><div class="sm-level-prize" aria-hidden="true">'+meta.icon+'</div>'+
  '<span class="sm-level-result-label">เปิดกล่องสำเร็จ!</span><h2>'+meta.label+'</h2><strong class="sm-level-result-value">'+meta.value+'</strong><p>'+meta.detail+'</p>'+
  '<div class="sm-level-reward-foot"><span>เลเวลเมือง '+l.level+'</span><span>เหลือ '+l.pending.length+' กล่อง</span></div>'+
+ '<small class="sm-level-odds">อย่าลืมบันทึกเมืองเพื่อเก็บรางวัลในเซฟ</small>'+
  '<div class="sm-level-actions">'+(l.pending.length?'<button id="cityCrateContinue" class="primary">เปิดกล่องต่อ 🎁</button>':'')+
+ '<button id="cityCrateSave">บันทึกเมือง</button>'+
  '<button id="cityCrateDone" class="'+(l.pending.length?'':'primary')+'">กลับไปสร้างเมือง</button></div></div>');
  if(l.pending.length)$('cityCrateContinue').onclick=openCityCrateModal;
+ $('cityCrateSave').onclick=openCloudSaveDialog;
  $('cityCrateDone').onclick=closeModal;
 }
 function openCityCrateModal(){
