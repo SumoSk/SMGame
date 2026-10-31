@@ -35,7 +35,7 @@ const markerPos=css.indexOf(marker);
 assert(markerPos>0,'compact overlay stylesheet must exist');
 const baseCss=css.slice(0,markerPos).replace(/\s+$/,'')+'\n';
 const gitBlob=require('node:crypto').createHash('sha1')
- .update('blob '+Buffer.byteLength(baseCss)+'\0') // replace below with actual NUL
+ .update('blob '+Buffer.byteLength(baseCss)+'\0')
  .update(baseCss).digest('hex');
 assert.equal(gitBlob,'89ca09717be444c242602f2995575259336b9187','original 5.0 toolbar stylesheet must be byte-for-byte preserved');
 assert(css.includes('inset:0!important;top:0!important;right:0!important;bottom:0!important;left:0!important;'),'reward dialog must be viewport-centered');
