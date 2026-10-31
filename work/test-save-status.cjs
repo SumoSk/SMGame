@@ -11,7 +11,7 @@ async function panel(){get('menu').onclick();await get('saveMenu').onclick();}
  await panel();get('onlineSaveName').value='เมืองใหม่';
  const first=get('onlineCreate').onclick();
  assert(get('dialogContent').innerHTML.includes('กำลังบันทึก'));
- assert.equal(requests.length,1);
+ await flush();assert.equal(requests.length,1);
  const duplicate=get('onlineCreate').onclick();await duplicate;
  assert.equal(requests.length,1,'never send duplicate writes while saving');
  resolve();await first;
@@ -19,13 +19,13 @@ async function panel(){get('menu').onclick();await get('saveMenu').onclick();}
  assert(get('dialogContent').innerHTML.includes('เซิร์ฟเวอร์ยืนยัน'));
  await panel();get('onlineOverwrite0').onclick();get('confirmDialog').onclick();
  assert(get('dialogContent').innerHTML.includes('กำลังบันทึก'));
- assert.equal(requests[1].id,'old');
+ await flush();assert.equal(requests[1].id,'old');
  reject(new Error('connection lost'));await flush();
  assert(get('dialogContent').innerHTML.includes('บันทึกไม่สำเร็จ'));
  assert(get('dialogContent').innerHTML.includes('connection lost'));
  const original=requests[1];g.state.money=12;
  const retry=get('cloudSaveRetry').onclick();
- assert.equal(requests[2].id,original.id);assert.equal(requests[2].data,original.data,'retry exactly the failed snapshot');
+ await flush();assert.equal(requests[2].id,original.id);assert.equal(requests[2].data,original.data,'retry exactly the failed snapshot');
  get('cloudSaveBack').onclick();await panel();
  assert(get('dialogContent').innerHTML.includes('กำลังบันทึก'),'reopening shows the running write');
  resolve();await retry;
