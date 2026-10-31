@@ -23,6 +23,13 @@ assert(panel.includes('signal-control'),'signal controls still exist');
 g.selectTool('citizenDashboard');
 assert(get('citizensDashboardBody').innerHTML.includes('class="citizen-kpis"'),'citizen cards still render');
 assert(get('citizensDashboardBody').innerHTML.includes('citizen-section'),'citizen sections still render');
+const citizenDashboard=get('citizensDashboardBody').innerHTML;
+for(const label of ['ภาพรวมประชาชน','Performance เมือง','กำลังเดินทาง','ควรติดตาม','สิ่งที่ควรดูตอนนี้','ปัญหาที่ระบบตรวจพบ','รายชื่อประชาชนที่ต้องติดตาม','ข้อมูลเชิงลึก','ระดับ Performance','รูปแบบชีวิตวันนี้'])
+ assert(citizenDashboard.includes(label),'citizen overview must retain '+label);
+const topCitizen=citizenDashboard.indexOf('citizen-kpis-primary'),problemsCitizen=citizenDashboard.indexOf('ปัญหาที่ระบบตรวจพบ'),
+ listCitizen=citizenDashboard.indexOf('รายชื่อประชาชนที่ต้องติดตาม'),advancedCitizen=citizenDashboard.indexOf('data-citizen-advanced');
+assert(topCitizen>=0&&topCitizen<problemsCitizen&&problemsCitizen<listCitizen&&listCitizen<advancedCitizen,'most useful citizen facts and people must appear above deep charts');
+assert(css.includes('Citizen dashboard priorities 2026-11'),'responsive citizen priorities must be styled');
 g.selectTool('touristDashboard');
 assert(get('touristsDashboardBody').innerHTML.includes('class="citizen-kpis"'),'tourist cards still render');
 assert(get('touristsDashboardBody').innerHTML.includes('citizen-section'),'tourist sections still render');
