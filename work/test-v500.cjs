@@ -33,6 +33,20 @@ test('actual emigration retains the three-day housing quota cooldown',()=>{const
 test('filing another issue while already at the civic center invents no trip',()=>{const{c}=city();report(c);arrive(c);assert.equal(g.ensurePerformance().current.total,1);report(c,'shop');assert(!c.vehicleId);assert.equal(g.ensurePerformance().current.total,1);assert(!g.ensurePerformance().current.reportFailed);});
 test('mission report treats late trips as failures and manual opens with civic service hours',()=>{const{c}=city();result(c,'late','late');const html=g.missionReportMarkup();assert(html.includes('ภารกิจไม่สำเร็จ'));assert.doesNotThrow(()=>node('help').onclick());});
 test('repeated 5.0 reloads retain tomorrow plans and one start event',()=>{const{c}=city();g.scheduleDay(c,1);const expected=JSON.stringify(c.lifePlans[1]);for(let i=0;i<3;i++){assert(g.loadGame(true,null,g.snapshot()));const loaded=g.state.citizens.get(c.id);assert.equal(JSON.stringify(loaded.lifePlans[1]),expected);assert.equal(g.state.events.filter(e=>e.citizenId===c.id&&e.day===1&&e.action==='lifeStart').length,1);}});
+test('two civic tiers 5 and 20 spaces',()=>{
+ const t=g.CATALOG,items=g.dockItems('civic').map(x=>x.key);
+ assert.equal(JSON.stringify(items),JSON.stringify(['civic_starter','civic_small']));
+ assert.deepEqual([t.civic_starter.parkingCapacity,t.civic_starter.plotWidth,t.civic_starter.plotHeight],[5,3,3]);
+ assert.deepEqual([t.civic_small.parkingCapacity,t.civic_small.plotWidth,t.civic_small.plotHeight],[20,8,8]);
+});
+test('old 60-space stations remain loadable without losing their plots',()=>{
+ const {civic}=city(),save=JSON.parse(g.snapshot()),b=save.buildings.find(([id])=>id===civic.id)[1];
+ b.y=135;b.parkingSlots=Array(60).fill(null);
+ assert(g.loadGame(true,null,JSON.stringify(save)));
+ const old=g.state.buildings.get(civic.id);
+ assert.equal(old.key,'civic_legacy');assert.equal(old.parkingSlots.length,60);
+ assert.deepEqual([g.buildingBounds(old).w,g.buildingBounds(old).h],[11,13]);
+});
 assert(fs.readFileSync('index.html','utf8').includes('<small>ภารกิจ :</small>'));
 console.log(JSON.stringify({passed:true,checks},null,2));
 
