@@ -126,8 +126,8 @@ test('new-city starter village earns allowances and keeps existing preset buildi
  assert.equal(g.state.buildings.size,12);
  for(const [kind,chain] of Object.entries(g.BUILDING_CHAINS)){
   if(chain.length===1){assert.equal(quota(g,chain[0]),Infinity);continue;}
-  assert.equal(quota(g,chain[1]),kind==='home'?3:1);
-  assert.equal(quota(g,chain[2]),0);assert.equal(quota(g,chain[3]),0);
+  assert.equal(quota(g,chain[1]),kind==='civic'?0:kind==='home'?3:1);
+  for(const key of chain.slice(2))assert.equal(quota(g,key),0);
  }
 });
 console.log(JSON.stringify(results,null,2));if(results.some(r=>!r.passed))process.exitCode=1;

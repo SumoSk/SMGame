@@ -1746,11 +1746,11 @@ export class TrafficRenderer{
   if(t.kind==='civic'){
    // All five wings sit inside the building zone; the front cross-aisle stays driveable.
    const compact=!!t.compactCottage;
-   const siteBack=compact?.08:t.parkingZoneDepth+.06;
+   const siteBack=compact?.16:t.parkingZoneDepth+.06;
    const siteFront=compact?1.28:(t.frontageV??t.plotHeight-.57)-.43;
    const depth=siteFront-siteBack,cx=W/2,cz=(siteBack+siteFront)/2;
    const radiusX=compact?1.14:Math.min(W*.38,(W-1.85)/2);
-   const radiusZ=compact?.50:depth*.47;
+   const radiusZ=compact?.45:depth*.47;
    const wall=compact?.30:.56,height=compact?1.17:1.52;
    const wallY=.27+height/2,roofY=.27+height+.08;
    block('#d2d8d4',cx,.105,cz,W-.16,.16,depth-.015,'stone');
