@@ -1,4 +1,4 @@
-name: SMCITY 5.0 rules
+name: SMCITY 5.1 rules
 on:
   push:
     branches: [version-5.0, main]
@@ -16,6 +16,7 @@ jobs:
       - run: node --check dist/game.js && node --check dist/renderer3d.js
       - run: node -r ./work/test-dom-compat.cjs work/test-travel-happiness.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mission-dashboard.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-city-level-51.cjs
       - run: node work/test-v500-parking-cost.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-v500.cjs
       - run: node work/test-city-notice.cjs
