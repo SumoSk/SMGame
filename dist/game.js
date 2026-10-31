@@ -2981,6 +2981,23 @@ const DECOR_KINDS=[
  ['temple_bodhi','ต้นโพธิ์','🌳'],
  ['landmark_city_gate','ประตูเมืองไทย','🏯'],['landmark_clocktower','หอนาฬิกาไทย','🕰️'],['landmark_monument','อนุสาวรีย์','🗿'],
  ['landmark_spirit_house','ศาลพระภูมิ','🏡'],['landmark_welcome_sign','ป้ายยินดีต้อนรับ','🪧'],
+
+ // New themed decoration set: all are static, collision-free scene props.
+ ['thai_canvas_awning','ผ้าใบบังแดดร้าน','⛱️'],['thai_cold_display','ตู้แช่เครื่องดื่ม','🧊'],['thai_icebox','ลังน้ำแข็ง','🧊'],
+ ['thai_vegetable_baskets','เข่งผักและผลไม้','🥬'],['thai_drink_crates','ลังน้ำดื่ม','🥤'],['thai_motorbike','มอเตอร์ไซค์จอด','🛵'],
+ ['thai_metal_table','โต๊ะเหล็กร้านอาหาร','🍽️'],['thai_plastic_chair','เก้าอี้พลาสติก','🪑'],
+ ['industrial_forklift','โฟล์กลิฟต์จอด','🏗️'],['industrial_cone','กรวยจราจร','🚧'],['industrial_barrier','แบริเออร์โรงงาน','🚧'],
+ ['industrial_zone_sign','ป้ายเขตโรงงาน','🪧'],['industrial_floodlight','ไฟสนามโรงงาน','💡'],['industrial_wrapped_pallet','พาเลทคลุมสินค้า','📦'],
+ ['industrial_crates','ลังสินค้ากองซ้อน','📦'],['industrial_generator','เครื่องปั่นไฟ','⚙️'],
+ ['temple_incense','กระถางธูป','🪔'],['temple_candles','เชิงเทียน','🕯️'],['temple_donation_box','ตู้บริจาค','💝'],
+ ['temple_hanging_bell','ระฆังแขวน','🔔'],['temple_wall','กำแพงวัดไทย','🧱'],['temple_lantern','โคมวัด','🏮'],
+ ['temple_naga','นาคประดับบันได','🐉'],['temple_shrine','ศาลาวัดเล็ก','🛕'],
+ ['street_bus_stop','ป้ายรถเมล์พร้อมหลังคา','🚏'],['street_bench','ม้านั่งริมถนน','🪑'],['street_soi_sign','ป้ายซอย','🪧'],
+ ['street_median_planter','กระบะต้นไม้เกาะกลาง','🌿'],['street_bollard_strip','แท่งกันรถเรียงแถว','🚧'],['street_vine_arch','ซุ้มไม้เลื้อย','🌿'],
+ ['street_folding_barrier','แผงกั้นถนน','🚧'],['street_lightbox','กล่องไฟโฆษณา','💡'],
+ ['nature_bush_pine','สนพุ่ม','🌲'],['nature_bush_banyan','ไทรพุ่ม','🌳'],['nature_thai_flower','พุ่มไม้ดอกไทย','🌺'],
+ ['nature_lotus_bowl','บัวในอ่าง','🪷'],['nature_square_fountain','น้ำพุสี่เหลี่ยม','⛲'],['nature_zen_rocks','สวนหินขนาดเล็ก','🪨'],
+ ['nature_park_cluster','สวนหย่อมสำเร็จรูป','🌱'],['nature_short_hedge','รั้วพุ่มไม้เตี้ย','🌿'],
 ].map(([key,name,icon])=>({key,name,icon}));
 // Presentation-only groups. All existing decoration keys and save records remain unchanged.
 const LANDSCAPE_GROUPS=[
@@ -2991,14 +3008,15 @@ const LANDSCAPE_GROUPS=[
  {key:'water',name:'บ่อน้ำและน้ำตก',icon:'💧',keys:['fountain','pond','pond_lotus','pond_reeds','waterfall','stream']},
  {key:'stone',name:'หินและสวนกรวด',icon:'🪨',keys:['rock_cluster','pebble_bed','rock_moss','rock_tall','rock_stack','sand_garden']},
  {key:'paths',name:'พื้นทางเดินและรั้ว',icon:'🧱',keys:['fence_white','fence_wood','fence_iron','gate','wood_deck','stone_path','tiles']},
- {key:'street',name:'อุปกรณ์ริมถนน',icon:'🚏',keys:['trash','mailbox','bollard','flag','signpost']},
+ {key:'street',name:'อุปกรณ์ริมถนน',icon:'🚏',keys:['trash','mailbox','bollard','flag','signpost','street_bus_stop','street_bench','street_soi_sign','street_median_planter','street_bollard_strip','street_vine_arch','street_folding_barrier','street_lightbox']},
  {key:'lights',name:'โคมไฟ',icon:'💡',keys:['street_lamp','garden_lamp']},
  {key:'art',name:'งานศิลป์และรูปปั้น',icon:'🗿',keys:['statue','crystal','abstract_orbit','abstract_obelisk']},
- {key:'thai_street',name:'ร้านค้าไทย',icon:'🏪',keys:['thai_grocery','thai_food_cart','thai_noodle_shop','thai_coffee_shop','thai_fruit_stall','thai_market_tables']},
- {key:'thai_factory',name:'เขตโรงงาน',icon:'🏭',keys:['industrial_container','industrial_pallets','industrial_drums','industrial_guardhouse','industrial_loading_dock','industrial_fence']},
- {key:'thai_temple',name:'วัดไทย',icon:'🛕',keys:['temple_gate','temple_ubosot','temple_chedi','temple_sala','temple_bell_tower','temple_guardians','temple_bodhi']},
+ {key:'thai_street',name:'ร้านค้าไทย',icon:'🏪',keys:['thai_grocery','thai_food_cart','thai_noodle_shop','thai_coffee_shop','thai_fruit_stall','thai_market_tables','thai_canvas_awning','thai_cold_display','thai_icebox','thai_vegetable_baskets','thai_drink_crates','thai_motorbike','thai_metal_table','thai_plastic_chair']},
+ {key:'thai_factory',name:'เขตโรงงาน',icon:'🏭',keys:['industrial_container','industrial_pallets','industrial_drums','industrial_guardhouse','industrial_loading_dock','industrial_fence','industrial_forklift','industrial_cone','industrial_barrier','industrial_zone_sign','industrial_floodlight','industrial_wrapped_pallet','industrial_crates','industrial_generator']},
+ {key:'thai_temple',name:'วัดไทย',icon:'🛕',keys:['temple_gate','temple_ubosot','temple_chedi','temple_sala','temple_bell_tower','temple_guardians','temple_bodhi','temple_incense','temple_candles','temple_donation_box','temple_hanging_bell','temple_wall','temple_lantern','temple_naga','temple_shrine']},
  {key:'thai_landmark',name:'แลนด์มาร์กไทย',icon:'🏯',keys:['landmark_city_gate','landmark_clocktower','landmark_monument','landmark_spirit_house','landmark_welcome_sign']},
- {key:'manage',name:'จัดวางและลบ',icon:'✋',keys:['landscapeSelect','treeRow','treeBrush','eraseTree']}
+ {key:'nature_sets',name:'สวนและธรรมชาติ',icon:'🌱',keys:['nature_bush_pine','nature_bush_banyan','nature_thai_flower','nature_lotus_bowl','nature_square_fountain','nature_zen_rocks','nature_park_cluster','nature_short_hedge']},
+ {key:'manage',name:'จัดวางและลบ',icon:'✋',keys:['landscapeSelect','treeRow','treeBrush','eraseTree','snapDecor']}
 ];
 function landscapeGroupForTool(t){
  const key=t.startsWith('tree:')?t.slice(5):t;
