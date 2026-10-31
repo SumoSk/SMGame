@@ -3,7 +3,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
 const prefix=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
 const {game:g,get}=new Function('require',prefix+'return boot();')(require);
 g.reset();const cash=g.state.money,quota=JSON.stringify(g.state.buildingQuota);
-assert.equal(g.DECOR_KINDS.length,80);
+assert.equal(g.DECOR_KINDS.length,120);
 for(let i=0;i<g.DECOR_KINDS.length;i++){
  const type=g.DECOR_KINDS[i];assert(g.plantLandscape(180+i%8*3,180+Math.floor(i/8)*3,type.key));
  g.selectTool('tree:'+type.key); // All kinds must also keep row/brush labels valid.
@@ -77,5 +77,5 @@ assert.equal(JSON.stringify(g.state.plantedTrees),beforeMigration,'remove only r
  assert([...r.landscapePicks.values()].some(v=>v.item),'manual props are selectable');
  assert([...r.landscapePicks.values()].some(v=>v.auto),'automatic trees are selectable');
  for(const mesh of r.treeGroup.children[0].children)assert(mesh.userData.ids.every(id=>id==null||r.landscapePicks.has(id)));
- console.log('PASS: 80 decorations × 4 rotations; 24 Thai models at 35% scale, ornate ceramic roofs, near/far detail LOD, selection and save roundtrip ('+farCount+'/'+nearCount+' distant/near instances)');
+ console.log('PASS: 120 decorations × 4 rotations; 24 Thai models at 35% scale, ornate ceramic roofs, near/far detail LOD, selection and save roundtrip ('+farCount+'/'+nearCount+' distant/near instances)');
 })().catch(e=>{console.error(e);process.exitCode=1;});
