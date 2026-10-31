@@ -1,3 +1,4 @@
+require('./test-renderer-dom-stub.cjs');
 // Shared browser API defaults for older VM fixtures; never loaded by the game.
 const vm=require('node:vm'),run=vm.runInContext;
 vm.runInContext=function(code,context,...args){
@@ -11,3 +12,4 @@ vm.runInContext=function(code,context,...args){
  }
  return run.call(this,code,context,...args);
 };
+

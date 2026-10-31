@@ -41,9 +41,9 @@
       add('need:'+kind,'ตรวจพบ'+label+'ขาดแคลน',70 + Math.min(20,Math.abs(missing)/10),cooldown.need,categoryFor[kind] ? 'category:'+categoryFor[kind] : null);
     }
     if (population > 0 && happy < 70) {
-      add('happiness:70','ความสุขต่ำกว่า 70% ประชาชนใหม่หยุดย้ายเข้า',100,cooldown.happiness,'happiness');
+      add('happiness:70','Performanceต่ำกว่า 70% ประชาชนใหม่หยุดย้ายเข้า',100,cooldown.happiness,'happiness');
     } else if (population > 0 && happy < 80) {
-      add('happiness:80','ความสุขต่ำกว่า 80% นักท่องเที่ยวหยุดเข้าเมือง',95,cooldown.happiness,'happiness');
+      add('happiness:80','Performanceต่ำกว่า 80% นักท่องเที่ยวหยุดเข้าเมือง',95,cooldown.happiness,'happiness');
     }
     // Traffic is deliberately infrequent; the existing flow KPI owns its calculations.
     if (population >= 15 && flow < 65) {

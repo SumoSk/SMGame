@@ -17,11 +17,11 @@ jobs:
         with:
           node-version: '22'
       - run: node --check dist/game.js
-      - run: node work/test-building-quota.cjs
-      - run: node work/test-cloud-save-adapter.cjs
-      - run: node work/test-save-status.cjs
-      - run: node work/test-free-decoration.cjs
-      - run: node work/test-decoration-editing.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-building-quota.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-cloud-save-adapter.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-save-status.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-free-decoration.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-decoration-editing.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-saves.cjs
   test:
     runs-on: ubuntu-latest
@@ -36,10 +36,10 @@ jobs:
       - run: node --check dist/renderer3d.js
       - run: node -r ./work/test-dom-compat.cjs work/test-orange-factories.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-factory-night-effects.cjs
-      - run: node work/test-night-delivery.cjs
-      - run: node work/test-intercity-roadtrain.cjs
-      - run: node work/test-roadtrain-low-poly.cjs
-      - run: node work/test-tourist-taxi-model.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-night-delivery.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-intercity-roadtrain.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-roadtrain-low-poly.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-tourist-taxi-model.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mission-dashboard.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-travel-log.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-landscaping.cjs
@@ -86,7 +86,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node work/test-dev-quick-login.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-dev-quick-login.cjs
       - run: npm run build
       - run: node --check dist/game.js
       - run: node --check dist/renderer3d.js
@@ -125,9 +125,25 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-bug-capture-toggle.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-vehicle-block-trace.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
-      - run: node work/test-performance.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-performance.cjs
+  mission-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node -r ./work/test-dom-compat.cjs work/test-v500.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-v500-parking-cost.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-v500-civic-model.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-travel-happiness.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-mission-dashboard.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-emigration-40.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-saves.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-green-light-release.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-flight-traffic-layer.cjs
   publish:
-    needs: [building-quota, new-building-models, lane-change-safety]
+    needs: [building-quota, new-building-models, lane-change-safety, mission-rules]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -165,3 +181,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds"
+
