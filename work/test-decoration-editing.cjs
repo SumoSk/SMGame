@@ -3,7 +3,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
 const prefix=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
 const {game:g,get}=new Function('require',prefix+'return boot();')(require);
 g.reset();const cash=g.state.money,quota=JSON.stringify(g.state.buildingQuota);
-assert.equal(g.DECOR_KINDS.length,56);
+assert.equal(g.DECOR_KINDS.length,80);
 for(let i=0;i<g.DECOR_KINDS.length;i++){
  const type=g.DECOR_KINDS[i];assert(g.plantLandscape(180+i%8*3,180+Math.floor(i/8)*3,type.key));
  g.selectTool('tree:'+type.key); // All kinds must also keep row/brush labels valid.
@@ -52,5 +52,5 @@ assert.equal(JSON.stringify(g.state.plantedTrees),beforeMigration,'remove only r
  assert([...r.landscapePicks.values()].some(v=>v.item),'manual props are selectable');
  assert([...r.landscapePicks.values()].some(v=>v.auto),'automatic trees are selectable');
  for(const mesh of r.treeGroup.children[0].children)assert(mesh.userData.ids.every(id=>id==null||r.landscapePicks.has(id)));
- console.log('PASS: 56 decoration models × 4 rotations, selectable trees/props, move/delete controls, auto-tree edits, and save roundtrip');
+ console.log('PASS: 80 decoration models × 4 rotations (including 24 Thai landmarks), selectable trees/props, move/delete controls, auto-tree edits, and save roundtrip');
 })().catch(e=>{console.error(e);process.exitCode=1;});
