@@ -21,8 +21,9 @@ const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+deco
   });
   assert(bounds.dashboard&&bounds.deck&&bounds.rail&&bounds.level&&bounds.ai,'HUD exists at '+width+'px');
   assert(bounds.level.width>70&&bounds.ai.width>34,'level and AI controls remain tappable at '+width+'px');
-  assert(bounds.rail.top>=-2&&bounds.level.left>=-2&&bounds.ai.right<=width+2,'level rail stays on screen at '+width+'px: '+JSON.stringify(bounds));
-  assert(bounds.rail.bottom<=bounds.deck.top+2,'level rail must not steal height from population stats at '+width+'px');
+  assert(bounds.rail.top>=-2&&bounds.rail.top<=70&&bounds.rail.left>=-2&&bounds.rail.left<=25&&bounds.rail.width<=200&&bounds.rail.right<=width-2,'compact level widget must be in the top-left viewport at '+width+'px: '+JSON.stringify(bounds));
+  assert(bounds.rail.bottom<=bounds.deck.top+2,'level widget must not cover the restored bottom toolbar at '+width+'px');
+  assert(await page.evaluate(()=>!document.querySelector('.bottom .city-level-strip')),'level widget must not be inside the 5.0 toolbar');
   assert(bounds.population&&bounds.population.width>13&&bounds.population.top>=bounds.dashboard.top-1&&bounds.population.bottom<=bounds.dashboard.bottom+2,'population remains visible at '+width+'px: '+JSON.stringify(bounds));
   assert(bounds.progress?.text?.includes('/'),'level progress must show the next population threshold');
   if(width<=390){
