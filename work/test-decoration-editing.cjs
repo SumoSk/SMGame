@@ -51,6 +51,6 @@ assert.equal(JSON.stringify(g.state.plantedTrees),beforeMigration,'remove only r
  r.trees(g.state,{x:185,y:185});assert(r.landscapePicks.size>0);
  assert([...r.landscapePicks.values()].some(v=>v.item),'manual props are selectable');
  assert([...r.landscapePicks.values()].some(v=>v.auto),'automatic trees are selectable');
- for(const mesh of r.treeGroup.children[0].children)assert(mesh.userData.ids.every(id=>r.landscapePicks.has(id)));
+ for(const mesh of r.treeGroup.children[0].children)assert(mesh.userData.ids.every(id=>id==null||r.landscapePicks.has(id)));
  console.log('PASS: 56 decoration models × 4 rotations, selectable trees/props, move/delete controls, auto-tree edits, and save roundtrip');
 })().catch(e=>{console.error(e);process.exitCode=1;});

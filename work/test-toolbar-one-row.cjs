@@ -31,5 +31,5 @@ assert(segment.includes('aria-label="ข้ามไปเช้าวันใ�
 assert(segment.indexOf('id="day"')<segment.indexOf('id="clock"')&&segment.indexOf('id="clock"')<segment.indexOf('id="pause"'),'calendar, time and speed must appear in order');
 assert(segment.indexOf('id="pause"')<segment.indexOf('id="toggleBuildingLabels"')&&segment.indexOf('id="toggleBuildingLabels"')<segment.indexOf('id="toggleDock"'),'toggle buttons follow speed in the same header');
 assert(game.includes("innerWidth<=500?['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.']"),'day label must abbreviate on narrow phones');
-for(const selector of ['data-dock-group','id="categories"','id="subcategories"','id="tools"'])assert(page.includes(selector)||game.includes(selector),'retain new category dock: '+selector);
+for(const selector of ['data-category','id="categories"','id="subcategories"','id="tools"'])assert(page.includes(selector)||game.includes(selector),'retain new category dock: '+selector);
 console.log(JSON.stringify({passed:true,oneHeaderRow:true,ipad:true,phone:true,controlsPreserved:true}));

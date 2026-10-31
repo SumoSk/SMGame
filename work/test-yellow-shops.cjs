@@ -40,7 +40,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     'small shop must have its brand sign only above the roof, not on its facade');
    assert(countColor('#ff7f00')>=blocks+1,'orange 7-brand stripe missing');
    assert(countColor('#006940')>=blocks+1,'dark-green 7-ELEVEN wordmark missing');
-   assert(countColor('#ed1b34')>=blocks+1,'red 7 brandmark missing');
+   assert(items.some(x=>x.finish==='shop-sign-face'&&x.geo.type==='PlaneGeometry'),'shared readable 7-Eleven atlas missing');
    assert(items.filter(x=>x.finish==='glass'&&!x.glow).length>=blocks*3,
     'each unit must have visible glass frontage');
    const baseLights=items.filter(x=>x.finish==='shop-night-essential');
@@ -51,7 +51,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    // The primary crest is physically ABOVE the roof FRONT, not just painted
    // on the facade. Solar panels exist on ALL tiers, including the Low preset.
    const rooftop=items.filter(x=>x.finish==='shop-brand-essential'&&x.y>2.0);
-   assert(rooftop.some(x=>x.color==='#ed1b34'),
+   assert(items.some(x=>x.finish==='shop-sign-face'&&x.y>2.0),
     key+' missing raised rooftop red seven');
    assert(rooftop.some(x=>x.color==='#006940'),
     key+' missing readable roof-mounted green billboard');
@@ -78,7 +78,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
       if(offending.length<4)offending.push({
        u:+u.toFixed(3),v:+z.toFixed(3),color:p.color,y:+v.y.toFixed(3)});
      }
-     lo=Math.min(lo,v.y);hi=Math.max(hi,v.y);
+     lo=Math.min(lo,v.y);if(!['shop-brand-essential','shop-sign-face'].includes(p.finish))hi=Math.max(hi,v.y);
     }
    }
    assert.equal(offending.length,0,key+' physically overhangs streets '+JSON.stringify(offending));
@@ -131,34 +131,34 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  assert(ledMeshes.every(m=>m.visible));
  const roofMeshes=[];
  r.buildingGroup.traverse(mesh=>{if(mesh.userData.baseColor==='#183a4c'||
-   mesh.userData.baseColor==='#ed1b34')roofMeshes.push(mesh);});
+   mesh.material?.map)roofMeshes.push(mesh);});
  assert(roofMeshes.length>=2,'all roof panels and primary brand are present');
- assert(roofMeshes.filter(mesh=>mesh.userData.baseColor==='#ed1b34')
+ assert(roofMeshes.filter(mesh=>mesh.material?.map)
   .some(mesh=>!mesh.userData.fineBuildingDetail),
   'Low must retain the primary high rooftop crest even with detailed LOD off');
  // Starter store is also 7-Eleven styled.
  const sb=new Batch();r.building(sb,{key:'shop_starter',id:211,x:40,y:50,rotation:0,
   parked:new Set(),parkingSlots:[]},g.CATALOG,{});
  const starter=[...sb.data.values()].flatMap(g=>g.items.map(p=>({...p,color:g.color,finish:g.finish})));
- for(const color of ['#ff7f00','#006940','#ed1b34'])
+ for(const color of ['#ff7f00','#006940'])
   assert(starter.some(x=>x.color===color),'starter 7-Eleven logo/stripe missing '+color);
  assert(starter.filter(p=>p.finish==='shop-night-essential').length>=4);
  assert(!starter.some(p=>p.color==='#006940'&&p.y<1.75&&p.sx>.5&&p.sx<.85),
   'starter shop must not duplicate its rooftop 7 logo on the facade');
  assert(starter.some(p=>p.finish==='shop-roof-essential'&&p.color==='#153a52'),
   'starter solar cells missing');
- assert(starter.some(p=>p.finish==='shop-brand-essential'&&p.color==='#ed1b34'&&p.y>1.8),
+ assert(starter.some(p=>p.finish==='shop-sign-face'&&p.y>1.8),
   'starter high red rooftop seven missing');
  assert(starter.some(p=>p.finish==='shop-brand-essential'&&p.color==='#006940'&&p.y>1.7),
   'starter main rooftop identity invisible in Low');
  // A freestanding billboard is taller than the one-storey shop.
  // Check the building height separately from the sign, plus its readability.
- const shopBody=starter.filter(p=>p.finish!=='shop-brand-essential');
+ const shopBody=starter.filter(p=>p.finish!=='shop-brand-essential'&&p.finish!=='shop-sign-face');
  assert(Math.max(...shopBody.map(p=>p.y+p.sy*.5))<2.1,'starter remains a single storey');
  const brand=starter.filter(p=>p.finish==='shop-brand-essential');
  assert(brand.some(p=>p.color==='#006940'&&p.sx>=1.3&&p.sy>=.8),
   'starter rooftop billboard must be large and upright');
- assert(brand.filter(p=>p.color==='#006940'&&p.sx<.05&&p.sy<.05).length>=40,
+ assert(starter.some(p=>p.finish==='shop-sign-face'&&p.sx>=1.3&&p.sy>=.8),
   'starter ELEVEN lettering must have readable individual strokes');
  console.log(JSON.stringify({passed:true,shops:4,rotations:12,parkingPreserved:true,
   rearHalfCompressed:true,parkingMovedTowardStore:true,

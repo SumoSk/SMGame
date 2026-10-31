@@ -126,8 +126,24 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-vehicle-block-trace.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-traffic-fixes.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-performance.cjs
+  mission-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node -r ./work/test-dom-compat.cjs work/test-v500.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-v500-parking-cost.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-v500-civic-model.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-travel-happiness.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-mission-dashboard.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-emigration-40.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-saves.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-green-light-release.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-flight-traffic-layer.cjs
   publish:
-    needs: [building-quota, new-building-models, lane-change-safety]
+    needs: [building-quota, new-building-models, lane-change-safety, mission-rules]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
