@@ -7087,6 +7087,220 @@ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
  #dialog .sm-level-chest,#dialog .sm-level-prize{animation:none!important}
  body>.bottom .city-level-track i{transition:none!important}
 }
+
+
+/* SMCITY 5.1 UX cleanup (2026-11-01):
+   The level rail is a sibling of the control deck, NEVER a third row inside
+   the height-limited population dashboard. Preserve the previous metric height. */
+body>.bottom>.city-level-strip{
+ display:grid!important;position:relative!important;z-index:2!important;
+ grid-column:auto!important;grid-row:auto!important;
+ grid-template-columns:minmax(0,1fr) auto!important;
+ width:min(472px,calc(100% - 16px))!important;max-width:calc(100% - 16px)!important;
+ height:42px!important;min-height:42px!important;max-height:42px!important;
+ margin:0 auto 6px!important;padding:0!important;
+ gap:7px!important;align-items:stretch!important;
+ pointer-events:auto!important;isolation:isolate!important;
+}
+body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+ grid-template-rows:26px minmax(0,1fr)!important;
+}
+body>.bottom>.city-level-strip .city-level-button{
+ display:flex!important;gap:8px!important;min-width:0!important;max-width:100%!important;
+ padding:6px 10px!important;align-items:center!important;
+ border-radius:11px!important;box-shadow:0 3px 12px #122e2230!important;
+}
+body>.bottom>.city-level-strip .city-level-emblem{
+ font-size:10px!important;padding:4px 8px!important;flex:none!important;
+}
+body>.bottom>.city-level-strip .city-level-emblem strong{font-size:16px!important}
+body>.bottom>.city-level-strip .city-level-detail{
+ min-width:0!important;flex:1 1 auto!important;gap:4px!important;
+}
+body>.bottom>.city-level-strip .city-level-progress-head{gap:5px!important}
+body>.bottom>.city-level-strip .city-level-progress-head b{
+ display:block!important;min-width:0!important;font-size:11px!important;
+ line-height:1.2!important;white-space:nowrap!important;font-variant-numeric:tabular-nums!important;
+}
+body>.bottom>.city-level-strip .city-level-progress-head small{
+ font-size:9px!important;line-height:1.2!important;white-space:nowrap!important;
+}
+body>.bottom>.city-level-strip .city-crate-badge{
+ flex:none!important;font-size:11px!important;padding:5px 8px!important;
+}
+body>.bottom>.city-level-strip .city-ai-quota-button{
+ min-width:72px!important;gap:5px!important;padding:5px 10px!important;
+ border-radius:11px!important;box-shadow:0 3px 12px #122e2230!important;
+}
+body>.bottom>.city-level-strip .city-ai-quota-button b{font-size:14px!important}
+body>.bottom>.city-level-strip .city-ai-quota-button small{font-size:9px!important}
+body>.bottom>.city-level-strip button:focus-visible{outline:2px solid #d6ae54!important;outline-offset:2px!important}
+@media(min-width:721px) and (max-width:920px){
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+  grid-template-rows:29px minmax(0,1fr)!important;
+ }
+}
+@media(max-width:720px){
+ body>.bottom>.city-level-strip{
+  width:calc(100% - 8px)!important;max-width:calc(100% - 8px)!important;
+  height:39px!important;min-height:39px!important;max-height:39px!important;
+  margin-bottom:5px!important;gap:5px!important;
+ }
+ body>.bottom>.city-level-strip .city-level-button{gap:5px!important;padding:4px 6px!important}
+ body>.bottom>.city-level-strip .city-level-emblem{font-size:9px!important;padding:4px 5px!important}
+ body>.bottom>.city-level-strip .city-level-emblem strong{font-size:13px!important}
+ body>.bottom>.city-level-strip .city-level-progress-head b{font-size:10px!important}
+ body>.bottom>.city-level-strip .city-level-progress-head small{font-size:8px!important}
+ body>.bottom>.city-level-strip .city-crate-badge{font-size:10px!important;padding:4px 5px!important}
+ body>.bottom>.city-level-strip .city-ai-quota-button{min-width:62px!important;padding:4px 6px!important}
+ body>.bottom>.city-level-strip .city-ai-quota-button>span:first-child{font-size:16px!important;display:block!important}
+ body>.bottom>.city-level-strip .city-ai-quota-button b{font-size:12px!important}
+ body>.bottom>.city-level-strip .city-ai-quota-button small{font-size:8px!important}
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+  grid-template-rows:19px minmax(0,1fr)!important;
+ }
+ /* Put a legible label ABOVE the number instead of squeezing five inline
+    label+delta pairs into a single ~9px tall column of the old 5-row grid. */
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .stats.dashboard-stats{
+  display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  height:100%!important;min-height:0!important;max-height:100%!important;
+  gap:3px!important;align-items:stretch!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .stats.dashboard-stats .city-metric,
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .stats.dashboard-stats .city-metric.metric-money{
+  grid-column:auto!important;grid-row:1!important;
+  display:flex!important;flex-direction:column!important;
+  align-items:center!important;justify-content:center!important;
+  min-width:0!important;min-height:0!important;height:100%!important;
+  padding:2px 1px!important;gap:1px!important;overflow:hidden!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .city-metric .metric-text,
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .city-metric:not(.metric-money) .metric-text{
+  display:flex!important;flex-direction:column!important;
+  flex:0 1 auto!important;align-items:center!important;justify-content:center!important;
+  text-align:center!important;gap:1px!important;min-width:0!important;
+  max-width:100%!important;white-space:normal!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .city-metric .metric-text>small,
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .city-metric:not(.metric-money) .metric-text>small{
+  display:block!important;flex:none!important;font-size:8.5px!important;
+  font-weight:650!important;line-height:1.12!important;white-space:nowrap!important;
+  max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .city-metric .metric-text>strong,
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .city-metric:not(.metric-money) .metric-text>strong{
+  display:block!important;flex:none!important;font-size:12px!important;
+  font-weight:850!important;line-height:1.16!important;white-space:nowrap!important;
+  min-width:0!important;max-width:100%!important;
+  overflow:hidden!important;text-overflow:ellipsis!important;
+  font-variant-numeric:tabular-nums!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .metric-money .metric-text>strong{
+  font-size:11px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .city-metric .metric-delta{
+  font-size:8px!important;line-height:1!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .city-metric .metric-icon{
+  display:none!important;
+ }
+}
+@media(max-width:370px){
+ body>.bottom>.city-level-strip .city-level-button{gap:3px!important;padding:3px 5px!important}
+ body>.bottom>.city-level-strip .city-level-emblem{gap:2px!important;padding:3px 4px!important}
+ body>.bottom>.city-level-strip .city-level-progress-head small{display:none!important}
+ body>.bottom>.city-level-strip .city-level-progress-head b{font-size:10px!important}
+ body>.bottom>.city-level-strip .city-crate-badge{font-size:9px!important;padding:3px 4px!important}
+ body>.bottom>.city-level-strip .city-ai-quota-button{min-width:55px!important;padding:3px 4px!important}
+ body>.bottom>.city-level-strip .city-ai-quota-button>span:first-child{display:none!important}
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .stats.dashboard-stats{
+  gap:2px!important;
+ }
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard .city-metric .metric-text>small{
+  font-size:8px!important;
+ }
+}
+@media(max-width:720px) and (orientation:landscape) and (max-height:500px){
+ body>.bottom>.city-level-strip{
+  height:32px!important;min-height:32px!important;max-height:32px!important;
+  margin-bottom:4px!important;
+ }
+ body>.bottom>.city-level-strip .city-level-track{height:3px!important}
+ body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+  grid-template-rows:19px minmax(0,1fr)!important;
+ }
+}
+
+/* City reward dialogs use their own viewport-relative centering. The generic
+   #dialog:not(.construction-confirm) positions dialogs ~63px from the left,
+   which otherwise pushes the 490px reward chest past the right screen edge. */
+#dialog:has(.sm-level-reward)[open]{
+ box-sizing:border-box!important;position:fixed!important;
+ inset:0!important;top:0!important;right:0!important;bottom:0!important;left:0!important;
+ margin:auto!important;transform:none!important;zoom:1!important;
+ min-width:0!important;
+ width:min(490px,calc(100vw - 24px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)))!important;
+ max-width:calc(100vw - 24px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+ max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+ padding:0!important;overflow-x:hidden!important;overflow-y:auto!important;
+ border-radius:16px!important;overscroll-behavior:contain!important;
+ -webkit-overflow-scrolling:touch;
+}
+#dialog:has(.sm-level-reward)>#dialogContent{
+ box-sizing:border-box!important;display:block!important;
+ width:100%!important;min-width:0!important;max-width:100%!important;
+ padding:0!important;margin:0!important;overflow-x:hidden!important;
+}
+#dialog .sm-level-reward{
+ box-sizing:border-box!important;width:100%!important;min-width:0!important;
+ max-width:100%!important;overflow-x:hidden!important;
+ padding:30px 22px 23px!important;
+}
+#dialog .sm-level-reward :is(h2,p,.sm-level-result-value,.sm-level-odds){
+ max-width:100%!important;overflow-wrap:anywhere!important;white-space:normal!important;
+}
+#dialog .sm-level-reward-foot{min-width:0!important;max-width:100%!important;flex-wrap:wrap!important;gap:7px!important}
+#dialog .sm-level-reward-foot>span{flex:1 1 120px!important;min-width:0!important;overflow-wrap:anywhere!important;text-align:center!important}
+#dialog .sm-level-reward-list{min-width:0!important;max-width:100%!important;gap:6px!important}
+#dialog .sm-level-reward-list span{
+ box-sizing:border-box!important;min-width:0!important;max-width:100%!important;
+ white-space:normal!important;overflow-wrap:anywhere!important;
+}
+#dialog .sm-level-actions{max-width:100%!important;min-width:0!important}
+#dialog .sm-level-actions button{
+ display:block!important;width:100%!important;max-width:100%!important;
+ white-space:normal!important;overflow-wrap:anywhere!important;
+}
+#dialog:has(.sm-level-reward)>.dialog-close-top{
+ position:absolute!important;top:8px!important;right:8px!important;z-index:10!important;
+ width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;
+ background:#eef4ed!important;color:#24483f!important;border-color:#d1e0d4!important;
+}
+@media(max-width:520px){
+ #dialog .sm-level-reward{padding:28px 14px 16px!important}
+ #dialog .sm-level-kicker{font-size:10px!important;letter-spacing:1px!important;padding-right:28px!important;text-align:left!important}
+ #dialog .sm-level-chest,#dialog .sm-level-prize{
+  width:104px!important;height:104px!important;margin:15px auto 11px!important;
+  font-size:52px!important;
+ }
+ #dialog .sm-level-reward h2{font-size:20px!important;line-height:1.35!important}
+ #dialog .sm-level-result-value{font-size:24px!important}
+ #dialog .sm-level-reward p{font-size:11px!important;line-height:1.6!important}
+ #dialog .sm-level-reward-foot{padding:9px!important}
+ #dialog .sm-level-reward-list{margin:10px 0 6px!important}
+ #dialog .sm-level-actions{gap:7px!important;margin-top:12px!important}
+ #dialog .sm-level-actions button{min-height:42px!important}
+}
+@media(max-height:550px){
+ #dialog .sm-level-reward{padding-top:16px!important;padding-bottom:14px!important}
+ #dialog .sm-level-chest,#dialog .sm-level-prize{
+  width:74px!important;height:74px!important;
+  font-size:42px!important;margin:7px auto 7px!important;
+ }
+ #dialog .sm-level-reward h2{margin:5px 0!important}
+ #dialog .sm-level-actions{margin-top:9px!important}
+}
 </style><style id="smcity-dark-mode-v242">
 /* SMCITY v4.2 — high-contrast BLACK interface mode.
    Keep the current theme class and localStorage key so existing choices survive.
