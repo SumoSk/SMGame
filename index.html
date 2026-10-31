@@ -539,8 +539,8 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
    selected={key:'live-'+item.kind,value:'⚠️ '+item.name+' ขาด '+item.amount.toLocaleString('th-TH')+' คน — '+(actions[item.kind]||'เพิ่มอาคาร')};
   }
   if(!selected){
-   const options=tips(data),choices=options.filter(x=>x.key!==lastKey),pool=choices.length?choices:options;
-   selected=pool[tipIndex++%pool.length]||null;
+   const options=tips(data);
+   selected=options.length?options[tipIndex++%options.length]:null;
   }
   if(selected){show(selected.value);lastKey=selected.key;}
   nextMessageAt=now+13000;
