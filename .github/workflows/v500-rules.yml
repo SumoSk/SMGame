@@ -44,6 +44,9 @@ jobs:
       - run: node work/test-v500-browser.cjs
         env:
           PLAYWRIGHT_MODULE: /tmp/smcity-browser/node_modules/playwright
+      - run: node work/test-game-menus-browser.cjs
+        env:
+          PLAYWRIGHT_MODULE: /tmp/smcity-browser/node_modules/playwright
       - uses: actions/upload-artifact@v4
         if: always()
         with:
