@@ -42,8 +42,11 @@ assert.equal(JSON.stringify(g.state.plantedTrees),beforeMigration,'remove only r
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
  const source=fs.readFileSync('dist/renderer3d.js','utf8').replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
  const {Renderer,Batch}=new Function('THREE',source+'return{Renderer:TrafficRenderer,Batch};')(THREE),r=Object.create(Renderer.prototype);
- const thaiKinds=g.DECOR_KINDS.filter(k=>/^(thai_|industrial_|temple_|landmark_)/.test(k.key));
- assert.equal(thaiKinds.length,24,'all new Thai decorations must be present');
+ const thaiKinds=g.DECOR_KINDS.slice(56,80);
+ assert.equal(thaiKinds.length,24,'original Thai landmark collection must remain intact');
+ const additions=g.DECOR_KINDS.slice(80);
+ assert.equal(additions.length,40,'all additional decoration models must be present');
+ assert(additions.every(k=>/^(thai_|industrial_|temple_|street_|nature_)/.test(k.key)));
  assert(source.includes('const scale=.35'),'new Thai models must be 35% of their original dimensions');
  assert(!source.includes("box('#e4bd67',u,base+.04,v,w+.18,.10,d+.18)"),'old broad temple roof crossbeam must be absent');
  assert(source.includes('roofPattern(0,0,5.20,3.52,2.58,1.05)'),'temple roof must include detailed ceramic tile motifs');
