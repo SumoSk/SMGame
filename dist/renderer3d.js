@@ -811,6 +811,10 @@ class Batch{
  const mesh=new THREE.InstancedMesh(geo,material,items.length);const isMallAppleLogo=finish==='mall-sign'&&geo.type==='ShapeGeometry';if(isMallAppleLogo){material.side=THREE.DoubleSide;material.emissive.set(color);material.emissiveIntensity=1.15;material.toneMapped=false;}if(glow&&(finish.startsWith('factory-night-')||finish.startsWith('mall-night-')||finish.startsWith('shop-night-')))mesh.renderOrder=2;mesh.castShadow=shadow&&!glow&&finish!=='shop-sign-face';mesh.receiveShadow=!glow&&finish!=='shop-sign-face';mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.mallAppleLogo=isMallAppleLogo;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark','shop-sign-face'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;mesh.userData.mallNightTier=finish.startsWith('mall-night-')?finish.slice(11):null;mesh.userData.shopNightTier=finish.startsWith('shop-night-')?finish.slice(11):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
 
+// Scale only the requested two old decoration categories: paths/fences and street furniture.
+// These keys and existing saves are unchanged; new street props share the same 50% scale.
+const COMPACT_DECORATION_KEYS=new Set(["fence_white","fence_wood","fence_iron","gate","wood_deck","stone_path","tiles","trash","mailbox","bollard","flag","signpost"]);
+const EXTRA_DECORATION_KEYS=new Set(["thai_canvas_awning","thai_cold_display","thai_icebox","thai_vegetable_baskets","thai_drink_crates","thai_motorbike","thai_metal_table","thai_plastic_chair","industrial_forklift","industrial_cone","industrial_barrier","industrial_zone_sign","industrial_floodlight","industrial_wrapped_pallet","industrial_crates","industrial_generator","temple_incense","temple_candles","temple_donation_box","temple_hanging_bell","temple_wall","temple_lantern","temple_naga","temple_shrine","street_bus_stop","street_bench","street_soi_sign","street_median_planter","street_bollard_strip","street_vine_arch","street_folding_barrier","street_lightbox","nature_bush_pine","nature_bush_banyan","nature_thai_flower","nature_lotus_bowl","nature_square_fountain","nature_zen_rocks","nature_park_cluster","nature_short_hedge"]);
 export class TrafficRenderer{
  constructor(canvas){
  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.96;
@@ -1114,6 +1118,256 @@ export class TrafficRenderer{
 
  // Thai streetscape is scenery only: shared primitive geometries, instanced by Batch.
  // No collision, traffic node, citizen schedule, upkeep or building footprint is created.
+ // Forty standalone low-poly props share the game's existing instanced geometry.
+ // Never create colliders, citizens, pathfinding nodes or individual draw calls.
+ extraDecoration(batch,x,z,kind,rotation=0,detail='near'){
+  if(!EXTRA_DECORATION_KEYS.has(kind))return false;
+  const scale=kind.startsWith('street_')?.5:kind.startsWith('nature_')?.72:.35;
+  const a=(rotation||0)*Math.PI/2,c=Math.cos(a),s=Math.sin(a),p=(u,v)=>[x+(u*c+v*s)*scale,z+(-u*s+v*c)*scale];
+  const box=(color,u,y,v,w,h,d,ry=0)=>{const q=p(u,v);batch.add(BOX,color,q[0],y*scale,q[1],w*scale,h*scale,d*scale,0,a+ry,0);};
+  const cyl=(color,u,y,v,rad,h)=>{const q=p(u,v);batch.add(CYL,color,q[0],y*scale,q[1],rad*scale,h*scale,rad*scale);};
+  const ball=(color,u,y,v,rad)=>{const q=p(u,v);batch.add(BALL,color,q[0],y*scale,q[1],rad*scale,rad*scale,rad*scale);};
+  const cone=(color,u,y,v,rad,h)=>{const q=p(u,v);batch.add(CONE,color,q[0],y*scale,q[1],rad*scale,h*scale,rad*scale,0,a,0);};
+  const leaf=(color,u,y,v,w,h,d,ang=0)=>{const q=p(u,v);batch.add(LEAF,color,q[0],y*scale,q[1],w*scale,h*scale,d*scale,0,a+ang,0);};
+  const roof=(color,u,v,w,d,base,rise)=>{const q=p(u,v);batch.add(PITCHED_ROOF,color,q[0],base*scale,q[1],w*scale,rise*scale,d*scale,0,a,0);};
+  const gold='#d2a456',cream='#e9dcc0',iron='#56636a',wood='#966b48',green='#598d60';
+  const near=detail!=='far';
+  switch(kind){
+   case 'thai_canvas_awning':
+    for(const u of[-1.2,1.2])for(const v of[-.60,.60])cyl(iron,u,1.12,v,.05,2.23);
+    roof('#df5446',0,0,2.7,1.65,2.24,.48);
+    for(let i=0;i<7;i++)box(i%2?'#f2dbb4':'#ca5146',(i-3)*.37,2.20,.82,.31,.15,.07);
+    if(near)for(const u of[-1.2,1.2])ball('#e6cf99',u,2.48,.4,.07);
+    break;
+   case 'thai_cold_display':
+    box('#dedfcf',0,.96,0,1.24,1.93,.81);box('#42657c',0,1.08,.44,1.07,1.38,.07);
+    for(const h of[.64,1.02,1.40])box('#d6e9d5',0,h,.49,.90,.045,.04);
+    if(near)for(let i=0;i<9;i++)box(['#dcb76a','#7da7a7','#da7c66'][i%3],(i%3-1)*.27,.75+Math.floor(i/3)*.32,.53,.15,.21,.07);
+    box('#eeeeef',0,.20,.43,1.10,.28,.10);break;
+   case 'thai_icebox':
+    box('#6d9eb6',0,.55,0,1.5,1.06,1.05);box('#e1e7e6',0,1.13,0,1.60,.18,1.11);
+    for(const u of[-.79,.79])box('#3a6371',u,.68,0,.07,.43,.19);
+    if(near){box('#f4f5eb',0,.62,.56,.88,.33,.05);box('#77afc5',0,.67,.60,.55,.13,.03);}
+    break;
+   case 'thai_vegetable_baskets':
+    for(const u of[-.65,0,.65]){
+     cyl(wood,u,.28,0,.31,.48);cyl('#c8ad7f',u,.50,0,.33,.06);
+     for(const v of[-.13,.15])ball(['#77a965','#d3ab53','#dc7865'][Math.round((u+.65)/.65)],u,.69,v,.19);
+    }break;
+   case 'thai_drink_crates':
+    for(const [u,v,y] of[[-.46,-.22,.31],[.47,-.22,.31],[0,.36,.31],[.06,-.21,.80]]){
+     box('#bd594b',u,y,v,.80,.52,.61);
+     if(near)for(const j of[-.22,0,.22])cyl('#88a6a0',u+j,y+.31,v,.065,.17);
+     box('#e9c686',u,y+.12,v+.32,.50,.13,.03);
+    }break;
+   case 'thai_motorbike':
+    for(const u of[-.77,.81]){ball('#2a333a',u,.30,0,.30);ball('#d9d6c7',u,.30,.02,.16);}
+    box('#bf5546',0,.59,0,1.30,.25,.42);box('#343c40',-.14,.78,0,.75,.18,.43);
+    box(iron,.54,1.05,0,.12,.59,.08);box(iron,.72,1.35,0,.58,.07,.06);
+    box('#f7e7b4',1.03,.93,0,.11,.20,.30);break;
+   case 'thai_metal_table':
+    box('#c6c8bb',0,.87,0,1.56,.15,.85);
+    for(const u of[-.66,.66])for(const v of[-.31,.31])cyl(iron,u,.42,v,.037,.78);
+    if(near){for(const u of[-.25,.25])cyl('#f2e0c0',u,1.02,.09,.17,.07);cyl('#e0bb63',0,1.04,-.16,.12,.12);}
+    break;
+   case 'thai_plastic_chair':
+    box('#609c86',0,.55,0,.83,.15,.75);box('#5c9988',0,1.01,-.33,.85,.80,.12);
+    for(const u of[-.33,.33])for(const v of[-.29,.29])box('#4d836f',u,.26,v,.09,.46,.09);
+    if(near)for(const u of[-.39,.39])box('#76ad91',u,.77,-.02,.08,.15,.54);
+    break;
+   case 'industrial_forklift':
+    box('#dfaf4a',0,.53,0,1.83,.81,1.18);
+    for(const u of[-.76,.76])for(const v of[-.49,.49])ball('#313b40',u,.29,v,.25);
+    box('#434c4c',-.35,1.05,0,1.06,.11,1.25);
+    for(const u of[-.78,.10])for(const v of[-.48,.48])box(iron,u,1.31,v,.07,.67,.07);
+    for(const u of[1.05,1.29])box('#5d6669',u,.39,0,.10,.75,.12);
+    for(const v of[-.36,.36])box('#5f6569',1.42,.16,v,.95,.13,.12);
+    break;
+   case 'industrial_cone':
+    cone('#dc7047',0,.51,0,.35,.93);box('#4d5455',0,.08,0,.71,.16,.71);
+    for(const h of[.40,.73])cyl('#f4e4c3',0,h,0,.21-(h-.4)*.13,.08);
+    break;
+   case 'industrial_barrier':
+    box('#e2ddc9',0,.62,0,2.16,.95,.37);
+    for(const u of[-.73,0,.73])box('#dd7f4b',u,.65,.20,.36,.30,.04);
+    box('#969b9b',0,.18,0,2.36,.20,.62);
+    break;
+   case 'industrial_zone_sign':
+    for(const u of[-.91,.91])box(iron,u,1.1,0,.10,2.20,.10);
+    box('#4f7888',0,1.86,.03,2.35,.72,.14);
+    box('#e6d7b4',0,1.70,.12,1.83,.09,.05);
+    if(near)for(const u of[-.60,0,.60])box('#f1eee1',u,1.98,.12,.39,.11,.04);
+    break;
+   case 'industrial_floodlight':
+    cyl(iron,0,1.32,0,.08,2.55);box(iron,0,2.58,0,1.2,.11,.10);
+    for(const u of[-.45,0,.45]){box('#f4e4bd',u,2.44,.12,.31,.30,.06);box('#626e73',u,2.44,.20,.35,.07,.08);}
+    cyl('#b9b2a3',0,.08,0,.29,.16);break;
+   case 'industrial_wrapped_pallet':
+    box(wood,0,.10,0,1.6,.17,1.17);box('#a9a8a2',0,.67,0,1.34,.96,.91);
+    for(const u of[-.40,.40])box('#dbd4c5',u,.69,.46,.09,.87,.04);
+    if(near)for(const y of[.41,.78,1.10])box('#e4e5dd',0,y,.49,1.20,.06,.025);
+    break;
+   case 'industrial_crates':
+    for(const [u,y,v] of[[-.60,.39,-.22],[.57,.39,-.22],[0,1.06,.24]]){
+     box('#b9935e',u,y,v,1.02,.72,.86);
+     if(near){for(const q of[-.29,.29])box('#e0bb83',u+q,y,v+.45,.08,.63,.03);}
+     box('#6f614d',u,y+.20,v+.46,.78,.07,.035);
+    }break;
+   case 'industrial_generator':
+    box('#566e74',0,.74,0,1.90,1.23,1.19);
+    box('#b7b8a6',0,1.42,0,2.03,.12,1.30);
+    for(const u of[-.78,.78])for(const v of[-.47,.47])box(iron,u,.15,v,.16,.27,.16);
+    for(let i=0;i<5;i++)box('#283f48',(i-2)*.29,.80,.62,.15,.49,.045);
+    cyl('#787f79',.63,1.57,-.21,.15,.26);break;
+   case 'temple_incense':
+    cyl('#a77b51',0,.30,0,.63,.50);cyl(gold,0,.57,0,.67,.08);
+    for(const u of[-.24,0,.24]){cyl('#b95e4c',u,.94,.04,.027,.73);ball('#ecc582',u,1.34,.04,.04);}
+    if(near)for(const v of[-.28,.28])box(gold,0,.24,v,.81,.07,.10);
+    break;
+   case 'temple_candles':
+    box(gold,0,.12,0,1.53,.24,.62);
+    for(const u of[-.55,0,.55]){cyl('#faf1dc',u,.62,0,.12,.78);cone('#efbc58',u,1.16,0,.11,.21);}
+    for(const u of[-.55,0,.55])cyl('#d9b374',u,.21,0,.19,.11);break;
+   case 'temple_donation_box':
+    box('#9d7351',0,.80,0,1.0,1.43,.74);
+    box('#e4c478',0,1.53,0,1.08,.15,.85);
+    box('#544338',0,1.62,0,.45,.04,.14);
+    box('#efdeaf',0,.97,.39,.81,.43,.04);
+    if(near)for(const u of[-.21,.21])ball('#dbb975',u,1.09,.43,.08);
+    break;
+   case 'temple_hanging_bell':
+    for(const u of[-.76,.76])box('#d5ae69',u,1.32,0,.14,2.63,.19);
+    roof('#aa5341',0,0,1.96,1.10,2.69,.51);
+    cyl('#97784e',0,1.80,0,.075,.60);cone('#bd9254',0,1.37,0,.47,.70);
+    ball(gold,0,.96,0,.17);break;
+   case 'temple_wall':
+    box('#ede1c6',0,.86,0,3.22,1.50,.39);
+    box('#b4604e',0,1.70,0,3.42,.24,.56);
+    for(const u of[-1.30,-.65,0,.65,1.30]){box(gold,u,1.87,0,.18,.24,.29);}
+    if(near)for(const u of[-1.24,-.41,.41,1.24])box('#d7bc8c',u,.75,.22,.11,.92,.05);
+    break;
+   case 'temple_lantern':
+    for(const u of[-.56,.56]){cyl(gold,u,1.14,0,.065,2.18);
+     box('#e3c183',u,2.12,0,.64,.14,.64);
+     box('#e5b66f',u,1.72,0,.42,.62,.43);
+     box('#f9e6bb',u,1.70,.23,.35,.47,.04);
+     cone('#b35349',u,2.26,0,.39,.33);
+    }break;
+   case 'temple_naga':{
+    for(let i=0;i<8;i++){
+     const u=(i-3.5)*.35,y=.33+Math.sin(i*.53)*.15,v=Math.sin(i*.37)*.20;
+     ball(i%2?'#5f9b70':'#dbb96d',u,y,v,.25);
+     if(near&&i%2===0)cone(gold,u,y+.32,v,.09,.31);
+    }
+    ball('#72a17b',1.45,.81,.10,.40);
+    for(const v of[-.19,.19])ball('#e7d495',1.64,.95,v,.09);
+    cone(gold,1.31,1.36,.06,.20,.66);break;
+   }
+   case 'temple_shrine':
+    box('#cfc2a6',0,.15,0,2.0,.30,1.58);
+    for(const u of[-.79,.79])for(const v of[-.59,.59])cyl('#e5cc9d',u,1.18,v,.09,2.13);
+    box('#b58452',0,.61,0,1.28,.20,.85);
+    roof('#ad4a3b',0,0,2.48,1.91,2.26,.67);
+    if(near)for(const u of[-.56,0,.56])cone(gold,u,2.81,.04,.10,.27);
+    break;
+   case 'street_bus_stop':
+    for(const u of[-1.18,1.18])for(const v of[-.41,.41])cyl('#647a82',u,1.11,v,.06,2.20);
+    roof('#3d7080',0,0,2.72,1.20,2.24,.32);
+    box('#b8d3d0',0,1.27,-.47,2.44,1.23,.055);
+    box('#9c7252',0,.44,.36,1.50,.12,.46);
+    for(const u of[-.63,.63])box(iron,u,.22,.36,.07,.45,.08);
+    break;
+   case 'street_bench':
+    box('#9a714f',0,.55,0,1.80,.14,.64);
+    box('#987452',0,.99,-.30,1.80,.71,.10);
+    for(const u of[-.77,.77])for(const v of[-.23,.23])box(iron,u,.29,v,.09,.50,.10);
+    if(near)for(const y of[.72,.93,1.11])box('#be8b57',0,y,-.24,1.68,.07,.06);
+    break;
+   case 'street_soi_sign':
+    cyl(iron,0,.98,0,.065,1.95);
+    box('#4c7e65',.54,1.77,0,1.45,.33,.10);
+    box('#e8e6d8',.54,1.76,.075,1.17,.08,.022);
+    for(const u of[.25,.52,.79])box('#f3e6bc',u,1.82,.083,.10,.09,.016);
+    break;
+   case 'street_median_planter':
+    box('#c1b6a1',0,.18,0,2.36,.36,.82);box('#756a54',0,.37,0,2.20,.08,.66);
+    for(const u of[-.77,0,.77]){ball('#5d9760',u,.68,0,.37);if(near)ball('#e1a5a7',u,.90,.10,.13);}
+    break;
+   case 'street_bollard_strip':
+    for(let i=0;i<6;i++){
+     const u=(i-2.5)*.39;cyl('#58626a',u,.43,0,.085,.81);
+     cyl('#e4c672',u,.68,0,.096,.12);
+     if(near)ball('#6e7575',u,.86,0,.087);
+    }break;
+   case 'street_vine_arch':
+    for(const u of[-.75,.75])box('#a59677',u,1.0,0,.13,1.95,.17);
+    roof('#77956b',0,0,1.92,.62,2.00,.40);
+    for(let i=0;i<8;i++){
+     const u=(i%4-1.5)*.45,v=i<4?-.26:.26;
+     ball('#558a5e',u,2.14,v,.22);
+     if(near&&i%2===0)ball('#d99eaf',u,2.33,v,.07);
+    }break;
+   case 'street_folding_barrier':
+    for(const u of[-.98,.98])box('#5e6d75',u,.73,0,.09,1.46,.11);
+    for(const h of[.43,1.10])box('#f6e4b4',0,h,0,2.08,.22,.12);
+    for(let i=0;i<5;i++)box('#dc7556',(i-2)*.40,.79,.08,.22,.60,.025);
+    break;
+   case 'street_lightbox':
+    for(const u of[-.65,.65])box(iron,u,.78,0,.12,1.56,.13);
+    box('#45555e',0,1.57,0,1.70,1.13,.24);
+    box('#f2dcae',0,1.59,.14,1.49,.92,.045);
+    for(let i=0;i<4;i++)box(['#d65f5a','#6d9e96','#e7b875','#879db7'][i],(i-1.5)*.31,1.61,.17,.24,.56,.017);
+    break;
+   case 'nature_bush_pine':
+    cyl('#806447',0,.33,0,.14,.66);
+    for(const h of[.69,1.03,1.37])cone(h>1?'#52885d':'#5a9564',0,h,0,.66-(h-.69)*.22,.78);
+    ball('#7fae75',0,.38,0,.23);break;
+   case 'nature_bush_banyan':
+    cyl('#927157',0,.42,0,.20,.83);
+    for(const [u,v,h,sz] of[[-.45,-.1,1.04,.49],[.42,.05,1.09,.51],[0,.34,1.23,.55]]){
+     ball('#5d9665',u,h,v,sz);if(near)ball('#86b283',u+.12,h+.10,v+.14,sz*.45);
+    }break;
+   case 'nature_thai_flower':
+    for(let i=0;i<7;i++){
+     const a=i*Math.PI*2/7,u=Math.cos(a)*.43,v=Math.sin(a)*.43;
+     cyl('#5c9055',u,.29,v,.04,.53);
+     ball(i%3===0?'#e1a4b4':i%3===1?'#e7c979':'#ba9ad0',u,.62,v,.20);
+    }
+    ball('#568a5b',0,.32,0,.40);break;
+   case 'nature_lotus_bowl':
+    cyl('#c9ad88',0,.21,0,.71,.41);cyl('#75adbd',0,.43,0,.64,.035);
+    for(let i=0;i<5;i++){const a=i*Math.PI*2/5,u=Math.cos(a)*.43,v=Math.sin(a)*.43;
+     leaf('#69a07c',u,.46,v,.24,.05,.18,a);
+     if(i%2===0)ball('#e8acc1',u,.59,v,.13);
+    }break;
+   case 'nature_square_fountain':
+    box('#c4c1b3',0,.19,0,1.75,.37,1.75);box('#7bb2c3',0,.40,0,1.49,.05,1.49);
+    cyl('#b5a995',0,.75,0,.16,.77);cyl('#b8c7d1',0,1.23,0,.42,.065);
+    if(near)for(const u of[-.44,.44])ball('#a4e0df',u,1.00,0,.14);
+    break;
+   case 'nature_zen_rocks':
+    box('#d4c6a5',0,.07,0,1.79,.14,1.39);
+    for(const [u,v,y,sz] of[[-.50,-.2,.35,.34],[.34,.30,.40,.39],[.11,-.35,.23,.21]]){
+     leaf('#969d98',u,y,v,sz,sz*.86,sz*.91);
+    }
+    if(near)for(const v of[-.55,.55])box('#aa9c82',0,.16,v,1.53,.025,.045);
+    break;
+   case 'nature_park_cluster':
+    box('#78a676',0,.06,0,2.33,.12,1.89);
+    for(const [u,v,r] of[[-.62,-.40,.40],[.58,-.41,.48],[.05,.38,.38]]){
+     ball('#5b9960',u,.40,v,r);if(near)ball('#e4b0bb',u+.08,.65,v,.12);
+    }
+    for(const u of[-.80,.80])box('#b8a482',u,.12,.55,.31,.07,.33);
+    break;
+   case 'nature_short_hedge':
+    box('#9b8368',0,.13,0,2.08,.25,.53);
+    for(let i=0;i<6;i++)ball(i%2?'#649e67':'#7cac71',(i-2.5)*.34,.42,0,.32);
+    if(near)for(let i=0;i<4;i++)ball('#e6b8c2',(i-1.5)*.49,.69,.17,.08);
+    break;
+  }
+  return true;
+ }
+
  thaiDecoration(batch,x,z,kind,rotation=0,detail='near'){
   if(!/^(thai_|industrial_|temple_|landmark_)/.test(kind))return false;
   // All 24 Thai decorations are 35% of authored size (30% smaller than the prior 50%),
@@ -1562,13 +1816,14 @@ export class TrafficRenderer{
   return true;
  }
  decoration(batch,x,z,kind,rotation=0,detail='near'){
+  if(EXTRA_DECORATION_KEYS.has(kind))return this.extraDecoration(batch,x,z,kind,rotation,detail);
   if(this.thaiDecoration(batch,x,z,kind,rotation,detail))return true;
-  const r=(rotation||0)*Math.PI/2,c=Math.cos(r),s=Math.sin(r),point=(u,v)=>[x+u*c+v*s,z-u*s+v*c];
-  const box=(color,u,y,v,w,h,d,ry=0,rx=0,rz=0)=>{const p=point(u,v);batch.add(BOX,color,p[0],y,p[1],w,h,d,rx,r+ry,rz);};
-  const cyl=(color,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CYL,color,p[0],y,p[1],rad,h,rad);};
-  const ball=(color,u,y,v,rad)=>{const p=point(u,v);batch.add(BALL,color,p[0],y,p[1],rad,rad,rad);};
-  const cone=(color,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CONE,color,p[0],y,p[1],rad,h,rad,0,r,0);};
-  const leaf=(color,u,y,v,w,h,d,angle=0)=>{const p=point(u,v);batch.add(LEAF,color,p[0],y,p[1],w,h,d,0,r+angle,0);};
+  const r=(rotation||0)*Math.PI/2,c=Math.cos(r),s=Math.sin(r),scale=COMPACT_DECORATION_KEYS.has(kind)?.5:1,point=(u,v)=>[x+scale*(u*c+v*s),z+scale*(-u*s+v*c)];
+  const box=(color,u,y,v,w,h,d,ry=0,rx=0,rz=0)=>{const p=point(u,v);batch.add(BOX,color,p[0],y*scale,p[1],w*scale,h*scale,d*scale,rx,r+ry,rz);};
+  const cyl=(color,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CYL,color,p[0],y*scale,p[1],rad*scale,h*scale,rad*scale);};
+  const ball=(color,u,y,v,rad)=>{const p=point(u,v);batch.add(BALL,color,p[0],y*scale,p[1],rad*scale,rad*scale,rad*scale);};
+  const cone=(color,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CONE,color,p[0],y*scale,p[1],rad*scale,h*scale,rad*scale,0,r,0);};
+  const leaf=(color,u,y,v,w,h,d,angle=0)=>{const p=point(u,v);batch.add(LEAF,color,p[0],y*scale,p[1],w*scale,h*scale,d*scale,0,r+angle,0);};
   const flower=(u,v,color,h=.35)=>{cyl('#557c44',u,h/2,v,.018,h);ball('#f3ce69',u,h,v,.055);for(let j=0;j<6;j++){const a=j*Math.PI/3;ball(color,u+Math.cos(a)*.09,h,v+Math.sin(a)*.09,.07);}};
   const wood='#aa7748',iron='#46545a',stone='#c7c7b7',green='#559351',pink='#e8a4bb',blue='#70bfd4';
   switch(kind){
