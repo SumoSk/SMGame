@@ -23,6 +23,14 @@ const needs=[
 ];
 for(const needle of needs)assert(style.includes(needle),'missing UI protection: '+needle);
 assert(!style.includes('width:min(600px,'),'avoid enlarging existing menu/dialog widths');
+// Phone-only compact deck; any wider touch/desktop layout keeps its prior dimensions.
+assert(style.includes('Mobile-only dock height: reclaim'),'phone override missing');
+const compact=style.slice(style.indexOf('Mobile-only dock height: reclaim'),style.indexOf('@media(max-width:375px) and (orientation:portrait)'));
+assert(compact.includes('@media(max-width:520px) and (orientation:portrait)'),'compact CSS must be phone portrait only');
+assert(compact.includes('height:178px!important'),'expected reduced 178px phone dock');
+assert(compact.includes('grid-template-rows:minmax(0,82fr) minmax(0,96fr)'),'phone KPI/building split must keep room for tools');
+assert(compact.includes('.builder-zone #subcategories'),'retain scrollable building categories');
+
 for(const id of ['cityCommandBar','cityLevelButton','cityLevelProgress','cityCrateBadge','cityLevelCelebration','saveGameQuick','dialog','memberGate','citizensDashboard','touristsDashboard','buildVariantPopup','cityAdvisorTickerMessage'])
   assert(source.includes('id="'+id+'"'),'UI anchor removed: '+id);
 const start=source.indexOf('id="cityCommandBar"');
