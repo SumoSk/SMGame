@@ -39,7 +39,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
   for(const match of markup.matchAll(/data-tool="([^"]+)"/g))decorationTools.add(match[1]);
   assert(markup.includes('data-close-variants'),group+' popup must have a close control');
  }
- const expectedDecorationTools=[...g.TREE_KINDS,...g.DECOR_KINDS].map(k=>'tree:'+k.key).concat(['landscapeSelect','treeRow','treeBrush','eraseTree']);
+ const expectedDecorationTools=[...g.TREE_KINDS,...g.DECOR_KINDS].map(k=>'tree:'+k.key).concat(['landscapeSelect','treeRow','treeBrush','eraseTree','snapDecor']);
  assert.deepEqual([...decorationTools].sort(),expectedDecorationTools.sort(),'every existing decoration must be discoverable in a subgroup');
  get('tools').onclick({target:{closest:sel=>sel==='[data-landscape-group]'?{dataset:{landscapeGroup:'trees'}}:null}});
  assert(get('buildVariantPopup').innerHTML.includes('data-tool="tree:shade"'));
