@@ -6,7 +6,7 @@ g.reset();g.state.money=1e8;
 assert(g.buildBuilding('home_starter',160,145,true));
 const beforeQuota=JSON.stringify(g.state.buildingQuota),cash=g.state.money;
 for(const [x,y] of [[150,150],[161,146],[0,0],[299,299],[10,10],[11,10]])assert(g.plantLandscape(x,y,'palm'),'allow map cell '+x+','+y);
-assert.equal(g.plantLandscape(10,10,'shade'),false,'ignore exact duplicates');
+assert.equal(g.plantLandscape(10,10,'shade'),true,'allow exact stacked coordinates');
 assert.equal(g.plantLandscape(-1,1,'shade'),false);assert.equal(g.plantLandscape(NaN,1,'shade'),false);
 assert.equal(g.state.money,cash);assert.equal(JSON.stringify(g.state.buildingQuota),beforeQuota);
 get('subcategories').onclick({target:{closest:()=>({dataset:{category:'landscape'}})}});
