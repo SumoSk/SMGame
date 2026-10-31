@@ -4,10 +4,11 @@ const read=name=>fs.readFileSync(path.join(root,name),'utf8');
 // The playable page is the single UI source for hosted and downloadable builds.
 fs.writeFileSync(path.join(root,'dist/index.html'),read('index.html').replace(/\b(src|href)="dist\//g,'$1="').replace(/src="assets\/smcity-welcome\.webp"/g,'src="../assets/smcity-welcome.webp"'));
 const hash=source=>crypto.createHash('sha256').update(source).digest('hex').slice(0,12);
-const game=read('dist/game.js'),renderer=read('dist/renderer3d.js'),member=read('dist/member.js'),simple=read('dist/simple-account.js');
-const gameVersion=hash(game),rendererVersion=hash(renderer),memberVersion=hash(member),simpleVersion=hash(simple);
+const game=read('dist/game.js'),renderer=read('dist/renderer3d.js'),member=read('dist/member.js'),simple=read('dist/simple-account.js'),saveStorage=read('dist/save-storage.js');
+const gameVersion=hash(game),rendererVersion=hash(renderer),memberVersion=hash(member),simpleVersion=hash(simple),saveStorageVersion=hash(saveStorage);
 const bootstrap=`import { TrafficRenderer } from './renderer3d.js?v=${rendererVersion}';\nwindow.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);\nawait import('./game.js?v=${gameVersion}');\nawait import('./member.js?v=${memberVersion}');\n`+
- `await import('./simple-account.js?v=${simpleVersion}');\n`;
+ `await import('./simple-account.js?v=${simpleVersion}');\n`+
+ `await import('./save-storage.js?v=${saveStorageVersion}');\n`;
 fs.writeFileSync(path.join(root,'dist/bootstrap.js'),bootstrap);
 const version=hash(bootstrap);
 for(const name of ['index.html','dist/index.html','dist/qa.html','dist/qa-tourism.html']){
@@ -27,7 +28,8 @@ const inline=`\nconst makeModule=source=>URL.createObjectURL(new Blob([source],{
  `const {TrafficRenderer}=await import(rendererURL);\nwindow.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);\n`+
  `const gameScript=document.createElement('script');gameScript.textContent=${quote(game)};document.body.appendChild(gameScript);\n`+
  `const memberScript=document.createElement('script');memberScript.textContent=${quote(member)};document.body.appendChild(memberScript);\n`+
- `const simpleScript=document.createElement('script');simpleScript.textContent=${quote(simple)};document.body.appendChild(simpleScript);\n`;
+ `const simpleScript=document.createElement('script');simpleScript.textContent=${quote(simple)};document.body.appendChild(simpleScript);\n`+
+ `const saveScript=document.createElement('script');saveScript.textContent=${quote(saveStorage)};document.body.appendChild(saveScript);\n`;
 const welcomeAsset=path.join(root,'assets/smcity-welcome.webp');
 const welcomeData=fs.existsSync(welcomeAsset)?'data:image/webp;base64,'+fs.readFileSync(welcomeAsset).toString('base64'):null;
 const html=read('dist/index.html')
