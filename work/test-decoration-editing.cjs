@@ -26,7 +26,7 @@ action('delete-landscape');assert(g.state.plantedTrees.includes(restored),'wait 
 get('confirmDialog').onclick();assert(!g.state.plantedTrees.includes(restored));
 const automatic={auto:true,x:171.25,y:171.75,kind:'shade'};
 assert(g.moveLandscape(automatic,12,13));assert(g.state.hiddenAutoTrees.includes(g.id(171,171)));
-assert(g.state.plantedTrees.some(t=>t.kind==='shade'&&t.x===12.5&&t.y===13.5));
+assert(g.state.plantedTrees.some(t=>t.kind==='shade'&&t.x===12&&t.y===13));
 assert(g.deleteLandscape({auto:true,x:172.5,y:173.5,kind:'palm'}));assert(g.state.hiddenAutoTrees.includes(g.id(172,173)));
 assert(g.loadGame(true,null,g.snapshot()));assert(g.state.hiddenAutoTrees.includes(g.id(172,173)));
 const retired=['bench_wood','bench_iron','picnic','umbrella','play_swing','play_slide','gazebo','bike_rack'];
