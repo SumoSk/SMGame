@@ -6553,6 +6553,12 @@ async function decodeCloudCity(raw){
  return cityRaw;
 }
 window.SMGameSaveCodec={encode:encodeCloudCity,decode:decodeCloudCity};
+function downloadCityBackup(raw,name){
+ const blob=new Blob([raw],{type:'application/json'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');
+ anchor.href=url;anchor.download='SMCITY-'+String(name||'city').replace(/[^a-z0-9\u0e00-\u0e7f_-]+/gi,'-').slice(0,45)+'-'+Date.now()+'.json';
+ document.body.appendChild(anchor);anchor.click();anchor.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
 const SAVE_KEY='traffic-fixer-thailand-saves-v2',LEGACY_SAVE_KEY='traffic-fixer-thailand-v1';
 const escapeSaveText=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function readLocalSaveSlots(){
@@ -6758,12 +6764,15 @@ function showCloudSaveStatus(operation){
   '<span class="cloud-save-symbol" aria-hidden="true">'+(saving?'◌':success?'✓':'!')+'</span><h2>'+heading+'</h2><strong>'+escapeSaveText(operation.name)+'</strong>'+
   '<p id="cloudSaveStateText">'+(saving?'กำลังเตรียมและส่งข้อมูลเมือง…':success?'เซิร์ฟเวอร์ยืนยันว่าบันทึกเมืองแล้วค่ะ':escapeSaveText(operation.error||'กรุณาลองอีกครั้งค่ะ'))+'</p>'+
   (saving?'<p>เมืองขนาดใหญ่อาจใช้เวลาสักครู่ กรุณาอย่ารีเฟรชหรือปิดหน้านี้ระหว่างบันทึกค่ะ</p>':'')+'</section><div class="actions">'+
-  (!saving&&!success?'<button id="cloudSaveRetry" class="primary">ลองบันทึกอีกครั้ง</button>':'')+
+  (!saving&&!success?'<button id="cloudSaveRetry" class="primary">ลองบันทึกอีกครั้ง</button><button id="cloudSaveBackup">ดาวน์โหลดไฟล์เมืองสำรอง</button>':'')+
   (!saving?'<button id="cloudSaveList" class="'+(success?'primary':'')+'">ดูรายการเซฟ</button>':'')+
   '<button id="cloudSaveBack">'+(saving?'กลับไปเล่นระหว่างรอ':'กลับไปเล่น')+'</button></div></div>');
  $('cloudSaveBack').onclick=closeModal;
  if(!saving)$('cloudSaveList').onclick=openCloudSaveDialog;
- if(!saving&&!success)$('cloudSaveRetry').onclick=()=>saveCloudCity(operation.name,operation.slotId,operation);
+ if(!saving&&!success){
+  $('cloudSaveRetry').onclick=()=>saveCloudCity(operation.name,operation.slotId,operation);
+  $('cloudSaveBackup').onclick=()=>{try{downloadCityBackup(operation.serialized||snapshot(),operation.name);toast('ดาวน์โหลดสำเนาเมืองแล้ว เก็บไฟล์นี้ไว้ค่ะ');}catch(error){toast('ดาวน์โหลดไม่สำเร็จ: '+(error?.message||'กรุณาลองอีกครั้ง'));}};
+ }
 }
 async function saveCloudCity(name,slotId,retry=null){
  if(cloudSaveOperation?.status==='saving'){showCloudSaveStatus(cloudSaveOperation);return false;}
@@ -6811,8 +6820,20 @@ async function openCloudSaveDialog(){
   <div class="actions"><button id="onlineCreate" class="primary">บันทึกเป็นเซฟใหม่</button></div></section>
   <div class="save-list-heading"><h3>เซฟของฉัน</h3><span>${fmt(slots.length)} รายการ</span></div>
   <div class="save-slot-list">${rows||'<p class="panel-empty">ยังไม่มีเซฟที่บันทึกไว้</p>'}</div>
+  <section class="save-create-card"><label for="onlineImport">ไฟล์เมืองสำรองในเครื่อง</label><input id="onlineImport" type="file" accept=".json,application/json"><p id="onlineImportError" role="status" aria-live="polite"></p><button type="button" id="onlineExport">ดาวน์โหลดเมืองปัจจุบัน (.json)</button></section>
   <div class="actions panel-footer"><button id="onlineClose">กลับไปเล่น</button></div></div>`);
  $('onlineClose').onclick=closeModal;
+ $('onlineExport').onclick=()=>{try{downloadCityBackup(snapshot(),CITIES[state.city].name);toast('ดาวน์โหลดสำเนาเมืองปัจจุบันแล้วค่ะ');}catch(error){toast('ดาวน์โหลดไม่ได้: '+(error?.message||'กรุณาลองอีกครั้ง'));}};
+ $('onlineImport').onchange=async event=>{
+  const file=event.target.files?.[0];if(!file)return;
+  try{
+   if(file.size>64000000)throw Error('ไฟล์ใหญ่เกิน 64 MB');
+   const raw=await decodeCloudCity(await file.text());
+   validateSave(JSON.parse(raw));
+   closeModal();
+   confirmAction('เปิดเมืองจากไฟล์สำรอง','เมืองที่กำลังเล่นและยังไม่ได้บันทึกจะถูกแทนที่ แต่เซฟออนไลน์เดิมจะไม่เปลี่ยนแปลง',()=>loadGame(false,null,raw));
+  }catch(error){console.error('City backup import failed:',error);$('onlineImportError').textContent='นำเข้าไม่ได้: '+(error?.message||'ไฟล์ไม่ถูกต้อง');}
+ };
  const newSlotId='cloud-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
  $('onlineCreate').onclick=async()=>{
   const button=$('onlineCreate'),error=$('onlineSaveError'),name=$('onlineSaveName').value.trim().slice(0,80);
