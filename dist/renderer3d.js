@@ -1114,7 +1114,7 @@ export class TrafficRenderer{
 
  // Thai streetscape is scenery only: shared primitive geometries, instanced by Batch.
  // No collision, traffic node, citizen schedule, upkeep or building footprint is created.
- thaiDecoration(batch,x,z,kind,rotation=0){
+ thaiDecoration(batch,x,z,kind,rotation=0,detail='near'){
   if(!/^(thai_|industrial_|temple_|landmark_)/.test(kind))return false;
   // All 24 Thai decorations are 35% of authored size (30% smaller than the prior 50%),
   // grounded at the same point; saved positions, collisions and simulation are untouched.
@@ -1330,6 +1330,7 @@ export class TrafficRenderer{
    }
    default:return false;
   }
+  if(detail==='far')return true; // Preserve distant silhouettes without tiny ornament geometry.
   // Extra small-scale architectural details use the SAME cached instanced
   // primitives as the original models, not separate meshes or scene updates.
   // Keep the rich silhouettes on Medium/High without per-frame work.
@@ -1560,8 +1561,8 @@ export class TrafficRenderer{
   }
   return true;
  }
- decoration(batch,x,z,kind,rotation=0){
-  if(this.thaiDecoration(batch,x,z,kind,rotation))return true;
+ decoration(batch,x,z,kind,rotation=0,detail='near'){
+  if(this.thaiDecoration(batch,x,z,kind,rotation,detail))return true;
   const r=(rotation||0)*Math.PI/2,c=Math.cos(r),s=Math.sin(r),point=(u,v)=>[x+u*c+v*s,z-u*s+v*c];
   const box=(color,u,y,v,w,h,d,ry=0,rx=0,rz=0)=>{const p=point(u,v);batch.add(BOX,color,p[0],y,p[1],w,h,d,rx,r+ry,rz);};
   const cyl=(color,u,y,v,rad,h)=>{const p=point(u,v);batch.add(CYL,color,p[0],y,p[1],rad,h,rad);};
@@ -1868,7 +1869,8 @@ export class TrafficRenderer{
   if(!Number.isFinite(t.x)||!Number.isFinite(t.y)||t.x<0||t.y<0||t.x>=300||t.y>=300||Math.abs(t.x-cellX*18)>span+3||Math.abs(t.y-cellZ*18)>span+3)continue;
   const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:['oak','rain','willow','cherry','maple','jacaranda'].includes(t.kind)?1.24:['cedar','cypress'].includes(t.kind)?1.20:t.kind==='palm'?1.12:1.04;
   b.pickId=++pickId;this.landscapePicks.set(pickId,{item:t});
-  if(!this.decoration(b,t.x,t.y,t.kind,t.rotation||0))this.tree(b,t.x,t.y,scale,t.kind,(this.graphicQuality==='veryHigh'||Math.hypot(t.x-cam.x,t.y-cam.y)<27)?'near':'far');
+  const nearby=this.graphicQuality==='veryHigh'||Math.hypot(t.x-cam.x,t.y-cam.y)<27;
+  if(!this.decoration(b,t.x,t.y,t.kind,t.rotation||0,nearby?'near':'far'))this.tree(b,t.x,t.y,scale,t.kind,nearby?'near':'far');
  }
  this.treeGroup.add(b.build());
  }
