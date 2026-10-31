@@ -282,6 +282,7 @@ body>.bottom>#cityAdvisorTicker .city-advisor-action{
  height:24px;min-height:24px;max-height:24px;
  padding:3px 7px;align-items:center;cursor:default
 }
+body>.bottom>#cityAdvisorTicker .city-advisor-dismiss[hidden]{display:none!important}
 body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  height:24px;min-height:24px;max-height:24px;
  display:grid;place-items:center
@@ -463,16 +464,16 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
 
 <script id="smcity-demand-notice-script">
 (function(){
- // Read-only assistant: small DOM samples, no traffic engine calls, no panel scrolling.
+ // Keep only nine compact notice records in the city save. Read the existing
+ // rendered demand values once per 3 seconds; never scan routes or vehicles.
  const panel=document.getElementById('cityAdvisorTicker');
  const message=document.getElementById('cityAdvisorTickerMessage');
  const dismiss=document.getElementById('cityAdvisorTickerDismiss');
  if(!panel||!message||!dismiss)return;
  const actions={home:'เพิ่มบ้าน',work:'เพิ่มที่ทำงาน',shop:'เพิ่มร้านค้า',restaurant:'เพิ่มร้านอาหาร',mall:'เพิ่มห้าง',park:'เพิ่มสวน',pub:'เพิ่มสถานบันเทิง',casino:'เพิ่มคาสิโน',hotel:'เพิ่มโรงแรม'};
- const observed=new Map();
- let dayBefore=null,cityBefore='',urgentBefore=false,lastKey='',turn=0,urgentIndex=0,tipIndex=0;
- let nextMessageAt=0,snoozeUntil=0,pauseUntil=0,hovered=false,broken=false;
- const digits=text=>{const n=Number(String(text||'').replace(/[−–]/g,'-').replace(/[^\d-]/g,''));return Number.isFinite(n)?n:0;};
+ let lastKey='',tipIndex=0,nextMessageAt=0,snoozeUntil=0,pauseUntil=0,hovered=false,broken=false;
+ let pinnedKind='',pinnedText='';
+ const digits=value=>{const n=Number(String(value||'').replace(/[−–]/g,'-').replace(/[^\d-]/g,''));return Number.isFinite(n)?n:0;};
  const text=id=>document.getElementById(id)?.textContent||'';
  const show=value=>{
   if(message.textContent!==value)message.textContent=value;
@@ -480,57 +481,37 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
   if(!panel.classList.contains('is-visible'))panel.classList.add('is-visible');
  };
  const hide=()=>{panel.classList.remove('is-visible');panel.hidden=true;};
- dismiss.addEventListener('click',()=>{hide();snoozeUntil=Date.now()+90000;nextMessageAt=snoozeUntil;});
+ dismiss.addEventListener('click',()=>{if(pinnedKind)return;hide();snoozeUntil=Date.now()+90000;nextMessageAt=snoozeUntil;});
  panel.addEventListener('pointerenter',()=>{hovered=true;});
  panel.addEventListener('pointerleave',()=>{hovered=false;pauseUntil=Date.now()+7000;});
  panel.addEventListener('focusin',()=>{pauseUntil=Date.now()+12000;});
  panel.addEventListener('touchstart',()=>{pauseUntil=Date.now()+12000;},{passive:true});
  function collect(){
-  const match=text('day').match(/(\d+)\s*$/),day=match?Math.max(1,Number(match[1])):dayBefore||1;
-  const city=text('mapLabel').trim();
-  if((dayBefore!==null&&day<dayBefore)||(cityBefore&&city&&city!==cityBefore)){
-   observed.clear();urgentIndex=0;tipIndex=0;lastKey='';nextMessageAt=0;urgentBefore=false;
-  }
-  dayBefore=day;if(city)cityBefore=city;
-  // Keep only observed peaks from the current and two previous game days.
-  for(const record of observed.values())for(const d of record.days.keys())
-   if(d<day-2||d>day)record.days.delete(d);
+  const match=text('day').match(/(\d+)\s*$/),day=match?Math.max(1,Number(match[1])):1;
   const rows=document.querySelectorAll('#demand .mini-need[data-need-kind]');
-  const current=[];
+  const observed=[];
   for(const row of rows){
    const kind=row.getAttribute('data-need-kind')||'';
    if(!Object.prototype.hasOwnProperty.call(actions,kind))continue;
    const amount=Math.max(0,-digits(row.querySelector('.mini-need-missing')?.textContent));
-   if(!amount)continue;
    const name=row.querySelector('span')?.textContent?.trim()||kind;
-   current.push({kind,name,amount});
-   if(!observed.has(kind))observed.set(kind,{name,days:new Map()});
-   const record=observed.get(kind);record.name=name;
-   record.days.set(day,Math.max(amount,record.days.get(day)||0));
+   observed.push({kind,name,amount});
   }
-  current.sort((a,b)=>b.amount-a.amount||a.kind.localeCompare(b.kind));
-  const active=new Set(current.map(x=>x.kind)),past=[];
-  for(const [kind,record] of observed){
-   if(active.has(kind))continue;
-   let peak=0,latest=0;
-   for(const [at,value] of record.days)if(at>=day-2&&at<=day){peak=Math.max(peak,value);latest=Math.max(latest,at);}
-   if(peak)past.push({kind,name:record.name,peak,latest});
-  }
-  past.sort((a,b)=>b.latest-a.latest||b.peak-a.peak);
-  return {day,current,past,ready:rows.length>0};
+  const live=observed.filter(x=>x.amount>0).sort((a,b)=>b.amount-a.amount||a.kind.localeCompare(b.kind));
+  const api=window.SMGameDemandNotices;
+  // Game-side state survives saves, loads and a full game-day transition.
+  const pending=rows.length&&api?.observe?api.observe(observed):api?.list?.()||[];
+  return{day,live,pending,ready:rows.length>0};
  }
  function tips(data){
-  const options=data.past.map(item=>({
-   key:'past-'+item.kind,
-   value:item.name+'เคยขาด '+item.peak.toLocaleString('th-TH')+' คน แนะนำ'+(actions[item.kind]||'เพิ่มความจุ')+'รองรับช่วงที่มีผู้ใช้บริการมาก'
-  }));
+  const options=[];
   const flow=digits(text('flow')),queue=text('status').match(/รอคิว\s*([\d,]+)/),waiting=queue?digits(queue[1]):0;
   if(flow>0&&flow<65&&waiting>=10)options.push({key:'traffic',value:'🚦 จราจรคล่องตัว '+flow+'% รถรอ '+waiting+' คัน ลองตรวจทางแยกหรืออัปเกรดแยก AI'});
   const happy=digits(text('happy'));
   if(happy>0&&happy<80)options.push({key:'happy',value:'😊 Performanceประชาชน '+happy+'% ลองตรวจบริการที่ยังขาดแคลน'});
   if((data.day-1)%7>=5)options.push({key:'weekend',value:'🌳 วันหยุดสุดสัปดาห์ เตรียมสวนและร้านอาหารรองรับช่วงพักผ่อน'});
   if(digits(text('money'))>=50000)options.push({key:'f1',value:'🏎️ สนใจอัปเกรดรถ F1 ให้ชาวเมืองเพิ่มอีกคันไหม?'});
-  if(!data.current.length)options.push({key:'balanced',value:'🏙️ ความต้องการเมืองสมดุลในขณะนี้ ลองเตรียมพื้นที่ขยายเมือง'});
+  if(!data.live.length)options.push({key:'balanced',value:'🏙️ ความต้องการเมืองสมดุลในขณะนี้ ลองเตรียมพื้นที่ขยายเมือง'});
   else options.push({key:'roads',value:'💡 ถนนทางเลือกช่วยกระจายการเดินทางในเมืองได้'});
   return options;
  }
@@ -538,22 +519,31 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
   if(broken||document.hidden)return;
   const now=Date.now(),data=collect();
   if(!data.ready){show('ผู้ช่วยเมือง: กำลังตรวจความต้องการ');return;}
-  const urgent=data.current.length>0;
-  if(urgent!==urgentBefore){urgentBefore=urgent;nextMessageAt=0;}
-  if(now<snoozeUntil||hovered||now<pauseUntil||now<nextMessageAt)return;
-  const other=tips(data);
-  let selected=null;
-  if(urgent&&(turn%3!==2||!other.length)){
-   const item=data.current[urgentIndex++%data.current.length];
-   selected={key:'live-'+item.kind,value:'⚠️ '+item.name+' ขาด '+item.amount.toLocaleString('th-TH')+' คน — '+(actions[item.kind]||'เพิ่มความจุ')};
+  if(data.pending.length){
+   // Keep one warning unchanged across every timer tick and game day. Only a
+   // successful matching construction can remove it from the saved queue.
+   let item=data.pending.find(x=>x.kind===pinnedKind);
+   if(!item){
+    item=data.pending[0];pinnedKind=item.kind;
+    const detail=item.latest>0?'ขาด '+item.latest.toLocaleString('th-TH'):'เคยขาด '+item.peak.toLocaleString('th-TH');
+    pinnedText='⚠️ '+item.name+' '+detail+' คน — '+(actions[item.kind]||'เพิ่มอาคาร')+' (รอสร้าง)';
+   }
+   dismiss.hidden=true;show(pinnedText);return;
   }
-  if(!selected||(selected.key===lastKey&&other.length)){
-   const choices=other.filter(x=>x.key!==lastKey);
-   const pool=choices.length?choices:other;
-   selected=pool[tipIndex++%pool.length]||selected;
+  if(pinnedKind){pinnedKind='';pinnedText='';dismiss.hidden=false;nextMessageAt=0;snoozeUntil=0;}
+  if(now<snoozeUntil||hovered||now<pauseUntil||now<nextMessageAt)return;
+  let selected=null;
+  if(data.live.length&&!window.SMGameDemandNotices){
+   // A fallback is shown only before the game-side save state is ready.
+   const item=data.live[0];
+   selected={key:'live-'+item.kind,value:'⚠️ '+item.name+' ขาด '+item.amount.toLocaleString('th-TH')+' คน — '+(actions[item.kind]||'เพิ่มอาคาร')};
+  }
+  if(!selected){
+   const options=tips(data);
+   selected=options.length?options[tipIndex++%options.length]:null;
   }
   if(selected){show(selected.value);lastKey=selected.key;}
-  nextMessageAt=now+13000;turn++;
+  nextMessageAt=now+13000;
  }
  function safe(){if(broken)return;try{check();}catch(e){broken=true;hide();console.warn('SMCITY notice disabled after UI error:',e);}}
  const start=window.setTimeout(safe,1200),timer=window.setInterval(safe,3000);
@@ -609,4 +599,4 @@ body>.bottom>#cityAdvisorTicker .city-advisor-dismiss{
  schedule();
 })();
 </script>
-<script type="module" src="bootstrap.js?v=2a22277c4ccb"></script></body></html>
+<script type="module" src="bootstrap.js?v=df6fb7cff56c"></script></body></html>
