@@ -37,13 +37,19 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(get('tools').innerHTML.includes('data-tool="large"'),'large road tool must be present');
  assert(!get('tools').innerHTML.includes('data-tool="hand"'),'road submenu only has three road sizes');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'home'}})}});
- assert(get('tools').innerHTML.includes('class="tool-capacity">20</span>'),'current small home must show its 20-person capacity');
- assert(get('tools').innerHTML.includes('class="tool-capacity">40</span>'),'medium home must show its 40-person capacity');
- assert(get('tools').innerHTML.includes('class="tool-capacity">60</span>'),'large home must show its 60-person capacity');
- assert(get('tools').innerHTML.includes('130,000'),'large homes must display bare price');
- assert(!get('tools').innerHTML.includes('tool-parking'),'building cards must not show redundant parking capacity');
+ assert(get('tools').innerHTML.includes('data-build-kind="home"'),'home type must be visible in the lower row');
+ assert(get('tools').innerHTML.includes('data-build-kind="hotel"'),'hotel type must be visible beside home');
+ get('tools').onclick({target:{closest:selector=>selector==='[data-build-kind]'?{dataset:{buildKind:'home'}}:null}});
+ const homeCards=get('buildVariantPopup').innerHTML;
+ assert(homeCards.includes('class="tool-capacity">20</span>'),'small home popup must show 20-person capacity');
+ assert(homeCards.includes('class="tool-capacity">40</span>'),'medium home popup must show 40-person capacity');
+ assert(homeCards.includes('class="tool-capacity">60</span>'),'large home popup must show 60-person capacity');
+ assert(homeCards.includes('130,000'),'large homes must display bare price');
+ assert(!homeCards.includes('tool-parking'),'building cards must not show redundant parking capacity');
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'food'}})}});
- assert(get('tools').innerHTML.includes('class="tool-capacity">12</span>'),'shops must show bare numeric service capacity');
+ assert(get('tools').innerHTML.includes('data-build-kind="shop"'));
+ get('tools').onclick({target:{closest:selector=>selector==='[data-build-kind]'?{dataset:{buildKind:'shop'}}:null}});
+ assert(get('buildVariantPopup').innerHTML.includes('class="tool-capacity">12</span>'),'shop popup must show service capacity');
  // Traffic tools moved into the right-side rail; landscaping navigation remains unchanged.
  assert(!get('categories').innerHTML.includes('data-dock-group="traffic"'),'Traffic top-level dock group must be absent');
  assert(fs.readFileSync('index.html','utf8').includes('data-city-shortcut="signalManage"'),'traffic signal control is available in the right rail');

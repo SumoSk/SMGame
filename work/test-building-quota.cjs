@@ -35,7 +35,10 @@ test('five starters accumulate five small allowances and spend one at a time',()
 test('locked cards remain visible, show zero at top right and explain the prerequisite',()=>{
  const {game:g,get}=fresh();
  get('subcategories').onclick({target:{closest:()=>({dataset:{category:'home'}})}});
- const html=get('tools').innerHTML;
+ const tray=get('tools');
+ assert(tray.innerHTML.includes('data-build-kind="home"'));
+ tray.onclick({target:{closest:selector=>selector==='[data-build-kind]'?{dataset:{buildKind:'home'}}:null}});
+ const html=get('buildVariantPopup').innerHTML;
  for(const key of ['home_starter','home_large','home_dual','home_grand'])assert(html.includes('data-tool="'+key+'"'));
  assert(html.includes('tool-quota-count is-locked'));
  assert(html.includes('ต้องสร้างบ้านเริ่มต้นเพิ่มอีก 1 ตึก'));
@@ -47,10 +50,10 @@ test('locked cards remain visible, show zero at top right and explain the prereq
  assert(g.checkBuilding('home_large',160,100).error.includes('บ้านเริ่มต้น'));
  assert(g.assistedBuildingPlacement('home_large',160,100).error.includes('บ้านเริ่มต้น'));
  for(let n=0;n<5;n++)build(g,'home_starter',160+n*5);
- assert(get('tools').innerHTML.includes('โควต้าสร้างได้อีก 5 ตึก">5</span>'));
+ assert(get('buildVariantPopup').innerHTML.includes('โควต้าสร้างได้อีก 5 ตึก">5</span>'));
  build(g,'home_large',195);
- assert(get('tools').innerHTML.includes('โควต้าสร้างได้อีก 4 ตึก">4</span>'));
- assert(get('tools').innerHTML.includes('โควต้าสร้างได้อีก 1 ตึก">1</span>'));
+ assert(get('buildVariantPopup').innerHTML.includes('โควต้าสร้างได้อีก 4 ตึก">4</span>'));
+ assert(get('buildVariantPopup').innerHTML.includes('โควต้าสร้างได้อีก 1 ตึก">1</span>'));
  const css=fs.readFileSync('dist/style.css','utf8');
  assert(/\.tool-quota-count\{position:absolute;top:3px;right:4px/.test(css));
 });
