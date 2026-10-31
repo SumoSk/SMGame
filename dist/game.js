@@ -2981,6 +2981,23 @@ const DECOR_KINDS=[
  ['temple_bodhi','ต้นโพธิ์','🌳'],
  ['landmark_city_gate','ประตูเมืองไทย','🏯'],['landmark_clocktower','หอนาฬิกาไทย','🕰️'],['landmark_monument','อนุสาวรีย์','🗿'],
  ['landmark_spirit_house','ศาลพระภูมิ','🏡'],['landmark_welcome_sign','ป้ายยินดีต้อนรับ','🪧'],
+
+ // New themed decoration set: all are static, collision-free scene props.
+ ['thai_canvas_awning','ผ้าใบบังแดดร้าน','⛱️'],['thai_cold_display','ตู้แช่เครื่องดื่ม','🧊'],['thai_icebox','ลังน้ำแข็ง','🧊'],
+ ['thai_vegetable_baskets','เข่งผักและผลไม้','🥬'],['thai_drink_crates','ลังน้ำดื่ม','🥤'],['thai_motorbike','มอเตอร์ไซค์จอด','🛵'],
+ ['thai_metal_table','โต๊ะเหล็กร้านอาหาร','🍽️'],['thai_plastic_chair','เก้าอี้พลาสติก','🪑'],
+ ['industrial_forklift','โฟล์กลิฟต์จอด','🏗️'],['industrial_cone','กรวยจราจร','🚧'],['industrial_barrier','แบริเออร์โรงงาน','🚧'],
+ ['industrial_zone_sign','ป้ายเขตโรงงาน','🪧'],['industrial_floodlight','ไฟสนามโรงงาน','💡'],['industrial_wrapped_pallet','พาเลทคลุมสินค้า','📦'],
+ ['industrial_crates','ลังสินค้ากองซ้อน','📦'],['industrial_generator','เครื่องปั่นไฟ','⚙️'],
+ ['temple_incense','กระถางธูป','🪔'],['temple_candles','เชิงเทียน','🕯️'],['temple_donation_box','ตู้บริจาค','💝'],
+ ['temple_hanging_bell','ระฆังแขวน','🔔'],['temple_wall','กำแพงวัดไทย','🧱'],['temple_lantern','โคมวัด','🏮'],
+ ['temple_naga','นาคประดับบันได','🐉'],['temple_shrine','ศาลาวัดเล็ก','🛕'],
+ ['street_bus_stop','ป้ายรถเมล์พร้อมหลังคา','🚏'],['street_bench','ม้านั่งริมถนน','🪑'],['street_soi_sign','ป้ายซอย','🪧'],
+ ['street_median_planter','กระบะต้นไม้เกาะกลาง','🌿'],['street_bollard_strip','แท่งกันรถเรียงแถว','🚧'],['street_vine_arch','ซุ้มไม้เลื้อย','🌿'],
+ ['street_folding_barrier','แผงกั้นถนน','🚧'],['street_lightbox','กล่องไฟโฆษณา','💡'],
+ ['nature_bush_pine','สนพุ่ม','🌲'],['nature_bush_banyan','ไทรพุ่ม','🌳'],['nature_thai_flower','พุ่มไม้ดอกไทย','🌺'],
+ ['nature_lotus_bowl','บัวในอ่าง','🪷'],['nature_square_fountain','น้ำพุสี่เหลี่ยม','⛲'],['nature_zen_rocks','สวนหินขนาดเล็ก','🪨'],
+ ['nature_park_cluster','สวนหย่อมสำเร็จรูป','🌱'],['nature_short_hedge','รั้วพุ่มไม้เตี้ย','🌿'],
 ].map(([key,name,icon])=>({key,name,icon}));
 // Presentation-only groups. All existing decoration keys and save records remain unchanged.
 const LANDSCAPE_GROUPS=[
@@ -2991,14 +3008,15 @@ const LANDSCAPE_GROUPS=[
  {key:'water',name:'บ่อน้ำและน้ำตก',icon:'💧',keys:['fountain','pond','pond_lotus','pond_reeds','waterfall','stream']},
  {key:'stone',name:'หินและสวนกรวด',icon:'🪨',keys:['rock_cluster','pebble_bed','rock_moss','rock_tall','rock_stack','sand_garden']},
  {key:'paths',name:'พื้นทางเดินและรั้ว',icon:'🧱',keys:['fence_white','fence_wood','fence_iron','gate','wood_deck','stone_path','tiles']},
- {key:'street',name:'อุปกรณ์ริมถนน',icon:'🚏',keys:['trash','mailbox','bollard','flag','signpost']},
+ {key:'street',name:'อุปกรณ์ริมถนน',icon:'🚏',keys:['trash','mailbox','bollard','flag','signpost','street_bus_stop','street_bench','street_soi_sign','street_median_planter','street_bollard_strip','street_vine_arch','street_folding_barrier','street_lightbox']},
  {key:'lights',name:'โคมไฟ',icon:'💡',keys:['street_lamp','garden_lamp']},
  {key:'art',name:'งานศิลป์และรูปปั้น',icon:'🗿',keys:['statue','crystal','abstract_orbit','abstract_obelisk']},
- {key:'thai_street',name:'ร้านค้าไทย',icon:'🏪',keys:['thai_grocery','thai_food_cart','thai_noodle_shop','thai_coffee_shop','thai_fruit_stall','thai_market_tables']},
- {key:'thai_factory',name:'เขตโรงงาน',icon:'🏭',keys:['industrial_container','industrial_pallets','industrial_drums','industrial_guardhouse','industrial_loading_dock','industrial_fence']},
- {key:'thai_temple',name:'วัดไทย',icon:'🛕',keys:['temple_gate','temple_ubosot','temple_chedi','temple_sala','temple_bell_tower','temple_guardians','temple_bodhi']},
+ {key:'thai_street',name:'ร้านค้าไทย',icon:'🏪',keys:['thai_grocery','thai_food_cart','thai_noodle_shop','thai_coffee_shop','thai_fruit_stall','thai_market_tables','thai_canvas_awning','thai_cold_display','thai_icebox','thai_vegetable_baskets','thai_drink_crates','thai_motorbike','thai_metal_table','thai_plastic_chair']},
+ {key:'thai_factory',name:'เขตโรงงาน',icon:'🏭',keys:['industrial_container','industrial_pallets','industrial_drums','industrial_guardhouse','industrial_loading_dock','industrial_fence','industrial_forklift','industrial_cone','industrial_barrier','industrial_zone_sign','industrial_floodlight','industrial_wrapped_pallet','industrial_crates','industrial_generator']},
+ {key:'thai_temple',name:'วัดไทย',icon:'🛕',keys:['temple_gate','temple_ubosot','temple_chedi','temple_sala','temple_bell_tower','temple_guardians','temple_bodhi','temple_incense','temple_candles','temple_donation_box','temple_hanging_bell','temple_wall','temple_lantern','temple_naga','temple_shrine']},
  {key:'thai_landmark',name:'แลนด์มาร์กไทย',icon:'🏯',keys:['landmark_city_gate','landmark_clocktower','landmark_monument','landmark_spirit_house','landmark_welcome_sign']},
- {key:'manage',name:'จัดวางและลบ',icon:'✋',keys:['landscapeSelect','treeRow','treeBrush','eraseTree']}
+ {key:'nature_sets',name:'สวนและธรรมชาติ',icon:'🌱',keys:['nature_bush_pine','nature_bush_banyan','nature_thai_flower','nature_lotus_bowl','nature_square_fountain','nature_zen_rocks','nature_park_cluster','nature_short_hedge']},
+ {key:'manage',name:'จัดวางและลบ',icon:'✋',keys:['landscapeSelect','treeRow','treeBrush','eraseTree','snapDecor']}
 ];
 function landscapeGroupForTool(t){
  const key=t.startsWith('tree:')?t.slice(5):t;
@@ -3006,24 +3024,53 @@ function landscapeGroupForTool(t){
 }
 const RETIRED_DECOR_KINDS=["bench_wood","bench_iron","picnic","umbrella","play_swing","play_slide","gazebo","bike_rack"];
 const LANDSCAPE_KINDS=[...TREE_KINDS,...DECOR_KINDS];
-let movingLandscape=null;
+const LANDSCAPE_KIND_MAP=new Map(LANDSCAPE_KINDS.map(k=>[k.key,k]));
+const DECOR_KIND_MAP=new Map(DECOR_KINDS.map(k=>[k.key,k]));
+let movingLandscape=null,landscapeSnap=false,lastLandscapePick=null;
+// Editor-only snap is OFF by default: new props can be placed freely to 0.01 world unit.
+function landscapePlacement(x,y){
+ return {x:landscapeSnap?Math.floor(x)+.5:Math.max(0,Math.min(W-.01,Math.round(x*100)/100)),
+         y:landscapeSnap?Math.floor(y)+.5:Math.max(0,Math.min(H-.01,Math.round(y*100)/100))};
+}
 function landscapeItem(record){return record?.auto?record:state.plantedTrees.includes(record?.item)?record.item:null;}
-function pickLandscapeAt(x,y){
- if(renderer3d?.pickLandscape)return renderer3d.pickLandscape(x,y);
- let chosen=null,best=18;
- for(const item of state.plantedTrees){const at=screen(item.x,item.y,DECOR_KINDS.some(k=>k.key===item.kind)?8:22),d=Math.hypot(at[0]-x,at[1]-y);if(d<best){best=d;chosen={item};}}
- return chosen;
+function landscapeChoicesAt(x,y){
+ if(renderer3d?.pickLandscapes)return renderer3d.pickLandscapes(x,y);
+ if(renderer3d?.pickLandscape){const hit=renderer3d.pickLandscape(x,y);return hit?[hit]:[];}
+ const hits=[];
+ for(let i=state.plantedTrees.length-1;i>=0;i--){
+  const item=state.plantedTrees[i],at=screen(item.x,item.y,DECOR_KIND_MAP.has(item.kind)?8:22),d=Math.hypot(at[0]-x,at[1]-y);
+  if(d<18)hits.push({item,d});
+ }
+ hits.sort((a,b)=>a.d-b.d);
+ return hits.map(hit=>({item:hit.item}));
+}
+function pickLandscapeAt(x,y){return landscapeChoicesAt(x,y)[0]||null;}
+function selectLandscapeAt(x,y){
+ const choices=landscapeChoicesAt(x,y);if(!choices.length){lastLandscapePick=null;return false;}
+ const last=lastLandscapePick,same=last&&last.version===state.landscapeVersion&&
+  Math.hypot(x-last.x,y-last.y)<15;
+ const index=same?(last.index+1)%choices.length:0;
+ lastLandscapePick={x,y,index,choices,version:state.landscapeVersion};
+ selected={kind:'landscape',record:choices[index]};renderInspector();return true;
+}
+function selectNextLandscape(){
+ if(!lastLandscapePick)return false;
+ const {x,y}=lastLandscapePick;
+ const choices=landscapeChoicesAt(x,y);if(choices.length<2)return false;
+ const current=choices.findIndex(p=>p.item===selected?.record?.item&&p.auto===selected?.record?.auto);
+ const index=(current+1)%choices.length;
+ lastLandscapePick={x,y,index,choices,version:state.landscapeVersion};
+ selected={kind:'landscape',record:choices[index]};renderInspector();return true;
 }
 function deleteLandscape(record){
  const item=landscapeItem(record);if(!item)return false;
  if(record.auto){const hidden=new Set(state.hiddenAutoTrees||[]);hidden.add(id(Math.floor(item.x),Math.floor(item.y)));state.hiddenAutoTrees=[...hidden].slice(-6000);}
  else state.plantedTrees.splice(state.plantedTrees.indexOf(item),1);
- state.landscapeVersion++;selected=null;movingLandscape=null;$('cancelMoveBuilding').hidden=true;$('inspector').classList.add('hidden');return true;
+ state.landscapeVersion++;lastLandscapePick=null;selected=null;movingLandscape=null;$('cancelMoveBuilding').hidden=true;$('inspector').classList.add('hidden');return true;
 }
 function moveLandscape(record,x,y){
  const item=landscapeItem(record);if(!item||!landscapeClear(x,y))return false;
- const tx=Math.floor(x)+.5,ty=Math.floor(y)+.5;
- if(state.plantedTrees.some(t=>t!==item&&t.x===tx&&t.y===ty))return false;
+ const {x:tx,y:ty}=landscapePlacement(x,y);
  let moved=item;
  if(record.auto){if(state.plantedTrees.length>=4000)return false;const hidden=new Set(state.hiddenAutoTrees||[]);hidden.add(id(Math.floor(item.x),Math.floor(item.y)));state.hiddenAutoTrees=[...hidden].slice(-6000);moved={x:tx,y:ty,kind:item.kind};state.plantedTrees.push(moved);}
  else{item.x=tx;item.y=ty;}
@@ -3036,8 +3083,10 @@ function beginMoveLandscape(record){
 }
 function renderLandscapeInspector(){
  const record=selected?.record,item=landscapeItem(record);if(!item){selected=null;$('inspector').classList.add('hidden');return;}
- const type=LANDSCAPE_KINDS.find(k=>k.key===item.kind),prop=DECOR_KINDS.some(k=>k.key===item.kind);
- $('inspectContent').innerHTML='<span class="tag">ต้นไม้และของตกแต่ง</span><h2>'+escapeSaveText(type?.name||'ต้นไม้')+'</h2><p>ย้ายได้ฟรี · วางอิสระ · บันทึกไปกับเมือง</p><div class="actions"><button data-action="move-landscape">ย้าย</button>'+(prop?'<button data-action="rotate-landscape">หมุน 90°</button>':'')+'<button class="danger" data-action="delete-landscape">ลบ</button></div>';
+ const type=LANDSCAPE_KIND_MAP.get(item.kind),prop=DECOR_KIND_MAP.has(item.kind);
+ const count=lastLandscapePick?.version===state.landscapeVersion?lastLandscapePick.choices.length:0;
+ const cycle=count>1?'<button data-action="next-landscape" title="เลือกชิ้นที่ซ้อนอยู่ตำแหน่งเดียวกัน">ชิ้นถัดไป ('+(lastLandscapePick.index+1)+'/'+count+')</button>':'';
+ $('inspectContent').innerHTML='<span class="tag">ต้นไม้และของตกแต่ง</span><h2>'+escapeSaveText(type?.name||'ต้นไม้')+'</h2><p>วางซ้อนกันได้ · ย้ายได้ฟรี · บันทึกตำแหน่งละเอียด · '+(landscapeSnap?'Snap เปิด':'Snap ปิด')+'</p><div class="actions">'+cycle+'<button data-action="move-landscape">ย้าย</button>'+(prop?'<button data-action="rotate-landscape">หมุน 90°</button>':'')+'<button class="danger" data-action="delete-landscape">ลบ</button></div>';
  $('inspector').classList.remove('hidden');
 }
 let currentTreeKind='shade';
@@ -3047,9 +3096,9 @@ function landscapeClear(x,y){
  return Number.isFinite(x)&&Number.isFinite(y)&&valid(Math.floor(x),Math.floor(y));
 }
 function plantLandscape(x,y,kind=currentTreeKind){
- if(!LANDSCAPE_KINDS.some(k=>k.key===kind)||!landscapeClear(x,y)||state.plantedTrees.length>=4000)return false;
- const tx=Math.floor(x)+.5,ty=Math.floor(y)+.5;
- if(state.plantedTrees.some(t=>t.x===tx&&t.y===ty))return false;
+ if(!LANDSCAPE_KIND_MAP.has(kind)||!landscapeClear(x,y)||state.plantedTrees.length>=4000)return false;
+ const {x:tx,y:ty}=landscapePlacement(x,y);
+ // Overlap is intentional. Only the total limit protects rendering and save size.
  state.plantedTrees.push({x:tx,y:ty,kind});state.landscapeVersion++;
  return true;
 }
@@ -3078,7 +3127,7 @@ function plantLandscapeStroke(d,x,y,spacing=2){
 }
 function drawPlantedTrees2D(){
  if(graphicQuality==='low')return;
- for(const t of state.plantedTrees||[]){if(!landscapeClear(t.x,t.y))continue;const a=screen(t.x,t.y);if(DECOR_KINDS.some(k=>k.key===t.kind)){ctx.save();ctx.font=Math.max(12,22*cam.z)+'px sans-serif';ctx.textAlign='center';ctx.fillText(DECOR_KINDS.find(k=>k.key===t.kind).icon,a[0],a[1]);ctx.restore();continue;}if(a[0]<-60||a[0]>view.w+60||a[1]<-60||a[1]>view.h+60)continue;tree(t.x,t.y,t.kind==='shrub'?.44:t.kind==='banyan'?1.4:t.kind==='palm'?1.15:1);}
+ for(const t of state.plantedTrees||[]){if(!landscapeClear(t.x,t.y))continue;const a=screen(t.x,t.y);if(DECOR_KIND_MAP.has(t.kind)){ctx.save();ctx.font=Math.max(12,22*cam.z)+'px sans-serif';ctx.textAlign='center';ctx.fillText(DECOR_KIND_MAP.get(t.kind).icon,a[0],a[1]);ctx.restore();continue;}if(a[0]<-60||a[0]>view.w+60||a[1]<-60||a[1]>view.h+60)continue;tree(t.x,t.y,t.kind==='shrub'?.44:t.kind==='banyan'?1.4:t.kind==='palm'?1.15:1);}
 }
 const categories=[['roads','ถนน'],['home','ที่อยู่อาศัย'],['work','งานและโรงงาน'],['food','ร้านค้าและอาหาร'],['leisure','พักผ่อน'],['landscape','ต้นไม้และตกแต่ง']];
 /* Separate WHAT to do (main dock group) from WHICH tool to use.
@@ -3207,7 +3256,7 @@ window.addEventListener('pagehide',()=>{if(travelRecording)travelLogStop('ปิ
 function dockItems(currentCategory){
  if(currentCategory==='civic')return []; // retired build category; never fall back to homes
  if(currentCategory==='reports')return[{key:'cityReport',name:'รายงานรถบัค',icon:'▤',price:'ผู้เล่นกดเอารถออกเพื่อส่งหลักฐาน · Dev ดูจาก Supabase'}];
- let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[{key:'landscapeSelect',name:'จับ/ย้ายของตกแต่ง',icon:'✋',price:'แตะเลือก · ย้าย · ลบ'},...LANDSCAPE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อวางทีละชิ้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub','casino']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home','hotel'];items=Object.values(CATALOG).filter(t=>!t.legacyOnly&&kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
+ let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[{key:'landscapeSelect',name:'จับ/ย้ายของตกแต่ง',icon:'✋',price:'แตะซ้ำเพื่อวนเลือกชิ้นที่ซ้อนกัน'},{key:'snapDecor',name:landscapeSnap?'Snap: เปิด':'Snap: ปิด',icon:landscapeSnap?'🧲':'🎯',price:landscapeSnap?'ยึดกึ่งกลางช่อง · กดเพื่อปิด':'วางอิสระละเอียด 0.01 ช่อง · กดเพื่อเปิด'},...LANDSCAPE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อวางทีละชิ้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub','casino']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home','hotel'];items=Object.values(CATALOG).filter(t=>!t.legacyOnly&&kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
 // Construction categories are always visible, without an extra top-level dock row.
@@ -3266,7 +3315,7 @@ function renderBuildingVariants(){
  if(category==='landscape'){
   const group=LANDSCAPE_GROUPS.find(g=>g.key===openLandscapeGroup);
   if(!group){popup.hidden=true;popup.innerHTML='';return;}
-  const all=dockItems('landscape'),variants=group.keys.map(key=>all.find(t=>t.key===(key==='landscapeSelect'||key==='treeRow'||key==='treeBrush'||key==='eraseTree'?key:'tree:'+key))).filter(Boolean);
+  const all=dockItems('landscape'),variants=group.keys.map(key=>all.find(t=>t.key===(key==='landscapeSelect'||key==='treeRow'||key==='treeBrush'||key==='eraseTree'||key==='snapDecor'?key:'tree:'+key))).filter(Boolean);
   popup.hidden=false;
   popup.setAttribute('aria-label','เลือก'+group.name);
   popup.innerHTML='<header class="build-variants-header"><strong>'+group.icon+' '+group.name+'</strong><span>'+variants.length+' รายการ</span><button type="button" data-close-variants aria-label="ปิดรายการตกแต่ง">×</button></header>'+
@@ -6160,7 +6209,7 @@ function confirmDemolition(title,details,callback,anchor=null){
 }
 function confirmAction(title,body,callback){modal(`<span class="eyebrow">CITY PLANNING</span><h2>${title}</h2><p>${body}</p><div class="actions"><button id="cancelDialog">ยกเลิก</button><button id="confirmDialog" class="primary">ยืนยัน</button></div>`);$('cancelDialog').onclick=closeModal;$('confirmDialog').onclick=()=>{closeModal();callback();};}
 function signalHitAt(x,y){const p=world(x,y),centerX=Math.round(p[0]-(renderer3d?0:.5)),centerY=Math.round(p[1]-(renderer3d?0:.5));let best=22,result=null;for(let yy=centerY-3;yy<=centerY+3;yy++)for(let xx=centerX-3;xx<=centerX+3;xx++){if(!valid(xx,yy))continue;const node=id(xx,yy);if(junction(node)<3)continue;const v=screen(xx+(renderer3d?0:.5),yy+(renderer3d?0:.5),renderer3d?.2:0),dist=Math.hypot(v[0]-x,v[1]-y);if(dist<best){best=dist;result=node;}}return result;}
-function inspectAt(x,y){if(tool==='hand'||tool==='landscapeSelect'){const landscape=pickLandscapeAt(x,y);if(landscape){selected={kind:'landscape',record:landscape};renderInspector();return;}}const marker=renderer3d?.pickVehicleMarker?.(x,y)||canvasCarMarkerHits.find(p=>Math.hypot(p.x-x,p.y-y)<10)?.selection;if(marker){selected={...marker};renderInspector();return;}const signal=tool==='tracking'?null:signalHitAt(x,y);if(signal!=null){selected={kind:'road',id:signal};renderInspector();return;}let closest=null,best=15;for(const v of state.vehicles.values()){if(!['driving','stuck','parking_in','parking_out','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;const p=vehiclePosition(v);if(!p)continue;const a=screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0)),dist=Math.hypot(a[0]-x,a[1]-y);if(dist<best){best=dist;closest=v;}}if(closest){selected={kind:'vehicle',id:closest.id,citizenId:closest.citizenId};renderInspector();return;}
+function inspectAt(x,y){if((tool==='hand'||tool==='landscapeSelect')&&selectLandscapeAt(x,y))return;const marker=renderer3d?.pickVehicleMarker?.(x,y)||canvasCarMarkerHits.find(p=>Math.hypot(p.x-x,p.y-y)<10)?.selection;if(marker){selected={...marker};renderInspector();return;}const signal=tool==='tracking'?null:signalHitAt(x,y);if(signal!=null){selected={kind:'road',id:signal};renderInspector();return;}let closest=null,best=15;for(const v of state.vehicles.values()){if(!['driving','stuck','parking_in','parking_out','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;const p=vehiclePosition(v);if(!p)continue;const a=screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0)),dist=Math.hypot(a[0]-x,a[1]-y);if(dist<best){best=dist;closest=v;}}if(closest){selected={kind:'vehicle',id:closest.id,citizenId:closest.citizenId};renderInspector();return;}
  // Pick truly parked cars by their actual parking slot instead of selecting their building.
  let parked=null,parkedBest=15;
  for(const b of state.buildings.values())for(const cid of b.parked){
@@ -6310,6 +6359,7 @@ $('buildVariantPopup').onclick=e=>{
  const key=button.dataset.tool;
  if(category==='landscape'){
   if(!dockItems('landscape').some(t=>t.key===key))return;
+  if(key==='snapDecor'){landscapeSnap=!landscapeSnap;renderTools();if(selected?.kind==='landscape')renderInspector();return;}
   closeBuildingVariants();selectTool(key);return;
  }
  if(!CATALOG[key]||!BUILD_DOCK_KINDS[category]?.includes(CATALOG[key].kind))return;
@@ -6510,8 +6560,8 @@ canvas.addEventListener('pointerdown',e=>{
  }
  canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
  if(e.pointerType==='touch'&&pointers.size>=2){if(!pinch||!pinch.ids.every(id=>pointers.has(id)))beginTouchOrbit();return;}
- const p=world(e.clientX,e.clientY),x=Math.floor(p[0]),y=Math.floor(p[1]);hover={x,y};
- const landscapeDrag=tool==='hand'&&e.button===0&&!e.shiftKey&&selected?.kind==='landscape'?pickLandscapeAt(e.clientX,e.clientY):null;
+ const p=world(e.clientX,e.clientY),x=Math.floor(p[0]),y=Math.floor(p[1]);hover={x,y,rawX:p[0],rawY:p[1],snap:landscapeSnap};
+ const landscapeDrag=tool==='hand'&&e.button===0&&!e.shiftKey&&selected?.kind==='landscape'&&landscapeChoicesAt(e.clientX,e.clientY).some(p=>p.item===selected.record.item)?selected.record:null;
  const pan=!landscapeDrag&&(tool==='hand'||tool==='tracking'||tool==='signalManage'||tool==='citizenDashboard'||e.button===1||e.shiftKey);
  const eraseBuildingId=tool==='erase'&&!pan?demolitionBuildingAt(e.clientX,e.clientY):null;
  const initialRoads=(tool==='eraseRoad'||tool==='erase')&&!pan&&eraseBuildingId==null?roadEraseSegmentCells(x,y,x,y):null;
@@ -6524,13 +6574,13 @@ canvas.addEventListener('pointermove',e=>{
   if((e.buttons&3)===3){if(!mouseOrbit){if(beginMouseOrbit(e))return;}else{e.preventDefault();moveMouseOrbit(e);return;}}
   if(mouseChordHeld){mouseOrbit=null;drag=null;if(!e.buttons){mouseChordHeld=false;mouseRightPending=false;pointers.delete(e.pointerId);}return;}
  }
- const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1]),landscape:movingLandscape};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch){moveTouchOrbit();hover=null;return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(owner(id(drag.x,drag.y)),owner(id(hover.x,hover.y)));
+ const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1]),rawX:p[0],rawY:p[1],snap:landscapeSnap,landscape:movingLandscape};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch){moveTouchOrbit();hover=null;return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(owner(id(drag.x,drag.y)),owner(id(hover.x,hover.y)));
  else if((tool==='eraseRoad'||tool==='erase')&&drag.eraseBuildingId==null)appendRoadEraseStroke(drag,hover.x,hover.y);
  drag.lastX=e.clientX;drag.lastY=e.clientY;});
 function finishCanvasInteraction(d,x,y,activeTool){
  if(tool!==activeTool)return;
- if(d.landscape){if(d.moved){const p=world(x,y);if(!moveLandscape(d.landscape,p[0],p[1]))toast('ตำแหน่งนี้มีของตกแต่งอยู่แล้วค่ะ');}else inspectAt(x,y);return;}
- if(tool==='landscapeSelect'){if(movingLandscape){const p=world(x,y);if(!moveLandscape(movingLandscape,p[0],p[1]))toast('ตำแหน่งนี้มีของตกแต่งอยู่แล้วค่ะ');}else inspectAt(x,y);return;}
+ if(d.landscape){if(d.moved){const p=world(x,y);if(!moveLandscape(d.landscape,p[0],p[1]))toast('ย้ายไม่ได้ · จุดนี้อยู่นอกแผนที่หรือเต็มขีดจำกัดค่ะ');}else inspectAt(x,y);return;}
+ if(tool==='landscapeSelect'){if(movingLandscape){const p=world(x,y);if(!moveLandscape(movingLandscape,p[0],p[1]))toast('ย้ายไม่ได้ · จุดนี้อยู่นอกแผนที่หรือเต็มขีดจำกัดค่ะ');}else inspectAt(x,y);return;}
  if(d.pan){if(!d.moved)inspectAt(x,y);return;}
  if(ROADS[tool])buildRoad(d.cells,tool);
  else if(tool==='eraseRoad'||tool==='erase'){
@@ -6545,7 +6595,7 @@ function finishCanvasInteraction(d,x,y,activeTool){
   if(tool==='treeRow')count=plantLandscapeStroke(d,x,y,2.8);
   else if(tool==='treeBrush')count=plantLandscapeStroke(d,x,y,1.1);
   else count=plantLandscape(p[0],p[1],tool.slice(5))?1:0;
-  toast(count?'วางต้นไม้/ของตกแต่ง '+count+' ชิ้นแล้วค่ะ':'ตำแหน่งนี้มีของตกแต่งอยู่แล้ว หรืออยู่นอกแผนที่ค่ะ');return;
+  toast(count?'วางต้นไม้/ของตกแต่ง '+count+' ชิ้นแล้วค่ะ':'วางไม่ได้ · อยู่นอกแผนที่หรือครบ 4,000 ชิ้นแล้วค่ะ');return;
  }
  else if(CATALOG[tool]){if(!movingBuildingId&&buildingQuotaStatus(tool).locked){showBuildingQuotaWarning(tool);return;}const p=world(x,y),placement=assistedBuildingPlacement(tool,p[0],p[1]);if(placement.error){toast(placement.error);return;}if(movingBuildingId)moveBuilding(movingBuildingId,placement.x,placement.y,false,placement.rotation);else buildBuilding(tool,placement.x,placement.y,false,placement.rotation);}
  else{const p=world(x,y),ix=Math.floor(p[0]),iy=Math.floor(p[1]);if(!valid(ix,iy))return;if(tool==='eraseBuilding')demolishBuilding(state.buildings.get(state.buildGrid[id(ix,iy)]),false,{x,y});}
@@ -6579,7 +6629,7 @@ document.addEventListener?.('pointerdown',event=>{
 },true);
 window.addEventListener('keydown',e=>{if($('dialog').open)return;if(e.key==='Escape'){cancelInteraction();return;}if(e.target?.matches?.('input,textarea,select,[contenteditable="true"]'))return;if(e.code==='Space'){e.preventDefault();state.speed=state.speed?0:1;updateUI();}if(['1','2','5'].includes(e.key)){state.speed=+e.key;updateUI();}if(e.key.toLowerCase()==='h')toggleTrafficHeat();if(e.key.toLowerCase()==='b'){category='roads';selectTool('small');}if(e.key.toLowerCase()==='s'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openCloudSaveDialog();}});
 $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action,v=+b.dataset.value;
- if(selected?.kind==='landscape'&&a.endsWith('-landscape')){const record=selected.record,item=landscapeItem(record);if(a==='move-landscape')beginMoveLandscape(record);else if(a==='rotate-landscape'&&item&&!record.auto){item.rotation=((item.rotation||0)+1)%4;state.landscapeVersion++;renderInspector();}else if(a==='delete-landscape')confirmAction('ลบต้นไม้/ของตกแต่ง?','ลบเฉพาะชิ้นที่เลือก ไม่กระทบถนนหรืออาคาร',()=>{deleteLandscape(record);toast('ลบของตกแต่งแล้วค่ะ');});return;}
+ if(selected?.kind==='landscape'&&a.endsWith('-landscape')){const record=selected.record,item=landscapeItem(record);if(a==='next-landscape'){selectNextLandscape();return;}if(a==='move-landscape')beginMoveLandscape(record);else if(a==='rotate-landscape'&&item&&!record.auto){item.rotation=((item.rotation||0)+1)%4;state.landscapeVersion++;renderInspector();}else if(a==='delete-landscape')confirmAction('ลบต้นไม้/ของตกแต่ง?','ลบเฉพาะชิ้นที่เลือก ไม่กระทบถนนหรืออาคาร',()=>{deleteLandscape(record);toast('ลบของตกแต่งแล้วค่ะ');});return;}
  if(a==='signal-defaults-reset'){
   if(selected?.kind!=='signals')return;const count=restoreRecommendedSignals();
   toast('คืนค่าแนะนำแล้ว '+count+' แยก · กลับสู่ไฟอัตโนมัติทั้งหมด');renderInspector(true);return;
@@ -7244,6 +7294,6 @@ window.SMGameCreatorMetrics=()=>{
 $('skip').onclick=()=>confirmAction('ข้ามไปเช้าวันใหม่','สรุปการเดินทางและรายรับจนถึง 06:00 วันถัดไป ช่วงที่ข้ามจะประมาณผลการเดินทางแทนการจำลองรถทุกคัน',()=>{const target=(Math.floor(state.time/1440)+1)*1440+360;for(const v of [...state.vehicles.values()]){if(v.citizenId&&['work','leisure','home'].includes(v.kind)){const c=state.citizens.get(v.citizenId);if(!c?.tourist)journeyResult(c,v,'cancelled','ข้ามวันระหว่างเดินทาง');}arrive(v,true);}state.events=state.events.filter(e=>e.at>=target);eventHeapify();state.time=target;daily();missionAutoPulse();for(const c of [...state.citizens.values()]){if(c.removed)continue;if(c.tourist){removeCitizen(c);continue;}for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}state.buildings.get(c.homeId)?.parked.add(c.id);c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));}syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;renderTools();addNews('ข้ามวันแบบสรุป เริ่มเช้าวันใหม่ 06:00');updateUI();toast('เช้าวันใหม่ พร้อมปรับเมืองต่อแล้วค่ะ');});
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร Performance จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
-if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({performanceDay,ensurePerformance,personalPerformance,recordPerformance,closePerformanceDay,serviceAvailability,startComplaintTrip,refreshComplaints,incomeFactor,DECOR_KINDS,LANDSCAPE_KINDS,moveLandscape,deleteLandscape,beginMoveLandscape,pickLandscapeAt,BUILDING_CHAINS,buildingQuotaStatus,beginMoveBuilding,moveBuilding,straightIntercityPath,updateIntercityFreight,deliveryNightAt,buildDeliveryRun,updateNightDeliveries,startDeliveryReturn,assistedBuildingPlacement,getDemolitionPreview,finishCanvasInteraction,get state(){return state;},get cam(){return cam;},get selected(){return selected;},get carStatusDiamondsVisible(){return carStatusDiamondsVisible;},get aiPinsVisible(){return aiPinsVisible;},toggleAIPinLabels,activateAISignalPin,updateAISignalPins,buyAISignal,openAISignalUpgrade,smartSignalStep,aiSignalQueuePressure,get graphicQuality(){return graphicQuality;},applyGraphicQuality,openGraphicsMenu,get canvasCarMarkerHits(){return canvasCarMarkerHits;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,CITIZEN_TRAITS,VEHICLE_TECHS,openVehicleUpgrade,syncCitizenVehicleTech,vehicleTechCounts,vehiclePosition,advanceSkyVehicle,citizenServicePreference,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,observeDemandNotices,demandNoticeList,clearDemandNoticeForBuild,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,captureTowedVehicleEvidence,explainRoadTraversal,rememberVehicleStop,setBugCaptureEnabled,get bugCaptureEnabled(){return bugCaptureEnabled;},updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalSlots,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,mergeRoadKeys,parkingClaimed,prepareParkingMerges,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
+if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({performanceDay,ensurePerformance,personalPerformance,recordPerformance,closePerformanceDay,serviceAvailability,startComplaintTrip,refreshComplaints,incomeFactor,DECOR_KINDS,LANDSCAPE_KINDS,moveLandscape,deleteLandscape,beginMoveLandscape,pickLandscapeAt,landscapeChoicesAt,selectLandscapeAt,selectNextLandscape,landscapePlacement,get landscapeSnap(){return landscapeSnap;},BUILDING_CHAINS,buildingQuotaStatus,beginMoveBuilding,moveBuilding,straightIntercityPath,updateIntercityFreight,deliveryNightAt,buildDeliveryRun,updateNightDeliveries,startDeliveryReturn,assistedBuildingPlacement,getDemolitionPreview,finishCanvasInteraction,get state(){return state;},get cam(){return cam;},get selected(){return selected;},get carStatusDiamondsVisible(){return carStatusDiamondsVisible;},get aiPinsVisible(){return aiPinsVisible;},toggleAIPinLabels,activateAISignalPin,updateAISignalPins,buyAISignal,openAISignalUpgrade,smartSignalStep,aiSignalQueuePressure,get graphicQuality(){return graphicQuality;},applyGraphicQuality,openGraphicsMenu,get canvasCarMarkerHits(){return canvasCarMarkerHits;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,CITIZEN_TRAITS,VEHICLE_TECHS,openVehicleUpgrade,syncCitizenVehicleTech,vehicleTechCounts,vehiclePosition,advanceSkyVehicle,citizenServicePreference,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,observeDemandNotices,demandNoticeList,clearDemandNoticeForBuild,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,captureTowedVehicleEvidence,explainRoadTraversal,rememberVehicleStop,setBugCaptureEnabled,get bugCaptureEnabled(){return bugCaptureEnabled;},updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalSlots,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,mergeRoadKeys,parkingClaimed,prepareParkingMerges,laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
 resize();startNewCity();requestAnimationFrame(frame);
 })();
