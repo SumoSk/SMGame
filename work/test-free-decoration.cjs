@@ -8,6 +8,33 @@ const beforeQuota=JSON.stringify(g.state.buildingQuota),cash=g.state.money;
 for(const [x,y] of [[150,150],[161,146],[0,0],[299,299],[10,10],[11,10]])assert(g.plantLandscape(x,y,'palm'),'allow map cell '+x+','+y);
 assert.equal(g.plantLandscape(10,10,'shade'),true,'allow exact stacked coordinates');
 assert.equal(g.plantLandscape(-1,1,'shade'),false);assert.equal(g.plantLandscape(NaN,1,'shade'),false);
+// Default free placement is precise to 0.01 map unit, even with other items nearby.
+assert.equal(g.landscapeSnap,false,'Snap should start OFF');
+assert(g.plantLandscape(250.123,250.456,'thai_motorbike'));
+const motorbike=g.state.plantedTrees.at(-1);
+assert.equal(motorbike.x,250.12);assert.equal(motorbike.y,250.46);
+assert(g.plantLandscape(250.123,250.456,'thai_motorbike'),'identical decoration geometry may overlap');
+assert.equal(g.state.plantedTrees.at(-1).x,motorbike.x);
+assert.equal(g.state.plantedTrees.at(-1).y,motorbike.y);
+// Cycle overlapping items by tapping again or using the inspector's next-item control.
+const point=g.screen(10,10,22);
+assert(g.selectLandscapeAt(...point));const first=g.selected.record.item;
+assert(get('inspectContent').innerHTML.includes('next-landscape'),'stacked items must be cycleable');
+assert(g.selectNextLandscape());assert.notEqual(g.selected.record.item,first);
+assert(g.selectLandscapeAt(...point));assert.equal(g.selected.record.item,first,'repeated tap cycles back');
+// Snap toggle is a proper editor control inside Manage (not a placeable item).
+get('subcategories').onclick({target:{closest:()=>({dataset:{category:'landscape'}})}});
+get('tools').onclick({target:{closest:selector=>selector==='[data-landscape-group]'?{dataset:{landscapeGroup:'manage'}}:null}});
+assert(get('buildVariantPopup').innerHTML.includes('data-tool="snapDecor"'));
+get('buildVariantPopup').onclick({target:{closest:selector=>selector==='[data-tool]'?{dataset:{tool:'snapDecor'}}:null}});
+assert.equal(g.landscapeSnap,true);
+assert(g.plantLandscape(251.13,251.48,'nature_thai_flower'));
+assert.equal(g.state.plantedTrees.at(-1).x,251.5);
+assert.equal(g.state.plantedTrees.at(-1).y,251.5);
+get('buildVariantPopup').onclick({target:{closest:selector=>selector==='[data-tool]'?{dataset:{tool:'snapDecor'}}:null}});
+assert.equal(g.landscapeSnap,false);
+assert(g.moveLandscape({item:motorbike},10,10),'free move to overlapping coordinate should succeed');
+assert.equal(motorbike.x,10);assert.equal(motorbike.y,10);
 assert.equal(g.state.money,cash);assert.equal(JSON.stringify(g.state.buildingQuota),beforeQuota);
 get('subcategories').onclick({target:{closest:()=>({dataset:{category:'landscape'}})}});
 assert(!get('tools').innerHTML.includes('tool-quota-count'));
@@ -24,5 +51,5 @@ g.reset('bangkok');assert(g.plantLandscape(125,0,'shade'),'river decorations are
  g.state.plantedTrees=[{x:150.5,y:150.5,kind:'palm'},{x:125.5,y:150.5,kind:'palm'}];
  r.trees(g.state,{x:150,y:150});
  for(const t of g.state.plantedTrees)assert(drawn.some(([x,y])=>x===t.x&&y===t.y),'manual tree remains visible on road/water');
- console.log('PASS: unrestricted map placement, quota independence, saved positions, river and road rendering');
+ console.log('PASS: free 0.01 placement, stacking, stacked-item cycling, Snap toggle, overlap moving, save roundtrip, river/road rendering');
 })().catch(e=>{console.error(e);process.exitCode=1;});
