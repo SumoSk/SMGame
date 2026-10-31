@@ -3130,9 +3130,60 @@ function dockItems(currentCategory){
 function dockSectionFor(currentCategory){
  return dockGroups.find(group=>group.categories.includes(currentCategory))||dockGroups[0];
 }
+// Reuse the original building cards, grouped by kind. Only category/type
+// navigation changes; construction keys, quotas and simulation are untouched.
+const BUILD_DOCK_KINDS={home:['home','hotel'],work:['office','factory'],food:['shop','restaurant','mall'],leisure:['park','pub','casino']};
+let openBuildingKind=null;
 function dockVisibleItems(group,currentCategory){
- const visible=dockItems(currentCategory).map(item=>({...item,category:currentCategory}));
- return visible;
+ return dockItems(currentCategory).map(item=>({...item,category:currentCategory}));
+}
+function dockTypeItems(currentCategory){
+ const variants=dockItems(currentCategory);
+ return (BUILD_DOCK_KINDS[currentCategory]||[]).map(kind=>{
+  const matches=variants.filter(t=>CATALOG[t.key]?.kind===kind);
+  return matches.length?{kind,name:KINDS[kind].name,icon:KINDS[kind].icon,count:matches.length,category:currentCategory}:null;
+ }).filter(Boolean);
+}
+function closeBuildingVariants(){
+ openBuildingKind=null;
+ const popup=$('buildVariantPopup');
+ if(popup){popup.hidden=true;popup.innerHTML='';}
+ const tray=$('tools');
+ for(const button of tray?.querySelectorAll?.('[data-build-kind]')||[]){
+  button.setAttribute('aria-expanded','false');
+  button.classList.remove('expanded');
+ }
+}
+function positionBuildingVariants(){
+ const popup=$('buildVariantPopup'),tray=$('tools');
+ if(!popup||popup.hidden||!openBuildingKind||!tray?.querySelector)return;
+ const anchor=tray.querySelector('[data-build-kind="'+openBuildingKind+'"]');
+ if(!anchor?.getBoundingClientRect)return;
+ const rect=anchor.getBoundingClientRect();
+ // A fixed popup must live outside the clipped bottom dashboard. Dock and
+ // category cards keep their original size and never get taller.
+ const commandTop=$('cityCommandBar')?.getBoundingClientRect?.().top;
+ const top=Math.min(rect.top,Number.isFinite(commandTop)?commandTop:rect.top);
+ const bottom=Math.max(10,Math.ceil(innerHeight-top+8));
+ const popupWidth=Math.min(228,Math.max(140,innerWidth-16));
+ const left=Math.max(8,Math.min(innerWidth-popupWidth-8,rect.left+rect.width/2-popupWidth/2));
+ popup.style.width=popupWidth+'px';
+ popup.style.left=left+'px';
+ popup.style.bottom=bottom+'px';
+ popup.style.maxHeight=Math.max(70,Math.min(400,Math.floor(innerHeight-bottom-10)))+'px';
+}
+function renderBuildingVariants(){
+ const popup=$('buildVariantPopup');if(!popup)return;
+ if(!openBuildingKind||!(BUILD_DOCK_KINDS[category]||[]).includes(openBuildingKind)){
+  popup.hidden=true;popup.innerHTML='';return;
+ }
+ const variants=dockItems(category).filter(t=>CATALOG[t.key]?.kind===openBuildingKind);
+ if(!variants.length){closeBuildingVariants();return;}
+ popup.hidden=false;
+ popup.setAttribute('aria-label','เลือกขนาด'+KINDS[openBuildingKind].name);
+ popup.innerHTML='<header class="build-variants-header"><strong>'+KINDS[openBuildingKind].icon+' '+KINDS[openBuildingKind].name+'</strong><span>'+variants.length+' ขนาด</span><button type="button" data-close-variants aria-label="ปิดรายการขนาด">×</button></header>'+
+  variants.map(t=>'<button type="button" class="tool '+(buildingQuotaStatus(t.key).locked?'quota-locked ':'')+(tool===t.key?'active':'')+'" data-tool="'+t.key+'" aria-pressed="'+(tool===t.key)+'" aria-disabled="'+buildingQuotaStatus(t.key).locked+'" title="'+(buildingQuotaStatus(t.key).message||t.name)+'"><span class="tool-icon">'+t.icon+'</span><span class="build-variant-info"><strong class="tool-name">'+t.name+(t.capacity?' <span class="tool-capacity">'+t.capacity+'</span>':'')+'</strong><small class="tool-price">'+t.price+'</small>'+buildingQuotaMarkup(t.key)+'</span></button>').join('');
+ positionBuildingVariants();
 }
 function updateCityQuickModes(){
  const rail=$('cityQuickModes');
@@ -3147,20 +3198,27 @@ function updateCityQuickModes(){
 function renderTools(){
  const group=dockSectionFor(category),tray=$('tools'),sub=$('subcategories');
  dockGroup=group.key;
- // Keep the legacy mount empty for compatibility; do not render another tier of navigation.
  $('categories').innerHTML='';
- const hasSubcategories=true;
- sub.hidden=!hasSubcategories;
- sub.innerHTML=hasSubcategories?categories.filter(([key])=>group.categories.includes(key)).map(([key,name])=>
-  `<button type="button" data-category="${key}" class="${category===key?'active':''}" aria-pressed="${category===key}">${name}</button>`).join(''):'';
+ sub.hidden=false;
+ sub.innerHTML=categories.filter(([key])=>group.categories.includes(key)).map(([key,name])=>
+  '<button type="button" data-category="'+key+'" class="'+(category===key?'active':'')+'" aria-pressed="'+(category===key)+'">'+name+'</button>').join('');
  const previousGroup=tray.dataset?.currentDockGroup||'',previousCategory=tray.dataset?.currentDockCategory||'';
  const changed=previousGroup!==group.key||previousCategory!==category;
  const scroll=changed?0:tray.scrollLeft;
- const items=dockVisibleItems(group,category);
- tray.innerHTML=items.map(t=>
-  `<button class="tool ${buildingQuotaStatus(t.key).locked?'quota-locked':''} ${(t.key==='trafficHeat'?heat:tool===t.key)?'active':''}" data-tool="${t.key}" data-category="${t.category}" aria-pressed="${t.key==='trafficHeat'?heat:tool===t.key}" aria-disabled="${buildingQuotaStatus(t.key).locked}" title="${buildingQuotaStatus(t.key).message||t.name}"><span class="tool-icon">${t.icon}</span><span><strong class="tool-name">${t.name}${t.capacity?` <span class="tool-capacity">${t.capacity}</span>`:''}</strong><small class="tool-price">${t.price}</small>${buildingQuotaMarkup(t.key)}</span></button>`).join('');
+ if(BUILD_DOCK_KINDS[category]){
+  const types=dockTypeItems(category);
+  tray.innerHTML=types.map(t=>{
+   const active=openBuildingKind===t.kind,chosen=CATALOG[tool]?.kind===t.kind;
+   return '<button type="button" class="tool build-kind-box '+(active||chosen?'active ':'')+(active?'expanded':'')+'" data-build-kind="'+t.kind+'" aria-haspopup="true" aria-controls="buildVariantPopup" aria-expanded="'+active+'" title="เลือกขนาด'+t.name+'"><span class="tool-icon">'+t.icon+'</span><span><strong class="tool-name">'+t.name+'</strong><small class="tool-price">'+t.count+' ขนาด</small></span></button>';
+  }).join('');
+ }else{
+  const items=dockVisibleItems(group,category);
+  tray.innerHTML=items.map(t=>
+   '<button class="tool '+(buildingQuotaStatus(t.key).locked?'quota-locked ':'')+((t.key==='trafficHeat'?heat:tool===t.key)?'active':'')+'" data-tool="'+t.key+'" data-category="'+t.category+'" aria-pressed="'+(t.key==='trafficHeat'?heat:tool===t.key)+'" aria-disabled="'+buildingQuotaStatus(t.key).locked+'" title="'+(buildingQuotaStatus(t.key).message||t.name)+'"><span class="tool-icon">'+t.icon+'</span><span><strong class="tool-name">'+t.name+(t.capacity?' <span class="tool-capacity">'+t.capacity+'</span>':'')+'</strong><small class="tool-price">'+t.price+'</small>'+buildingQuotaMarkup(t.key)+'</span></button>').join('');
+ }
  if(tray.dataset){tray.dataset.currentDockGroup=group.key;tray.dataset.currentDockCategory=category;}
  tray.scrollLeft=scroll;
+ renderBuildingVariants();
  updateCityQuickModes();
 }
 // The building/control dock is presentation-only; selected tools and the
@@ -3168,6 +3226,7 @@ function renderTools(){
 function setDockCollapsed(collapsed){
  const dock=$('buildDock'),button=$('toggleDock'),icon=$('toggleDockIcon'),label=$('toggleDockText');
  if(!dock||!button)return;
+ if(collapsed)closeBuildingVariants();
  dock.classList.toggle('is-collapsed',!!collapsed);
  dock.closest('.control-deck')?.classList.toggle('tools-collapsed',!!collapsed);
  button.setAttribute('aria-expanded',String(!collapsed));
@@ -3175,7 +3234,7 @@ function setDockCollapsed(collapsed){
  if(icon)icon.textContent=collapsed?'⌃':'⌄';
  if(label)label.textContent=collapsed?'กางเครื่องมือ':'หุบเครื่องมือ';
 }
-function selectTool(t,existingBuilding=null){movingLandscape=null;const quota=buildingQuotaStatus(t);if(quota.locked&&!(existingBuilding&&state.buildings.get(existingBuilding.id)===existingBuilding&&existingBuilding.key===t)){showBuildingQuotaWarning(t);$('hint').textContent=quota.message;return false;}movingBuildingId=null;$('cancelMoveBuilding').hidden=true;if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · เกมช่วยจัดตำแหน่งติดถนนใกล้เมาส์หรือนิ้ว`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'วางต้นไม้ได้ทุกตำแหน่งในแผนที่ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลัก · รถบนถนนที่รื้อจะกลับเข้าเมืองใหม่':t==='erase'?'แตะตึกเพื่อรื้อ หรือลากตามถนนเพื่อลบต่อเนื่อง · ยืนยันก่อนรื้อทุกครั้ง':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูPerformance ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
+function selectTool(t,existingBuilding=null){if(t==='hand')closeBuildingVariants();movingLandscape=null;const quota=buildingQuotaStatus(t);if(quota.locked&&!(existingBuilding&&state.buildings.get(existingBuilding.id)===existingBuilding&&existingBuilding.key===t)){showBuildingQuotaWarning(t);$('hint').textContent=quota.message;return false;}movingBuildingId=null;$('cancelMoveBuilding').hidden=true;if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · เกมช่วยจัดตำแหน่งติดถนนใกล้เมาส์หรือนิ้ว`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'วางต้นไม้ได้ทุกตำแหน่งในแผนที่ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลัก · รถบนถนนที่รื้อจะกลับเข้าเมืองใหม่':t==='erase'?'แตะตึกเพื่อรื้อ หรือลากตามถนนเพื่อลบต่อเนื่อง · ยืนยันก่อนรื้อทุกครั้ง':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูPerformance ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
 let dialogRevision=0;
 function panelHeading(icon,title,subtitle=''){
  return '<header class="menu-heading"><span class="menu-logo" aria-hidden="true">'+icon+'</span><div><h2>'+title+'</h2>'+(subtitle?'<p class="panel-subtitle">'+subtitle+'</p>':'')+'</div></header>';
@@ -6111,10 +6170,16 @@ $('subcategories').onclick=e=>{
  // Direct construction category tabs, including landscaping.
  if(!dockGroups[0].categories.includes(button.dataset.category))return;
  const next=button.dataset.category;
- category=next;
+ closeBuildingVariants();category=next;
  selectTool('hand');
 };
 $('tools').onclick=e=>{
+ const type=e.target.closest('[data-build-kind]');
+ if(type){
+  openBuildingKind=openBuildingKind===type.dataset.buildKind?null:type.dataset.buildKind;
+  renderTools();
+  return;
+ }
  const b=e.target.closest('[data-tool]');if(!b)return;
  if(b.dataset.tool==='missionDashboard'){openMissionDashboard();return;}
  if(b.dataset.tool==='travelLog'){openTravelLog();return;}
@@ -6130,6 +6195,23 @@ $('tools').onclick=e=>{
  if(tool===b.dataset.tool&&tool!=='hand'){cancelInteraction();return;}
  selectTool(b.dataset.tool);
 };
+$('buildVariantPopup').onclick=e=>{
+ if(e.target.closest('[data-close-variants]')){closeBuildingVariants();renderTools();return;}
+ const button=e.target.closest('[data-tool]');if(!button)return;
+ const key=button.dataset.tool;
+ if(!CATALOG[key]||!BUILD_DOCK_KINDS[category]?.includes(CATALOG[key].kind))return;
+ // Keep the same box list available for placing another building; selection
+ // and all quota confirmations go through the existing selectTool() path.
+ selectTool(key);
+};
+document.addEventListener('pointerdown',e=>{
+ if(!openBuildingKind)return;
+ if(e.target.closest?.('#buildVariantPopup,#tools,#subcategories'))return;
+ closeBuildingVariants();
+ renderTools();
+});
+window.addEventListener('resize',positionBuildingVariants);
+$('tools').addEventListener('scroll',positionBuildingVariants,{passive:true});
 $('cityQuickModes').onclick=event=>{
  const button=event.target.closest('[data-city-shortcut]');
  if(!button)return;
