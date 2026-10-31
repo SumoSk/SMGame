@@ -1,6 +1,6 @@
 {
   "name": "traffic-fixer-thailand",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "private": true,
   "description": "เกมสร้างเมืองและแก้ปัญหาจราจรแบบไทย",
   "scripts": {
@@ -14,7 +14,8 @@
     "test:stationary-render": "node work/test-stationary-render.cjs",
     "test:release-fixes": "node -r ./work/test-dom-compat.cjs work/test-release-fixes.cjs",
     "test:assisted-placement": "node -r ./work/test-dom-compat.cjs work/test-assisted-placement.cjs",
-    "test:v500": "node -r ./work/test-dom-compat.cjs work/test-v500.cjs"
+    "test:v500": "node -r ./work/test-dom-compat.cjs work/test-v500.cjs",
+    "test:v51": "node -r ./work/test-dom-compat.cjs work/test-city-level-51.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0"
