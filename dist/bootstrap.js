@@ -1,5 +1,5 @@
 import { TrafficRenderer } from './renderer3d.js?v=bd1bdfad7e10';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
 await import('./game.js?v=6dce785944a8');
-await import('./member.js?v=dc553cf1ac1d');
+await import('./member.js?v=f5d63f7fee00');
 await import('./simple-account.js?v=18eb5d10b73f');
