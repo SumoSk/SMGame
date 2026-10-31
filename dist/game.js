@@ -3708,7 +3708,7 @@ function worksOnDay(c,day,w=workRoutine(c)){
 }
 
 // Planning units: road blocks and simulation minutes, independent of UI speed.
-const TRAVEL_PLANNING={version:1,minutesPerBlock:2,accessMinutes:10,waitMinutes:10};
+const TRAVEL_PLANNING={version:2,minutesPerBlock:2,accessMinutes:10,waitMinutes:10};
 function travelEstimate(path){
  if(!Array.isArray(path)||!path.length)return null;
  let blocks=0;for(let i=1;i<path.length;i++)blocks+=distance(path[i-1],path[i]);
@@ -3758,11 +3758,11 @@ function skipOptionalActivity(c,reason){
 }
 
 function estimatePlanTravel(c,plan){
- let origin=c.homeId,cursor=0;
+ let origin=c.homeId,cursor=0,lastStart=-Infinity;
  const finalized=[];
  for(const proposed of plan.steps){
   const step={...proposed};delete step.planningSkipped;
-  let at=Math.max(step.at,cursor),target=step.kind==='work'?step.workId:step.kind==='home'?c.homeId:null;
+  let at=Math.max(step.at,cursor,lastStart+MIN_DAILY_ACTIVITY_GAP),target=step.kind==='work'?step.workId:step.kind==='home'?c.homeId:null;
   let estimate=target?buildingTravelEstimate(c,origin,target):null;
   if(SERVICE_STAY[step.kind]){
    // Choose a time-compatible activity before the itinerary becomes a promise.
@@ -3780,23 +3780,23 @@ function estimatePlanTravel(c,plan){
   }
   const travel=estimate?.totalMinutes||45;
   if(step.kind==='work'){
-   step.at=Math.max(cursor,Math.min(step.at,step.deadline-travel));
+   step.at=Math.max(at,Math.min(step.at,step.deadline-travel));
    step.estimatedAt=step.at;cursor=Math.max(step.at+travel,step.until);
   }else{
    step.at=at;step.estimatedAt=at;step.deadline=at+travel+15;
    if(SERVICE_STAY[step.kind])step.expires=step.deadline+step.duration+30;
    cursor=at+travel+(step.duration||step.rest||0);
   }
-  step.travelEstimate=estimate;finalized.push(step);if(target)origin=target;
+  step.travelEstimate=estimate;finalized.push(step);lastStart=step.at;if(target)origin=target;
  }
  if(finalized.length<4){
   const home=finalized.pop()||{kind:'home',at:cursor,sleep:true};
   while(finalized.length<3){
-   const at=cursor+20,kinds=Object.keys(SERVICE_STAY).filter(k=>serviceWindow(k,plan.day*1440+at+45));
+   const at=Math.max(cursor+20,(finalized.at(-1)?.at??0)+MIN_DAILY_ACTIVITY_GAP),kinds=Object.keys(SERVICE_STAY).filter(k=>serviceWindow(k,plan.day*1440+at+45));
    const kind=kinds.sort((a,b)=>citizenServicePreference(c,b)-citizenServicePreference(c,a))[0]||'casino';
    finalized.push({kind,at,duration:SERVICE_STAY[kind][0],expires:at+240});cursor=at+45+SERVICE_STAY[kind][0];
   }
-  finalized.push({...home,at:Math.max(home.at,cursor)});
+  finalized.push({...home,at:Math.max(home.at,cursor,(finalized.at(-1)?.at??0)+MIN_DAILY_ACTIVITY_GAP)});
   return estimatePlanTravel(c,{...plan,steps:finalized});
  }
  plan.steps=finalized;plan.travelPlanningVersion=TRAVEL_PLANNING.version;
@@ -3816,6 +3816,49 @@ function migrateTravelPlanning(){
  eventHeapify();
 }
 
+// At least four destinations per day (returning home counts), with >=3
+// simulation-hours between planned starts. Keep each citizen's lifestyle
+// preferences and the real work shift; do not turn padding into fake trips.
+const MIN_DAILY_ACTIVITY_GAP=180;
+function spacedDailyActivities(c,day,steps,works,style){
+ const wishes=steps.filter(s=>SERVICE_STAY[s.kind]).map(s=>s.kind);
+ const lastHome=[...steps].reverse().find(s=>s.kind==='home')||{kind:'home'};
+ const pick=(slot,at,previous=null)=>{
+  const kinds=Object.keys(SERVICE_STAY).filter(kind=>{
+   const window=serviceWindow(kind,day*1440+at+50);
+   return window&&window.close>=day*1440+at+50+SERVICE_STAY[kind][0];
+  });
+  const choices=kinds.length?kinds:['casino'];
+  const weights=choices.map(kind=>citizenServicePreference(c,kind)*(wishes.includes(kind)?3:1)*(kind===previous?.kind?.3:1));
+  let roll=habitRandom(c.id,day,160+slot)*weights.reduce((sum,w)=>sum+w,0),kind=choices.at(-1);
+  for(let i=0;i<choices.length;i++){roll-=weights[i];if(roll<0){kind=choices[i];break;}}
+  const [min,max]=SERVICE_STAY[kind];
+  const duration=Math.round(min+habitRandom(c.id,day,170+slot)*(Math.min(max,115)-min));
+  return{kind,at,duration,expires:at+Math.max(260,duration+155)};
+ };
+ if(works){
+  const work=steps.find(s=>s.kind==='work'&&!s.resume);
+  if(work){
+   // Late/night shifts cannot fit two outings after work and still get home
+   // before the next 06:00 boundary. Put the outings before that shift.
+   if(work.until>1320&&work.at>=720){
+    const firstAt=Math.max(360,Math.min(540,work.at-420));
+    const secondAt=Math.max(firstAt+MIN_DAILY_ACTIVITY_GAP,work.at-220);
+    const first=pick(0,firstAt),second=pick(1,secondAt,first);
+    return[first,second,{...work},{...lastHome,at:Math.max(work.until+25,work.at+MIN_DAILY_ACTIVITY_GAP),sleep:true}];
+   }
+   const firstAt=Math.max(work.until+25,work.at+MIN_DAILY_ACTIVITY_GAP);
+   const secondAt=firstAt+195,first=pick(0,firstAt),second=pick(1,secondAt,first);
+   return[{...work},first,second,{...lastHome,at:secondAt+200,sleep:true}];
+  }
+ }
+ const routine=ensureRoutine(c);
+ const rested=(routine.lastHomeAt??day*1440)+360-day*1440;
+ const start=Math.max(480,Math.min(840,rested),style===10||style===11?740:480+Math.round(habitRandom(c.id,day,181)*170));
+ const gap=195+Math.round(habitRandom(c.id,day,182)*35);
+ const first=pick(0,start),second=pick(1,start+gap,first),third=pick(2,start+gap*2,second);
+ return[first,second,third,{...lastHome,at:start+gap*3,sleep:true}];
+}
 function planForDay(c,day){
  const r=ensureRoutine(c),w=workRoutine(c),weekday=((day%7)+7)%7,weekend=weekday>=5,works=worksOnDay(c,day,w);
  const random=s=>habitRandom(c.id,day,s),pick=(lo,hi,s)=>Math.round(lo+random(s)*(hi-lo));
@@ -3888,7 +3931,7 @@ while(steps.length<4){
  let cursor=0;for(const step of steps){step.estimatedAt=Math.max(step.at,cursor);cursor=step.kind==='work'?Math.max(step.estimatedAt,step.until):step.estimatedAt+(step.duration||step.rest||0)+15;}
  return estimatePlanTravel(c,{version:500,token:'500:'+day,day,works,weekend,lifestyle:LIFESTYLES[style].id,style,leave,end,postDelay:10,
   desiredArrival:workArrival,workId:c.workId,kind:steps.find(s=>SERVICE_STAY[s.kind])?.kind,
-  leisureStart:steps.find(s=>SERVICE_STAY[s.kind])?.at??600,leisureEnd:finishBy,steps});
+  leisureStart:steps.find(s=>SERVICE_STAY[s.kind])?.at??600,leisureEnd:finishBy,steps:spacedDailyActivities(c,day,steps,works,style)});
 }
 
 function lifestyleName(plan){return LIFESTYLES.find(l=>l.id===plan?.lifestyle)?.name||'กิจวัตรเดิม';}
