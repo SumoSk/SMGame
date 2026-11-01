@@ -1,5 +1,4 @@
-# One-shot recovery for the Pages deployment that GitHub reports as stuck.
-# Triggered by this workflow file being added to main. Never changes game data.
+# One-shot Pages recovery. Does not alter game files or game saves.
 name: Recover SMCITY 5.1.1 Pages
 on:
   push:
@@ -9,47 +8,26 @@ on:
 permissions:
   contents: read
   pages: write
-  id-token: write
-concurrency:
-  group: smcity-pages-v511-recovery
-  cancel-in-progress: false
 jobs:
-  recover-and-publish:
+  cancel-stale-pages-deployment:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 5
     steps:
-      - name: Cancel stale Pages deployment
+      - name: Cancel the deployment holding GitHub Pages lock
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          status="$(curl --silent --show-error --output /tmp/smcity-cancel-response --write-out '%{http_code}' \
+          status="$(curl --silent --show-error --output /tmp/smcity-cancel-result --write-out '%{http_code}' \
             --request POST \
             --header "Accept: application/vnd.github+json" \
             --header "Authorization: Bearer ${GH_TOKEN}" \
             --header "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/deployments/169cf484c225f691d276ea5e6f3d78c09e92f83b/cancel")"
-          echo "GitHub Pages cancellation HTTP status: ${status}"
+          echo "Pages cancel response code: ${status}"
           if [[ "${status}" != "204" && "${status}" != "404" ]]; then
-            cat /tmp/smcity-cancel-response
+            cat /tmp/smcity-cancel-result
             exit 1
           fi
-      - name: Checkout the published release branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-      - name: Check SMCITY release content
-        run: |
-          grep -q 'SMCITY เวอร์ชัน 5.1.1' index.html
-          grep -q 'เพิ่มประชาชนอีก 20 คน' index.html
-          grep -q 'CITY_LEVEL_MIN_PERFORMANCE=80' dist/game.js
-      - name: Upload public website
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: .
-      - name: Deploy latest website to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+          echo "Stale deployment cancellation processed"
