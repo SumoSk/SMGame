@@ -7327,3 +7327,72 @@ body>.city-level-strip :is(.city-level-button,.city-ai-quota-button):focus-visib
 @media(prefers-reduced-motion:reduce){
  #cityLevelCelebration *,#cityLevelCelebration *::before{animation:none!important;transition:none!important}
 }
+
+/* SMCITY mission reactions — event-only DOM animation; does not touch the 3D frame loop. */
+html body>.city-level-strip{
+ width:min(650px,calc(100vw - 18px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)))!important;
+ max-width:calc(100vw - 18px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+ gap:5px!important;
+}
+html body>.city-level-strip .city-level-button{flex:1 1 280px!important;max-width:340px!important}
+html body>.city-level-strip .city-mission-total,
+html body>.city-level-strip .city-mood-collector{
+ box-sizing:border-box!important;height:38px!important;min-height:38px!important;
+ display:flex!important;min-width:0!important;border-radius:10px!important;
+ border:1px solid #b8d7c4!important;background:rgba(250,255,251,.97)!important;
+ box-shadow:0 3px 12px #052f2038!important;font-family:"Noto Sans Thai",Tahoma,system-ui,sans-serif!important;
+ font-variant-numeric:tabular-nums!important;
+}
+html body>.city-level-strip .city-mission-total{
+ flex:0 0 148px!important;flex-direction:column!important;justify-content:center!important;
+ padding:2px 8px!important;gap:0!important;
+}
+html body>.city-level-strip .city-mission-label{display:none!important}
+html body>.city-level-strip .city-mission-result{display:block!important;white-space:nowrap!important;font-size:10px!important;line-height:1.55!important;font-weight:800!important}
+html body>.city-level-strip .city-mission-result b{font-size:11px!important;font-weight:950!important}
+html body>.city-level-strip .city-mission-ok{color:#15754c!important}
+html body>.city-level-strip .city-mission-bad{color:#b64f48!important}
+html body>.city-level-strip .city-mood-collector{
+ flex:0 0 113px!important;align-items:center!important;justify-content:center!important;
+ gap:5px!important;padding:3px 5px!important;
+}
+html body>.city-level-strip .city-mood-heart{font-size:19px!important;line-height:1!important;filter:drop-shadow(0 1px 2px #cf728055)}
+html body>.city-level-strip .city-mood-label{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:0!important;min-width:0!important;white-space:nowrap!important}
+html body>.city-level-strip .city-mood-label small{font-size:8.5px!important;line-height:1.25!important;font-weight:800!important;color:#426956!important}
+html body>.city-level-strip .city-mood-label b{font-size:13px!important;line-height:1.3!important;color:#237a58!important}
+:root.smcity-gray-ui body>.city-level-strip .city-mission-total,
+:root.smcity-gray-ui body>.city-level-strip .city-mood-collector{background:#1f3430!important;border-color:#496759!important}
+:root.smcity-gray-ui body>.city-level-strip .city-mood-label small{color:#b6d6c9!important}
+:root.smcity-gray-ui body>.city-level-strip .city-mood-label b{color:#9ae6bb!important}
+#missionMoodFlights{position:fixed;inset:0;z-index:31;pointer-events:none;overflow:hidden;contain:layout style;isolation:isolate}
+#missionMoodFlights .smcity-mood-flight{
+ position:fixed;left:0;top:0;display:block;width:max-content;pointer-events:none;
+ font-size:19px;font-weight:950;line-height:1.1;color:#266945;text-shadow:0 1px 3px #fff,0 3px 9px #122a1b7d;
+ will-change:transform,opacity;animation:smcityMoodFly 1s cubic-bezier(.28,.73,.17,1) both;
+}
+#missionMoodFlights .smcity-mood-flight.is-failed{font-size:23px;color:#bc5049}
+@keyframes smcityMoodFly{
+ 0%{opacity:0;transform:translate(-50%,-50%) scale(.65)}
+ 12%{opacity:1;transform:translate(-50%,-105%) scale(1.08)}
+ 36%{opacity:1;transform:translate(calc(-50% + var(--mood-dx28)),calc(-98% + var(--mood-dy28))) scale(1.05)}
+ 85%{opacity:1;transform:translate(calc(-50% + var(--mood-dx87)),calc(-50% + var(--mood-dy87))) scale(.8)}
+ 100%{opacity:0;transform:translate(calc(-50% + var(--mood-dx)),calc(-50% + var(--mood-dy))) scale(.45)}
+}
+@media(max-width:690px){
+ html body>.city-level-strip{
+  width:min(340px,calc(100vw - 18px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)))!important;
+  height:78px!important;min-height:78px!important;max-height:78px!important;
+  flex-wrap:wrap!important;align-content:start!important;column-gap:4px!important;row-gap:4px!important;
+ }
+ html body>.city-level-strip .city-level-button{order:0!important;flex:1 1 calc(100% - 61px)!important;max-width:none!important}
+ html body>.city-level-strip .city-ai-quota-button{order:1!important;flex:0 0 54px!important;width:54px!important}
+ html body>.city-level-strip .city-mission-total{order:2!important;flex:1 1 170px!important;height:36px!important;min-height:36px!important;padding:1px 7px!important}
+ html body>.city-level-strip .city-mood-collector{order:3!important;flex:1 1 120px!important;height:36px!important;min-height:36px!important}
+ html body>.city-level-strip .city-mood-label small{font-size:8px!important}
+}
+@media(max-height:430px) and (orientation:landscape){
+ html body>.city-level-strip{width:min(650px,calc(100vw - 18px))!important;height:32px!important;min-height:32px!important;max-height:32px!important;flex-wrap:nowrap!important}
+ html body>.city-level-strip .city-level-button{flex:1 1 260px!important;height:32px!important;min-height:32px!important}
+ html body>.city-level-strip .city-mission-total,html body>.city-level-strip .city-mood-collector{height:32px!important;min-height:32px!important}
+}
+@media(prefers-reduced-motion:reduce){#missionMoodFlights .smcity-mood-flight{animation-duration:.01ms!important}}
