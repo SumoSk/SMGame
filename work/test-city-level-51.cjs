@@ -46,8 +46,18 @@ const getLevel=()=>game.cityLevelStatus();
 assert.equal(getLevel().peakPopulation,18,'starter should include 18 residents');
 assert.equal(getLevel().level,1);
 assert.equal(getLevel().next,20);
-assert.equal(get('cityLevelProgress').textContent,'สูงสุด 18/20');
-assert.equal(game.updateCityLevel(20),1);
+assert.equal(get('cityLevelProgress').textContent,'อีก 2 คน · ภารกิจ ≥80%');
+assert.equal(game.updateCityLevel(20),0,'population alone must not level up');
+assert.equal(getLevel().level,1);
+assert.equal(getLevel().peakPopulation,20,'population high-water mark still grows');
+const performance=game.ensurePerformance();
+performance.previous={day:-1,total:10,ontime:7};
+performance.official=70;
+assert.equal(game.updateCityLevel(20),0,'below 80 percent must block');
+assert.equal(getLevel().level,1);
+performance.previous={day:-1,total:10,ontime:8};
+performance.official=80;
+assert.equal(game.updateCityLevel(20),1,'80 percent qualifies with a completed day');
 const levelScene=get('cityLevelCelebration');
 assert.equal(levelScene.hidden,false,'reaching a level should show celebration');
 assert.match(levelScene.innerHTML,/LEVEL UP!/,'cinematic scene has prominent title');
@@ -102,7 +112,7 @@ assert.equal(game.buyAISignal(junction,'credit'),false,'cannot buy AI on same ju
 assert.equal(game.state.money,0);
 game.updateCityLevelHud(18);
 assert.equal(get('cityLevelValue').textContent,'4');
-assert.equal(get('cityLevelProgress').textContent,'สูงสุด 120/170');
+assert.equal(get('cityLevelProgress').textContent,'อีก 50 คน · ภารกิจ ≥80%');
 assert.equal(get('cityAiQuotaValue').textContent,'0');
 assert.equal(get('cityCrateBadge').textContent,'🎁 0');
 game.ensureCityLevel().pending.push({level:4,kind:'money'});
@@ -134,5 +144,14 @@ assert(game.loadGame(true,null,JSON.stringify(legacy)),'v5.0 save without progre
 assert.equal(getLevel().peakPopulation,18,'legacy save starts high-water at current known residents');
 assert.equal(getLevel().level,1);
 assert.equal(getLevel().pending.length,0);
-console.log(JSON.stringify({passed:true,version:'5.1',milestones:[20,70,120,170],peakNeverShrinks:true,
+performance.official=79.99;
+assert.equal(game.updateCityLevel(170),0,'population rises but cannot level under 80 percent');
+assert.equal(getLevel().peakPopulation,170);
+assert.equal(getLevel().level,1);
+assert.doesNotThrow(()=>game.validateSave(JSON.parse(game.snapshot())),'blocked city level saves must be valid');
+performance.official=80;
+assert.equal(game.updateCityLevel(170),3,'a recovered score unlocks all reached unclaimed milestones');
+assert.equal(getLevel().level,4);
+assert.equal(getLevel().pending.length,3);
+console.log(JSON.stringify({passed:true,version:'5.1',missionGate80:true,milestones:[20,70,120,170],peakNeverShrinks:true,
  money:true,f1Four:true,freeAi:true,noDuplicateRewards:true,saveLoad:true,legacyLoad:true,ui:true}));
