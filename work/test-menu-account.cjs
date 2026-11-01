@@ -44,7 +44,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
  assert.equal(saved.length,1);assert.equal(saved[0].data.city,g.state.city);
  assert(!gate.open&&!ctx.window.SMGameAuthLocked);assert(signin[0].email.endsWith('@names.smcity.invalid'));
  assert(get('dialog').open,'after signup, Save/Load must open automatically');
- assert(get('dialogContent').innerHTML.includes('เซป/โหลด'),'post-registration screen is Save/Load');
+ assert(get('dialogContent').innerHTML.includes('เซฟเกม'),'post-registration screen is the current Save/Load panel');
  assert(get('dialogContent').innerHTML.includes('เมืองทดสอบ'),'just-created save is shown');
  assert.equal(g.snapshot(),initial,'registration and navigating to saved games must not change the city');
  // A delayed save list must not reopen after returning to play.
