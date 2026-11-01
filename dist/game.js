@@ -1098,6 +1098,48 @@ function ensurePerformance(){
 
 const MISSION_SUCCESS_BONUS=500;
 let missionMoodActiveFlights=0;
+let missionFailureSummaryCollapsed=false;
+function missionFailureLabel(kind,reason){
+ // Compact text reflects the exact result reason; no extra failures are inferred.
+ const raw=String(reason||'').trim();
+ const category=kind==='ใช้บริการ / พักผ่อน'&&raw.includes(' · ')?raw.split(' · ')[0].trim():kind;
+ if(raw.includes('บริการหรือที่จอดเต็ม'))return category+'เต็ม';
+ if(raw.includes('ยังไม่มีอาคาร'))return category+'ไม่มีอาคาร';
+ if(raw.includes('ไม่มีสถานที่เปิด'))return category+'ปิด';
+ if(raw.includes('ถนนเชื่อมไปไม่ถึง')||raw.includes('ไม่มีเส้นทาง'))return category+'ไปไม่ถึง';
+ if(raw.includes('ที่จอดเต็ม'))return category+'ที่จอดเต็ม';
+ if(raw.includes('เลยเวลา')||raw.includes('ช้ากว่า')||raw.includes('มาสาย')||raw.includes('ไปสาย')||raw.includes('ไม่ทัน'))return category+'สาย';
+ if(raw.includes('เวลาในตารางไม่พอ')||raw.includes('หมดเวลา'))return category+'หมดเวลา';
+ if(raw.includes('ยกเลิก'))return category+'ยกเลิก';
+ return category+' · '+(raw||'ไม่ระบุสาเหตุ').slice(0,42);
+}
+function renderMissionFailureSummary(day,failedCount){
+ const holder=$('missionFailureSummary'),toggle=$('missionFailureToggle');
+ if(!holder||!toggle)return;
+ const show=failedCount>0;
+ toggle.hidden=!show;
+ const expanded=show&&!missionFailureSummaryCollapsed;
+ toggle.setAttribute('aria-expanded',String(expanded));
+ toggle.textContent=expanded?'⌃':'⌄';
+ toggle.title=expanded?'หุบสาเหตุไม่สำเร็จ':'แสดงสาเหตุไม่สำเร็จ';
+ holder.hidden=!expanded;
+ if(!expanded)return;
+ const record=day?.outcomeDetails?.failed;
+ const groups=new Map();
+ for(const item of record?.groups||[]){
+  const key=String(item.tag||missionFailureLabel(item.kind,item.reason));
+  if(!key||!(item.count>0))continue;
+  const current=groups.get(key)||{count:0,reason:item.reason};
+  current.count+=item.count;groups.set(key,current);
+ }
+ const notRecorded=Math.max(0,failedCount-Math.max(0,record?.count||0));
+ if(notRecorded)groups.set('ไม่ทราบสาเหตุย้อนหลัง',{count:notRecorded,reason:'ข้อมูลก่อนเริ่มบันทึกสาเหตุ'});
+ const badges=[...groups].sort((a,b)=>b[1].count-a[1].count||a[0].localeCompare(b[0],'th')).map(([name,data])=>
+  '<span class="city-mission-failure-badge" title="'+missionDetailEscape(data.reason)+'">'+
+  missionDetailEscape(name)+' <b>'+fmt(data.count)+'</b> ครั้ง</span>').join('');
+ const html=badges||'<span class="city-mission-failure-badge">ยังไม่มีรายละเอียดสาเหตุ</span>';
+ if(holder.innerHTML!==html)holder.innerHTML=html;
+}
 function updateMissionMoodHud(){
  // Every counter comes from the same decided resident journeys as the HUD score.
  const d=ensurePerformance().current;
@@ -1107,6 +1149,7 @@ function updateMissionMoodHud(){
  const success=$('missionSuccessCount'),failed=$('missionFailedCount'),ratio=$('missionMoodValue'),toolbar=$('happy');
  if(success)success.textContent=fmt(successCount);
  if(failed)failed.textContent=fmt(failedCount);
+ renderMissionFailureSummary(d,failedCount);
  const rate=currentMissionScore(),score=rate===null?'—':String(Math.round(rate));
  if(ratio)ratio.textContent=score+'%';
  if(toolbar)toolbar.innerHTML=score+'<em>%</em>';
@@ -1241,6 +1284,7 @@ function closePerformanceDay(){
   if(c.performance){c.performance.previous=stats;c.performance.current=newPerformanceDay(day);}
  }
  p.current=newPerformanceDay(day);
+ missionFailureSummaryCollapsed=false;
  // At 06:00, the citizen mission counter and displayed score start a fresh day
  // together. Clear only transient visuals; the previous day's ledger is saved.
  clearMissionMoodFlights();
@@ -4961,11 +5005,13 @@ function recordMissionOutcomeDetail(c,v,outcome,reason){
  const d=ensurePerformance().current;
  if(!d.outcomeDetails)d.outcomeDetails={success:{count:0,groups:[],recent:[]},failed:{count:0,groups:[],recent:[]}};
  const key=outcome==='ontime'?'success':'failed',bucket=d.outcomeDetails[key];
- const kind=v.kind==='work'?'ไปทำงาน':v.kind==='home'?'กลับบ้าน':'ใช้บริการ / พักผ่อน';
+ const destination=state.buildings.get(v.toId),serviceKind=v.serviceKind||CATALOG[destination?.key]?.kind;
+ const kind=v.kind==='work'?'ไปทำงาน':v.kind==='home'?'กลับบ้าน':KINDS[serviceKind]?.name||'ใช้บริการ / พักผ่อน';
  const explanation=String(reason||OUTCOME_NAMES[outcome]||'ไม่ได้ระบุเหตุผล').slice(0,140);
+ const tag=missionFailureLabel(kind,explanation);
  const existing=bucket.groups.find(item=>item.kind===kind&&item.reason===explanation);
- if(existing)existing.count++;
- else if(bucket.groups.length<48)bucket.groups.push({kind,reason:explanation,count:1});
+ if(existing){existing.count++;if(!existing.tag)existing.tag=tag;}
+ else if(bucket.groups.length<48)bucket.groups.push({kind,reason:explanation,tag,count:1});
  else{
   const other=bucket.groups.find(item=>item.kind==='อื่น ๆ');
   if(other)other.count++;else bucket.groups.push({kind:'อื่น ๆ',reason:'สาเหตุอื่น',count:1});
@@ -5018,7 +5064,7 @@ function journeyResult(c,v,outcome,reason,stress=true){
 }
 function unstartedResult(c,step,outcome,reason){
  const run=c.lifeRun;if(!run)return;
- journeyResult(c,{id:'unstarted',complaintKey:step.complaintKey,kind:step.kind==='work'?'work':step.kind==='home'?'home':'leisure',life:{day:run.day,index:run.index,token:run.token}},outcome,reason,false);
+ journeyResult(c,{id:'unstarted',complaintKey:step.complaintKey,kind:step.kind==='work'?'work':step.kind==='home'?'home':'leisure',serviceKind:step.kind,life:{day:run.day,index:run.index,token:run.token}},outcome,reason,false);
 }
 function recordEntranceArrival(v){
  if(v.arrivedAt!=null)return;
@@ -7733,5 +7779,10 @@ if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HAR
 const missionSuccessDetails=$('missionSuccessDetails'),missionFailedDetails=$('missionFailedDetails');
 if(missionSuccessDetails)missionSuccessDetails.onclick=()=>openMissionOutcomeDetails('success');
 if(missionFailedDetails)missionFailedDetails.onclick=()=>openMissionOutcomeDetails('failed');
+const missionFailureToggle=$('missionFailureToggle');
+if(missionFailureToggle)missionFailureToggle.onclick=()=>{
+ missionFailureSummaryCollapsed=!missionFailureSummaryCollapsed;
+ updateMissionMoodHud();
+};
 resize();startNewCity();requestAnimationFrame(frame);
 })();
