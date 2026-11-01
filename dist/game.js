@@ -900,10 +900,10 @@ try{bugCaptureEnabled=localStorage.getItem(BUG_CAPTURE_STORAGE_KEY)==='on';}catc
 const runtimeErrors=[];for(const type of ['error','unhandledrejection'])window.addEventListener(type,e=>{if(!bugCaptureEnabled)return;runtimeErrors.push({at:new Date().toISOString(),message:String(e.message||e.reason?.stack||e.reason||type).slice(0,4000)});if(runtimeErrors.length>20)runtimeErrors.shift();});
 let state,cam={x:150,y:150,z:1.25,angle:Math.PI/4,elevation:Math.PI*50/180},view={w:innerWidth,h:innerHeight,dpr:1},tool='hand',category='roads',selected=null,hover=null,drag=null,pendingRoadPreview=null,pendingDemolitionPreview=null,roadPreviewCache=null,movingBuildingId=null,constructionAnchor=null,heat=false,debug=false,last=0,uiTick=0,news=[],toastTimer,follow=null;
 const id=(x,y)=>y*W+x,xy=i=>[i%W,Math.floor(i/W)],valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
-// SMCITY 5.1 — the city earns levels only when both conditions are met:
-// highest-ever resident population passes 20, 70, 120, ... AND the latest
-// completed 06:00–06:00 trip-performance day scores at least 80%.
-// Peak population is saved even while performance is below the threshold.
+// SMCITY 5.1.1 — level up as soon as the highest-ever resident population
+// meets the next milestone AND the live mission score is at least 80%.
+// Use finished trips from the active game day, without waiting for 06:00.
+// A day with no decided trips retains the score already visible in the UI.
 const CITY_LEVEL_VERSION=51,CITY_LEVEL_FIRST=20,CITY_LEVEL_STEP=50,CITY_LEVEL_MIN_PERFORMANCE=80;
 const CITY_CRATE_KINDS=['money','cars','ai'];
 function cityLevelForPeak(peak){return peak<CITY_LEVEL_FIRST?1:2+Math.floor((peak-CITY_LEVEL_FIRST)/CITY_LEVEL_STEP);}
@@ -916,16 +916,25 @@ function restoreCityLevel(saved){
   pending:saved.pending.map(x=>({level:x.level,kind:x.kind})),claimed:saved.claimed,
   aiCredits:saved.aiCredits,history:(saved.history||[]).slice(-25).map(x=>({...x}))};
 }
+function currentMissionScore(){
+ const p=ensurePerformance(),day=p.current;
+ if(day&&Number.isFinite(day.total)&&day.total>0){
+  const ontime=Number.isFinite(day.ontime)?day.ontime:0;
+  return Math.max(0,Math.min(100,100*ontime/day.total));
+ }
+ // Before the first decided trip, the visible score remains the last official
+ // value (100 for a new city). Never require the next 06:00 settlement.
+ return Number.isFinite(p.official)?p.official:100;
+}
 function cityLevelMissionResult(){
- const p=ensurePerformance(),previous=p.previous;
- const eligible=!!(previous&&Number.isFinite(previous.total)&&previous.total>0&&Number.isFinite(p.official));
- return{eligible,rate:eligible?p.official:null,passed:eligible&&p.official>=CITY_LEVEL_MIN_PERFORMANCE};
+ const rate=currentMissionScore();
+ return{eligible:true,rate,passed:rate>=CITY_LEVEL_MIN_PERFORMANCE};
 }
 function updateCityLevel(currentPopulation){
  const l=ensureCityLevel(),population=Math.max(0,Math.floor(Number(currentPopulation)||0));
  // Record the high-water mark even if the city is not yet eligible to level up.
  if(population>l.peakPopulation)l.peakPopulation=population;
- // The initial displayed 100% is only a placeholder, not a completed trip day.
+ // Evaluate both requirements right now, even within the same game day.
  if(!cityLevelMissionResult().passed)return 0;
  const reached=cityLevelForPeak(l.peakPopulation),earned=Math.max(0,reached-l.level);
  for(let level=l.level+1;level<=reached;level++){
@@ -990,11 +999,11 @@ function updateCityLevelHud(currentPopulation){
  const l=cityLevelStatus(),set=(id,value)=>{const n=$(id);if(n&&n.textContent!==value)n.textContent=value;};
  set('cityLevelValue',String(l.level));
  set('cityLevelProgress','เพิ่มประชาชนอีก '+fmt(l.remaining)+' คน • ภารกิจ 80%');
- set('cityLevelNext','เพิ่มประชาชนอีก '+fmt(l.remaining)+' คน และภารกิจสำเร็จ ≥80% (รอบล่าสุด '+(l.missionReady?Math.round(l.missionRate)+'%':'ยังไม่มีผล')+')');
+ set('cityLevelNext','เพิ่มประชาชนอีก '+fmt(l.remaining)+' คน และภารกิจสำเร็จ ≥80% (ขณะนี้ '+Math.round(l.missionRate)+'%)');
  set('cityAiQuotaValue',fmt(l.aiCredits));
  set('cityCrateBadge','🎁 '+fmt(l.pending.length));
  const meter=$('cityLevelBar');if(meter)meter.style.width=l.progress+'%';
- const button=$('cityLevelButton');if(button)button.setAttribute('aria-label','เลเวล '+l.level+' · ต้องมีประชากรสูงสุด '+l.next+' คน (อีก '+l.remaining+' คน) และภารกิจสำเร็จอย่างน้อย 80% ของรอบประจำวันที่ปิดเวลา 06:00 · ผลล่าสุด '+(l.missionReady?Math.round(l.missionRate)+'%':'ยังไม่มีผล')+' · กล่องที่ยังไม่เปิด '+l.pending.length);
+ const button=$('cityLevelButton');if(button)button.setAttribute('aria-label','เลเวล '+l.level+' · ต้องมีประชากรสูงสุด '+l.next+' คน (อีก '+l.remaining+' คน) และภารกิจสำเร็จอย่างน้อย 80% ณ ขณะนี้ · คะแนน '+Math.round(l.missionRate)+'% · กล่องที่ยังไม่เปิด '+l.pending.length);
  const crate=$('cityCrateBadge');if(crate)crate.classList.toggle('has-crates',l.pending.length>0);
 }
 function grantCityLevelCars(){
@@ -1049,8 +1058,8 @@ function openCityCrateModal(){
  modal('<div class="sm-level-reward"><div class="sm-level-kicker">SMCITY · CITY LEVEL '+l.level+'</div>'+
  '<div class="sm-level-shine" aria-hidden="true">✦</div><div class="sm-level-chest" aria-hidden="true">🎁</div>'+
  '<h2>'+(has?'กล่องสุ่มรางวัลเมือง':'เลเวลเมือง '+l.level)+'</h2>'+
- '<p>'+(has?'คุณปลดล็อกกล่องแล้ว กดเปิดเพื่อรับ 1 จาก 3 รางวัล':'เพิ่มประชากรสูงสุดให้ถึงเป้า และทำภารกิจสำเร็จอย่างน้อย 80% ของรอบที่ปิดเวลา 06:00 เพื่อรับกล่องสุ่มรางวัล')+'</p>'+
- '<div class="sm-level-reward-foot"><span>ประชากรสูงสุด '+fmt(l.peakPopulation)+' / '+fmt(l.next)+' คน</span><span>ภารกิจรอบล่าสุด '+(l.missionReady?Math.round(l.missionRate)+'%':'ยังไม่มีผล')+' · เกณฑ์ ≥80%</span></div>'+
+ '<p>'+(has?'คุณปลดล็อกกล่องแล้ว กดเปิดเพื่อรับ 1 จาก 3 รางวัล':'เพิ่มประชากรให้ถึงเป้า และทำภารกิจสำเร็จอย่างน้อย 80% เพื่อเลเวลอัปทันที ไม่ต้องรอปิดวัน')+'</p>'+
+ '<div class="sm-level-reward-foot"><span>ประชากรสูงสุด '+fmt(l.peakPopulation)+' / '+fmt(l.next)+' คน</span><span>ภารกิจขณะนี้ '+Math.round(l.missionRate)+'% · เกณฑ์ ≥80%</span></div>'+
  '<div class="sm-level-reward-list"><span>฿ เงิน 1 ล้าน</span><span>🏎️ รถ F1 ทั้ง 4 แบบ</span><span>✦ แยก AI +1 โควต้า</span></div>'+
  '<small class="sm-level-odds">โอกาสออกรางวัลแต่ละประเภทเท่ากัน · 1 กล่องต่อ 1 เลเวล</small>'+
  '<div class="sm-level-actions">'+(has?'<button id="cityCrateOpen" class="primary">เปิดกล่อง ('+l.pending.length+' กล่อง) ✨</button>':'')+
@@ -1164,7 +1173,7 @@ function closePerformanceDay(){
 }
 function performanceInspector(){
  const p=ensurePerformance(),d=p.current,issues=Object.values(p.complaints).filter(i=>i.resolvedAt==null);
- return '<span class="tag">ประสิทธิภาพการเดินทาง</span><h2>ภารกิจ '+Math.round(p.official)+'%</h2>'+row('คะแนนทางการ','รอบที่ปิดล่าสุด 06:00–06:00')+row('วันนี้ตรงเวลา',d.ontime+' / '+d.total+' ทริป')+row('วันนี้ไม่สำเร็จ',(d.total-d.ontime)+' ทริป')+row('รายได้รอบนี้',Math.round(p.incomeFactor*100)+'%')+'<p>ทุกทริปน้ำหนักเท่ากัน · ถึงสาย = ไม่สำเร็จ · ต่ำกว่า 80% งดรับนักท่องเที่ยว ต่ำกว่า 70% งดรับประชาชนเพิ่ม</p><h3>เรื่องร้องเรียนค้าง '+issues.length+' เรื่อง</h3>'+issues.map(i=>'<p><b>'+KINDS[i.kind].name+' · '+complaintReason(i.reason)+'</b><br>ใกล้บ้าน #'+i.homeId+' · '+i.people.length+' คน · '+(i.dueAt>state.time?'เหลือ '+Math.ceil(i.dueAt-state.time)+' นาที':'เกินกำหนด')+'</p>').join('')+'<p>ระบบบันทึกปัญหาบริการอัตโนมัติ · หากค้างเกิน 24 ชั่วโมง รายได้วันถัดไป 50% · ค่าดูแลคิดเต็ม</p>';
+ return '<span class="tag">ประสิทธิภาพการเดินทาง</span><h2>ภารกิจ '+Math.round(currentMissionScore())+'%</h2>'+row('คะแนนขณะนี้','ทริปที่ตัดสินผลแล้วในวันนี้ · ไม่ต้องรอ 06:00')+row('ผลวันก่อน',Math.round(p.official)+'% (ปิดรอบเวลา 06:00)')+row('วันนี้ตรงเวลา',d.ontime+' / '+d.total+' ทริป')+row('วันนี้ไม่สำเร็จ',(d.total-d.ontime)+' ทริป')+row('รายได้รอบนี้',Math.round(p.incomeFactor*100)+'%')+'<p>ทุกทริปน้ำหนักเท่ากัน · ถึงสาย = ไม่สำเร็จ · ต่ำกว่า 80% งดรับนักท่องเที่ยว ต่ำกว่า 70% งดรับประชาชนเพิ่ม</p><h3>เรื่องร้องเรียนค้าง '+issues.length+' เรื่อง</h3>'+issues.map(i=>'<p><b>'+KINDS[i.kind].name+' · '+complaintReason(i.reason)+'</b><br>ใกล้บ้าน #'+i.homeId+' · '+i.people.length+' คน · '+(i.dueAt>state.time?'เหลือ '+Math.ceil(i.dueAt-state.time)+' นาที':'เกินกำหนด')+'</p>').join('')+'<p>ระบบบันทึกปัญหาบริการอัตโนมัติ · หากค้างเกิน 24 ชั่วโมง รายได้วันถัดไป 50% · ค่าดูแลคิดเต็ม</p>';
 }
 function migratePerformance(saved){
  state.performance=saved?.version===5?saved:null;
@@ -2907,7 +2916,7 @@ function dailyPopulationMetric(value,change){
  const delta=Number.isFinite(change)?Math.trunc(change):0;
  return fmt(value)+' <span class="metric-delta" data-change="'+(delta>0?'up':delta<0?'down':'flat')+'" title="เปลี่ยนแปลงสุทธิตั้งแต่เริ่มวัน">('+(delta>0?'+':'')+fmt(delta)+')</span>';
 }
-function updateUI(){travelLogPulse();missionAutoPulse();const s=computeStats();missionPeakSample(s);updateCityLevelHud(s.pop);$('money').textContent=money(state.money);const dailyCounts=missionDay();$('population').innerHTML=dailyPopulationMetric(s.pop,(dailyCounts?.populationIn||0)-(dailyCounts?.populationOut||0));if($('tourists'))$('tourists').innerHTML=dailyPopulationMetric(touristPeople().filter(c=>c.enteredAt!=null).length,(dailyCounts?.touristsIn||0)-(dailyCounts?.touristsOut||0));$('happy').innerHTML=Math.round(s.happy)+'<em>%</em>';$('flow').innerHTML=Math.round(s.flow)+'<em>%</em>';$('clock').textContent=timeText(state.time);$('day').textContent=(innerWidth<=500?['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.']:['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์','วันอาทิตย์'])[Math.floor(state.time/1440)%7]+(innerWidth<=500?' · ':' · วันที่ ')+(Math.floor(state.time/1440)+1);$('sun').style.left=(state.time%1440)/1440*100+'%';$('net').textContent=(s.net>=0?'+':'')+money(s.net);$('net').classList.toggle('warning',s.net<0);const steps=[{done:[...state.roads.values()].some(r=>!r.main),text:'ต่อถนนเล็กจากถนนหลัก'},{done:s.homes>0,text:'สร้างบ้านติดถนน รอคนย้ายเข้า'},{done:s.jobs>0,text:'สร้างงานให้ประชาชน'}];$('steps').textContent=steps.filter(s=>s.done).length+' / 3';$('guide').innerHTML=steps.map((s,i)=>`<div class="guide-item ${s.done?'done':'current'}"><b>${s.done?'✓':i+1}</b><span>${s.text}</span></div>`).join('');updateCityAdvisor();$('news').innerHTML=news.slice(0,3).map(n=>`<div class="news-item"><time>${timeText(n.time)}</time>${n.text}</div>`).join('');const stranded=[...state.vehicles.values()].filter(v=>v.phase==='stuck'||v.departureNoRoute).length;$('status').textContent=stranded?'รถรอเส้นทาง '+stranded+' คัน · ข้อมูลเมือง → รายงานเมือง':s.pop?`รถเดินทาง ${state.vehicles.size} คัน · รอคิว ${s.waiting} คัน · คลิกที่รถเพื่อดูชีวิตประชาชน`:'ลากเพื่อเลื่อนแผนที่ · เลื่อนล้อเพื่อซูม';document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',+b.dataset.speed===state.speed));$('pause').textContent=state.speed?'Ⅱ':'▶';if(selected&&!document.activeElement?.classList?.contains?.('signal-minutes'))renderInspector();renderCitizenDashboard();renderTouristDashboard();}
+function updateUI(){travelLogPulse();missionAutoPulse();const s=computeStats();missionPeakSample(s);updateCityLevelHud(s.pop);$('money').textContent=money(state.money);const dailyCounts=missionDay();$('population').innerHTML=dailyPopulationMetric(s.pop,(dailyCounts?.populationIn||0)-(dailyCounts?.populationOut||0));if($('tourists'))$('tourists').innerHTML=dailyPopulationMetric(touristPeople().filter(c=>c.enteredAt!=null).length,(dailyCounts?.touristsIn||0)-(dailyCounts?.touristsOut||0));$('happy').innerHTML=Math.round(currentMissionScore())+'<em>%</em>';$('flow').innerHTML=Math.round(s.flow)+'<em>%</em>';$('clock').textContent=timeText(state.time);$('day').textContent=(innerWidth<=500?['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.']:['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์','วันอาทิตย์'])[Math.floor(state.time/1440)%7]+(innerWidth<=500?' · ':' · วันที่ ')+(Math.floor(state.time/1440)+1);$('sun').style.left=(state.time%1440)/1440*100+'%';$('net').textContent=(s.net>=0?'+':'')+money(s.net);$('net').classList.toggle('warning',s.net<0);const steps=[{done:[...state.roads.values()].some(r=>!r.main),text:'ต่อถนนเล็กจากถนนหลัก'},{done:s.homes>0,text:'สร้างบ้านติดถนน รอคนย้ายเข้า'},{done:s.jobs>0,text:'สร้างงานให้ประชาชน'}];$('steps').textContent=steps.filter(s=>s.done).length+' / 3';$('guide').innerHTML=steps.map((s,i)=>`<div class="guide-item ${s.done?'done':'current'}"><b>${s.done?'✓':i+1}</b><span>${s.text}</span></div>`).join('');updateCityAdvisor();$('news').innerHTML=news.slice(0,3).map(n=>`<div class="news-item"><time>${timeText(n.time)}</time>${n.text}</div>`).join('');const stranded=[...state.vehicles.values()].filter(v=>v.phase==='stuck'||v.departureNoRoute).length;$('status').textContent=stranded?'รถรอเส้นทาง '+stranded+' คัน · ข้อมูลเมือง → รายงานเมือง':s.pop?`รถเดินทาง ${state.vehicles.size} คัน · รอคิว ${s.waiting} คัน · คลิกที่รถเพื่อดูชีวิตประชาชน`:'ลากเพื่อเลื่อนแผนที่ · เลื่อนล้อเพื่อซูม';document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',+b.dataset.speed===state.speed));$('pause').textContent=state.speed?'Ⅱ':'▶';if(selected&&!document.activeElement?.classList?.contains?.('signal-minutes'))renderInspector();renderCitizenDashboard();renderTouristDashboard();}
 function timeText(t){t=Math.floor(t%1440);return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
 function computeStats(taxDay=Math.floor(state.time/1440)){let pop=0,happy=0,homes=0,freeHomes=0,jobs=0,unemployed=0,serviceNeed=0,tax=0,business=0,maint=0,waiting=0;for(const b of state.buildings.values()){const t=CATALOG[b.key];homes+=t.residents;freeHomes+=Math.max(0,t.residents-(b.residents?.size||0)-(b.reservedResidents||0)-(t.residents?homeImmigrationLocks(b):0));jobs+=t.jobs;maint+=t.maint;business+=(b.workers?.size||0)*50;}for(const c of state.citizens.values()){if(!c.resident||c.removed)continue;pop++;happy+=c.happy;if(c.profile.trait!==3&&!c.workId&&!c.movingOut)unemployed++;if(c.pending&&['shop','restaurant','mall','park','pub','casino'].includes(c.pending.kind))serviceNeed++;if(!c.movingOut)tax+=workTax(c,taxDay);}for(const r of state.roads.values())if(!r.main)maint+=ROADS[r.type].maint;for(const v of state.vehicles.values())if(v.wait>1||!['driving','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase))waiting++;const flow=state.vehicles.size?100*(1-waiting/state.vehicles.size):100;return state.stats={pop,happy:ensurePerformance().official,homes,freeHomes,jobs,unemployed,serviceNeed,tax,business,maint,net:(tax+business)*incomeFactor()-maint,performance:ensurePerformance().official,incomeFactor:incomeFactor(),waiting,flow};}
 
