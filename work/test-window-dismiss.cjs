@@ -59,7 +59,7 @@ outside({target:inside(citizen)});assert(!citizen.classList.contains('hidden'),'
 outside({target:get('canvas')});assert(citizen.classList.contains('hidden'),'outside tap closes citizen dashboard');
 game.selectTool('touristDashboard');const tourist=get('touristsDashboard');assert(!tourist.classList.contains('hidden'));
 outside({target:get('canvas')});assert(tourist.classList.contains('hidden'),'outside tap closes tourist dashboard');
-game.state.time=1440;game.daily();game.state.time=1800;game.missionAutoPulse();
+game.state.time=1800;game.daily();game.missionAutoPulse();
 const morning=get('missionDailyAuto');assert(morning,'daily report appears at 06:00');
 outside({target:inside(morning)});assert(get('missionDailyAuto'),'daily report interior click stays open');
 outside({target:get('canvas')});assert.equal(get('missionDailyAuto'),null,'outside tap closes daily report');
