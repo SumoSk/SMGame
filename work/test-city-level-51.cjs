@@ -152,8 +152,8 @@ assert.equal(getLevel().peakPopulation,170);
 assert.equal(getLevel().level,1);
 assert.doesNotThrow(()=>game.validateSave(JSON.parse(game.snapshot())),'blocked city level saves must be valid');
 restoredPerformance.official=80;
-assert.equal(game.updateCityLevel(170),3,'a recovered score unlocks all reached unclaimed milestones');
-assert.equal(getLevel().level,4);
-assert.equal(getLevel().pending.length,3);
+assert.equal(game.updateCityLevel(170),4,'a recovered score unlocks all four reached milestones');
+assert.equal(getLevel().level,5);
+assert.equal(getLevel().pending.length,4);
 console.log(JSON.stringify({passed:true,version:'5.1',missionGate80:true,milestones:[20,70,120,170],peakNeverShrinks:true,
  money:true,f1Four:true,freeAi:true,noDuplicateRewards:true,saveLoad:true,legacyLoad:true,ui:true}));
