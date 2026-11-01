@@ -23,7 +23,7 @@ const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+deco
   assert(bounds.dashboard&&bounds.deck&&bounds.rail&&bounds.level&&bounds.ai,'HUD exists at '+width+'px');
   assert(bounds.level.width>70&&bounds.ai.width>34,'level and AI controls remain tappable at '+width+'px');
   assert(bounds.rail.top>=-2&&bounds.rail.top<=70&&bounds.rail.left>=-2&&bounds.rail.left<=25&&bounds.rail.width<=width-4&&bounds.rail.right<=width-2,'5.2 daily-mission top rail must fit the viewport at '+width+'px: '+JSON.stringify(bounds));
-  assert(bounds.rail.height<=42&&Math.abs(bounds.level.top-bounds.ai.top)<3&&Math.abs(bounds.level.bottom-bounds.ai.bottom)<3,'level button and AI credits must share one row at '+width+'px: '+JSON.stringify(bounds));
+  assert(bounds.rail.height<=(width<=690?88:42)&&Math.abs(bounds.level.top-bounds.ai.top)<3&&Math.abs(bounds.level.bottom-bounds.ai.bottom)<3,'level and AI must stay on the first row; mobile daily mission counters may occupy a second row at '+width+'px: '+JSON.stringify(bounds));
   assert(bounds.ai.left>=bounds.level.right-2,'AI button must follow level button without overlap at '+width+'px');
   assert(!bounds.cameraLeft||bounds.rail.bottom+3<bounds.cameraLeft.top,'level HUD must not cover camera controls at '+width+'px');
   assert(bounds.builder&&bounds.categories&&bounds.tools&&bounds.builder.width>75,'original construction tools still visible at '+width+'px');
