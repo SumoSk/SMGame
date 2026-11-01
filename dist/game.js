@@ -2461,7 +2461,7 @@ function incidentQueueFollowers(root){
  const origin=incidentPosition(root);if(!origin)return [];
  const candidates=[];
  for(const v of state.vehicles.values()){
-  if(v.id===root.id||missingRoute(v)||!incidentNormalWait(v)||!sameTrafficLayer(root,v))continue;
+  if(v.id===root.id||missingRoute(v)||!sameTrafficLayer(root,v))continue;
   if(incidentStoppedFor(v)<INCIDENT_STALL_MINUTES)continue;
   const pose=incidentPosition(v);if(pose)candidates.push({v,pose});
  }
