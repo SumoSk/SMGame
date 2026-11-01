@@ -36,16 +36,17 @@ function finishTrip(){
  game.state.time+=15;game.arrive(v,true);return v;
 }
 function event(){let e=game.eventPop();assert(e);while(e.action==='lifeStart'&&sample.lifeRun&&e.day!==sample.lifeRun.day){e=game.eventPop();assert(e);}game.state.time=Math.max(game.state.time,e.at);game.runAction(game.state.citizens.get(e.citizenId),e.action,e);return e;}
+function nextTrip(){for(let i=0;i<30&&!sample.vehicleId&&sample.lifeRun;i++)event();assert(sample.vehicleId,'next trip must eventually start');}
 const route={version:2,day:0,works:false,steps:[{kind:'restaurant',at:1300,duration:30,expires:1740},{kind:'pub',at:1400,duration:100,expires:1740},{kind:'home',at:1400,rest:30},{kind:'shop',at:1940,duration:20,expires:2300},{kind:'home',at:1940}]};
 start(route);let v=finishTrip();assert.equal(v.toId,restaurant.id);assert.equal(sample.activityUntil,game.state.time+30,'stay starts at arrival');
-event();event();v=finishTrip();assert.equal(v.toId,pub.id);assert(sample.activityUntil>1440,'pub visit crosses midnight');
+nextTrip();v=finishTrip();assert.equal(v.toId,pub.id);assert(sample.activityUntil>1440,'pub visit crosses midnight');
 const snapshot=game.snapshot();assert(game.loadGame(true,null,snapshot),'active itinerary reloads');
 // refresh references after load
 const restored=game.state.citizens.get(sample.id);assert.equal(restored.lifeRun.index,1);
 Object.assign(sample,restored);game.state.citizens.set(sample.id,sample);
-event();event();v=finishTrip();assert.equal(v.toId,home.id);assert(sample.lifeRun);
-event();event();v=finishTrip();assert.equal(v.toId,shop.id,'can leave home a second time');
-event();event();v=finishTrip();assert.equal(v.toId,home.id);event();assert(!sample.lifeRun);
+nextTrip();v=finishTrip();assert.equal(v.toId,home.id);assert(sample.lifeRun);
+nextTrip();v=finishTrip();assert.equal(v.toId,shop.id,'can leave home a second time');
+nextTrip();v=finishTrip();assert.equal(v.toId,home.id);event();assert(!sample.lifeRun);
 assert.equal(game.state.vehicles.size,0,'all routed trips cleaned up');
 // A service reservation that arrives after closing is never admitted.
 start({version:2,day:2,steps:[{kind:'restaurant',at:1380,duration:30,expires:1740},{kind:'home',at:1380}]});
@@ -57,6 +58,7 @@ assert(game.state.events.length>0,'late arrival continues itinerary');
 sample.workId=factory.id;
 start({version:2,day:3,works:true,steps:[{kind:'work',at:1200,until:1560,deadline:1300,workId:factory.id},{kind:'home',at:1560}]});
 v=finishTrip();assert.equal(v.kind,'work');assert.equal(sample.activityUntil,3*1440+1560);
-game.scheduleDay(sample,4);event();event();assert.equal(game.state.vehicles.get(sample.vehicleId).kind,'home');
+game.scheduleDay(sample,4);nextTrip();assert.equal(game.state.vehicles.get(sample.vehicleId).kind,'home');
 assert.equal([...game.state.vehicles.values()].filter(v=>v.citizenId===sample.id).length,1);
 console.log(JSON.stringify({passed:true,lifestyles:styles.size,crossMidnight:true,multiStop:true,secondOuting:true,arrivalDuration:true,closedArrival:true,nightShift:true,activeReload:true}));
+

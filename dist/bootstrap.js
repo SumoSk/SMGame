@@ -1,6 +1,7 @@
-import { TrafficRenderer } from './renderer3d.js?v=2a97131901b5';
+import { TrafficRenderer } from './renderer3d.js?v=c18cd7dcfe62';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
-await import('./game.js?v=18a4a17fe767');
-await import('./member.js?v=f5d63f7fee00');
-await import('./simple-account.js?v=18eb5d10b73f');
-await import('./save-storage.js?v=ace1633a0f8e');
+await import('./game.js?v=fd773eba9be8');
+await import('./member.js?v=da06a61d5ef5');
+await import('./simple-account.js?v=1ba9c2a61924');
+await import('./save-storage.js?v=dcfaeda33f9b');
+
