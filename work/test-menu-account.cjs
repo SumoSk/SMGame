@@ -8,6 +8,7 @@ const gate=get('memberGate'),tabs=['login','signup'].map(mode=>({dataset:{member
 let signedIn=null,authChange=()=>{},saved=[],signin=[],hold=null;
 const auth={
  auth:{onAuthStateChange(fn){authChange=fn},getSession:async()=>({data:{session:null}}),async signInWithPassword(credentials){signin.push(credentials);if(hold)await hold;const user={id:'test-owner',email:credentials.email,user_metadata:{username:'ซูโม่'}};signedIn=user;authChange('SIGNED_IN',{user});return{data:{session:{user}}};},signOut:async()=>({})},
+ rpc(name,args){assert.equal(name,'smgame_save_city');saved.push({slot_id:args.p_slot_id,name:args.p_name,data:args.p_data});return Promise.resolve({data:args.p_slot_id,error:null});},
  from(){return {upsert(row){saved.push(row);return {select(){return {single:async()=>({data:{slot_id:row.slot_id}})};}};}};}
 };
 const member=fs.readFileSync('work/member-entry.js','utf8').replace(/^import .*\n/,'');
