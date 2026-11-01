@@ -900,10 +900,11 @@ try{bugCaptureEnabled=localStorage.getItem(BUG_CAPTURE_STORAGE_KEY)==='on';}catc
 const runtimeErrors=[];for(const type of ['error','unhandledrejection'])window.addEventListener(type,e=>{if(!bugCaptureEnabled)return;runtimeErrors.push({at:new Date().toISOString(),message:String(e.message||e.reason?.stack||e.reason||type).slice(0,4000)});if(runtimeErrors.length>20)runtimeErrors.shift();});
 let state,cam={x:150,y:150,z:1.25,angle:Math.PI/4,elevation:Math.PI*50/180},view={w:innerWidth,h:innerHeight,dpr:1},tool='hand',category='roads',selected=null,hover=null,drag=null,pendingRoadPreview=null,pendingDemolitionPreview=null,roadPreviewCache=null,movingBuildingId=null,constructionAnchor=null,heat=false,debug=false,last=0,uiTick=0,news=[],toastTimer,follow=null;
 const id=(x,y)=>y*W+x,xy=i=>[i%W,Math.floor(i/W)],valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
-// SMCITY 5.1 — milestone progression is based only on the highest resident
-// population EVER observed in this city. Departures cannot lower the target.
-// Milestones: 20, 70, 120, 170, ... (50 residents between rewards).
-const CITY_LEVEL_VERSION=51,CITY_LEVEL_FIRST=20,CITY_LEVEL_STEP=50;
+// SMCITY 5.1 — the city earns levels only when both conditions are met:
+// highest-ever resident population passes 20, 70, 120, ... AND the latest
+// completed 06:00–06:00 trip-performance day scores at least 80%.
+// Peak population is saved even while performance is below the threshold.
+const CITY_LEVEL_VERSION=51,CITY_LEVEL_FIRST=20,CITY_LEVEL_STEP=50,CITY_LEVEL_MIN_PERFORMANCE=80;
 const CITY_CRATE_KINDS=['money','cars','ai'];
 function cityLevelForPeak(peak){return peak<CITY_LEVEL_FIRST?1:2+Math.floor((peak-CITY_LEVEL_FIRST)/CITY_LEVEL_STEP);}
 function cityNextLevelTarget(level){return CITY_LEVEL_FIRST+(Math.max(1,level)-1)*CITY_LEVEL_STEP;}
@@ -915,11 +916,18 @@ function restoreCityLevel(saved){
   pending:saved.pending.map(x=>({level:x.level,kind:x.kind})),claimed:saved.claimed,
   aiCredits:saved.aiCredits,history:(saved.history||[]).slice(-25).map(x=>({...x}))};
 }
+function cityLevelMissionResult(){
+ const p=ensurePerformance(),previous=p.previous;
+ const eligible=!!(previous&&Number.isFinite(previous.total)&&previous.total>0&&Number.isFinite(p.official));
+ return{eligible,rate:eligible?p.official:null,passed:eligible&&p.official>=CITY_LEVEL_MIN_PERFORMANCE};
+}
 function updateCityLevel(currentPopulation){
  const l=ensureCityLevel(),population=Math.max(0,Math.floor(Number(currentPopulation)||0));
- if(population<=l.peakPopulation)return 0;
- l.peakPopulation=population;
- const reached=cityLevelForPeak(population),earned=Math.max(0,reached-l.level);
+ // Record the high-water mark even if the city is not yet eligible to level up.
+ if(population>l.peakPopulation)l.peakPopulation=population;
+ // The initial displayed 100% is only a placeholder, not a completed trip day.
+ if(!cityLevelMissionResult().passed)return 0;
+ const reached=cityLevelForPeak(l.peakPopulation),earned=Math.max(0,reached-l.level);
  for(let level=l.level+1;level<=reached;level++){
   l.pending.push({level,kind:CITY_CRATE_KINDS[Math.floor(Math.random()*CITY_CRATE_KINDS.length)]});
  }
@@ -972,19 +980,21 @@ function showCityLevelCelebration(level,count=1){
 }
 function cityLevelStatus(){
  const l=ensureCityLevel(),previous=l.level===1?0:cityNextLevelTarget(l.level-1),next=cityNextLevelTarget(l.level);
+ const mission=cityLevelMissionResult();
  return{...l,previous,next,remaining:Math.max(0,next-l.peakPopulation),
+  missionRate:mission.rate,missionReady:mission.eligible,missionPassed:mission.passed,
   progress:Math.max(0,Math.min(100,Math.round(100*(l.peakPopulation-previous)/Math.max(1,next-previous))))};
 }
 function updateCityLevelHud(currentPopulation){
  updateCityLevel(currentPopulation);
  const l=cityLevelStatus(),set=(id,value)=>{const n=$(id);if(n&&n.textContent!==value)n.textContent=value;};
  set('cityLevelValue',String(l.level));
- set('cityLevelProgress','สูงสุด '+fmt(l.peakPopulation)+'/'+fmt(l.next));
- set('cityLevelNext','อีก '+fmt(l.remaining)+' คน · เลเวล '+(l.level+1));
+ set('cityLevelProgress',(l.remaining?'อีก '+fmt(l.remaining)+' คน':'คนครบ')+' · ภารกิจ ≥80%');
+ set('cityLevelNext','เพิ่มประชาชนอีก '+fmt(l.remaining)+' คน และภารกิจสำเร็จ ≥80% (รอบล่าสุด '+(l.missionReady?Math.round(l.missionRate)+'%':'ยังไม่มีผล')+')');
  set('cityAiQuotaValue',fmt(l.aiCredits));
  set('cityCrateBadge','🎁 '+fmt(l.pending.length));
  const meter=$('cityLevelBar');if(meter)meter.style.width=l.progress+'%';
- const button=$('cityLevelButton');if(button)button.setAttribute('aria-label','เลเวล '+l.level+' · ประชากรสูงสุด '+l.peakPopulation+' จากเป้าหมาย '+l.next+' · กล่องที่ยังไม่เปิด '+l.pending.length);
+ const button=$('cityLevelButton');if(button)button.setAttribute('aria-label','เลเวล '+l.level+' · ต้องมีประชากรสูงสุด '+l.next+' คน (อีก '+l.remaining+' คน) และภารกิจสำเร็จอย่างน้อย 80% ของรอบประจำวันที่ปิดเวลา 06:00 · ผลล่าสุด '+(l.missionReady?Math.round(l.missionRate)+'%':'ยังไม่มีผล')+' · กล่องที่ยังไม่เปิด '+l.pending.length);
  const crate=$('cityCrateBadge');if(crate)crate.classList.toggle('has-crates',l.pending.length>0);
 }
 function grantCityLevelCars(){
@@ -1039,8 +1049,8 @@ function openCityCrateModal(){
  modal('<div class="sm-level-reward"><div class="sm-level-kicker">SMCITY · CITY LEVEL '+l.level+'</div>'+
  '<div class="sm-level-shine" aria-hidden="true">✦</div><div class="sm-level-chest" aria-hidden="true">🎁</div>'+
  '<h2>'+(has?'กล่องสุ่มรางวัลเมือง':'เลเวลเมือง '+l.level)+'</h2>'+
- '<p>'+(has?'คุณปลดล็อกกล่องแล้ว กดเปิดเพื่อรับ 1 จาก 3 รางวัล':'สร้างเมืองให้มีประชากรสูงสุดเพิ่มขึ้น เพื่อรับกล่องสุ่มรางวัล')+'</p>'+
- '<div class="sm-level-reward-foot"><span>ประชากรสูงสุด '+fmt(l.peakPopulation)+' คน</span><span>เป้าถัดไป '+fmt(l.next)+' คน</span></div>'+
+ '<p>'+(has?'คุณปลดล็อกกล่องแล้ว กดเปิดเพื่อรับ 1 จาก 3 รางวัล':'เพิ่มประชากรสูงสุดให้ถึงเป้า และทำภารกิจสำเร็จอย่างน้อย 80% ของรอบที่ปิดเวลา 06:00 เพื่อรับกล่องสุ่มรางวัล')+'</p>'+
+ '<div class="sm-level-reward-foot"><span>ประชากรสูงสุด '+fmt(l.peakPopulation)+' / '+fmt(l.next)+' คน</span><span>ภารกิจรอบล่าสุด '+(l.missionReady?Math.round(l.missionRate)+'%':'ยังไม่มีผล')+' · เกณฑ์ ≥80%</span></div>'+
  '<div class="sm-level-reward-list"><span>฿ เงิน 1 ล้าน</span><span>🏎️ รถ F1 ทั้ง 4 แบบ</span><span>✦ แยก AI +1 โควต้า</span></div>'+
  '<small class="sm-level-odds">โอกาสออกรางวัลแต่ละประเภทเท่ากัน · 1 กล่องต่อ 1 เลเวล</small>'+
  '<div class="sm-level-actions">'+(has?'<button id="cityCrateOpen" class="primary">เปิดกล่อง ('+l.pending.length+' กล่อง) ✨</button>':'')+
@@ -7001,7 +7011,7 @@ function saveGame(silent=false,name='บันทึกด่วน',slotId='qui
 function validateSave(s){
  if(!s||s.format!==2||s.parkingVersion!==PARKING_VERSION)throw Error('เมืองนี้เป็นระบบลานจอดรุ่นเก่า กรุณาเริ่มเมืองใหม่');
  if(s.cityLevel!==undefined){const l=s.cityLevel;
-  if(!l||l.version!==CITY_LEVEL_VERSION||!Number.isSafeInteger(l.peakPopulation)||l.peakPopulation<0||l.peakPopulation>1000000||!Number.isSafeInteger(l.level)||l.level!==cityLevelForPeak(l.peakPopulation)||!Number.isSafeInteger(l.claimed)||l.claimed<0||!Number.isSafeInteger(l.aiCredits)||l.aiCredits<0||l.aiCredits>100000||!Array.isArray(l.pending)||l.pending.length>100000||l.pending.some(x=>!x||!Number.isSafeInteger(x.level)||x.level<2||x.level>l.level||!CITY_CRATE_KINDS.includes(x.kind))||!Array.isArray(l.history)||l.history.length>25||l.history.some(x=>!x||!Number.isSafeInteger(x.level)||x.level<2||!CITY_CRATE_KINDS.includes(x.kind)||!Number.isFinite(x.at)))throw Error('Invalid city level save');
+  if(!l||l.version!==CITY_LEVEL_VERSION||!Number.isSafeInteger(l.peakPopulation)||l.peakPopulation<0||l.peakPopulation>1000000||!Number.isSafeInteger(l.level)||(l.level<1||l.level>cityLevelForPeak(l.peakPopulation))||!Number.isSafeInteger(l.claimed)||l.claimed<0||!Number.isSafeInteger(l.aiCredits)||l.aiCredits<0||l.aiCredits>100000||!Array.isArray(l.pending)||l.pending.length>100000||l.pending.some(x=>!x||!Number.isSafeInteger(x.level)||x.level<2||x.level>l.level||!CITY_CRATE_KINDS.includes(x.kind))||!Array.isArray(l.history)||l.history.length>25||l.history.some(x=>!x||!Number.isSafeInteger(x.level)||x.level<2||!CITY_CRATE_KINDS.includes(x.kind)||!Number.isFinite(x.at)))throw Error('Invalid city level save');
  }
  if(s.buildingQuota!=null&&(typeof s.buildingQuota!=='object'||Array.isArray(s.buildingQuota)||Object.values(s.buildingQuota).some(n=>!Number.isSafeInteger(n)||n<0)))throw Error('Invalid building quota');
  if(!CITIES[s.city]||!Number.isFinite(s.time)||!Number.isFinite(s.money)||!Number.isInteger(s.nextId)||!Array.isArray(s.events))throw Error('Invalid save');
