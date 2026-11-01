@@ -5780,7 +5780,9 @@ function captureTowedVehicleEvidence(v){
    lastQueueDenial:other.lastQueueDenial||null,lastStoppedBarrier:other.lastStoppedBarrier||null,
    lastRoadTraversalBlock:other.lastRoadTraversalBlock||null,lastPhysicalBlock:other.lastPhysicalBlock||null,
    stopHistory:vehicleStopHistories.get(other)?.slice(-10)||[],
-   latestParkingBlock:parkingLastBlocks.get(other)||null,parkingStopHistory:parkingStopHistories.get(other)?.slice(-6)||[],
+   latestParkingBlock:parkingLastBlocks.get(other)||null,parkingStopHistory:(parkingStopHistories.get(other)||[]).slice(-4).map(x=>({
+    code:x.code,gameTime:x.gameTime,lastSeenAt:x.lastSeenAt,observations:x.observations,
+    blockerVehicleId:x.blockerVehicleId,blockerCitizenId:x.blockerCitizenId,forecastOnly:!!x.forecastOnly,observedPhysical:!!x.observedPhysical})),
    nextCellAdmission:other.path?.length>other.pos+1?explainRoadTraversal(other,other.pos+1):null});
   if(nearby.length>=24)break;
  }
@@ -5827,7 +5829,7 @@ function captureTowedVehicleEvidence(v){
   certainty:'not_proven',code:'insufficient_direct_trace',
   explanation:'ไม่พบหลักฐานการปฏิเสธล่าสุดที่สัมพันธ์กับทางแยกนี้ ไม่สรุปสาเหตุจากภาพหรือข้อความหยุด'
  };
- return {schemaVersion:1,kind:'manual_tow_only',capturedAt:new Date().toISOString(),
+ const report={schemaVersion:1,kind:'manual_tow_only',capturedAt:new Date().toISOString(),
   build:document.documentElement?.dataset?.uiVersion||'unknown',city:state.city,gameTime:state.time,
   paused:state.speed===0,gameSpeed:state.speed,roadVersion:state.version,
   vehicle:{id:v.id,phase:v.phase,trafficLayer:isAirTraffic(v)?'air':'ground',node:road,pos:v.pos,progress:v.progress,speed:v.speed,wait:v.wait,
@@ -5845,6 +5847,28 @@ function captureTowedVehicleEvidence(v){
    mergeCommitted:!!v.mergeCommitted,mergeEscapeId:v.mergeEscapeId??null,grandCrossing:v.grandCrossing||null},
   nearbyVehicles:nearby,nearbyRoads:roads, runtimeErrors:runtimeErrors.slice(-5),
   evidenceNotes:['observed_signal หมายถึงเห็นไฟแดงขณะรายงาน ไม่ได้ยืนยันว่ารอปกติตลอดช่วง','admission.blockers บอกข้อที่ทำให้ช่องถนนไม่ผ่าน รวมถึงจำนวนรถในทิศเดียวกัน','stopHistory และข้อมูลรถข้างเคียงเป็นรอบการตัดสินใจที่เก็บไว้ในเครื่อง ไม่ได้ส่งอัตโนมัติ','queueAtClick เป็นข้อมูล ณ เวลากดปุ่ม ไม่ใช่หลักฐานว่าคิวในเฟรมก่อนหน้าเหมือนกัน','parkingDiagnostics.history บันทึกเฉพาะการถูกปฏิเสธหลังเปิดสวิตช์ ไม่ได้ส่งข้อมูลอัตโนมัติ','forecastOnly เป็นเพียงการตรวจเส้นทางล่วงหน้า ไม่ใช่การชนจริง','blockChain.cycleVehicleIds คือวงจรของเงื่อนไขการปฏิเสธ ไม่ได้พิสูจน์ว่ารถชนกัน']};
+ // Backend accepts schemaVersion 1 and limits each report to 170,000 JSON characters.
+ // Compact secondary context only on manual submission; never drop primary blocker proof.
+ const maxPayloadChars=165000,measure=()=>JSON.stringify(report).length;
+ if(measure()>maxPayloadChars){
+  report.evidenceTruncated=['nearbyStopHistory'];
+  for(const car of report.nearbyVehicles){car.stopHistory=(car.stopHistory||[]).slice(-3);
+   car.parkingStopHistory=(car.parkingStopHistory||[]).slice(-2);}
+ }
+ if(measure()>maxPayloadChars){
+  report.evidenceTruncated.push('nearbyCarsAndRoadTiles');
+  report.nearbyVehicles=report.nearbyVehicles.slice(0,10);
+  report.nearbyRoads=report.nearbyRoads.slice(0,50);
+  report.parkingDiagnostics.history=report.parkingDiagnostics.history.slice(-10);
+ }
+ if(measure()>maxPayloadChars){
+  report.evidenceTruncated.push('secondaryContext');
+  report.nearbyVehicles=report.nearbyVehicles.slice(0,5);
+  report.nearbyRoads=[];report.roadSpace=report.roadSpace.slice(0,3);
+  report.queueAtClick=[];report.vehicle.junctionPasses=report.vehicle.junctionPasses.slice(-6);
+  report.parkingDiagnostics.history=report.parkingDiagnostics.history.slice(-5);
+ }
+ return report;
 }
 function canTowVehicle(v){return !!v&&(v.phase==='stuck'||v.departureNoRoute||v.wait>=48);}
 function towVehicle(id,incidentForce=false,playerForce=false){
