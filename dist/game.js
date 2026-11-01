@@ -1182,7 +1182,7 @@ function serviceAvailability(c,kind,origin=c.locationId||c.homeId,ignoreHours=fa
  const open=all.filter(b=>ignoreHours||serviceWindow(kind,state.time));if(!open.length)return{reason:'closed'};
  const free=open.filter(b=>b.visitors.size+b.reservedService<CATALOG[b.key].service&&parkingFree(b)>0);
  if(!free.length)return{reason:'full'};
- free.sort((a,b)=>Math.abs(a.x-(source?.x||0))+Math.abs(a.y-(source?.y||0))-Math.abs(b.x-(source?.x||0))-Math.abs(b.y-(source?.y||0)));
+ free.sort((a,b)=>Math.abs(a.x-(source?.x||0))+Math.abs(a.y-(source?.y||0))+destinationRoadPenalty(a)-Math.abs(b.x-(source?.x||0))-Math.abs(b.y-(source?.y||0))-destinationRoadPenalty(b));
  for(const b of free){const path=tripRoute(origin,b.id,null,null,c.id);if(path)return{building:b,path,estimate:travelEstimate(path)};}
  return{reason:'route'};
 }
@@ -3853,12 +3853,27 @@ function citizenName(c){return c?['กานต์','ต้น','พลอย','
 const TRIPS={intercity:{name:'รถพ่วงเชื่อมเมือง',color:'#ecba43'},delivery:{name:'ส่งสินค้ากลางคืน',color:'#15b9c1'},hotel:{name:'ไปพักโรงแรม',color:'#ffd127'},touristOut:{name:'กลับนอกเมือง',color:'#ffd127'},moveIn:{name:'ย้ายเข้า',color:'#8cdd91'},work:{name:'ไปทำงาน',color:'#70b4e8'},home:{name:'กลับบ้าน',color:'#f4f0dc'},leisure:{name:'พักผ่อน',color:'#e897bf'},moveOut:{name:'ย้ายออก',color:'#e57865'},pass:{name:'ผ่านเมือง',color:'#edc863'}};
 function accessFor(b){return parkingAccess(b);}
 class Heap{constructor(){this.items=[];}push(item){let a=this.items;a.push(item);let i=a.length-1;while(i){let p=(i-1)>>1;if(a[p].f<=item.f)break;a[i]=a[p];i=p;}a[i]=item;}pop(){let a=this.items,first=a[0],last=a.pop();if(a.length){let i=0;while(true){let c=i*2+1;if(c>=a.length)break;if(c+1<a.length&&a[c+1].f<a[c].f)c++;if(a[c].f>=last.f)break;a[i]=a[c];i=c;}a[i]=last;}return first;}get length(){return this.items.length;}}
+// Main-road preference uses static road classes and the existing route cache.
+// Small roads remain fully reachable when they are the only legal approach.
+const SMALL_ROAD_ROUTE_WEIGHT=6;
+const SMALL_STREET_DESTINATION_PENALTY=36;
+function roadWeight(node){
+ const kind=state.roads.get(node)?.type;
+ return kind==='small'?SMALL_ROAD_ROUTE_WEIGHT:kind==='medium'?1.2:1;
+}
+function destinationSmallStreetOnly(b){
+ const accesses=b?.access?.filter(a=>a.entry)||[];
+ return accesses.length>0&&accesses.every(a=>state.roads.get(a.node)?.type==='small');
+}
+function destinationRoadPenalty(b){
+ return destinationSmallStreetOnly(b)?SMALL_STREET_DESTINATION_PENALTY:0;
+}
 function route(start,end,firstNext=null,finalPrev=null,previousNode=null){
 if(!state.roads.has(start)||!state.roads.has(end))return null;
 const cacheKey=[state.version,start,end,firstNext?.join('.')||'',finalPrev?.join('.')||'',previousNode??-1].join('|');if(state.routeCache.has(cacheKey))return state.routeCache.get(cacheKey);
 const heap=new Heap(),g=new Map(),came=new Map(),origin=`${start}:${previousNode??-1}`;heap.push({node:start,prev:previousNode??-1,key:origin,g:0,f:distance(start,end)});g.set(origin,0);let count=0;
 while(heap.length&&count++<35000){const cur=heap.pop();if(cur.g!==g.get(cur.key))continue;if(cur.node===end&&cur.key!==origin&&(!finalPrev||finalPrev.includes(cur.prev))){const path=[];let key=cur.key;while(key){path.push(+key.split(':')[0]);key=came.get(key);}path.reverse();if(state.routeCache.size>1500)state.routeCache.clear();state.routeCache.set(cacheKey,path);return path;}
-const r=state.roads.get(cur.node);for(const n of r.links){if(cur.key===origin&&firstNext&&!firstNext.includes(n))continue;if(n===cur.prev)continue;const key=`${n}:${cur.node}`,cost=cur.g+distance(cur.node,n)+(n===cur.prev?2:0);if(cost>=(g.get(key)??Infinity))continue;g.set(key,cost);came.set(key,cur.key);heap.push({node:n,prev:cur.node,key,g:cost,f:cost+distance(n,end)});}}
+const r=state.roads.get(cur.node);for(const n of r.links){if(cur.key===origin&&firstNext&&!firstNext.includes(n))continue;if(n===cur.prev)continue;const key=`${n}:${cur.node}`,cost=cur.g+distance(cur.node,n)*roadWeight(n);if(cost>=(g.get(key)??Infinity))continue;g.set(key,cost);came.set(key,cur.key);heap.push({node:n,prev:cur.node,key,g:cost,f:cost+distance(n,end)});}}
 if(state.routeCache.size>1500)state.routeCache.clear();state.routeCache.set(cacheKey,null);return null;
 }
 // A driveway starts in the outer-left lane. If the first intersection is too close
@@ -3883,7 +3898,7 @@ function safeDeparturePath(path,access){
  }
  return path;
 }
-function tripRoute(fromId,toId,fromGate,toGate,citizenId=null){const from=state.buildings.get(fromId),to=state.buildings.get(toId),allExits=from?from.access.filter(a=>a.exit):null,assigned=from&&CATALOG[from.key].dualParking&&citizenId!=null?lotSlots(from)[parkingSpace(from,citizenId)]:null,aa=from?(assigned?allExits.filter(a=>a.zone===assigned.zone):allExits):[{node:fromGate,next:null}],bb=to?to.access.filter(a=>a.entry):[{node:toGate,prev:null}];if(!aa?.length||!bb?.length)return null;const candidates=[];for(const a of aa)for(const b of bb)candidates.push({a,b,d:distance(a.node,b.node)});candidates.sort((a,b)=>a.d-b.d);for(const pair of candidates.slice(0,32)){const p=route(pair.a.node,pair.b.node,pair.a.next,pair.b.prev);if(p)return from?safeDeparturePath(p,pair.b):p;}return null;}
+function tripRoute(fromId,toId,fromGate,toGate,citizenId=null){const from=state.buildings.get(fromId),to=state.buildings.get(toId),allExits=from?from.access.filter(a=>a.exit):null,assigned=from&&CATALOG[from.key].dualParking&&citizenId!=null?lotSlots(from)[parkingSpace(from,citizenId)]:null,aa=from?(assigned?allExits.filter(a=>a.zone===assigned.zone):allExits):[{node:fromGate,next:null}],bb=to?to.access.filter(a=>a.entry):[{node:toGate,prev:null}];if(!aa?.length||!bb?.length)return null;const candidates=[];for(const a of aa)for(const b of bb)candidates.push({a,b,d:distance(a.node,b.node)+(roadWeight(a.node)>2?6:0)+(roadWeight(b.node)>2?6:0)});candidates.sort((a,b)=>a.d-b.d);for(const pair of candidates.slice(0,32)){const p=route(pair.a.node,pair.b.node,pair.a.next,pair.b.prev);if(p)return from?safeDeparturePath(p,pair.b):p;}return null;}
 // Citizen habits are stable, but the schedule varies by individual and day.
 // Hashing is deterministic: reloads and high population counts cannot change
 // the calendar or create per-frame random decisions.
@@ -4050,7 +4065,7 @@ function estimatePlanTravel(c,plan){
    const eligible=Object.keys(SERVICE_STAY).filter(k=>k!==CATALOG[state.buildings.get(origin)?.key]?.kind).filter(k=>{const w=serviceWindow(k,plan.day*1440+at+45);return w&&w.close>=plan.day*1440+at+45+SERVICE_STAY[k][0];});
    if(!eligible.includes(step.kind))step.kind=eligible.sort((a,b)=>citizenServicePreference(c,b)-citizenServicePreference(c,a))[0]||'casino';
    step.duration=Math.max(SERVICE_STAY[step.kind][0],Math.min(SERVICE_STAY[step.kind][1],step.duration||SERVICE_STAY[step.kind][0]));
-   const from=state.buildings.get(origin),choices=[...state.buildings.values()].filter(b=>CATALOG[b.key].kind===step.kind&&b.id!==origin).sort((a,b)=>Math.abs(a.x-(from?.x||0))+Math.abs(a.y-(from?.y||0))-Math.abs(b.x-(from?.x||0))-Math.abs(b.y-(from?.y||0)));
+   const from=state.buildings.get(origin),choices=[...state.buildings.values()].filter(b=>CATALOG[b.key].kind===step.kind&&b.id!==origin).sort((a,b)=>Math.abs(a.x-(from?.x||0))+Math.abs(a.y-(from?.y||0))+destinationRoadPenalty(a)-Math.abs(b.x-(from?.x||0))-Math.abs(b.y-(from?.y||0))-destinationRoadPenalty(b));
    for(const b of choices){const t=buildingTravelEstimate(c,origin,b.id);if(t){target=b.id;estimate=t;break;}}
    const next=plan.steps[plan.steps.indexOf(proposed)+1];
    if(next?.kind==='work'&&!next.resume){
@@ -4233,7 +4248,7 @@ function chooseCityOuting(c,requests=new Map()){
  let exists=false,space=false;
  for(const kind of kinds){
   const win=serviceWindow(kind,state.time),duration=Math.round(SERVICE_STAY[kind][0]+habitRandom(c.id,Math.floor(state.time/15),183)*30);
-  const choices=[...state.buildings.values()].filter(b=>b.id!==origin.id&&CATALOG[b.key].kind===kind).sort((a,b)=>distance(id(a.x,a.y),id(origin.x,origin.y))-distance(id(b.x,b.y),id(origin.x,origin.y)));
+  const choices=[...state.buildings.values()].filter(b=>b.id!==origin.id&&CATALOG[b.key].kind===kind).sort((a,b)=>distance(id(a.x,a.y),id(origin.x,origin.y))+destinationRoadPenalty(a)-distance(id(b.x,b.y),id(origin.x,origin.y))-destinationRoadPenalty(b));
   for(const b of choices){exists=true;const held=requests.get(b.id)||0;
    if(b.visitors.size+b.reservedService+held>=CATALOG[b.key].service||parkingFree(b)<=held)continue;space=true;
    const path=tripRoute(origin.id,b.id,null,null,c.id);if(!path)continue;
@@ -4711,7 +4726,7 @@ function schedule(c,at,action,extra={}){
  if(!c||c.removed||!Number.isFinite(at))return;
  eventPush({citizenId:c.id,at,action,...extra});
 }
-function assignJob(c){if(c.tourist)return;if(c.profile.trait===3||c.movingOut||c.removed)return;const old=state.buildings.get(c.workId);if(old&&old.workers.has(c.id))return;const home=state.buildings.get(c.homeId);if(!home)return;let best=null,score=Infinity;for(const b of state.buildings.values()){const t=CATALOG[b.key];if(t.jobs<=b.workers.size)continue;const sc=Math.abs(b.x-home.x)+Math.abs(b.y-home.y)+b.workers.size/t.jobs*12;if(sc<score){score=sc;best=b;}}if(best){c.workId=best.id;best.workers.add(c.id);c.unemployed=0;}else c.workId=null;}
+function assignJob(c){if(c.tourist)return;if(c.profile.trait===3||c.movingOut||c.removed)return;const old=state.buildings.get(c.workId);if(old&&old.workers.has(c.id))return;const home=state.buildings.get(c.homeId);if(!home)return;let best=null,score=Infinity;for(const b of state.buildings.values()){const t=CATALOG[b.key];if(t.jobs<=b.workers.size)continue;const sc=Math.abs(b.x-home.x)+Math.abs(b.y-home.y)+destinationRoadPenalty(b)+b.workers.size/t.jobs*12;if(sc<score){score=sc;best=b;}}if(best){c.workId=best.id;best.workers.add(c.id);c.unemployed=0;}else c.workId=null;}
 // v2.5: settle one outcome per activity; congestion has one capped surcharge.
 const JOURNEY_RULES={version:500,stressAfter:0,stressStep:1,stressCap:0,
  work:{ontime:1,late:0,missed:0,unavailable:0,cancelled:0},
@@ -5045,8 +5060,8 @@ function runAction(c,action,extra={}){
   function choices(k){
    return [...state.buildings.values()].filter(b=>CATALOG[b.key].kind===k&&
     b.visitors.size+b.reservedService<CATALOG[b.key].service&&parkingFree(b)>0)
-    .sort((a,b)=>nearby(a)+(a.visitors.size+a.reservedService)/Math.max(1,CATALOG[a.key].service)*18-
-      nearby(b)-(b.visitors.size+b.reservedService)/Math.max(1,CATALOG[b.key].service)*18);
+    .sort((a,b)=>nearby(a)+destinationRoadPenalty(a)+(a.visitors.size+a.reservedService)/Math.max(1,CATALOG[a.key].service)*18-
+      nearby(b)-destinationRoadPenalty(b)-(b.visitors.size+b.reservedService)/Math.max(1,CATALOG[b.key].service)*18);
   }
   // Prefer another destination of the same kind, otherwise a nearby
   // alternative activity, otherwise retry a few minutes later.
