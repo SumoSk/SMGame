@@ -274,7 +274,7 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
  for(const other of parkingLotCars(v.lotBuilding)){
   if(other.id===v.id||other.lotBuilding!==v.lotBuilding||!other.lotPath)continue;
   if(overlappingEntranceLeader(v,other))continue;
-  if(lotCarsOverlap(pose,parkingPose(other)))return false;
+  if(lotCarsOverlap(pose,parkingPose(other)))return noteParkingBlock(v,'lot_live_vehicle_overlap',{blockerVehicleId:other.id,checkedPose:pose,blockingPose:parkingPose(other),observedPhysical:true});
  }
  // The first/last metres of the driveway are shared with live road traffic.
  // A car leaving or entering the lot must not ignore vehicles on the street.
@@ -286,11 +286,11 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
     if(other.id===v.id||isAirTraffic(other)||!['driving','stuck','parking_out','parking_in','departing'].includes(other.phase))continue;
     if(other.lotBuilding===b.id&&other.lotPath)continue;
     const p=vehiclePosition(other);
-    if(p&&Math.hypot(p.x-pose.x,p.y-pose.y)<1.1&&lotCarsOverlap(pose,p,.045))return false;
+    if(p&&Math.hypot(p.x-pose.x,p.y-pose.y)<1.1&&lotCarsOverlap(pose,p,.045))return noteParkingBlock(v,'lot_road_vehicle_overlap',{blockerVehicleId:other.id,checkedPose:pose,blockingPose:p,observedPhysical:true});
    }
  }
  if(b)for(const cid of b.parked){
-  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1&&lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015))return false;
+  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1&&lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015))return noteParkingBlock(v,'lot_parked_citizen_overlap',{blockerCitizenId:cid,blockerSlot:parkingSpace(b,cid),checkedPose:pose,blockingPose:p,observedPhysical:true});
  }
  return true;
 }
@@ -308,7 +308,7 @@ function canLeaveParkingSpace(v,points){
   const theirs=bounds(upcoming);
   // One block exceeds the collision routine's maximum center distance at .06.
   if(own.maxX+1<theirs.minX||theirs.maxX+1<own.minX||own.maxY+1<theirs.minY||theirs.maxY+1<own.minY)continue;
-  for(const p of samples)for(const q of upcoming)if(lotCarsOverlap(p,q,.06))return false;
+  for(let k=0;k<samples.length;k++)for(let n=0;n<upcoming.length;n++)if(lotCarsOverlap(samples[k],upcoming[n],.06))return noteParkingBlock(v,'bay_exit_predicted_path_conflict',{blockerVehicleId:other.id,checkedPose:samples[k],blockingPredictedPose:upcoming[n],ownLookahead:k*.12,blockerLookahead:n*.15,forecastOnly:true});
  }return true;
 }
 function parkingAccess(b){
@@ -452,19 +452,20 @@ function prepareParkingMerges(dt){
 // Parking aisle collisions remain governed by advanceLot/lotClear as each car moves.
 function canCommitParkingMerge(v){
  const own=parkingMerges.find(g=>g.v===v);
- if(!own||!parkingMergeClear(v))return false;
+ if(!own)return noteParkingBlock(v,'merge_claim_missing',{mergeCommitted:!!v.mergeCommitted});
+ if(!parkingMergeClear(v))return false;
  v.mergeCommitted=true;own.priority=true;return true;
 }
 function parkingMergeClear(v){
- if(!v.lotPath||!v.path?.[1])return false;
+ if(!v.lotPath||!v.path?.[1])return noteParkingBlock(v,'merge_missing_path',{pathLength:v.path?.length??0});
  const node=v.path[0],d=motionDirection(v.path,0),lane=plannedLane(v,0);
- if(!cellAvailable(node,d,lane,v.id))return false;
+ if(!cellAvailable(node,d,lane,v.id))return noteParkingBlock(v,'merge_road_cell_unavailable',{roadNode:node,roadDirection:d,roadLane:lane,roadAdmission:bugCaptureEnabled?explainRoadTraversal(v,0):null});
  // Only check the physical merge point of that same tile, not the whole driveway or road ahead.
  const entry=positionOnMotion(motionPlan(v),0);
  for(const other of nearbyParkingCars(entry,.85)){
   if(other.id===v.id||isAirTraffic(other)||!['driving','stuck','parking_out','parking_in'].includes(other.phase))continue;
   const p=vehiclePosition(other);
-  if(p&&Math.hypot(p.x-entry.x,p.y-entry.y)<.85&&lotCarsOverlap(entry,p,.04))return false;
+  if(p&&Math.hypot(p.x-entry.x,p.y-entry.y)<.85&&lotCarsOverlap(entry,p,.04))return noteParkingBlock(v,'merge_live_vehicle_overlap',{blockerVehicleId:other.id,checkedPose:entry,blockingPose:p,observedPhysical:true});
  }
  return true;
 }
@@ -484,7 +485,7 @@ function grandSignalMayCross(v){
  if(crossing.granted)return control.holder===v.id;
  if(control.holder!=null){
   const holder=state.vehicles.get(control.holder);
-  if(holder?.lotBuilding===b.id&&holder.grandCrossing?.granted&&!holder.grandCrossing.cleared)return false;
+  if(holder?.lotBuilding===b.id&&holder.grandCrossing?.granted&&!holder.grandCrossing.cleared)return noteParkingBlock(v,'internal_crossing_held',{blockerVehicleId:holder.id,heldBySignal:true});
   control.holder=null; // Discard stale reservations recovered from old saves.
  }
  const ready=car=>car.lotBuilding===b.id&&car.phase==='departing'&&car.lotPath&&
@@ -495,14 +496,14 @@ function grandSignalMayCross(v){
  const rear=waiting.filter(car=>car.grandCrossing.approach==='rear').sort((a,b)=>a.id-b.id);
  // Only the first waiting vehicle from a direction may enter the crossing.
  const own=crossing.approach==='rear'?rear:front;
- if(own[0]&&own[0].id!==v.id)return false;
+ if(own[0]&&own[0].id!==v.id)return noteParkingBlock(v,'internal_crossing_queue_priority',{blockerVehicleId:own[0].id,approach:crossing.approach});
  const opposite=crossing.approach==='rear'?front:rear;
  // When both queues are real and not moving, yield to the opposite approach
  // that missed the preceding green; if opposite cannot reach the stop line
  // it is NOT allowed to force this approach to wait forever.
  if(opposite.length&&control.lastServed===crossing.approach){
   control.green=opposite[0].grandCrossing.approach;
-  return false;
+  return noteParkingBlock(v,'internal_crossing_alternate_priority',{blockerVehicleId:opposite[0].id,approach:crossing.approach});
  }
  // Protect the exit spine and actual junction footprint. Opposing vehicles
  // stopped BEFORE their respective setback are not an artificial conflict.
@@ -515,7 +516,7 @@ function grandSignalMayCross(v){
      (other.lotDistance||0)<=otherCrossing.stopAt+.06)continue;
   for(const d of [crossing.crossingAt,crossing.clearAt,crossing.clearAt+.18]){
    const our=lotPathPose(v.lotPath,Math.min(lotPathLength(v.lotPath),d));
-   if(lotCarsOverlap(our,their,.06))return false;
+   if(lotCarsOverlap(our,their,.06))return noteParkingBlock(v,'internal_crossing_live_overlap',{blockerVehicleId:other.id,checkedPose:our,blockingPose:their,observedPhysical:true});
   }
  }
  crossing.granted=true;control.holder=v.id;
@@ -549,7 +550,7 @@ function advanceLot(v,dt,maxDistance=Infinity,ignoreRoadTraffic=false){
  }
  v.lotDistance=distance;return distance>=total-1e-7;
 }
-function parkingBankBusy(b,index,arriving){
+function parkingBankBusy(b,index,arriving,requester=null){
  // A single continuous eastbound aisle carries inbound and outbound traffic.
  // Never lock the entire 100+ car strip for an opposing car in a distant bay.
  // Swept footprint collision checks in lotClear/canLeaveParkingSpace serialize
@@ -561,7 +562,7 @@ function parkingBankBusy(b,index,arriving){
   const otherIndex=b.parkingSlots?.indexOf(other.citizenId)??-1;
   if(otherIndex<0)continue;
   const occupied=lotSlots(b)[otherIndex];
-  if(occupied&&(!(CATALOG[b.key].dualParking||CATALOG[b.key].stackedParking)||occupied.zone===target.zone)&&Math.abs(occupied.u-target.u)<.45&&occupied.index!==index)return true;
+  if(occupied&&(!(CATALOG[b.key].dualParking||CATALOG[b.key].stackedParking)||occupied.zone===target.zone)&&Math.abs(occupied.u-target.u)<.45&&occupied.index!==index){if(requester)noteParkingBlock(requester,arriving?'arrival_bank_busy':'departure_bank_busy',{blockerVehicleId:other.id,requestedSlot:index,blockerSlot:otherIndex,requestedZone:target.zone,blockerZone:occupied.zone});return true;}
  }
  return false;
 }
@@ -569,8 +570,8 @@ function prepareLotDeparture(v,dt){
  const b=state.buildings.get(v.fromId);if(!b)return true;
  if(v.lotReady)return true;
  if(!v.lotPath){
-  const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){v.stopReason='ไม่พบช่องจอดของรถ';return false;}
-  if(parkingBankBusy(b,index,false)){v.stopReason='รอรถเข้าจอดในแถวเดียวกัน';return false;}
+  const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){noteParkingBlock(v,'departure_missing_parking_slot',{requestedSlot:index});v.stopReason='ไม่พบช่องจอดของรถ';return false;}
+  if(parkingBankBusy(b,index,false,v)){v.stopReason='รอรถเข้าจอดในแถวเดียวกัน';return false;}
   const t=CATALOG[b.key],exitU=t.dualParking?(slot.zone==='A'?t.parkingExitA:t.parkingExitB):(t.parkingExitU??t.plotWidth-.45);
   v.lotPath=[parkingSlotPose(b,index),lotPoint(b,slot.u,slot.aisle),lotPoint(b,exitU,slot.aisle)];
   // Rear court must physically cross the front court's aisle at a real T
@@ -664,7 +665,7 @@ function assignArrivalParking(v,replan=false,includeOld=false){
   return (slots[a].u-(current?.u??.45))-(slots[b].u-(current?.u??.45))||a-b;
  });
  for(const i of options){
-  if(parkingBankBusy(b,i,true)||parkingBayObstructed(v,b,i))continue;
+  if(parkingBankBusy(b,i,true,v)||parkingBayObstructed(v,b,i))continue;
   const path=parkingArrivalPath(v,b,i,replan);if(!path)continue;
   const prevPath=v.lotPath,prevDistance=v.lotDistance,prevBuilding=v.lotBuilding;
   v.lotPath=path;v.lotDistance=0;v.lotBuilding=b.id;
@@ -5673,12 +5674,53 @@ function explainRoadTraversal(v,pos){
 }
 // Opt-in bug evidence is independent of physical traffic safety and routing.
 let vehicleStopHistories=new WeakMap();
+// Parking diagnostics live only in memory and only after the player opts in.
+// A rejection record is made at the actual failed gate, not inferred at tow time.
+let parkingStopHistories=new WeakMap(),parkingLastBlocks=new WeakMap();
+function noteParkingBlock(v,code,detail={}){
+ if(!bugCaptureEnabled||!v||!state?.vehicles?.has(v.id))return false;
+ const now=state.time,blockerVehicleId=detail.blockerVehicleId??null,blockerCitizenId=detail.blockerCitizenId??null;
+ const prior=parkingLastBlocks.get(v);
+ if(prior&&prior.code===code&&prior.blockerVehicleId===blockerVehicleId&&prior.blockerCitizenId===blockerCitizenId&&
+    now>=prior.gameTime&&now-prior.gameTime<.35)return false;
+ const blocker=blockerVehicleId==null?null:state.vehicles.get(blockerVehicleId);
+ const {blockerVehicleId:_vid,blockerCitizenId:_cid,...proof}=detail;
+ const entry={code,gameTime:now,vehicleId:v.id,phase:v.phase,stopReason:v.stopReason||'',
+  lotBuilding:v.lotBuilding??v.fromId??v.toId??null,lotDistance:v.lotDistance??null,
+  ownPose:v.lotPath?parkingPose(v):vehiclePosition(v),blockerVehicleId,blockerCitizenId,
+  blockerCurrentPose:blocker?vehiclePosition(blocker):null,
+  blockerPhase:blocker?.phase??null,blockerStopReason:blocker?.stopReason??null,
+  blockerLastMovedAt:blocker?.lastMovedAt??null,blockerLotDistance:blocker?.lotDistance??null,...proof};
+ parkingLastBlocks.set(v,entry);
+ const history=parkingStopHistories.get(v)||[],last=history[history.length-1];
+ if(last&&last.code===code&&last.blockerVehicleId===blockerVehicleId&&last.blockerCitizenId===blockerCitizenId&&
+    now-last.gameTime<4){last.lastSeenAt=now;last.observations=(last.observations||1)+1;}
+ else{history.push({...entry,lastSeenAt:now,observations:1});if(history.length>18)history.shift();}
+ parkingStopHistories.set(v,history);
+ return false;
+}
+function parkingBlockChain(v){
+ const links=[],visited=new Map();let current=v,cycleVehicleIds=null;
+ for(let i=0;i<8&&current;i++){
+  if(visited.has(current.id)){
+   cycleVehicleIds=links.slice(visited.get(current.id)).map(x=>x.vehicleId);
+   break;
+  }
+  const proof=parkingLastBlocks.get(current);
+  if(!proof||state.time-proof.gameTime<0||state.time-proof.gameTime>5)break;
+  visited.set(current.id,links.length);
+  links.push({vehicleId:current.id,phase:current.phase,code:proof.code,blockerVehicleId:proof.blockerVehicleId,
+   blockerCitizenId:proof.blockerCitizenId,gameTime:proof.gameTime,stopReason:current.stopReason||''});
+  current=proof.blockerVehicleId==null?null:state.vehicles.get(proof.blockerVehicleId);
+ }
+ return {links,cycleVehicleIds,certainty:cycleVehicleIds?'observed_rejection_cycle_not_proven_collision':'not_proven'};
+}
 function setBugCaptureEnabled(enabled){
  enabled=!!enabled;
  if(enabled===bugCaptureEnabled)return;
  bugCaptureEnabled=enabled;
  // Reset immediately in both directions: no pre-toggle history can be reported.
- vehicleStopHistories=new WeakMap();runtimeErrors.length=0;
+ vehicleStopHistories=new WeakMap();parkingStopHistories=new WeakMap();parkingLastBlocks=new WeakMap();runtimeErrors.length=0;
  if(state?.vehicles)for(const v of state.vehicles.values()){
   delete v.lastStoppedBarrier;delete v.lastRoadTraversalBlock;
   delete v.lastJunctionDenial;delete v.lastQueueDenial;delete v.lastJunctionExitCheck;
@@ -5721,7 +5763,7 @@ function ownedRoadSpace(node,d,l,exclude){
 // Only called for a player-requested tow. No city-wide logging, no automatic uploads.
 function captureTowedVehicleEvidence(v){
  // Never reconstruct a report from pre-toggle data or an unobserved stop.
- if(!bugCaptureEnabled||!vehicleStopHistories.get(v)?.length)return null;
+ if(!bugCaptureEnabled||(!vehicleStopHistories.get(v)?.length&&!parkingStopHistories.get(v)?.length))return null;
  const plan=motionPlan(v),s=motionDistance(v,plan),pose=vehiclePosition(v),current=Number.isFinite(v.pos)?v.pos:0;
  const nextJunction=plan.junctions.find(g=>g.clear>=s);
  const direction=nextJunction?motionDirection(v.path,nextJunction.pos-1):motionDirection(v.path,current);
@@ -5738,6 +5780,7 @@ function captureTowedVehicleEvidence(v){
    lastQueueDenial:other.lastQueueDenial||null,lastStoppedBarrier:other.lastStoppedBarrier||null,
    lastRoadTraversalBlock:other.lastRoadTraversalBlock||null,lastPhysicalBlock:other.lastPhysicalBlock||null,
    stopHistory:vehicleStopHistories.get(other)?.slice(-10)||[],
+   latestParkingBlock:parkingLastBlocks.get(other)||null,parkingStopHistory:parkingStopHistories.get(other)?.slice(-6)||[],
    nextCellAdmission:other.path?.length>other.pos+1?explainRoadTraversal(other,other.pos+1):null});
   if(nearby.length>=24)break;
  }
@@ -5759,12 +5802,17 @@ function captureTowedVehicleEvidence(v){
  const recent=v.lastJunctionDenial||null;
  const fresh=!!recent&&state.time-recent.gameTime>=0&&state.time-recent.gameTime<=2;
  const actualBarrier=v.lastStoppedBarrier||null;
+ const lastParking=parkingLastBlocks.get(v)||null;
+ const verifiedParking=!!lastParking&&state.time-lastParking.gameTime>=0&&state.time-lastParking.gameTime<=2;
  const physical=v.lastPhysicalBlock||null;
  const roadBlock=v.lastRoadTraversalBlock||null;
  const verifiedRoad=!!roadBlock&&state.time-roadBlock.gameTime>=0&&state.time-roadBlock.gameTime<=2&&actualBarrier?.reason==='รถคันหน้าขวาง';
  const verifiedPhysical=!!physical&&state.time-physical.gameTime>=0&&state.time-physical.gameTime<=2&&actualBarrier?.reason==='เว้นระยะรถ';
  const normalRed=fresh&&nextJunction?.node===recent.node&&actualBarrier?.reason==='ไฟแดง'&&recent.code==='red_signal'&&signalColor(nextJunction.node,direction,inLane)==='red';
- const diagnosis=normalRed?{certainty:'observed_signal',code:'red_signal',gameTime:recent.gameTime,proof:recent,
+ const diagnosis=verifiedParking?{certainty:'observed_rejection',code:lastParking.code,gameTime:lastParking.gameTime,proof:lastParking,
+  explanation:lastParking.forecastOnly?'พบการปฏิเสธจากเส้นทางที่คาดว่าจะทับกัน ไม่ใช่หลักฐานว่าตัวถังรถชนกันจริง':
+   'บันทึกตรงจุดที่ลานจอดหรือทางออกปฏิเสธการเคลื่อนที่จริง; โปรดดู blockerVehicleId และ parkingBlockChain'}:
+ normalRed?{certainty:'observed_signal',code:'red_signal',gameTime:recent.gameTime,proof:recent,
   explanation:'ขณะกดเอารถออกไฟแดงจริง แต่ข้อมูลนี้ยังไม่พิสูจน์ว่าการรอนานก่อนหน้านั้นปกติ'}:
  fresh&&nextJunction?.node===recent.node&&actualBarrier?.reason==='คิวแยก'&&recent.code!=='red_signal'?{
   certainty:'observed_rejection',code:recent.code,gameTime:recent.gameTime,
@@ -5792,8 +5840,11 @@ function captureTowedVehicleEvidence(v){
   lastJunctionDenial:recent,lastQueueDenial:v.lastQueueDenial||null,latestRoadBlock:roadBlock,latestPhysicalBlock:v.lastPhysicalBlock||null,
   junctionLease:junctionSpace?JSON.parse(JSON.stringify(junctionSpace)):null,
   roadSpace:owned,queueAtClick:queues,stopHistory:vehicleStopHistories.get(v)||[],
+  parkingDiagnostics:{latest:lastParking,history:parkingStopHistories.get(v)?.slice(-18)||[],blockChain:parkingBlockChain(v),
+   fromBuilding:v.fromId??null,lotBuilding:v.lotBuilding??null,lotDistance:v.lotDistance??null,lotReady:!!v.lotReady,lotPath:v.lotPath||null,
+   mergeCommitted:!!v.mergeCommitted,mergeEscapeId:v.mergeEscapeId??null,grandCrossing:v.grandCrossing||null},
   nearbyVehicles:nearby,nearbyRoads:roads, runtimeErrors:runtimeErrors.slice(-5),
-  evidenceNotes:['observed_signal หมายถึงเห็นไฟแดงขณะรายงาน ไม่ได้ยืนยันว่ารอปกติตลอดช่วง','admission.blockers บอกข้อที่ทำให้ช่องถนนไม่ผ่าน รวมถึงจำนวนรถในทิศเดียวกัน','stopHistory และข้อมูลรถข้างเคียงเป็นรอบการตัดสินใจที่เก็บไว้ในเครื่อง ไม่ได้ส่งอัตโนมัติ','queueAtClick เป็นข้อมูล ณ เวลากดปุ่ม ไม่ใช่หลักฐานว่าคิวในเฟรมก่อนหน้าเหมือนกัน']};
+  evidenceNotes:['observed_signal หมายถึงเห็นไฟแดงขณะรายงาน ไม่ได้ยืนยันว่ารอปกติตลอดช่วง','admission.blockers บอกข้อที่ทำให้ช่องถนนไม่ผ่าน รวมถึงจำนวนรถในทิศเดียวกัน','stopHistory และข้อมูลรถข้างเคียงเป็นรอบการตัดสินใจที่เก็บไว้ในเครื่อง ไม่ได้ส่งอัตโนมัติ','queueAtClick เป็นข้อมูล ณ เวลากดปุ่ม ไม่ใช่หลักฐานว่าคิวในเฟรมก่อนหน้าเหมือนกัน','parkingDiagnostics.history บันทึกเฉพาะการถูกปฏิเสธหลังเปิดสวิตช์ ไม่ได้ส่งข้อมูลอัตโนมัติ','forecastOnly เป็นเพียงการตรวจเส้นทางล่วงหน้า ไม่ใช่การชนจริง','blockChain.cycleVehicleIds คือวงจรของเงื่อนไขการปฏิเสธ ไม่ได้พิสูจน์ว่ารถชนกัน']};
 }
 function canTowVehicle(v){return !!v&&(v.phase==='stuck'||v.departureNoRoute||v.wait>=48);}
 function towVehicle(id,incidentForce=false,playerForce=false){
@@ -6423,7 +6474,7 @@ function advanceVehicles(realDt,gameDt){
    updateTrafficSpatial(v);continue;
   }
   if(v.phase==='parking_out'){
-   if(v.mergeEscapeId){v.stopReason='ให้รถบนถนนที่ขวางกันผ่านก่อน';updateTrafficSpatial(v);continue;}
+   if(v.mergeEscapeId){noteParkingBlock(v,'merge_escape_yield',{blockerVehicleId:v.mergeEscapeId});v.stopReason='ให้รถบนถนนที่ขวางกันผ่านก่อน';updateTrafficSpatial(v);continue;}
    if(!v.mergeCommitted&&!canCommitParkingMerge(v)){v.stopReason='รอช่องว่างตลอดทางออก';updateTrafficSpatial(v);continue;}
    if(advanceLot(v,simDt)){
     const b=state.buildings.get(v.fromId);
@@ -6449,7 +6500,7 @@ function advanceVehicles(realDt,gameDt){
    const from=state.buildings.get(v.fromId);
    if(v.departureRouteVersion!==state.version||v.departureNoRoute&&!(v.nextDepartureRouteRetry>state.time)){if(routeBudget<=0||!routeChecks.has(v.id))continue;routeBudget--;if(!checkDepartureRoute(v))continue;}
    if(v.departureNoRoute)continue;
-   if(from&&[...state.vehicles.values()].some(car=>car.id!==v.id&&car.fromId===from.id&&car.phase==='parking_out'))continue;
+   if(from){const ahead=[...state.vehicles.values()].find(car=>car.id!==v.id&&car.fromId===from.id&&car.phase==='parking_out');if(ahead){noteParkingBlock(v,'shared_driveway_exit_in_progress',{blockerVehicleId:ahead.id});continue;}}
    if(!from){if(gateAttempt.has(v.path[0]))continue;gateAttempt.add(v.path[0]);}
    const i=v.path[0],next=v.path[1];if(next==null){arrive(v);continue;}
    const d=dir(i,next),lane=plannedLane(v,0);
@@ -7797,8 +7848,8 @@ async function sendCurrentMapToAi(){
 function openCityReport(){
  const dev=window.SMGameCreatorCanOpen===true;
  modal('<div class="menu-heading"><span class="menu-logo">⚠</span><div><span class="eyebrow">SMCITY · BUG REPORTS</span><h2>รายงานรถบัค</h2></div></div>'+
- '<div class="smcity-menu-list" role="group" aria-label="ตั้งค่าบันทึกหลักฐานบัค"><button type="button" id="bugCaptureToggle" role="switch" aria-checked="'+String(bugCaptureEnabled)+'"><span class="menu-symbol">'+(bugCaptureEnabled?'●':'○')+'</span><span><b>บันทึกหลักฐานบัค · '+(bugCaptureEnabled?'เปิด':'ปิด')+'</b><small>'+(bugCaptureEnabled?'เริ่มเก็บเหตุการณ์ใหม่ · กดเอารถออกเพื่อส่งรายงาน':'ไม่บันทึกหลักฐานและไม่ส่งรายงาน · เกมทำงานปกติ')+'</small></span><span class="menu-chevron">'+(bugCaptureEnabled?'✓':'›')+'</span></button></div>'+
- '<p>ปิดไว้จะไม่เก็บประวัติบัค เปิดแล้วจึงเริ่มเก็บหลักฐานใหม่ และส่งเฉพาะตอนกด <b>เอารถออก · ส่งรายงานบัค</b> เท่านั้น ระบบจราจรและการแก้รถค้างยังทำงานตามปกติ</p>'+
+ '<div class="smcity-menu-list" role="group" aria-label="ตั้งค่าบันทึกหลักฐานบัค"><button type="button" id="bugCaptureToggle" role="switch" aria-checked="'+String(bugCaptureEnabled)+'"><span class="menu-symbol">'+(bugCaptureEnabled?'●':'○')+'</span><span><b>บันทึกหลักฐานบัค · '+(bugCaptureEnabled?'เปิด':'ปิด')+'</b><small>'+(bugCaptureEnabled?'เก็บเหตุผลจากถนนและลานจอด · กดเอารถออกเพื่อส่งรายงาน':'ไม่บันทึกหลักฐานและไม่ส่งรายงาน · เกมทำงานปกติ')+'</small></span><span class="menu-chevron">'+(bugCaptureEnabled?'✓':'›')+'</span></button></div>'+
+ '<p>ปิดไว้จะไม่เก็บประวัติบัค เปิดแล้วจะเก็บ ID รถที่ขวางและเหตุผลที่ถูกปฏิเสธทั้งบนถนนและในลานจอด และส่งเฉพาะตอนกด <b>เอารถออก · ส่งรายงานบัค</b> เท่านั้น ระบบจราจรและการแก้รถค้างยังทำงานตามปกติ</p>'+
  (dev?'<p>Dev เท่านั้น · ข้อมูลจาก Supabase</p><div id="vehicleBugReportItems">กำลังโหลดรายงาน…</div><div class="actions"><button id="vehicleBugRefresh" class="primary">รีเฟรช</button><button id="vehicleBugClose">กลับไปเล่น</button></div>':
  '<p>รายงานที่ผู้เล่นส่งจะถูกเก็บให้ Dev ตรวจใน Supabase โดยผู้เล่นทั่วไปไม่สามารถเปิดดูรายงานของผู้อื่นได้</p><div class="actions"><button id="vehicleBugClose" class="primary">กลับไปเล่น</button></div>'));
  $('vehicleBugClose').onclick=closeModal;
