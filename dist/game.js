@@ -2455,6 +2455,31 @@ function incidentRescueVehicle(incident){
   Number(missingRoute(b))-Number(missingRoute(a))||
   incidentStoppedFor(b)-incidentStoppedFor(a)||b.id-a.id)[0]||null;
 }
+// On releasing a root blocker, its legitimate queue must get a fresh chance
+// to move before it can be diagnosed as a separate new incident.
+function incidentQueueFollowers(root){
+ const origin=incidentPosition(root);if(!origin)return [];
+ const candidates=[];
+ for(const v of state.vehicles.values()){
+  if(v.id===root.id||missingRoute(v)||!incidentNormalWait(v)||!sameTrafficLayer(root,v))continue;
+  if(incidentStoppedFor(v)<INCIDENT_STALL_MINUTES)continue;
+  const pose=incidentPosition(v);if(pose)candidates.push({v,pose});
+ }
+ const frontier=[{v:root,pose:origin}],seen=new Set([root.id]),result=[];
+ for(let i=0;i<frontier.length&&result.length<64;i++){
+  const lead=frontier[i];
+  for(const item of candidates){
+   if(seen.has(item.v.id))continue;
+   const direction={x:item.pose.dx??Math.cos(item.pose.angle||0),y:item.pose.dy??Math.sin(item.pose.angle||0)};
+   const dx=lead.pose.x-item.pose.x,dy=lead.pose.y-item.pose.y;
+   const along=dx*direction.x+dy*direction.y;
+   const across=Math.abs(dx*direction.y-dy*direction.x);
+   if(incidentBlockingVehicle(item.v)?.id!==lead.v.id&&!(along>.25&&along<2.5&&across<.65))continue;
+   seen.add(item.v.id);frontier.push(item);result.push(item.v);
+  }
+ }
+ return result;
+}
 function incidentRewardStatus(){
  const day=Math.floor(state.time/1440),prev=state.incidentRewards||{};
  const count=prev.day===day?Math.min(INCIDENT_REWARD_DAILY_LIMIT,Math.max(0,Math.floor(prev.count||0))):0;
@@ -2538,7 +2563,7 @@ function resolveIncident(id,automatic=false){
  // One intervention per incident, even if a physical overlap involves two cars.
  const root=incidentRescueVehicle(found);
  if(!root)return false;
- const ids=[root.id];
+ const ids=[root.id],queueFollowers=incidentQueueFollowers(root);
  const before=ids.map(cid=>incidentSummaryVehicle(state.vehicles.get(cid)));
  const reservations=incidentReservations(ids),outcomes=[],eventType=incidentEventType(found);
  // Clear only the incident's own reservations and vehicles. Following traffic is untouched.
@@ -2561,6 +2586,11 @@ function resolveIncident(id,automatic=false){
    else towVehicle(cid,true);
   }
   outcomes.push({id:cid,method,remaining:state.vehicles.has(cid)});
+ }
+ // These cars waited because of this root, not because they were broken.
+ // Clear only the diagnostic inactivity clock, never position/route/mission.
+ for(const follower of queueFollowers)if(state.vehicles.has(follower.id)&&!missingRoute(follower)){
+  follower.lastMovedAt=state.time;follower.wait=0;
  }
  // Clear any root that still has a detected issue; do not pay for a failed intervention.
  scanIncidents(true);
