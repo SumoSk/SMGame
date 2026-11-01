@@ -30,10 +30,10 @@ test('equal trip weights, no happiness changes or congestion surcharge',()=>{
   g.journeyResult(c,v,outcome,'duplicate');equal(g.ensurePerformance().current.total,total);equal(c.lastJourneyResult.stress,0);
  }
 });
-test('expired promised stop fails once without fabricating a departure',()=>{
+test('delayed unstarted stop receives its full travel allowance',()=>{
  const {game:g,home}=city(),c=resident(g,home),plan={day:0,token:'optional',steps:[{kind:'restaurant',at:500,expires:600,duration:30},{kind:'home',at:600}]};
  c.lifeRun={day:0,index:0,retry:0,token:plan.token,plan};
- g.runLifestyle(c,'life',{day:0,index:0,token:plan.token});equal(c.happy,70);equal(c.lifeRun.index,1);equal(c.lastJourneyResult.outcome,'missed');equal(g.ensurePerformance().current.total,1);check(!c.vehicleId,'no fabricated departure');
+ g.runLifestyle(c,'life',{day:0,index:0,token:plan.token});equal(c.happy,70);equal(c.lifeRun.index,0);equal(g.ensurePerformance().current.total,0);check(c.vehicleId,'delayed activity starts normally');equal(g.state.vehicles.get(c.vehicleId).deadline,g.state.time+180);
 });
 test('promised trip still departs when the appointment will be late',()=>{
  const {game:g,home,restaurant}=city(),c=resident(g,home),plan={day:0,token:'fit',leisureEnd:1400,steps:[{kind:'restaurant',at:720,expires:1100,duration:30},{kind:'work',at:740,deadline:750,until:1000,workId:home.id}]};
@@ -77,4 +77,5 @@ return results;
 
 };
 console.log(JSON.stringify({passed:true,checks:run()}));
+
 
