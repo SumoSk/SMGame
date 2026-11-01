@@ -47,17 +47,18 @@ assert.equal(getLevel().peakPopulation,18,'starter should include 18 residents')
 assert.equal(getLevel().level,1);
 assert.equal(getLevel().next,20);
 assert.equal(get('cityLevelProgress').textContent,'เพิ่มประชาชนอีก 2 คน • ภารกิจ 80%');
-assert.equal(game.updateCityLevel(20),0,'population alone must not level up');
+const performance=game.ensurePerformance();
+performance.previous=null; // Verify no 06:00 report is needed.
+performance.official=100; // The last official score must not override live trips.
+performance.current.total=10;performance.current.ontime=7;
+assert.equal(getLevel().missionRate,70,'score comes from trips completed today');
+assert.equal(game.updateCityLevel(20),0,'70 percent blocks unlock even with enough people');
 assert.equal(getLevel().level,1);
 assert.equal(getLevel().peakPopulation,20,'population high-water mark still grows');
-const performance=game.ensurePerformance();
-performance.previous={day:-1,total:10,ontime:7};
-performance.official=70;
-assert.equal(game.updateCityLevel(20),0,'below 80 percent must block');
-assert.equal(getLevel().level,1);
-performance.previous={day:-1,total:10,ontime:8};
-performance.official=80;
-assert.equal(game.updateCityLevel(20),1,'80 percent qualifies with a completed day');
+performance.current.ontime=8;
+assert.equal(getLevel().missionRate,80);
+assert.equal(game.updateCityLevel(20),1,'80 percent unlocks immediately without a 06:00 report');
+assert.equal(performance.previous,null,'unlock must not require an end-of-day settlement');
 const levelScene=get('cityLevelCelebration');
 assert.equal(levelScene.hidden,false,'reaching a level should show celebration');
 assert.match(levelScene.innerHTML,/LEVEL UP!/,'cinematic scene has prominent title');
@@ -145,15 +146,20 @@ assert.equal(getLevel().peakPopulation,18,'legacy save starts high-water at curr
 assert.equal(getLevel().level,1);
 assert.equal(getLevel().pending.length,0);
 const restoredPerformance=game.ensurePerformance();
-restoredPerformance.previous={day:0,total:10,ontime:8};
-restoredPerformance.official=79.99;
-assert.equal(game.updateCityLevel(170),0,'population rises but cannot level under 80 percent');
+restoredPerformance.previous=null;
+restoredPerformance.official=100;
+restoredPerformance.current.total=10;restoredPerformance.current.ontime=7;
+assert.equal(game.updateCityLevel(170),0,'population rises but the live 70 percent blocks levels');
 assert.equal(getLevel().peakPopulation,170);
 assert.equal(getLevel().level,1);
 assert.doesNotThrow(()=>game.validateSave(JSON.parse(game.snapshot())),'blocked city level saves must be valid');
-restoredPerformance.official=80;
-assert.equal(game.updateCityLevel(170),4,'a recovered score unlocks all four reached milestones');
+restoredPerformance.current.ontime=8;
+assert.equal(game.updateCityLevel(170),4,'live score recovery unlocks all reached levels immediately');
 assert.equal(getLevel().level,5);
 assert.equal(getLevel().pending.length,4);
-console.log(JSON.stringify({passed:true,version:'5.1',missionGate80:true,milestones:[20,70,120,170],peakNeverShrinks:true,
+restoredPerformance.current.total=0;restoredPerformance.current.ontime=0;
+assert.equal(game.updateCityLevel(220),1,'before first trip, existing visible official score is used');
+assert.equal(getLevel().level,6);
+assert.equal(game.updateCityLevel(220),0,'already earned milestone cannot award twice');
+console.log(JSON.stringify({passed:true,version:'5.1.1',liveMissionGate80:true,noDayCloseRequired:true,milestones:[20,70,120,170],peakNeverShrinks:true,
  money:true,f1Four:true,freeAi:true,noDuplicateRewards:true,saveLoad:true,legacyLoad:true,ui:true}));
