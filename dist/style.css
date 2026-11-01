@@ -7370,6 +7370,10 @@ html body>.city-level-strip .city-mood-label b{font-size:13px!important;line-hei
  font-size:19px;font-weight:950;line-height:1.1;color:#266945;text-shadow:0 1px 3px #fff,0 3px 9px #122a1b7d;
  will-change:transform,opacity;animation:smcityMoodFly 1s cubic-bezier(.28,.73,.17,1) both;
 }
+#missionMoodFlights .smcity-mood-flight.is-success{
+ color:#d5a029;
+ text-shadow:0 1px 2px #fff9e8,0 2px 6px #654107b0,0 0 12px #ffd56d8a;
+}
 #missionMoodFlights .smcity-mood-flight.is-failed{font-size:23px;color:#bc5049}
 @keyframes smcityMoodFly{
  0%{opacity:0;transform:translate(-50%,-50%) scale(.65)}
