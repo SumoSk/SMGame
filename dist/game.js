@@ -904,7 +904,7 @@ const id=(x,y)=>y*W+x,xy=i=>[i%W,Math.floor(i/W)],valid=(x,y)=>x>=0&&y>=0&&x<W&&
 // meets the next milestone AND the live mission score is at least 80%.
 // Use finished trips from the active game day, without waiting for 06:00.
 // A day with no decided trips retains the score already visible in the UI.
-const CITY_LEVEL_VERSION=51,CITY_LEVEL_FIRST=20,CITY_LEVEL_STEP=50,CITY_LEVEL_MIN_PERFORMANCE=80;
+const CITY_LEVEL_VERSION=51,CITY_LEVEL_FIRST=20,CITY_LEVEL_STEP=20,CITY_LEVEL_MIN_PERFORMANCE=80;
 const CITY_CRATE_KINDS=['money','cars','ai'];
 function cityLevelForPeak(peak){return peak<CITY_LEVEL_FIRST?1:2+Math.floor((peak-CITY_LEVEL_FIRST)/CITY_LEVEL_STEP);}
 function cityNextLevelTarget(level){return CITY_LEVEL_FIRST+(Math.max(1,level)-1)*CITY_LEVEL_STEP;}
@@ -2270,7 +2270,7 @@ function drawCarIndicators2D(){
   if(!pose)return;const p=screen(pose.x,pose.y,(pose.altitude||0)*6.5);if(p[0]<-15||p[0]>view.w+15||p[1]<-20||p[1]>view.h+20)return;
   const focus=v?selected?.kind==='vehicle'&&selected.id===v.id:selected?.kind==='parked'&&selected.id===cid;
   if(focus){ctx.save();ctx.translate(...p);ctx.rotate(pose.angle);ctx.strokeStyle='#ffffff';ctx.lineWidth=1.2;ctx.strokeRect(-6*cam.z,-3.5*cam.z,12*cam.z,7*cam.z);ctx.restore();}
-  if(!carStatusDiamondsVisible)return;
+  if(!carStatusDiamondsVisible||state.citizens.get(v?.citizenId??cid)?.tourist)return;
   const emoji=CAR_STATUS_EMOJI[vehicleTimeliness(v)];if(!emoji)return;
   const size=Math.min(18,Math.max(12,cam.z*12)),x=p[0],y=p[1]-5*cam.z-size*.5-3;
   ctx.save();ctx.font=size+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(emoji,x,y);ctx.restore();
@@ -2351,12 +2351,25 @@ function missingRoute(v){return !!v&&(!!v.departureNoRoute||v.phase==='stuck'&&v
 function setRouteMissing(v,missing){if(missing){if(v.routeMissing===false||!Number.isFinite(v.routeMissingSince))v.routeMissingSince=state.time;v.routeMissing=true;}else{v.routeMissing=false;v.routeMissingSince=null;}}
 // Incident gameplay: detect the stopped root, not the queue behind it.
 // This is diagnostic sampling, never a second vehicle simulation loop.
-const INCIDENT_STALL_MINUTES=12,INCIDENT_LOG_KEY='smcity-manual-incident-log-v1';
+const INCIDENT_STALL_MINUTES=12,INCIDENT_AUTO_RESCUE_MINUTES=120,INCIDENT_LOG_KEY='smcity-manual-incident-log-v1';
 const INCIDENT_REWARD_BAHT=5000,INCIDENT_REWARD_DAILY_LIMIT=3;
 let incidentCases=new Map(),incidentForVehicle=new Map(),incidentScanAt=-Infinity;
 let incidentMarkerLayer=null,incidentMarkers=new Map(),incidentRenderAt=0;
 function incidentPosition(v){return vehiclePosition(v);}
 function incidentStoppedFor(v){return Math.max(0,state.time-(Number.isFinite(v.lastMovedAt)?v.lastMovedAt:state.time));}
+// Long normal queues are not vehicle faults. Missing routes override this filter.
+function incidentNormalWait(v){
+ if(missingRoute(v))return false;
+ const reason=String(v.stopReason||'');
+ return v.phase==='gate_waiting'||v.phase==='departing'||
+  /^(ไฟแดง|คิวแยก|เว้นระยะรถ|รถคันหน้าขวาง)$/.test(reason)||
+  /^(รอไฟแดง|รอแยก|รอรถ|รอช่อง|รอถนน|รอทาง|รอพื้นที่|ให้รถบนถนน|กำลังเข้า|กำลังออก|อยู่ในลานจอด|พบเส้นทางแล้ว)/.test(reason);
+}
+function incidentBlockingVehicle(v){
+ const p=v.lastPhysicalBlock;
+ if(!Number.isFinite(p?.gameTime)||state.time-p.gameTime>3||p.gameTime>state.time)return null;
+ return state.vehicles.get(p.ownerId)||null;
+}
 function incidentNearby(positions,pose){const near=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
  const key=(Math.floor(pose.x/2)+dx)+','+(Math.floor(pose.y/2)+dy);
  for(const item of positions.get(key)||[])if(Math.hypot(item.pose.x-pose.x,item.pose.y-pose.y)<2.8)near.push(item);
@@ -2384,13 +2397,16 @@ function scanIncidents(force=false){
    const dx=o.pose.x-pose.x,dy=o.pose.y-pose.y;
    return (dx*heading.x+dy*heading.y)>.30&&dx*heading.x+dy*heading.y<2.2&&Math.abs(dx*heading.y-dy*heading.x)<.60&&o.stalled>=INCIDENT_STALL_MINUTES;
   });
-  // Vehicles queued behind another stationary car are not independent incidents.
-  // Exact overlaps, cycles and missing routes are exceptions.
-  if(followerOf&&!overlapped.length&&!noRoute)continue;
+  // Only independent root causes count. Ordinary traffic followers are not faults.
+  const physicalLeader=incidentBlockingVehicle(v);
+  const blockedByLeader=physicalLeader&&physicalLeader.id!==v.id&&incidentStoppedFor(physicalLeader)>=INCIDENT_STALL_MINUTES;
+  const deadlocked=mutualPhysicalDeadlock(v);
+  if(!noRoute&&!overlapped.length&&!deadlocked&&(followerOf||blockedByLeader||incidentNormalWait(v)))continue;
   if(!noRoute&&!overlapped.length&&stalled<INCIDENT_STALL_MINUTES)continue;
   if(!noRoute&&v.phase==='gate_waiting'&&!overlapped.length)continue;
   if(!noRoute&&/^(ไฟแดง|คิวแยก)$/.test(v.stopReason||'')&&!overlapped.length)continue;
   const related=overlapped.map(o=>o.v.id);
+  if(deadlocked&&physicalLeader)related.push(physicalLeader.id);
   if(v.mergeEscapeId&&state.vehicles.has(v.mergeEscapeId)&&incidentStoppedFor(state.vehicles.get(v.mergeEscapeId))>=INCIDENT_STALL_MINUTES)related.push(v.mergeEscapeId);
   candidates.set(v.id,{id:v.id,related,reason:noRoute?'ไม่มีเส้นทาง':overlapped.length?'รถทับซ้อนหรือแย่งช่องทาง':parking?'รถค้างในลานจอด / ทางออก':'รถหยุดผิดปกติ',place:parking?'ลานจอด':'ถนน',stalled});
  }
@@ -2496,7 +2512,7 @@ function syncManualIncidentLogs(){
  });
  return incidentCloudSyncing;
 }
-function writeManualIncidentLog(entry){
+function writeManualIncidentLog(entry,silent=false){
  try{
   entry.eventId=crypto.randomUUID();
   entry.userId=window.SMGameAccount?.user?.id||null;
@@ -2505,15 +2521,19 @@ function writeManualIncidentLog(entry){
   if(entry.userId)void syncManualIncidentLogs().then(()=>{
    if(window.SMGameAccount?.user?.id!==entry.userId)return;
    const synced=manualIncidentLogs().some(e=>e.eventId===entry.eventId&&e.cloudSyncedFor===entry.userId);
-   toast(synced?'บันทึก Log เข้า Supabase แล้ว':'ส่ง Log เข้า Supabase ไม่สำเร็จ · กดซิงก์ในดู Log เพื่อลองอีกครั้ง');
+   if(!silent)toast(synced?'บันทึก Log เข้า Supabase แล้ว':'ส่ง Log เข้า Supabase ไม่สำเร็จ · กดซิงก์ในดู Log เพื่อลองอีกครั้ง');
   });
   return saved;
  }catch(error){console.warn('Local incident log:',error);return false;}
 }
-function resolveIncident(id){
+function resolveIncident(id,automatic=false){
  scanIncidents(true);const found=incidentForVehicle.get(id);
  if(!found)return false;
- const ids=found.vehicles.filter(cid=>state.vehicles.has(cid));if(!ids.length)return false;
+ // One intervention per incident, even if a physical overlap involves two cars.
+ const rootId=found.vehicles.filter(cid=>state.vehicles.has(cid)).sort((a,b)=>
+  Number(missingRoute(state.vehicles.get(b)))-Number(missingRoute(state.vehicles.get(a)))||b-a)[0];
+ if(rootId==null)return false;
+ const ids=[rootId];
  const before=ids.map(cid=>incidentSummaryVehicle(state.vehicles.get(cid)));
  const reservations=incidentReservations(ids),outcomes=[],eventType=incidentEventType(found);
  // Clear only the incident's own reservations and vehicles. Following traffic is untouched.
@@ -2530,7 +2550,11 @@ function resolveIncident(id){
     if((probe===Infinity||probe>d+.08)&&!physicalConflict){method='เปลี่ยนเส้นทางและออกตัว';v.lastMovedAt=state.time;}
    }
   }
-  if(method!=='เปลี่ยนเส้นทางและออกตัว')towVehicle(cid,true);
+  // Keep the current trip/seat/reservation when a safe reroute is impossible.
+  if(method!=='เปลี่ยนเส้นทางและออกตัว'){
+   if(respawnVehicle(v,'incident_recovery'))method='กู้รถ · ย้ายกลับประตูเมืองโดยคงภารกิจ';
+   else towVehicle(cid,true);
+  }
   outcomes.push({id:cid,method,remaining:state.vehicles.has(cid)});
  }
  // Clear any root that still has a detected issue; do not pay for a failed intervention.
@@ -2541,14 +2565,16 @@ function resolveIncident(id){
  }
  scanIncidents(true);
  if(ids.some(cid=>incidentForVehicle.has(cid))){toast('เหตุการณ์ยังไม่สิ้นสุดค่ะ');return false;}
- const reward=incidentRewardStatus(),awarded=reward.available?INCIDENT_REWARD_BAHT*incomeFactor():0;
+ const reward=incidentRewardStatus(),awarded=!automatic&&reward.available?INCIDENT_REWARD_BAHT*incomeFactor():0;
  if(awarded){state.money+=awarded;missionMoney('incidentReward',awarded);state.incidentRewards={day:reward.day,count:reward.count+1};}
  const entry={format:'SMCITY-manual-incident',version:2,at:new Date().toISOString(),city:state.city,gameTime:state.time,
-  eventType,award:awarded,reason:found.reason,place:found.place,vehicles:before,reservationsBefore:reservations,
+  eventType,automatic,award:awarded,reason:found.reason,place:found.place,vehicles:before,reservationsBefore:reservations,
   outcomes,reservationsAfter:incidentReservations(ids)};
- const stored=writeManualIncidentLog(entry);
- selected=null;$('inspector').classList.add('hidden');updateUI();
- toast((eventType==='collision'?'รถชน':'รถเสีย')+' · ช่วยเหลือสำเร็จ '+ids.length+' คัน'+(awarded?' · ได้รับ '+money(awarded):' · ครบโควตารางวัลวันนี้แล้ว')+(entry.userId?' · กำลังส่ง Log เข้า Supabase…':stored?' · บันทึก Log ในเครื่องแล้ว':' · Log อยู่ชั่วคราวในหน้านี้ · เบราว์เซอร์ไม่อนุญาตให้บันทึก'));
+ const stored=writeManualIncidentLog(entry,automatic);
+ if(!automatic){
+  selected=null;$('inspector').classList.add('hidden');updateUI();
+  toast((eventType==='collision'?'รถชน':'รถเสีย')+' · ช่วยเหลือสำเร็จ '+ids.length+' คัน'+(awarded?' · ได้รับ '+money(awarded):reward.available?' · ไม่มีเงินรางวัล':' · ครบโควตารางวัลวันนี้แล้ว')+(entry.userId?' · กำลังส่ง Log เข้า Supabase…':stored?' · บันทึก Log ในเครื่องแล้ว':' · Log อยู่ชั่วคราวในหน้านี้ · เบราว์เซอร์ไม่อนุญาตให้บันทึก'));
+ }
  return true;
 }
 function exportManualIncidentLogs(logs=normalizeManualIncidentLogs()){
@@ -2597,9 +2623,7 @@ function openManualIncidentLog(){
  if(userId)void loadCloud();
 }
 function updateIncidentMarkers(){
- // v4.1: incident notifications hidden; keep incident logs intact.
- if(incidentMarkerLayer){incidentMarkerLayer.remove();incidentMarkerLayer=null;incidentMarkers.clear();}
- return;
+ // 5.3.1: one clickable marker per root incident, never per stopped follower.
  const now=Date.now();if(now-incidentRenderAt<150)return;incidentRenderAt=now;
  if(!incidentMarkerLayer){incidentMarkerLayer=document.createElement('div');incidentMarkerLayer.id='incidentMarkers';
   Object.assign(incidentMarkerLayer.style,{position:'absolute',inset:'0',overflow:'hidden',pointerEvents:'none',zIndex:'5'});
@@ -2612,12 +2636,12 @@ function updateIncidentMarkers(){
   const p=screen(pose.x-(renderer3d?.5:0),pose.y-(renderer3d?.5:0),renderer3d?11:11);
   if(p[0]<16||p[0]>view.w-16||p[1]<65||p[1]>view.h-80)continue;
   active.add(incident.id);let marker=incidentMarkers.get(incident.id);
-  if(!marker){marker=document.createElement('button');marker.type='button';marker.className='traffic-incident-marker';marker.textContent='!';
+  if(!marker){marker=document.createElement('button');marker.type='button';marker.className='traffic-incident-marker';marker.textContent=incidentEventType(incident)==='collision'?'💥':'🚨';
    Object.assign(marker.style,{position:'absolute',transform:'translate(-50%,-100%)',width:'26px',height:'26px',display:'grid',placeItems:'center',borderRadius:'50%',background:'#de4349',border:'2px solid white',color:'white',font:'bold 16px/1 Arial,sans-serif',boxShadow:'0 2px 7px #7a1720aa',pointerEvents:'auto',padding:'0',zIndex:'5'});
    marker.onclick=()=>{const entry=incidentCases.get(Number(marker.dataset.incidentId));if(entry)openTrafficIncident(entry.vehicles[0]);};
    incidentMarkerLayer.append(marker);incidentMarkers.set(incident.id,marker);
   }
-  marker.dataset.incidentId=incident.id;marker.title='แจ้งเหตุจราจร '+incident.vehicles.length+' คัน · กดดูเหตุการณ์';marker.setAttribute('aria-label',marker.title);
+  marker.dataset.incidentId=incident.id;marker.textContent=incidentEventType(incident)==='collision'?'💥':'🚨';marker.title='แจ้งเหตุจราจร · รถต้นเหตุ '+incident.vehicles.length+' คัน · กดช่วยเหลือ';marker.setAttribute('aria-label',marker.title);
   marker.style.left=p[0]+'px';marker.style.top=p[1]+'px';
  }
  for(const [id,marker]of incidentMarkers)if(!active.has(id)){marker.remove();incidentMarkers.delete(id);}
@@ -6336,9 +6360,11 @@ function advanceVehicles(realDt,gameDt){
   // This check must precede the early continue branches for parking motion.
   if(respawnBudget>0&&['departing','parking_in','parking_out','driving','stuck'].includes(v.phase)
     &&state.time-v.lastMovedAt>=IMMOBILE_RESPAWN_TIMEOUT){
-    // Incident roots are towed at 150 minutes; normal recovery remains unchanged.
-    if(incidentForVehicle.has(v.id)){if(towVehicle(v.id,true)){respawnBudget--;continue;}}
-    else if(respawnVehicle(v)){respawnBudget--;continue;}
+    // Roots are rescued after 120 minutes by tick(). Never respawn followers
+    // simply for sitting in a long normal traffic queue.
+    if(!incidentForVehicle.has(v.id)&&!incidentNormalWait(v)&&!incidentBlockingVehicle(v)){
+     if(respawnVehicle(v)){respawnBudget--;continue;}
+    }
    }
   trackJourney(v,gameDt);
   if(['air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)){advanceSkyVehicle(v);continue;}
@@ -6495,11 +6521,21 @@ function daily(){
 }
 
 function reconcile(){syncParkingSlots();for(const b of state.buildings.values()){b.reservedResidents=0;b.reservedService=0;}for(const v of state.vehicles.values()){const b=state.buildings.get(v.toId);if(b){if(v.residentReservation)b.reservedResidents++;if(v.serviceReservation)b.reservedService++;}}}
+function autoRescueIncidents(){
+ // The incident scan has already selected roots; max 2 interventions per tick.
+ let budget=2;
+ for(const incident of [...incidentCases.values()]){
+  if(!budget)break;
+  const root=state.vehicles.get(incident.vehicles[0]);
+  if(!root||incidentStoppedFor(root)<INCIDENT_AUTO_RESCUE_MINUTES)continue;
+  if(resolveIncident(root.id,true))budget--;
+ }
+}
 function tick(dt){if(!state.speed)return;const old=state.time,gameDt=dt*GAME_MINUTES_PER_SECOND*state.speed*NORMAL_SPEED_SCALE;state.time+=gameDt;smartSignalStep();if(performanceDay(old)!==performanceDay())daily();let count=0,trips=0;while(state.events.length&&state.events[0].at<=state.time&&count<42&&trips<14){const e=eventPop(),c=state.citizens.get(e.citizenId);runAction(c,e.action,e);count++;trips++;}
 if(state.time-state.lastImmigration>=1){state.lastImmigration=state.time;immigration();}
 if(Math.floor(old/2)!==Math.floor(state.time/2)){let n=0;for(const c of state.citizens.values()){if(c.pending&&!c.pending.life&&c.pending.next<=state.time&&n++<80){const p=c.pending;if(p.expires<state.time){c.pending=null;continue;}runAction(c,p.action,p);}}}
 if(state.time-state.lastPass>=90){state.lastPass=state.time;if(computeStats().pop<1200&&state.vehicles.size<3600){const index=Math.floor(state.time/90)%4;createTrip(null,'pass',null,null,state.gates[index],state.gates[(index+2)%4],null);}}
-updateIntercityFreight();updateNightDeliveries();advanceVehicles(dt*NORMAL_SPEED_SCALE,gameDt);updateTourism(gameDt);updateCityActivity();refreshComplaints();scanIncidents();for(const r of state.roads.values()){if(r.load>.001)r.load*=Math.pow(.90,dt*4);if(r.wait>.001)r.wait*=Math.pow(.72,dt*4);}if(state.stats.happy<70&&state.time-(state.lastHappyAlert||0)>180){addNews('คนใหม่หยุดย้ายเข้า ช่วยแก้ปัญหาให้ Performance ตั้งแต่ 70%');state.lastHappyAlert=state.time;}}
+updateIntercityFreight();updateNightDeliveries();advanceVehicles(dt*NORMAL_SPEED_SCALE,gameDt);updateTourism(gameDt);updateCityActivity();refreshComplaints();scanIncidents();autoRescueIncidents();for(const r of state.roads.values()){if(r.load>.001)r.load*=Math.pow(.90,dt*4);if(r.wait>.001)r.wait*=Math.pow(.72,dt*4);}if(state.stats.happy<70&&state.time-(state.lastHappyAlert||0)>180){addNews('คนใหม่หยุดย้ายเข้า ช่วยแก้ปัญหาให้ Performance ตั้งแต่ 70%');state.lastHappyAlert=state.time;}}
 function lineCells(a,b){let [x,y]=xy(a),[u,v]=xy(b),dx=u-x,dy=v-y;const horizontal=Math.abs(dx)>=Math.abs(dy);if(horizontal)v=y;else u=x;const steps=Math.max(Math.abs(u-x),Math.abs(v-y)),result=[];for(let n=0;n<=steps;n++){const xx=Math.round(x+(u-x)*(steps?n/steps:0)),yy=Math.round(y+(v-y)*(steps?n/steps:0));if(!valid(xx,yy))continue;const raw=id(xx,yy),snapped=owner(raw),point=xy(snapped),aligned=horizontal?point[1]===y:point[0]===x,p=aligned?snapped:raw;if(result[result.length-1]!==p)result.push(p);}return result;}
 function checkRoad(cells,type){let cost=0;const t=ROADS[type];if(!cells.length)return{error:'เลือกตำแหน่งถนนบนแผนที่'};const centerline=new Set(cells);for(const i of cells)if(!state.roads.has(i)&&state.footprint[i]>=0&&!centerline.has(state.footprint[i]))return{error:'แนวถนนซ้อนขอบถนนเดิม ลากให้เชื่อมตรงกลางหรือขยับแนวถนนค่ะ'};for(const i of cells){const [x,y]=xy(i),r=state.roads.get(i),w=Math.max(roadClearanceWidth(t),r?roadClearanceWidth(ROADS[r.type]):0),lo=Math.floor(w/2);for(let yy=y-lo;yy<y+w-lo;yy++)for(let xx=x-lo;xx<x+w-lo;xx++){if(!valid(xx,yy))continue;if(state.buildGrid[id(xx,yy)]>=0)return{error:'ถนนทับพื้นที่อาคาร เลือกแนวถนนใหม่ค่ะ'};}cost+=r?Math.max(0,t.cost-ROADS[r.type].cost):t.cost;}
 const adds=new Map();for(let k=1;k<cells.length;k++){const a=cells[k-1],b=cells[k];if(a===b)continue;const pa=xy(a),pb=xy(b);if(pa[0]!==pb[0]&&pa[1]!==pb[1])return{error:'แนวถนนต้องตรงเข้าจุดเชื่อม ลองลากจากกลางถนนเดิมค่ะ'};for(const[p,q]of[[a,b],[b,a]]){if(!adds.has(p))adds.set(p,new Set(state.roads.get(p)?.links||[]));adds.get(p).add(q);if(adds.get(p).size>4)return{error:'จุดเชื่อมนี้มีถนนเกิน 4 แขนง ลองขยับแนวถนนค่ะ'};}}
