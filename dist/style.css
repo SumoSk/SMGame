@@ -7400,3 +7400,41 @@ html body>.city-level-strip .city-mood-label b{font-size:13px!important;line-hei
  html body>.city-level-strip .city-mission-total,html body>.city-level-strip .city-mood-collector{height:32px!important;min-height:32px!important}
 }
 @media(prefers-reduced-motion:reduce){#missionMoodFlights .smcity-mood-flight{animation-duration:.01ms!important}}
+
+
+/* Daily mission counters: readable, accessible buttons on every screen size. */
+html body>.city-level-strip button.city-mission-result{
+ appearance:none!important;display:block!important;width:100%!important;
+ margin:0!important;padding:0 3px!important;text-align:left!important;
+ border:0!important;border-radius:5px!important;background:transparent!important;
+ font-family:inherit!important;cursor:pointer!important;
+}
+html body>.city-level-strip button.city-mission-result:hover{
+ background:rgba(45,135,104,.12)!important;
+}
+html body>.city-level-strip button.city-mission-result:focus-visible{
+ outline:2px solid #3a9a7b!important;outline-offset:1px!important;
+}
+#dialog .mission-outcome-detail{min-width:0;width:min(590px,100%)!important;max-width:100%;font-family:"Noto Sans Thai",Tahoma,sans-serif}
+#dialog .mission-outcome-detail h2{font-size:19px!important;line-height:1.35!important;margin:0 0 6px!important}
+#dialog .mission-outcome-detail h3{font-size:13px!important;line-height:1.4!important;margin:15px 0 6px!important}
+#dialog .mission-outcome-period{font-size:12px!important;opacity:.8;line-height:1.5!important;margin:0}
+#dialog .mission-reason-groups,#dialog .mission-reason-events{list-style:none;margin:0;padding:0;min-width:0}
+#dialog .mission-reason-groups{max-height:30dvh;overflow-y:auto}
+#dialog .mission-reason-groups li{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+ padding:7px 8px;border-bottom:1px solid rgba(127,151,145,.23);font-size:12px;line-height:1.55}
+#dialog .mission-reason-groups li span{min-width:0;overflow-wrap:anywhere}
+#dialog .mission-reason-groups li b{white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums}
+#dialog .mission-reason-events{max-height:35dvh;overflow-y:auto}
+#dialog .mission-reason-events li{padding:7px 8px;border-bottom:1px solid rgba(127,151,145,.18);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+#dialog .mission-reason-events li>div{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+#dialog .mission-reason-events li>div span{opacity:.7}
+#dialog .mission-reason-events li p{margin:2px 0;font-size:11px;line-height:1.5}
+#dialog .mission-reason-events li small{opacity:.75;font-size:10px}
+#dialog .mission-outcome-detail>.actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:7px;margin-top:12px}
+@media(max-width:690px){
+ html body>.city-level-strip button.city-mission-result{font-size:10px!important;line-height:1.45!important;min-height:14px!important}
+ #dialog .mission-outcome-detail h2{font-size:16px!important}
+ #dialog .mission-reason-groups{max-height:25dvh}
+ #dialog .mission-reason-events{max-height:30dvh}
+}
