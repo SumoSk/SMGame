@@ -7900,7 +7900,7 @@ export class TrafficRenderer{
    this.carLODStats[level==='roadTrainLow'||level==='taxiLow'?'far':level]++;
    const focused=selected?.kind==='vehicle'&&selected.id===v?.id||
     selected?.kind==='parked'&&selected.id===id;
-   const status=showDiamonds?(vehicleTimeliness?.(v)||'green'):'green';
+   const status=showDiamonds&&!state.citizens.get(v?.citizenId??id)?.tourist?(vehicleTimeliness?.(v)||'green'):'green';
    if(focused||showDiamonds&&status!=='green')indicators.push({
     x,z,angle,kind,focused,altitude,
     status,
