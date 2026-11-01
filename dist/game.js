@@ -917,18 +917,15 @@ function restoreCityLevel(saved){
   aiCredits:saved.aiCredits,history:(saved.history||[]).slice(-25).map(x=>({...x}))};
 }
 function currentMissionScore(){
- const p=ensurePerformance(),day=p.current;
- if(day&&Number.isFinite(day.total)&&day.total>0){
-  const ontime=Number.isFinite(day.ontime)?day.ontime:0;
-  return Math.max(0,Math.min(100,100*ontime/day.total));
- }
- // Before the first decided trip, the visible score remains the last official
- // value (100 for a new city). Never require the next 06:00 settlement.
- return Number.isFinite(p.official)?p.official:100;
+ // One 06:00–06:00 citizen journey ledger drives all displayed mission scores.
+ const day=ensurePerformance().current;
+ if(!day||!Number.isFinite(day.total)||day.total<=0)return null;
+ const ontime=Number.isFinite(day.ontime)?day.ontime:0;
+ return Math.max(0,Math.min(100,100*ontime/day.total));
 }
 function cityLevelMissionResult(){
  const rate=currentMissionScore();
- return{eligible:true,rate,passed:rate>=CITY_LEVEL_MIN_PERFORMANCE};
+ return{eligible:rate!==null,rate,passed:rate!==null&&rate>=CITY_LEVEL_MIN_PERFORMANCE};
 }
 function updateCityLevel(currentPopulation){
  const l=ensureCityLevel(),population=Math.max(0,Math.floor(Number(currentPopulation)||0));
@@ -999,11 +996,11 @@ function updateCityLevelHud(currentPopulation){
  const l=cityLevelStatus(),set=(id,value)=>{const n=$(id);if(n&&n.textContent!==value)n.textContent=value;};
  set('cityLevelValue',String(l.level));
  set('cityLevelProgress','เพิ่มประชาชนอีก '+fmt(l.remaining)+' คน • ภารกิจ 80%');
- set('cityLevelNext','เพิ่มประชาชนอีก '+fmt(l.remaining)+' คน และภารกิจสำเร็จ ≥80% (ขณะนี้ '+Math.round(l.missionRate)+'%)');
+ set('cityLevelNext','เพิ่มประชาชนอีก '+fmt(l.remaining)+' คน และภารกิจสำเร็จ ≥80% (ขณะนี้ '+(l.missionRate===null?'—':Math.round(l.missionRate)+'%')+')');
  set('cityAiQuotaValue',fmt(l.aiCredits));
  set('cityCrateBadge','🎁 '+fmt(l.pending.length));
  const meter=$('cityLevelBar');if(meter)meter.style.width=l.progress+'%';
- const button=$('cityLevelButton');if(button)button.setAttribute('aria-label','เลเวล '+l.level+' · ต้องมีประชากรสูงสุด '+l.next+' คน (อีก '+l.remaining+' คน) และภารกิจสำเร็จอย่างน้อย 80% ณ ขณะนี้ · คะแนน '+Math.round(l.missionRate)+'% · กล่องที่ยังไม่เปิด '+l.pending.length);
+ const button=$('cityLevelButton');if(button)button.setAttribute('aria-label','เลเวล '+l.level+' · ต้องมีประชากรสูงสุด '+l.next+' คน (อีก '+l.remaining+' คน) และภารกิจสำเร็จอย่างน้อย 80% ณ ขณะนี้ · คะแนน '+(l.missionRate===null?'—':Math.round(l.missionRate)+'%')+' · กล่องที่ยังไม่เปิด '+l.pending.length);
  const crate=$('cityCrateBadge');if(crate)crate.classList.toggle('has-crates',l.pending.length>0);
 }
 function grantCityLevelCars(){
@@ -1083,21 +1080,34 @@ function newPerformanceDay(day=performanceDay()){return{day,total:0,ontime:0,lat
 function ensurePerformance(){
  if(!state.performance||state.performance.version!==5)state.performance={version:5,current:newPerformanceDay(),previous:null,official:100,incomeFactor:1,complaints:{},nextCheck:state.time};
  const p=state.performance;
- // Compatible with existing saves: new lifetime counts begin when this feature is installed.
- if(!p.moodTotals||!Number.isSafeInteger(p.moodTotals.success)||p.moodTotals.success<0||!Number.isSafeInteger(p.moodTotals.failed)||p.moodTotals.failed<0)
-  p.moodTotals={success:0,failed:0};
+ // Existing v5 saves included tourist activity in city-wide Performance.
+ // Remove only that known group, once, without discarding the citizen results.
+ if(p.dailyCitizenOnly!==true){
+  for(const d of [p.current,p.previous]){
+   const tourist=d?.byKind?.tourist;
+   if(!tourist)continue;
+   d.total=Math.max(0,(d.total||0)-(tourist.total||0));
+   d.ontime=Math.max(0,(d.ontime||0)-(tourist.ontime||0));
+   delete d.byKind.tourist;
+  }
+  if(p.previous?.total>0)p.official=100*p.previous.ontime/p.previous.total;
+  p.dailyCitizenOnly=true;
+ }
  return p;
 }
 
 const MISSION_SUCCESS_BONUS=500;
 let missionMoodActiveFlights=0;
 function updateMissionMoodHud(){
- const totals=ensurePerformance().moodTotals;
+ // Every counter comes from the same decided resident journeys as the HUD score.
+ const d=ensurePerformance().current;
+ const completed=Math.max(0,Math.floor(d?.total||0));
+ const successCount=Math.min(completed,Math.max(0,Math.floor(d?.ontime||0)));
+ const failedCount=completed-successCount;
  const success=$('missionSuccessCount'),failed=$('missionFailedCount'),ratio=$('missionMoodValue'),toolbar=$('happy');
- if(success)success.textContent=fmt(totals.success);
- if(failed)failed.textContent=fmt(totals.failed);
- // Both displays share the exact same live 06:00–06:00 mission score.
- const score=Math.round(currentMissionScore());
+ if(success)success.textContent=fmt(successCount);
+ if(failed)failed.textContent=fmt(failedCount);
+ const rate=currentMissionScore(),score=rate===null?'—':String(Math.round(rate));
  if(ratio)ratio.textContent=score+'%';
  if(toolbar)toolbar.innerHTML=score+'<em>%</em>';
 }
@@ -1157,7 +1167,10 @@ function recordPerformance(c,key,kind,outcome){
  if(own.current.day!==day){own.previous=own.current;own.current=newPerformanceDay(day);}
  const id=day+':'+key;if(own.keys[id])return false;own.keys[id]=true;
  for(const k of Object.keys(own.keys))if(+k.split(':')[0]<day-2)delete own.keys[k];
- for(const d of [p.current,own.current]){
+ // Tourist results remain in personal tourism records but never create citizen
+ // hearts/angry-face outcomes or contribute to the city mission percentage.
+ const cityMission=c.resident&&!c.tourist&&['work','leisure','home'].includes(kind);
+ for(const d of cityMission?[p.current,own.current]:[own.current]){
   d.total++;d[outcome]=(d[outcome]||0)+1;
   const group=d.byKind[kind]||(d.byKind[kind]={total:0,ontime:0});group.total++;if(outcome==='ontime')group.ontime++;
  }
@@ -1233,7 +1246,7 @@ function closePerformanceDay(){
 }
 function performanceInspector(){
  const p=ensurePerformance(),d=p.current,issues=Object.values(p.complaints).filter(i=>i.resolvedAt==null);
- return '<span class="tag">ประสิทธิภาพการเดินทาง</span><h2>ภารกิจ '+Math.round(currentMissionScore())+'%</h2>'+row('คะแนนขณะนี้','ทริปที่ตัดสินผลแล้วในวันนี้ · ไม่ต้องรอ 06:00')+row('ผลวันก่อน',Math.round(p.official)+'% (ปิดรอบเวลา 06:00)')+row('วันนี้ตรงเวลา',d.ontime+' / '+d.total+' ทริป')+row('วันนี้ไม่สำเร็จ',(d.total-d.ontime)+' ทริป')+row('รายได้รอบนี้',Math.round(p.incomeFactor*100)+'%')+'<p>ทุกทริปน้ำหนักเท่ากัน · ถึงสาย = ไม่สำเร็จ · ต่ำกว่า 80% งดรับนักท่องเที่ยว ต่ำกว่า 70% งดรับประชาชนเพิ่ม</p><h3>เรื่องร้องเรียนค้าง '+issues.length+' เรื่อง</h3>'+issues.map(i=>'<p><b>'+KINDS[i.kind].name+' · '+complaintReason(i.reason)+'</b><br>ใกล้บ้าน #'+i.homeId+' · '+i.people.length+' คน · '+(i.dueAt>state.time?'เหลือ '+Math.ceil(i.dueAt-state.time)+' นาที':'เกินกำหนด')+'</p>').join('')+'<p>ระบบบันทึกปัญหาบริการอัตโนมัติ · หากค้างเกิน 24 ชั่วโมง รายได้วันถัดไป 50% · ค่าดูแลคิดเต็ม</p>';
+ return '<span class="tag">ประสิทธิภาพการเดินทาง</span><h2>ภารกิจ '+(currentMissionScore()===null?'—':Math.round(currentMissionScore()))+'%</h2>'+row('คะแนนขณะนี้','ทริปที่ตัดสินผลแล้วในวันนี้ · ไม่ต้องรอ 06:00')+row('ผลวันก่อน',Math.round(p.official)+'% (ปิดรอบเวลา 06:00)')+row('วันนี้ตรงเวลา',d.ontime+' / '+d.total+' ทริป')+row('วันนี้ไม่สำเร็จ',(d.total-d.ontime)+' ทริป')+row('รายได้รอบนี้',Math.round(p.incomeFactor*100)+'%')+'<p>ทุกทริปน้ำหนักเท่ากัน · ถึงสาย = ไม่สำเร็จ · ต่ำกว่า 80% งดรับนักท่องเที่ยว ต่ำกว่า 70% งดรับประชาชนเพิ่ม</p><h3>เรื่องร้องเรียนค้าง '+issues.length+' เรื่อง</h3>'+issues.map(i=>'<p><b>'+KINDS[i.kind].name+' · '+complaintReason(i.reason)+'</b><br>ใกล้บ้าน #'+i.homeId+' · '+i.people.length+' คน · '+(i.dueAt>state.time?'เหลือ '+Math.ceil(i.dueAt-state.time)+' นาที':'เกินกำหนด')+'</p>').join('')+'<p>ระบบบันทึกปัญหาบริการอัตโนมัติ · หากค้างเกิน 24 ชั่วโมง รายได้วันถัดไป 50% · ค่าดูแลคิดเต็ม</p>';
 }
 function migratePerformance(saved){
  state.performance=saved?.version===5?saved:null;
@@ -4707,7 +4720,7 @@ const MISSION_OUTCOMES=['ontime','late','missed','unavailable','cancelled'];
 const MISSION_TRIP_NAMES={moveIn:'ย้ายเข้า',moveOut:'ย้ายออก',work:'ไปทำงาน',leisure:'ใช้บริการ / เที่ยว',home:'กลับบ้าน',touristOut:'นักท่องเที่ยวออก',hotel:'โรงแรม',pass:'รถผ่านเมือง'};
 function newMissionCounters(){return{total:0,ontime:0,late:0,missed:0,unavailable:0,cancelled:0,durationSum:0,durationCount:0,congestionSum:0,congestionCount:0,roadBlocks:0,blockDurationSum:0};}
 function newMissionDay(day=performanceDay(),since=state.time){
- return{day,since,...newMissionCounters(),byKind:Object.fromEntries(MISSION_KINDS.map(k=>[k,newMissionCounters()])),
+ return{day,since,residentOnlyTotals:true,...newMissionCounters(),byKind:Object.fromEntries(MISSION_KINDS.map(k=>[k,newMissionCounters()])),
  tripsStarted:0,tripsArrived:0,tripsByKind:{},arrivalsByKind:{},serviceResults:{},peakCars:0,peakWaiting:0,peakPopulation:0,happyMin:100,happyMax:0,populationIn:0,populationOut:0,touristsIn:0,touristsOut:0,
  touristsRevenue:0,touristsDiscount:0,incidentReward:0,missionBonus:0,roadCost:0,buildingCost:0,buildingsBuilt:0,buildingsRemoved:0,roadsBuilt:0,
  taxRevenue:0,businessRevenue:0,maintenanceCost:0,dailySettlement:0,taxAdjustments:0,openingMoney:state.money,endingMoney:state.money};
@@ -4735,6 +4748,14 @@ function restoreMissionStats(saved){
   if(value.cityEnd&&typeof value.cityEnd==='object'){
    result.cityEnd={};for(const k of ['population','tourists','happy','unemployed','jobs','homes','serviceNeed','vehicles','waiting','flow','roads','buildings','hotels','trees','money','stranded','incidents'])result.cityEnd[k]=safe(value.cityEnd[k]);
   }
+  if(value.residentOnlyTotals!==true){
+   // Previous reports mixed tourist and resident outcomes; keep tourist detail
+   // but subtract it from the visible aggregate citizen performance.
+   const tourist=result.byKind.tourist;
+   for(const key of ['total',...MISSION_OUTCOMES,'durationSum','durationCount','congestionSum','congestionCount','roadBlocks','blockDurationSum'])
+    result[key]=Math.max(0,result[key]-(tourist[key]||0));
+  }
+  result.residentOnlyTotals=true;
   return result;
  };
  restored.current=readDay(saved.current,now)||newMissionDay(now);
@@ -4751,19 +4772,21 @@ function missionTripEnd(kind){const d=missionDay();if(!d)return;d.tripsArrived++
 function recordMissionResult(kind,outcome,trip,serviceKind=null){
  if(!MISSION_KINDS.includes(kind)||!MISSION_OUTCOMES.includes(outcome))return;
  const stats=missionDay(),group=stats.byKind[kind];
- for(const target of [stats,group]){target.total++;target[outcome]++;}
+ // Include tourists in their own report section, not the citizen mission total.
+ const targets=kind==='tourist'?[group]:[stats,group];
+ for(const target of targets){target.total++;target[outcome]++;}
  if(kind==='tourist'||kind==='leisure'){
   const target=state.buildings.get(trip?.toId),key=serviceKind||trip?.serviceKind||(target?CATALOG[target.key]?.kind:null);
   if(key&&Object.hasOwn(KINDS,key)){const item=stats.serviceResults[key]||(stats.serviceResults[key]=newMissionCounters());item.total++;item[outcome]++;}
  }
  if(trip&&Number.isFinite(trip.startedAt)&&Number.isFinite(trip.arrivedAt)&&trip.arrivedAt>=trip.startedAt){
   const duration=Math.min(1e6,trip.arrivedAt-trip.startedAt);
-  for(const target of [stats,group]){target.durationSum+=duration;target.durationCount++;}
+  for(const target of targets){target.durationSum+=duration;target.durationCount++;}
   const blocks=Array.isArray(trip.path)?Math.max(0,trip.path.length-1):0;
-  if(blocks>0)for(const target of [stats,group]){target.roadBlocks+=Math.min(100000,blocks);target.blockDurationSum+=duration;}
+  if(blocks>0)for(const target of targets){target.roadBlocks+=Math.min(100000,blocks);target.blockDurationSum+=duration;}
  }
  if(trip&&Number.isFinite(trip.congestionMinutes)&&trip.congestionMinutes>=0){
-  for(const target of [stats,group]){target.congestionSum+=Math.min(1e6,trip.congestionMinutes);target.congestionCount++;}
+  for(const target of targets){target.congestionSum+=Math.min(1e6,trip.congestionMinutes);target.congestionCount++;}
  }
 }
 function missionCitySnapshot(){
@@ -4895,12 +4918,10 @@ function journeyResult(c,v,outcome,reason,stress=true){
  recordMissionResult(kind,outcome,v);
  travelLogResult(c,v,record);
  if(c.resident){
-  const mood=ensurePerformance().moodTotals;
   if(outcome==='ontime'){
-   mood.success++;
    state.money+=MISSION_SUCCESS_BONUS;
    missionMoney('missionBonus',MISSION_SUCCESS_BONUS);
-  }else mood.failed++;
+  }
   updateMissionMoodHud();
   const cash=$('money');if(cash&&outcome==='ontime')cash.textContent=money(state.money);
   showMissionMoodFlight(c,v,outcome);
