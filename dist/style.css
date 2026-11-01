@@ -7447,3 +7447,75 @@ html body>.city-level-strip button.city-mission-result:focus-visible{
   max-height:calc(100dvh - 92px - 190px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
  }
 }
+
+
+/* SMCITY 5.2: tiny event-driven, collapsible failed-mission reason strip. */
+html body>.city-level-strip .city-mission-total{
+ position:relative!important;overflow:visible!important;
+}
+html body>.city-level-strip .city-mission-failed-row{
+ display:flex!important;align-items:center!important;gap:2px!important;
+ min-width:0!important;width:100%!important;flex:0 0 auto!important;
+}
+html body>.city-level-strip .city-mission-failed-row>button.city-mission-result{
+ flex:1 1 auto!important;width:auto!important;min-width:0!important;
+}
+html body>.city-level-strip button.city-mission-failure-toggle{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ flex:0 0 17px!important;width:17px!important;min-width:17px!important;
+ height:16px!important;min-height:16px!important;max-height:16px!important;
+ padding:0!important;margin:0!important;border:0!important;
+ border-radius:4px!important;background:rgba(175,74,70,.12)!important;
+ color:#ad514a!important;line-height:1!important;font-size:13px!important;
+ font-weight:900!important;cursor:pointer!important;
+}
+html body>.city-level-strip button.city-mission-failure-toggle:focus-visible{
+ outline:2px solid #b64f48!important;outline-offset:1px!important;
+}
+html body>.city-level-strip .city-mission-failure-summary{
+ box-sizing:border-box!important;position:absolute!important;
+ top:calc(100% + 4px)!important;left:0!important;
+ display:flex!important;align-items:flex-start!important;flex-wrap:wrap!important;
+ gap:3px!important;width:max-content!important;
+ max-width:min(330px,calc(100vw - 22px))!important;
+ max-height:min(125px,32dvh)!important;overflow:auto!important;
+ padding:4px!important;border:1px solid rgba(173,77,72,.2)!important;
+ border-radius:8px!important;background:rgba(255,252,249,.97)!important;
+ box-shadow:0 3px 12px rgba(42,29,28,.2)!important;
+ z-index:34!important;pointer-events:auto!important;
+ scrollbar-width:thin;
+}
+html body>.city-level-strip .city-mission-failure-badge{
+ display:inline-block!important;box-sizing:border-box!important;
+ max-width:100%!important;padding:2px 5px!important;
+ border:1px solid rgba(181,83,74,.14)!important;border-radius:5px!important;
+ background:#fff2ee!important;color:#974740!important;
+ font-size:9px!important;font-weight:650!important;line-height:1.45!important;
+ white-space:normal!important;overflow-wrap:anywhere!important;
+}
+html body>.city-level-strip .city-mission-failure-badge b{
+ font-size:9px!important;font-weight:950!important;
+ font-variant-numeric:tabular-nums!important;
+}
+html body>.city-level-strip .city-mission-failure-summary[hidden],
+html body>.city-level-strip button.city-mission-failure-toggle[hidden]{
+ display:none!important;
+}
+@media(max-width:690px){
+ html body>.city-level-strip .city-mission-failure-summary{
+  left:57px!important;
+  max-width:calc(100vw - 83px - env(safe-area-inset-right,0px))!important;
+  max-height:min(110px,24dvh)!important;
+ }
+}
+@media(max-height:430px){
+ html body>.city-level-strip .city-mission-failure-summary{
+  max-height:60px!important;
+ }
+}
+:root.smcity-gray-ui body>.city-level-strip .city-mission-failure-summary{
+ background:rgba(30,39,42,.98)!important;border-color:#65504e!important;
+}
+:root.smcity-gray-ui body>.city-level-strip .city-mission-failure-badge{
+ background:#433333!important;color:#ffe1d8!important;border-color:#634b49!important;
+}
