@@ -8,7 +8,7 @@ const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+deco
  await page.route('**/*.supabase.co/**',r=>r.abort());
  await page.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'networkidle'});
  await page.waitForFunction(()=>window.__game&&window.__renderer&&window.__renderArgs);
- // 5.1 UX: levels float in a dedicated rail, not inside a cramped population
+ // 5.2 UX: level, citizen mission counters, collector and AI credits share a top rail,
  // dashboard; the native HTML dialog stays centered at every real viewport.
  for(const [width,height]of [[1440,900],[834,1194],[390,844],[320,568],[667,375]]){
   await page.setViewportSize({width,height});
@@ -22,7 +22,7 @@ const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+deco
   });
   assert(bounds.dashboard&&bounds.deck&&bounds.rail&&bounds.level&&bounds.ai,'HUD exists at '+width+'px');
   assert(bounds.level.width>70&&bounds.ai.width>34,'level and AI controls remain tappable at '+width+'px');
-  assert(bounds.rail.top>=-2&&bounds.rail.top<=70&&bounds.rail.left>=-2&&bounds.rail.left<=25&&bounds.rail.width<=350&&bounds.rail.right<=width-2,'one-row level widget must be at top left at '+width+'px: '+JSON.stringify(bounds));
+  assert(bounds.rail.top>=-2&&bounds.rail.top<=70&&bounds.rail.left>=-2&&bounds.rail.left<=25&&bounds.rail.width<=width-4&&bounds.rail.right<=width-2,'5.2 daily-mission top rail must fit the viewport at '+width+'px: '+JSON.stringify(bounds));
   assert(bounds.rail.height<=42&&Math.abs(bounds.level.top-bounds.ai.top)<3&&Math.abs(bounds.level.bottom-bounds.ai.bottom)<3,'level button and AI credits must share one row at '+width+'px: '+JSON.stringify(bounds));
   assert(bounds.ai.left>=bounds.level.right-2,'AI button must follow level button without overlap at '+width+'px');
   assert(!bounds.cameraLeft||bounds.rail.bottom+3<bounds.cameraLeft.top,'level HUD must not cover camera controls at '+width+'px');
@@ -31,7 +31,7 @@ const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+deco
   assert(bounds.rail.bottom<=bounds.deck.top+2,'level widget must not cover the restored bottom toolbar at '+width+'px');
   assert(await page.evaluate(()=>!document.querySelector('.bottom .city-level-strip')),'level widget must not be inside the 5.0 toolbar');
   assert(bounds.population&&bounds.population.width>13&&bounds.population.top>=bounds.dashboard.top-1&&bounds.population.bottom<=bounds.dashboard.bottom+2,'population remains visible at '+width+'px: '+JSON.stringify(bounds));
-  assert(bounds.progress?.text?.includes('/'),'level progress must show the next population threshold');
+  assert(bounds.progress?.text?.includes('เพิ่มประชาชนอีก')&&bounds.progress.text.includes('ภารกิจ'),'level progress must show population milestone and daily mission requirement');
   if(width<=390){
    assert(bounds.progress.fontSize>=9,'population milestone text must remain readable on phone');
    assert(bounds.citizenLabel.fontSize>=8,'citizen label must remain readable on phone');
