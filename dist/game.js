@@ -2449,6 +2449,12 @@ function incidentEventType(incident){
  }
  return 'breakdown';
 }
+function incidentRescueVehicle(incident){
+ if(!incident)return null;
+ return incident.vehicles.map(id=>state.vehicles.get(id)).filter(Boolean).sort((a,b)=>
+  Number(missingRoute(b))-Number(missingRoute(a))||
+  incidentStoppedFor(b)-incidentStoppedFor(a)||b.id-a.id)[0]||null;
+}
 function incidentRewardStatus(){
  const day=Math.floor(state.time/1440),prev=state.incidentRewards||{};
  const count=prev.day===day?Math.min(INCIDENT_REWARD_DAILY_LIMIT,Math.max(0,Math.floor(prev.count||0))):0;
@@ -2463,7 +2469,7 @@ function openTrafficIncident(vehicleId){
  const detail=crash?'เกิดเหตุรถชนหรือทับซ้อน กีดขวางการจราจร ต้องการส่งเจ้าหน้าที่เข้าช่วยเหลือหรือไม่?':'พบรถหยุดนิ่งผิดปกติกีดขวางการจราจร ต้องการส่งเจ้าหน้าที่เข้าช่วยเหลือหรือไม่?';
  const award=reward.available?'ช่วยเหลือ +'+money(INCIDENT_REWARD_BAHT):'ช่วยเหลือ (ไม่มีเงินรางวัล)';
  const note=reward.available?'<p>เงินสนับสนุนการช่วยเหลือ <b>+'+money(INCIDENT_REWARD_BAHT)+'</b> · เหลือสิทธิ์ '+(INCIDENT_REWARD_DAILY_LIMIT-reward.count)+' เหตุการณ์วันนี้</p>':'<p>วันนี้รับเงินสนับสนุนครบ '+INCIDENT_REWARD_DAILY_LIMIT+' เหตุการณ์แล้ว แต่ยังส่งเจ้าหน้าที่ช่วยเหลือได้ค่ะ</p>';
- modal('<span class="eyebrow">TRAFFIC EMERGENCY</span><h2>'+title+'</h2><p>'+detail+'</p><p>บริเวณ: '+escapeSaveText(incident.place)+' · รถต้นเหตุ '+incident.vehicles.length+' คัน</p>'+note+'<div class="actions"><button class="primary" id="incidentHelpBtn">'+award+'</button><button id="incidentIgnoreBtn">นิ่งเฉย</button></div>');
+ modal('<span class="eyebrow">TRAFFIC EMERGENCY</span><h2>'+title+'</h2><p>'+detail+'</p><p>บริเวณ: '+escapeSaveText(incident.place)+' · รถเกี่ยวข้อง '+incident.vehicles.length+' คัน · ช่วยเหลือรถต้นเหตุ 1 คัน</p>'+note+'<div class="actions"><button class="primary" id="incidentHelpBtn">'+award+'</button><button id="incidentIgnoreBtn">นิ่งเฉย</button></div>');
  $('incidentHelpBtn').onclick=()=>{
   $('incidentHelpBtn').disabled=true;
   if(resolveIncident(vehicleId))closeModal();
@@ -2530,10 +2536,9 @@ function resolveIncident(id,automatic=false){
  scanIncidents(true);const found=incidentForVehicle.get(id);
  if(!found)return false;
  // One intervention per incident, even if a physical overlap involves two cars.
- const rootId=found.vehicles.filter(cid=>state.vehicles.has(cid)).sort((a,b)=>
-  Number(missingRoute(state.vehicles.get(b)))-Number(missingRoute(state.vehicles.get(a)))||b-a)[0];
- if(rootId==null)return false;
- const ids=[rootId];
+ const root=incidentRescueVehicle(found);
+ if(!root)return false;
+ const ids=[root.id];
  const before=ids.map(cid=>incidentSummaryVehicle(state.vehicles.get(cid)));
  const reservations=incidentReservations(ids),outcomes=[],eventType=incidentEventType(found);
  // Clear only the incident's own reservations and vehicles. Following traffic is untouched.
@@ -6526,7 +6531,7 @@ function autoRescueIncidents(){
  let budget=2;
  for(const incident of [...incidentCases.values()]){
   if(!budget)break;
-  const root=state.vehicles.get(incident.vehicles[0]);
+  const root=incidentRescueVehicle(incident);
   if(!root||incidentStoppedFor(root)<INCIDENT_AUTO_RESCUE_MINUTES)continue;
   if(resolveIncident(root.id,true))budget--;
  }
