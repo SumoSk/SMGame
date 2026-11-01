@@ -1241,6 +1241,10 @@ function closePerformanceDay(){
   if(c.performance){c.performance.previous=stats;c.performance.current=newPerformanceDay(day);}
  }
  p.current=newPerformanceDay(day);
+ // At 06:00, the citizen mission counter and displayed score start a fresh day
+ // together. Clear only transient visuals; the previous day's ledger is saved.
+ clearMissionMoodFlights();
+ updateMissionMoodHud();
  addNews('ปิดรอบ 06:00 · Performance '+Math.round(p.official)+'% · รายได้รอบใหม่ '+Math.round(p.incomeFactor*100)+'%');
  return true;
 }
