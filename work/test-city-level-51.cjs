@@ -195,5 +195,5 @@ assert(game.loadGame(true,null,JSON.stringify(missionMoodSaved)),'mission mood s
 assert.equal(game.ensurePerformance().moodTotals.success,2);
 assert.equal(game.ensurePerformance().moodTotals.failed,1);
 assert.equal(game.state.money,originalCash+1000,'save reload never pays mission bonuses again');
-console.log(JSON.stringify({passed:true,version:'5.1.2',moodRewards:true,bonusOnlyOnce:true,hiddenEffectsStillPay:true,savedLifetimeCounts:true,,liveMissionGate80:true,noDayCloseRequired:true,milestones:[20,70,120,170],peakNeverShrinks:true,
+console.log(JSON.stringify({passed:true,version:'5.1.2',moodRewards:true,bonusOnlyOnce:true,hiddenEffectsStillPay:true,savedLifetimeCounts:true,liveMissionGate80:true,noDayCloseRequired:true,milestones:[20,70,120,170],peakNeverShrinks:true,
  money:true,f1Four:true,freeAi:true,noDuplicateRewards:true,saveLoad:true,legacyLoad:true,ui:true}));
