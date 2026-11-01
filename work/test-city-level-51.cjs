@@ -46,7 +46,7 @@ const getLevel=()=>game.cityLevelStatus();
 assert.equal(getLevel().peakPopulation,18,'starter should include 18 residents');
 assert.equal(getLevel().level,1);
 assert.equal(getLevel().next,20);
-assert.equal(get('cityLevelProgress').textContent,'อีก 2 คน · ภารกิจ ≥80%');
+assert.equal(get('cityLevelProgress').textContent,'เพิ่มประชาชนอีก 2 คน • ภารกิจ 80%');
 assert.equal(game.updateCityLevel(20),0,'population alone must not level up');
 assert.equal(getLevel().level,1);
 assert.equal(getLevel().peakPopulation,20,'population high-water mark still grows');
@@ -112,7 +112,7 @@ assert.equal(game.buyAISignal(junction,'credit'),false,'cannot buy AI on same ju
 assert.equal(game.state.money,0);
 game.updateCityLevelHud(18);
 assert.equal(get('cityLevelValue').textContent,'4');
-assert.equal(get('cityLevelProgress').textContent,'อีก 50 คน · ภารกิจ ≥80%');
+assert.equal(get('cityLevelProgress').textContent,'เพิ่มประชาชนอีก 50 คน • ภารกิจ 80%');
 assert.equal(get('cityAiQuotaValue').textContent,'0');
 assert.equal(get('cityCrateBadge').textContent,'🎁 0');
 game.ensureCityLevel().pending.push({level:4,kind:'money'});
