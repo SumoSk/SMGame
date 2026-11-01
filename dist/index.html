@@ -1155,7 +1155,7 @@ dialog.member-gate .member-card :is(input,button){box-sizing:border-box!importan
     <span id="cityCrateBadge" class="city-crate-badge" aria-label="กล่องที่เปิดได้">🎁 0</span>
    </button>
 
-    <div class="city-mission-total" aria-label="ผลภารกิจของประชาชนวันนี้"><span class="city-mission-label">ภารกิจวันนี้</span><span class="city-mission-result city-mission-ok">✓ สำเร็จ <b id="missionSuccessCount">0</b> ครั้ง</span><span class="city-mission-result city-mission-bad">✕ ไม่สำเร็จ <b id="missionFailedCount">0</b> ครั้ง</span></div>
+    <div class="city-mission-total" aria-label="ผลภารกิจของประชาชนวันนี้"><span class="city-mission-label">ภารกิจวันนี้</span><button type="button" id="missionSuccessDetails" class="city-mission-result city-mission-ok" aria-label="ดูรายละเอียดภารกิจสำเร็จวันนี้">✓ สำเร็จ <b id="missionSuccessCount">0</b> ครั้ง</button><button type="button" id="missionFailedDetails" class="city-mission-result city-mission-bad" aria-label="ดูสาเหตุภารกิจไม่สำเร็จวันนี้">✕ ไม่สำเร็จ <b id="missionFailedCount">0</b> ครั้ง</button></div>
     <div id="missionMoodCollector" class="city-mood-collector" role="status" aria-label="ถังเก็บภารกิจ แสดงคะแนนภารกิจวันนี้ตรงกับแถบเครื่องมือ"><span class="city-mood-heart" aria-hidden="true">❤️</span><span class="city-mood-label"><small>ถังเก็บภารกิจ</small><b id="missionMoodValue">—</b></span></div>
    <button type="button" id="cityAiQuotaButton" class="city-ai-quota-button" title="ดูโควต้า AI สำหรับติดตั้งทางแยกฟรี"><span aria-hidden="true">✦</span><span>AI <b id="cityAiQuotaValue">0</b><small>โควต้า</small></span></button>
   </div>
