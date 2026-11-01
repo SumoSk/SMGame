@@ -7440,6 +7440,15 @@ html body>.city-level-strip button.city-mission-result:focus-visible{
  #dialog .mission-reason-groups{max-height:25dvh}
  #dialog .mission-reason-events{max-height:30dvh}
 }
+
+/* 5.2 narrow-screen rail safety: the two-row mission HUD must not overlap
+   camera controls, and camera tools must remain scrollable above the dock. */
+@media(max-width:375px) and (orientation:portrait){
+ html body #cityLeftRail.city-left-rail{
+  top:calc(92px + env(safe-area-inset-top,0px))!important;
+  max-height:calc(100dvh - 92px - 190px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+ }
+}
 </style><style id="smcity-dark-mode-v242">
 /* SMCITY v4.2 — high-contrast BLACK interface mode.
    Keep the current theme class and localStorage key so existing choices survive.
