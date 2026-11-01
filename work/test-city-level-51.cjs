@@ -144,12 +144,14 @@ assert(game.loadGame(true,null,JSON.stringify(legacy)),'v5.0 save without progre
 assert.equal(getLevel().peakPopulation,18,'legacy save starts high-water at current known residents');
 assert.equal(getLevel().level,1);
 assert.equal(getLevel().pending.length,0);
-performance.official=79.99;
+const restoredPerformance=game.ensurePerformance();
+restoredPerformance.previous={day:0,total:10,ontime:8};
+restoredPerformance.official=79.99;
 assert.equal(game.updateCityLevel(170),0,'population rises but cannot level under 80 percent');
 assert.equal(getLevel().peakPopulation,170);
 assert.equal(getLevel().level,1);
 assert.doesNotThrow(()=>game.validateSave(JSON.parse(game.snapshot())),'blocked city level saves must be valid');
-performance.official=80;
+restoredPerformance.official=80;
 assert.equal(game.updateCityLevel(170),3,'a recovered score unlocks all reached unclaimed milestones');
 assert.equal(getLevel().level,4);
 assert.equal(getLevel().pending.length,3);
