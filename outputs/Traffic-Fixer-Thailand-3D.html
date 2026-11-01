@@ -9009,7 +9009,97 @@ dialog.member-gate .member-card :is(input,button){box-sizing:border-box!importan
  #memberGate button,#dialog:has(.save-workspace) button,
  #dialog:has(.smcity-menu-list) button{transition:none!important;animation:none!important}
 }
-</style></head>
+</style>
+<style id="smcity-mobile-kpi-grid-v51">
+/* Phone portrait only: compact, readable KPI tiles without changing data IDs,
+   inspector click targets, the money's centered position or tablet/desktop UI. */
+@media (max-width:520px) and (orientation:portrait){
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-rows:15px repeat(2,minmax(0,1fr))!important;
+    gap:2px 3px!important;
+    width:100%!important;height:100%!important;min-height:0!important;
+    margin:0!important;overflow:hidden!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric{
+    box-sizing:border-box!important;
+    min-width:0!important;min-height:0!important;max-height:none!important;
+    height:100%!important;margin:0!important;padding:0 2px!important;
+    border:0!important;box-shadow:none!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .metric-money{
+    grid-column:1/-1!important;grid-row:1!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;
+    padding:0!important;border-bottom:1px solid #d6e7de!important;
+    background:transparent!important;text-align:center!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .metric-money .metric-icon,
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .metric-money .metric-text>small{
+    display:none!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .metric-money .metric-text{
+    display:flex!important;flex:0 1 auto!important;
+    width:100%!important;min-width:0!important;
+    align-items:center!important;justify-content:center!important;text-align:center!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .metric-money #money{
+    display:block!important;max-width:100%!important;margin:0!important;
+    color:#245849!important;font-size:12px!important;font-weight:850!important;
+    line-height:1.05!important;text-align:center!important;
+    overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+    font-variant-numeric:tabular-nums!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric:not(.metric-money){
+    grid-column:auto!important;grid-row:auto!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;
+    border-radius:5px!important;background:#e9f4ed!important;
+    text-align:center!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric:not(.metric-money) .metric-text{
+    display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;
+    align-items:center!important;justify-content:center!important;gap:0!important;
+    width:100%!important;min-width:0!important;height:100%!important;
+    text-align:center!important;white-space:normal!important;overflow:hidden!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric:not(.metric-money) .metric-text>small{
+    display:block!important;flex:0 0 auto!important;
+    width:100%!important;max-width:100%!important;
+    margin:0!important;padding:0!important;
+    color:#627e72!important;font-size:8.5px!important;font-weight:600!important;
+    line-height:1.05!important;letter-spacing:-.15px!important;
+    text-align:center!important;white-space:nowrap!important;
+    overflow:hidden!important;text-overflow:ellipsis!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric:not(.metric-money) .metric-text>strong{
+    display:block!important;flex:0 0 auto!important;
+    width:100%!important;max-width:100%!important;
+    margin:0!important;padding:0!important;
+    color:#1f5344!important;font-size:10.5px!important;font-weight:800!important;
+    line-height:1.05!important;text-align:center!important;
+    white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+    font-variant-numeric:tabular-nums!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric .metric-delta{
+    display:inline!important;font-size:8px!important;line-height:1!important;
+    font-weight:600!important;white-space:nowrap!important;
+  }
+  :root.smcity-gray-ui body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric:not(.metric-money){
+    background:#202e34!important;
+  }
+  :root.smcity-gray-ui body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .metric-money{
+    border-bottom-color:#43565c!important;
+  }
+  :root.smcity-gray-ui body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats #money,
+  :root.smcity-gray-ui body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric:not(.metric-money) .metric-text>strong{
+    color:#f0faf5!important;
+  }
+  :root.smcity-gray-ui body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric:not(.metric-money) .metric-text>small{
+    color:#b9cec6!important;
+  }
+}
+</style>
+</head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
 <aside id="cameraPitchRail" aria-label="ควบคุมมุมก้มเงยกล้อง" hidden>
