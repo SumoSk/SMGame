@@ -1041,6 +1041,54 @@ dialog.member-gate .member-card :is(input,button){box-sizing:border-box!importan
     color:#b9cec6!important;
   }
 }
+
+/* One-line contents in each of the four mobile KPI boxes. */
+@media (max-width:520px) and (orientation:portrait){
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric:not(.metric-money) .metric-text{
+    flex-direction:row!important;
+    flex-wrap:nowrap!important;
+    justify-content:center!important;
+    align-items:center!important;
+    gap:2px!important;
+    white-space:nowrap!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric:not(.metric-money) .metric-text>small{
+    display:inline-block!important;
+    flex:0 1 auto!important;
+    width:auto!important;
+    max-width:none!important;
+    font-size:8.2px!important;
+    line-height:1.15!important;
+    letter-spacing:-.25px!important;
+    text-align:right!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric:not(.metric-money) .metric-text>strong{
+    display:inline-block!important;
+    flex:0 0 auto!important;
+    width:auto!important;
+    max-width:60%!important;
+    font-size:9.5px!important;
+    line-height:1.15!important;
+    text-align:left!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric .metric-delta{
+    font-size:7px!important;
+    letter-spacing:-.25px!important;
+  }
+  /* Preserve the full Thai name for accessibility; compact the visible label only. */
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .metric-tourists .metric-text>small{
+    font-size:0!important;
+  }
+  body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .metric-tourists .metric-text>small::after{
+    content:"ท่องเที่ยว:"!important;
+    font-size:8.2px!important;
+    letter-spacing:-.25px!important;
+  }
+}
 </style>
 </head>
 <body>
