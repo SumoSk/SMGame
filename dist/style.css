@@ -7519,3 +7519,96 @@ html body>.city-level-strip button.city-mission-failure-toggle[hidden]{
 :root.smcity-gray-ui body>.city-level-strip .city-mission-failure-badge{
  background:#433333!important;color:#ffe1d8!important;border-color:#634b49!important;
 }
+
+
+/* Phone portrait: four independent city HUD cards share one top row.
+   Keep mission-failure explanations on a separate overlay underneath. */
+html body>.city-level-strip .city-level-compact{display:none!important}
+@media (max-width:520px) and (orientation:portrait){
+ html body>.city-level-strip{
+  display:grid!important;grid-template-columns:minmax(0,1.42fr) minmax(0,.43fr) minmax(0,1.33fr) minmax(0,.82fr)!important;
+  grid-template-rows:42px!important;align-items:stretch!important;justify-items:stretch!important;
+  width:calc(100vw - 18px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+  max-width:calc(100vw - 18px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+  height:42px!important;min-height:42px!important;max-height:42px!important;
+  flex-wrap:nowrap!important;gap:0 3px!important;overflow:visible!important;
+ }
+ html body>.city-level-strip > .city-level-button{
+  grid-column:1!important;grid-row:1!important;
+  width:100%!important;min-width:0!important;max-width:none!important;
+  flex:none!important;height:42px!important;min-height:42px!important;max-height:42px!important;
+  padding:2px 3px!important;gap:3px!important;justify-content:space-between!important;
+ }
+ html body>.city-level-strip .city-level-emblem{
+  height:25px!important;padding:3px 4px!important;gap:1px!important;font-size:8px!important;
+ }
+ html body>.city-level-strip .city-level-emblem strong{font-size:12px!important}
+ html body>.city-level-strip .city-level-detail{
+  flex:1 1 auto!important;min-width:0!important;overflow:hidden!important;
+  padding:0 0 5px!important;
+ }
+ html body>.city-level-strip .city-level-progress-head{display:none!important}
+ html body>.city-level-strip .city-level-compact{
+  display:block!important;max-width:100%!important;overflow:hidden!important;
+  white-space:nowrap!important;text-overflow:clip!important;
+  font-size:8px!important;line-height:1.2!important;font-weight:850!important;color:#245b42!important;
+  font-variant-numeric:tabular-nums!important;
+ }
+ html body>.city-level-strip .city-crate-badge{
+  flex:0 0 auto!important;min-height:19px!important;padding:3px 3px!important;font-size:9px!important;gap:0!important;
+ }
+ html body>.city-level-strip > .city-ai-quota-button{
+  grid-column:2!important;grid-row:1!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  flex:none!important;height:42px!important;min-height:42px!important;max-height:42px!important;
+  padding:1px!important;font-size:9px!important;gap:0!important;
+ }
+ html body>.city-level-strip .city-ai-quota-button>span:first-child{display:none!important}
+ html body>.city-level-strip .city-ai-quota-button b{font-size:10px!important}
+ html body>.city-level-strip > .city-mission-total{
+  grid-column:3!important;grid-row:1!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  flex:none!important;height:42px!important;min-height:42px!important;max-height:42px!important;
+  padding:2px 3px!important;gap:1px!important;overflow:visible!important;
+ }
+ html body>.city-level-strip button.city-mission-result{
+  padding:0 1px!important;min-height:15px!important;max-height:18px!important;
+  font-size:9px!important;line-height:1.4!important;letter-spacing:-.2px!important;
+  white-space:nowrap!important;overflow:hidden!important;
+ }
+ html body>.city-level-strip button.city-mission-result b{font-size:10px!important}
+ html body>.city-level-strip .city-mission-result-unit{display:none!important}
+ html body>.city-level-strip .city-mission-failed-row{gap:0!important;width:100%!important}
+ html body>.city-level-strip button.city-mission-failure-toggle{
+  flex:0 0 14px!important;width:14px!important;min-width:14px!important;
+  height:16px!important;min-height:16px!important;max-height:16px!important;font-size:11px!important;
+ }
+ html body>.city-level-strip > .city-mood-collector{
+  grid-column:4!important;grid-row:1!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  flex:none!important;height:42px!important;min-height:42px!important;max-height:42px!important;
+  padding:2px 1px!important;gap:1px!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+ }
+ html body>.city-level-strip .city-mood-heart{font-size:16px!important}
+ html body>.city-level-strip .city-mood-label{align-items:center!important}
+ html body>.city-level-strip .city-mood-label small{display:none!important}
+ html body>.city-level-strip .city-mood-label b{font-size:11px!important;line-height:1.1!important}
+ html body>.city-level-strip .city-mission-failure-summary:not([hidden]){
+  position:fixed!important;top:calc(56px + env(safe-area-inset-top,0px))!important;
+  left:calc(9px + env(safe-area-inset-left,0px))!important;right:auto!important;
+  width:max-content!important;max-width:calc(100vw - 18px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))!important;
+  max-height:min(110px,24dvh)!important;
+ }
+ :root.smcity-gray-ui body>.city-level-strip .city-level-compact{color:#def9e7!important}
+}
+@media (max-width:360px) and (orientation:portrait){
+ html body>.city-level-strip{
+  grid-template-columns:minmax(0,1.27fr) minmax(0,.39fr) minmax(0,1.34fr) minmax(0,.72fr)!important;
+  column-gap:2px!important;
+ }
+ html body>.city-level-strip .city-level-compact{display:none!important}
+ html body>.city-level-strip .city-level-detail{flex:1 1 5px!important}
+ html body>.city-level-strip .city-level-emblem{padding:2px 3px!important}
+ html body>.city-level-strip button.city-mission-result{font-size:8.5px!important}
+ html body>.city-level-strip .city-mood-heart{font-size:14px!important}
+}
