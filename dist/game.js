@@ -6500,7 +6500,7 @@ function advanceVehicles(realDt,gameDt){
      // permanently exempted these immobile cars from the 150-minute fallback.
      const brokenDepartureSlot=v.phase==='departing'&&!!v.fromId&&!v.lotPath&&
       (v.stopReason==='ไม่พบช่องจอดของรถ'||!state.buildings.has(v.fromId));
-     if(!incidentForVehicle.has(v.id)&&(brokenDepartureSlot||!incidentNormalWait(v))&&
+     if((brokenDepartureSlot||!incidentForVehicle.has(v.id))&&(brokenDepartureSlot||!incidentNormalWait(v))&&
        (brokenDepartureSlot||!incidentBlockingVehicle(v))){
      if(respawnVehicle(v)){respawnBudget--;continue;}
     }
