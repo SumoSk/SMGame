@@ -6495,7 +6495,13 @@ function advanceVehicles(realDt,gameDt){
     &&state.time-v.lastMovedAt>=IMMOBILE_RESPAWN_TIMEOUT){
     // Roots are rescued after 120 minutes by tick(). Never respawn followers
     // simply for sitting in a long normal traffic queue.
-    if(!incidentForVehicle.has(v.id)&&!incidentNormalWait(v)&&!incidentBlockingVehicle(v)){
+    // A broken source parking slot is not a normal traffic queue. Previous
+     // incidentNormalWait() classified every departing vehicle as normal and
+     // permanently exempted these immobile cars from the 150-minute fallback.
+     const brokenDepartureSlot=v.phase==='departing'&&!!v.fromId&&!v.lotPath&&
+      (v.stopReason==='ไม่พบช่องจอดของรถ'||!state.buildings.has(v.fromId));
+     if(!incidentForVehicle.has(v.id)&&(brokenDepartureSlot||!incidentNormalWait(v))&&
+       (brokenDepartureSlot||!incidentBlockingVehicle(v))){
      if(respawnVehicle(v)){respawnBudget--;continue;}
     }
    }
