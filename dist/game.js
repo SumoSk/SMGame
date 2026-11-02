@@ -2392,7 +2392,9 @@ function scanIncidents(force=false){
   if(v.kind==='pass'&&v.phase==='gate_waiting')continue;
   const noRoute=missingRoute(v),parking=['parking_in','parking_out'].includes(v.phase)||v.phase==='departing'&&!!v.fromId;
   const near=incidentNearby(positions,pose).filter(o=>o.v.id!==v.id&&sameTrafficLayer(v,o.v));
-  const overlapped=near.filter(o=>o.stalled>=INCIDENT_STALL_MINUTES&&Math.hypot(o.pose.x-pose.x,o.pose.y-pose.y)<.52&&o.v.phase!=='gate_waiting');
+  // A center-distance threshold treats ordinary stopped traffic as a crash.
+  // Use the same oriented physical footprint that the parking movement uses.
+  const overlapped=near.filter(o=>o.stalled>=INCIDENT_STALL_MINUTES&&o.v.phase!=='gate_waiting'&&lotCarsOverlap(pose,o.pose,.025));
   const heading={x:pose.dx??Math.cos(pose.angle||0),y:pose.dy??Math.sin(pose.angle||0)};
   const followerOf=near.find(o=>{
    const dx=o.pose.x-pose.x,dy=o.pose.y-pose.y;
@@ -2402,6 +2404,17 @@ function scanIncidents(force=false){
   const physicalLeader=incidentBlockingVehicle(v);
   const blockedByLeader=physicalLeader&&physicalLeader.id!==v.id&&incidentStoppedFor(physicalLeader)>=INCIDENT_STALL_MINUTES;
   const deadlocked=mutualPhysicalDeadlock(v);
+  // A road queue, red signal, or gate queue cannot become an automatically
+  // rescued 'fault' merely because the physical bodies are near each other.
+  if(!noRoute&&v.phase==='gate_waiting')continue;
+  if(!noRoute&&v.phase==='driving'&&incidentNormalWait(v)&&!deadlocked)continue;
+  // A parking root must be physically blocking another stalled car in the
+  // SAME lot, not merely waiting to merge into live road traffic.
+  const lotOf=car=>car.lotBuilding??car.fromId??car.toId??null;
+  const parkingOverlap=parking&&overlapped.some(o=>
+   ['departing','parking_in','parking_out'].includes(o.v.phase)&&
+   lotOf(v)!=null&&lotOf(v)===lotOf(o.v));
+  if(!noRoute&&parking&&incidentNormalWait(v)&&!parkingOverlap)continue;
   if(!noRoute&&!overlapped.length&&!deadlocked&&(followerOf||blockedByLeader||incidentNormalWait(v)))continue;
   if(!noRoute&&!overlapped.length&&stalled<INCIDENT_STALL_MINUTES)continue;
   if(!noRoute&&v.phase==='gate_waiting'&&!overlapped.length)continue;
@@ -2446,7 +2459,7 @@ function incidentEventType(incident){
  const cars=incident.vehicles.map(id=>state.vehicles.get(id)).filter(Boolean);
  for(let i=0;i<cars.length;i++)for(let j=i+1;j<cars.length;j++){
   const a=incidentPosition(cars[i]),b=incidentPosition(cars[j]);
-  if(sameTrafficLayer(cars[i],cars[j])&&a&&b&&Math.hypot(a.x-b.x,a.y-b.y)<.52)return 'collision';
+  if(sameTrafficLayer(cars[i],cars[j])&&a&&b&&lotCarsOverlap(a,b,.025))return 'collision';
  }
  return 'breakdown';
 }
@@ -6638,6 +6651,12 @@ function autoRescueIncidents(){
   if(!budget)break;
   const root=incidentRescueVehicle(incident);
   if(!root||incidentStoppedFor(root)<INCIDENT_AUTO_RESCUE_MINUTES)continue;
+  // Defensive recheck: an incident's root may have become an ordinary
+  // moving-road queue between the last 3-minute scan and this tick.
+  if(!missingRoute(root)&&(
+    root.phase==='gate_waiting'||
+    root.phase==='driving'&&incidentNormalWait(root)&&!mutualPhysicalDeadlock(root)
+  ))continue;
   if(resolveIncident(root.id,true))budget--;
  }
 }
