@@ -2394,7 +2394,7 @@ function scanIncidents(force=false){
   const near=incidentNearby(positions,pose).filter(o=>o.v.id!==v.id&&sameTrafficLayer(v,o.v));
   // A center-distance threshold treats ordinary stopped traffic as a crash.
   // Use the same oriented physical footprint that the parking movement uses.
-  const overlapped=near.filter(o=>o.stalled>=INCIDENT_STALL_MINUTES&&o.v.phase!=='gate_waiting'&&lotCarsOverlap(pose,o.pose,.025));
+  const overlapped=near.filter(o=>o.stalled>=INCIDENT_STALL_MINUTES&&o.v.phase!=='gate_waiting'&&lotCarsOverlap(pose,o.pose,.06));
   const heading={x:pose.dx??Math.cos(pose.angle||0),y:pose.dy??Math.sin(pose.angle||0)};
   const followerOf=near.find(o=>{
    const dx=o.pose.x-pose.x,dy=o.pose.y-pose.y;
