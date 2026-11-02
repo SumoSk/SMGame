@@ -3107,12 +3107,19 @@ function prepareMoneyTitle(){
 }
 prepareMoneyTitle();
 
-// Reuse saved daily arrivals/departures; no extra population scans or history.
+// Reuse saved daily arrivals/departures and closing balance; no extra scans.
+function updateMoneyDelta(){
+ const el=$('moneyDelta');if(!el)return;
+ const d=missionDay(),baseline=Number.isFinite(d?.hudOpeningMoney)?d.hudOpeningMoney:d?.openingMoney;
+ const delta=Number.isFinite(baseline)?Math.round(state.money-baseline):0;
+ el.textContent='วันนี้ '+(delta>0?'+':delta<0?'−':'')+money(Math.abs(delta));
+ el.setAttribute('data-change',delta>0?'up':delta<0?'down':'flat');
+}
 function dailyPopulationMetric(value,change){
  const delta=Number.isFinite(change)?Math.trunc(change):0;
- return fmt(value)+' <span class="metric-delta" data-change="'+(delta>0?'up':delta<0?'down':'flat')+'" title="เปลี่ยนแปลงสุทธิตั้งแต่เริ่มวัน">('+(delta>0?'+':'')+fmt(delta)+')</span>';
+ return fmt(value)+' <span class="metric-delta" data-change="'+(delta>0?'up':delta<0?'down':'flat')+'" title="เทียบยอดก่อน 06:00 น.">('+(delta>0?'+':'')+fmt(delta)+')</span>';
 }
-function updateUI(){travelLogPulse();missionAutoPulse();const s=computeStats();missionPeakSample(s);updateCityLevelHud(s.pop);updateMissionMoodHud();$('money').textContent=money(state.money);const dailyCounts=missionDay();$('population').innerHTML=dailyPopulationMetric(s.pop,(dailyCounts?.populationIn||0)-(dailyCounts?.populationOut||0));if($('tourists'))$('tourists').innerHTML=dailyPopulationMetric(touristPeople().filter(c=>c.enteredAt!=null).length,(dailyCounts?.touristsIn||0)-(dailyCounts?.touristsOut||0));/* Mission percentage is refreshed with the collector by updateMissionMoodHud(). */$('flow').innerHTML=Math.round(s.flow)+'<em>%</em>';$('clock').textContent=timeText(state.time);$('day').textContent=(innerWidth<=500?['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.']:['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์','วันอาทิตย์'])[Math.floor(state.time/1440)%7]+(innerWidth<=500?' · ':' · วันที่ ')+(Math.floor(state.time/1440)+1);$('sun').style.left=(state.time%1440)/1440*100+'%';$('net').textContent=(s.net>=0?'+':'')+money(s.net);$('net').classList.toggle('warning',s.net<0);const steps=[{done:[...state.roads.values()].some(r=>!r.main),text:'ต่อถนนเล็กจากถนนหลัก'},{done:s.homes>0,text:'สร้างบ้านติดถนน รอคนย้ายเข้า'},{done:s.jobs>0,text:'สร้างงานให้ประชาชน'}];$('steps').textContent=steps.filter(s=>s.done).length+' / 3';$('guide').innerHTML=steps.map((s,i)=>`<div class="guide-item ${s.done?'done':'current'}"><b>${s.done?'✓':i+1}</b><span>${s.text}</span></div>`).join('');updateCityAdvisor();$('news').innerHTML=news.slice(0,3).map(n=>`<div class="news-item"><time>${timeText(n.time)}</time>${n.text}</div>`).join('');const stranded=[...state.vehicles.values()].filter(v=>v.phase==='stuck'||v.departureNoRoute).length;$('status').textContent=stranded?'รถรอเส้นทาง '+stranded+' คัน · ข้อมูลเมือง → รายงานเมือง':s.pop?`รถเดินทาง ${state.vehicles.size} คัน · รอคิว ${s.waiting} คัน · คลิกที่รถเพื่อดูชีวิตประชาชน`:'ลากเพื่อเลื่อนแผนที่ · เลื่อนล้อเพื่อซูม';document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',+b.dataset.speed===state.speed));$('pause').textContent=state.speed?'Ⅱ':'▶';if(selected&&!document.activeElement?.classList?.contains?.('signal-minutes'))renderInspector();renderCitizenDashboard();renderTouristDashboard();}
+function updateUI(){travelLogPulse();missionAutoPulse();const s=computeStats();missionPeakSample(s);updateCityLevelHud(s.pop);updateMissionMoodHud();$('money').textContent=money(state.money);updateMoneyDelta();const dailyCounts=missionDay();$('population').innerHTML=dailyPopulationMetric(s.pop,(dailyCounts?.populationIn||0)-(dailyCounts?.populationOut||0));if($('tourists'))$('tourists').innerHTML=dailyPopulationMetric(touristPeople().filter(c=>c.enteredAt!=null).length,(dailyCounts?.touristsIn||0)-(dailyCounts?.touristsOut||0));/* Mission percentage is refreshed with the collector by updateMissionMoodHud(). */$('flow').innerHTML=Math.round(s.flow)+'<em>%</em>';$('clock').textContent=timeText(state.time);$('day').textContent=(innerWidth<=500?['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.']:['วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์','วันอาทิตย์'])[Math.floor(state.time/1440)%7]+(innerWidth<=500?' · ':' · วันที่ ')+(Math.floor(state.time/1440)+1);$('sun').style.left=(state.time%1440)/1440*100+'%';$('net').textContent=(s.net>=0?'+':'')+money(s.net);$('net').classList.toggle('warning',s.net<0);const steps=[{done:[...state.roads.values()].some(r=>!r.main),text:'ต่อถนนเล็กจากถนนหลัก'},{done:s.homes>0,text:'สร้างบ้านติดถนน รอคนย้ายเข้า'},{done:s.jobs>0,text:'สร้างงานให้ประชาชน'}];$('steps').textContent=steps.filter(s=>s.done).length+' / 3';$('guide').innerHTML=steps.map((s,i)=>`<div class="guide-item ${s.done?'done':'current'}"><b>${s.done?'✓':i+1}</b><span>${s.text}</span></div>`).join('');updateCityAdvisor();$('news').innerHTML=news.slice(0,3).map(n=>`<div class="news-item"><time>${timeText(n.time)}</time>${n.text}</div>`).join('');const stranded=[...state.vehicles.values()].filter(v=>v.phase==='stuck'||v.departureNoRoute).length;$('status').textContent=stranded?'รถรอเส้นทาง '+stranded+' คัน · ข้อมูลเมือง → รายงานเมือง':s.pop?`รถเดินทาง ${state.vehicles.size} คัน · รอคิว ${s.waiting} คัน · คลิกที่รถเพื่อดูชีวิตประชาชน`:'ลากเพื่อเลื่อนแผนที่ · เลื่อนล้อเพื่อซูม';document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',+b.dataset.speed===state.speed));$('pause').textContent=state.speed?'Ⅱ':'▶';if(selected&&!document.activeElement?.classList?.contains?.('signal-minutes'))renderInspector();renderCitizenDashboard();renderTouristDashboard();}
 function timeText(t){t=Math.floor(t%1440);return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
 function computeStats(taxDay=Math.floor(state.time/1440)){let pop=0,happy=0,homes=0,freeHomes=0,jobs=0,unemployed=0,serviceNeed=0,tax=0,business=0,maint=0,waiting=0;for(const b of state.buildings.values()){const t=CATALOG[b.key];homes+=t.residents;freeHomes+=Math.max(0,t.residents-(b.residents?.size||0)-(b.reservedResidents||0)-(t.residents?homeImmigrationLocks(b):0));jobs+=t.jobs;maint+=t.maint;business+=(b.workers?.size||0)*50;}for(const c of state.citizens.values()){if(!c.resident||c.removed)continue;pop++;happy+=c.happy;if(c.profile.trait!==3&&!c.workId&&!c.movingOut)unemployed++;if(c.pending&&['shop','restaurant','mall','park','pub','casino'].includes(c.pending.kind))serviceNeed++;if(!c.movingOut)tax+=workTax(c,taxDay);}for(const r of state.roads.values())if(!r.main)maint+=ROADS[r.type].maint;for(const v of state.vehicles.values())if(v.wait>1||!['driving','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase))waiting++;const flow=state.vehicles.size?100*(1-waiting/state.vehicles.size):100;const missionRate=currentMissionScore(),effectivePerformance=missionRate===null?ensurePerformance().official:missionRate;return state.stats={pop,happy:effectivePerformance,homes,freeHomes,jobs,unemployed,serviceNeed,tax,business,maint,net:(tax+business)*incomeFactor()-maint,performance:effectivePerformance,incomeFactor:incomeFactor(),waiting,flow};}
 
@@ -4870,7 +4877,7 @@ function newMissionDay(day=performanceDay(),since=state.time){
  return{day,since,residentOnlyTotals:true,...newMissionCounters(),byKind:Object.fromEntries(MISSION_KINDS.map(k=>[k,newMissionCounters()])),
  tripsStarted:0,tripsArrived:0,tripsByKind:{},arrivalsByKind:{},serviceResults:{},peakCars:0,peakWaiting:0,peakPopulation:0,happyMin:100,happyMax:0,populationIn:0,populationOut:0,touristsIn:0,touristsOut:0,
  touristsRevenue:0,touristsDiscount:0,incidentReward:0,missionBonus:0,roadCost:0,buildingCost:0,buildingsBuilt:0,buildingsRemoved:0,roadsBuilt:0,
- taxRevenue:0,businessRevenue:0,maintenanceCost:0,dailySettlement:0,taxAdjustments:0,openingMoney:state.money,endingMoney:state.money};
+ taxRevenue:0,businessRevenue:0,maintenanceCost:0,dailySettlement:0,taxAdjustments:0,hudOpeningMoney:state.money,openingMoney:state.money,endingMoney:state.money};
 }
 function newMissionStats(){return{version:2,current:newMissionDay(),previous:null,dismissedDay:-1};}
 function restoreMissionStats(saved){
@@ -4881,8 +4888,10 @@ function restoreMissionStats(saved){
   const result=newMissionDay(day,Number.isFinite(value.since)?Math.max(0,Math.min(value.since,state.time)):state.time);
   for(const key of Object.keys(result)){
    if(key==='byKind'||key==='tripsByKind'||key==='arrivalsByKind'||key==='serviceResults'||key==='day'||key==='since'||key==='cityEnd')continue;
-   if(typeof result[key]==='number')result[key]=key==='openingMoney'||key==='endingMoney'||key==='dailySettlement'||key==='taxAdjustments'?Number.isFinite(value[key])?Math.max(-1e12,Math.min(1e12,value[key])):result[key]:safe(value[key]);
+   if(typeof result[key]==='number')result[key]=key==='hudOpeningMoney'||key==='openingMoney'||key==='endingMoney'||key==='dailySettlement'||key==='taxAdjustments'?Number.isFinite(value[key])?Math.max(-1e12,Math.min(1e12,value[key])):result[key]:safe(value[key]);
   }
+  // Older saves already contain the opening balance; preserve their daily delta.
+  if(!Number.isFinite(value.hudOpeningMoney))result.hudOpeningMoney=result.openingMoney;
   const readCounter=(dst,src)=>{if(!src||typeof src!=='object')return;for(const key of ['total',...MISSION_OUTCOMES,'durationSum','durationCount','congestionSum','congestionCount','roadBlocks','blockDurationSum'])dst[key]=safe(src[key]);};
   readCounter(result,value);
   for(const kind of MISSION_KINDS)readCounter(result.byKind[kind],value.byKind?.[kind]);
@@ -6631,9 +6640,11 @@ function daily(){
  const closedDay=Math.floor(state.time/1440)-1;
  const s=computeStats(closedDay),gross=s.tax+s.business;
  const paid=gross*previousFactor-s.maint;
+ const hudOpeningMoney=state.money; // Closing balance immediately before the 06:00 settlement.
  state.money=Math.max(-10000,state.money+paid);
  closePerformanceDay();
  missionFinishDay(performanceDay(),{...s,tax:s.tax*previousFactor,business:s.business*previousFactor},paid);
+ missionDay().hudOpeningMoney=hudOpeningMoney;
  for(const b of state.buildings.values())b.arrivals=0;
  for(const c of state.citizens.values()){
   if(!c.resident||c.removed)continue;assignJob(c);

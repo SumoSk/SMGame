@@ -1,0 +1,31 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const prelude=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0];
+const {city}=new Function('require',prelude+'return {city};')(require);
+const {game:g,get}=city();
+const refresh=()=>{get('pause').onclick();};
+const current=()=>g.state.missionStats.current;
+const moneyDelta=()=>get('moneyDelta').textContent;
+current().hudOpeningMoney=1000000;g.state.money=980344;refresh();
+assert.match(moneyDelta(),/^วันนี้ −฿19,656$/,'actual balance decrease includes construction expenses');
+g.state.money=1020000;refresh();assert.equal(moneyDelta(),'วันนี้ +฿20,000');
+g.state.money=1000000;refresh();assert.equal(moneyDelta(),'วันนี้ ฿0');
+// The baseline is captured before the morning settlement, not after it.
+g.state.time=1799;g.state.money=980344;refresh();assert.equal(current().day,0);
+g.state.time=1800;g.daily();assert.equal(current().day,1);
+assert.equal(current().hudOpeningMoney,980344);
+assert.equal(current().openingMoney,g.state.money,'daily report retains its existing accounting');
+refresh();
+const raw=g.snapshot(),expected=moneyDelta(),baseline=current().hudOpeningMoney;
+assert(g.loadGame(true,null,raw));refresh();
+assert.equal(current().hudOpeningMoney,baseline);assert.equal(moneyDelta(),expected);
+const legacy=JSON.parse(raw);delete legacy.missionStats.current.hudOpeningMoney;
+assert(g.loadGame(true,null,JSON.stringify(legacy)));assert.equal(current().hudOpeningMoney,current().openingMoney);
+// Population and tourist counters remain independent and clear at 06:00.
+current().populationIn=7;current().populationOut=2;current().touristsIn=9;current().touristsOut=3;
+refresh();assert.match(get('population').innerHTML,/\(\+5\)/);assert.match(get('tourists').innerHTML,/\(\+6\)/);
+g.state.time=3240;g.daily();refresh();assert.match(get('population').innerHTML,/\(0\)/);assert.match(get('tourists').innerHTML,/\(0\)/);
+const html=fs.readFileSync('index.html','utf8');
+const stats=html.split('<div id="citySummaryStats"')[1].split('</div>')[0];
+assert.equal((stats.match(/class="city-metric /g)||[]).length,3);
+assert(!/metric-happiness|metric-traffic/.test(stats));assert(stats.includes('<small>นักท่องเที่ยว</small>'));
+console.log('City summary passed: positive/negative balance, 06:00 baseline, save/reload, legacy saves, independent people counters and three cards.');

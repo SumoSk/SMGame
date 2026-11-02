@@ -82,7 +82,10 @@ test('grouped build boxes pop upward and keep every existing tier',()=>{
  assert(tray.innerHTML.includes('data-build-kind="office"'));
  assert(tray.innerHTML.includes('data-build-kind="factory"'));
 });
-assert(fs.readFileSync('index.html','utf8').includes('<small>ภารกิจ :</small>'));
+const summaryHTML=fs.readFileSync('index.html','utf8');
+assert(summaryHTML.includes('id="citySummaryStats"'));
+assert(summaryHTML.includes('id="missionMoodCollector"'),'mission score remains in the mission collector');
+assert(!summaryHTML.includes('class="city-metric metric-happiness"'),'city summary contains only money, population and tourists');
 console.log(JSON.stringify({passed:true,checks},null,2));
 
 
