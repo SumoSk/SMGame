@@ -997,6 +997,7 @@ function updateCityLevelHud(currentPopulation){
  const l=cityLevelStatus(),set=(id,value)=>{const n=$(id);if(n&&n.textContent!==value)n.textContent=value;};
  set('cityLevelValue',String(l.level));
  set('cityLevelProgress','เพิ่มประชาชนอีก '+fmt(l.remaining)+' คน • ภารกิจ 80%');
+ set('cityLevelCompact','อีก '+fmt(l.remaining)+' • 80%');
  set('cityLevelNext','เพิ่มประชาชนอีก '+fmt(l.remaining)+' คน และภารกิจสำเร็จ ≥80% (ขณะนี้ '+(l.missionRate===null?'—':Math.round(l.missionRate)+'%')+')');
  set('cityAiQuotaValue',fmt(l.aiCredits));
  set('cityCrateBadge','🎁 '+fmt(l.pending.length));
