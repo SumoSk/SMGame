@@ -1,0 +1,52 @@
+/* SMCITY Advisor — single-line banner anchored directly above the compact toolbar. */
+#cityAdvisorTicker[hidden]{display:none!important}
+:root.city-advisor-ticker-ready body>.bottom>#cityAdvisor{display:none!important}
+body>.bottom>#cityAdvisorTicker{
+  pointer-events:auto;box-sizing:border-box;
+  display:flex;align-items:center;gap:2px;
+  height:30px;min-height:30px;max-height:30px;
+  width:max-content;max-width:calc(100vw - 24px);
+  margin:0 auto 5px;padding:2px 4px 2px 5px;
+  border-radius:9px;border:1px solid var(--smg-border,#91d8f8);
+  background:linear-gradient(135deg,var(--smg-panel-top,#f6fcff),var(--smg-panel-bottom,#e7f5ff));
+  color:var(--smg-text,#194761);
+  box-shadow:0 3px 12px var(--smg-aura,rgba(0,170,235,.18)),inset 0 1px 0 rgba(255,255,255,.16);
+  white-space:nowrap;overflow:hidden;
+  font-family:'Noto Sans Thai',Tahoma,sans-serif;
+}
+#cityAdvisorTickerAction{
+  min-width:0;max-width:100%;flex:1 1 auto;
+  padding:2px 4px;display:flex;align-items:center;gap:6px;
+  color:inherit;background:transparent;border:0;border-radius:6px;
+  font:600 10px/1.35 'Noto Sans Thai',Tahoma,sans-serif;
+  letter-spacing:0;text-align:left;touch-action:manipulation;cursor:pointer;
+}
+#cityAdvisorTickerAction:hover{background:var(--smg-button-bottom,rgba(30,165,220,.07))}
+#cityAdvisorTickerAction:focus-visible,#cityAdvisorTickerDismiss:focus-visible{outline:2px solid var(--smg-icon,#008bca);outline-offset:0}
+#cityAdvisorTicker .advisor-ticker-symbol{
+  display:grid;place-items:center;flex:0 0 17px;width:17px;height:17px;
+  border:1px solid color-mix(in srgb,var(--smg-icon,#008bca) 45%,transparent);
+  border-radius:5px;color:var(--smg-icon,#008bca);
+  font:700 13px/1 'Noto Sans Thai',Tahoma,sans-serif;
+}
+#cityAdvisorTickerAction[data-level="warning"] .advisor-ticker-symbol{color:#d18c15;border-color:rgba(209,140,21,.38)}
+#cityAdvisorTickerAction[data-level="danger"] .advisor-ticker-symbol{color:#d8565f;border-color:rgba(216,86,95,.38)}
+#cityAdvisorTickerMessage{
+  display:block;max-width:min(400px,calc(100vw - 103px));
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#cityAdvisorTickerDismiss{
+  flex:0 0 19px;width:19px;height:21px;min-height:21px;
+  padding:0;border:0;border-radius:5px;background:transparent;color:inherit;
+  opacity:.75;font:500 14px/1 'Noto Sans Thai',Tahoma,sans-serif;
+  touch-action:manipulation;
+}
+#cityAdvisorTickerDismiss:hover{opacity:1;background:var(--smg-button-bottom,rgba(30,165,220,.08))}
+@media(max-width:500px){
+  body>.bottom>#cityAdvisorTicker{height:27px;min-height:27px;max-height:27px;margin-bottom:4px;padding:2px 3px;}
+  #cityAdvisorTickerAction{font-size:9px;gap:4px}
+  #cityAdvisorTicker .advisor-ticker-symbol{width:15px;height:15px;flex-basis:15px;font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){
+  #cityAdvisorTickerAction,#cityAdvisorTickerDismiss{transition:none}
+}

@@ -7769,3 +7769,48 @@ html body #inspector .game-signal-network p{margin:0!important;color:#768069;fon
 
 html body #inspector .game-signal-network,html body #inspector .game-building-capacity,html body #inspector .game-building-stats,html body #inspector .selected-car-journey{grid-column:1/-1!important;width:auto!important;min-width:0!important}
 html body #inspector .sm-inspector-heading .tag{opacity:1!important;color:#bce3ce!important}
+
+/* 5.4.1.01: compact phone life view; tablet and desktop keep their layout. */
+.life-timeline-scroll{touch-action:pan-x pan-y pinch-zoom;-webkit-overflow-scrolling:touch;scroll-behavior:auto;overflow-anchor:none}
+@media(max-width:559px),(max-height:500px) and (pointer:coarse) and (max-width:950px){
+ html[data-ui-version^="5.4"] #citizensDashboard .citizens-top{padding:7px 10px!important}
+ html[data-ui-version^="5.4"] #citizensDashboard .citizens-top h2{font-size:14px!important;line-height:1.3!important}
+ html[data-ui-version^="5.4"] #citizensDashboard .citizens-top h2 span{font-size:9px!important;margin-top:2px!important}
+ html[data-ui-version^="5.4"] #citizensDashboard .citizens-close{width:30px!important;height:30px!important;min-width:30px!important;font-size:21px!important}
+ html[data-ui-version^="5.4"] #citizensDashboardBody{padding:8px!important}
+ html[data-ui-version^="5.4"] #citizensDashboard .citizens-toolbar>summary{padding:6px 10px!important;font-size:10px!important}
+ #citizensDashboard .life-planner{font-size:10px;line-height:1.4;margin-bottom:12px;--life-muted:#425d50;--life-line:#bccdbb}
+ #citizensDashboard .life-hero{gap:7px;padding-bottom:9px}
+ #citizensDashboard .life-hero>div{min-width:0;flex:1}
+ #citizensDashboard .life-hero-icon{width:32px;height:34px;font-size:22px;border-radius:10px}
+ #citizensDashboard .life-eyebrow{font-size:8px}
+ #citizensDashboard .life-hero h3{font-size:14px!important;margin:2px 0!important}
+ #citizensDashboard .life-hero p{font-size:9px}
+ #citizensDashboard .life-day-badge{font-size:7px;padding:3px 4px}
+ #citizensDashboard .life-spotlight{gap:8px;margin:9px 0;padding:9px;border-radius:12px}
+ #citizensDashboard .life-spotlight-icon{font-size:25px}
+ #citizensDashboard .life-spotlight small{font-size:9px}
+ #citizensDashboard .life-spotlight strong{font-size:19px}
+ #citizensDashboard .life-spotlight p{font-size:9px}
+ #citizensDashboard .life-section{padding:9px;margin:9px 0;border-radius:12px}
+ #citizensDashboard .life-section-title{gap:4px;margin-bottom:5px}
+ #citizensDashboard .life-section-title h3{font-size:12px!important}
+ #citizensDashboard .life-section-title>small{font-size:8px}
+ #citizensDashboard .life-need-card{padding:7px 0;gap:7px}
+ #citizensDashboard .life-kind-icon{width:26px;height:30px;font-size:18px;border-radius:8px;background:#dce8d3}
+ #citizensDashboard .life-need-card h4{font-size:11px}
+ #citizensDashboard .life-need-card p{font-size:9px}
+ #citizensDashboard .life-need-card small{font-size:8px}
+ #citizensDashboard .life-need-card>b{font-size:8px;padding:4px 5px;background:#286143;color:#fff}
+ #citizensDashboard .life-need-card.has-shortage>b{background:#93451f;color:#fff}
+ #citizensDashboard .life-need-card.has-shortage .life-kind-icon{background:#f1d7bb}
+ #citizensDashboard :is(.life-note,.life-source-note){font-size:8px;line-height:1.5}
+ #citizensDashboard .life-place{padding:7px 0;gap:7px}
+ #citizensDashboard .life-place b{font-size:10px}
+ #citizensDashboard .life-place>strong{font-size:14px}
+ :root.smcity-gray-ui #citizensDashboard .life-planner{--life-muted:#c2d6c7;--life-line:#587562}
+ :root.smcity-gray-ui #citizensDashboard .life-need-card>b{background:#36794e;color:#fff}
+ :root.smcity-gray-ui #citizensDashboard .life-need-card.has-shortage>b{background:#a95124;color:#fff}
+ :root.smcity-gray-ui #citizensDashboard .life-kind-icon{background:#365641}
+ html body :is(#cityAdvisorTicker,#cityAdvisor,#cameraRotateHint,#hint,#guide,.tool-hint,#missionFailureSummary,#missionFailureToggle){display:none!important}
+}

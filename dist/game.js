@@ -567,7 +567,7 @@ function parkingBankBusy(b,index,arriving,requester=null){
  return false;
 }
 function prepareLotDeparture(v,dt){
- const b=state.buildings.get(v.fromId);if(!b)return true;
+ const b=state.buildings.get(v.fromId);if(!b){traceDeparture(v,'origin_building_missing');return true;}
  if(v.lotReady)return true;
  if(!v.lotPath){
   const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){noteParkingBlock(v,'departure_missing_parking_slot',{requestedSlot:index});v.stopReason='ไม่พบช่องจอดของรถ';return false;}
@@ -586,7 +586,8 @@ function prepareLotDeparture(v,dt){
   }
   if(!canLeaveParkingSpace(v,v.lotPath)){grandSignalRelease(v);v.grandCrossing=null;v.lotPath=null;v.lotDistance=0;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
  }
- v.stopReason='กำลังออกจากช่องจอด';if(!advanceLot(v,dt))return false;v.lotReady=true;v.stopReason='รอถนนว่างเพื่อออกจากลาน';return true;
+ v.stopReason='กำลังออกจากช่องจอด';if(!advanceLot(v,dt))return false;
+ v.lotReady=true;v.stopReason='รอถนนว่างเพื่อออกจากลาน';traceDeparture(v,'parking_bay_exit_ready',{},'transition');return true;
 }
 // Keep parking claims exclusive, and replace one only after finding a viable
 // forward bay. A car already in the one-way aisle must never reverse or teleport.
@@ -3359,9 +3360,38 @@ function showCitizenDashboard(){
  renderCitizenDashboard(true);
 }
 function hideCitizenDashboard(){const panel=$('citizensDashboard');if(panel)panel.classList.add('hidden');}
+// Keep hourly tables in place across live data refreshes. Wait for touch
+// scrolling (including momentum) to settle before rebuilding the panel.
+const lifePanelInteractions=new WeakMap();
+function lifePanelBusy(body){
+ if(!body)return false;
+ let interaction=lifePanelInteractions.get(body);
+ if(!interaction){
+  interaction={touching:false,until:0};lifePanelInteractions.set(body,interaction);
+  const hold=()=>{interaction.until=Date.now()+1000;};
+  body.addEventListener?.('touchstart',()=>{interaction.touching=true;hold();},{passive:true});
+  const end=()=>{interaction.touching=false;hold();};
+  body.addEventListener?.('touchend',end,{passive:true});
+  body.addEventListener?.('touchcancel',end,{passive:true});
+  body.addEventListener?.('scroll',hold,{passive:true,capture:true});
+  body.addEventListener?.('wheel',hold,{passive:true});
+ }
+ return interaction.touching||Date.now()<interaction.until;
+}
+function refreshLifePanel(body,html){
+ const top=body.scrollTop;
+ const positions=Array.from(body.querySelectorAll?.('.life-timeline-scroll')||[],node=>node.scrollLeft);
+ const focused=body.querySelector?.('.life-timeline-scroll')===document.activeElement;
+ body.innerHTML=html;
+ const timelines=body.querySelectorAll?.('.life-timeline-scroll')||[];
+ timelines.forEach((node,i)=>{node.scrollLeft=positions[i]||0;});
+ if(focused)timelines[0]?.focus?.({preventScroll:true});
+ body.scrollTop=top;
+}
 function renderCitizenDashboard(force=false){
  const panel=$('citizensDashboard');
  if(!panel||tool!=='citizenDashboard'||panel.classList.contains('hidden'))return;
+ if(lifePanelBusy($('citizensDashboardBody')))return;
  if(!force&&Date.now()-citizenDashboardUpdatedAt<1500)return;
  citizenDashboardUpdatedAt=Date.now();
  const data=citizenDashboardData(),{summary:m,traits,moods,rush,problems,locations}=data;
@@ -3424,7 +3454,7 @@ function renderCitizenDashboard(force=false){
        Math.max(2,Math.round(count/Math.max(1,...rush)*61))+'px"></div><small>'+String((6+i*2)%24).padStart(2,'0')+'</small></div>').join('')+'</div>')+
     '<p class="citizen-note">ข้อความปัญหาอ้างอิงสถานะและผลการเดินทางของตัวละคร ไม่ใช่ความคิดเห็นที่ประชาชนพูดจริง</p>'+
   '</div></details>';
- const body=$('citizensDashboardBody'),scroll=body.scrollTop;body.innerHTML=html;body.scrollTop=scroll;
+ refreshLifePanel($('citizensDashboardBody'),html);
 }
 const TREE_KINDS=[
  {key:'shade',name:'ต้นไม้พุ่มกลม',icon:'🌳'},
@@ -4886,6 +4916,7 @@ function hideTouristDashboard(){$('touristsDashboard')?.classList.add('hidden');
 function showTouristDashboard(){hideCitizenDashboard();selected=null;$('inspector').classList.add('hidden');$('touristsDashboard')?.classList.remove('hidden');renderTouristDashboard(true);}
 function renderTouristDashboard(force=false){
  const panel=$('touristsDashboard');if(!panel||tool!=='touristDashboard'||panel.classList.contains('hidden'))return;
+ if(lifePanelBusy($('touristsDashboardBody')))return;
  if(!force&&Date.now()-touristDashboardAt<1500)return;touristDashboardAt=Date.now();
  const data=touristDashboardData(),m=data.stats;
  const filters=$('touristFilters');
@@ -4916,7 +4947,7 @@ function renderTouristDashboard(force=false){
    [['เตียงโรงแรมทั้งหมด',data.capacity.beds],['จองห้องทั้งหมด',data.capacity.booked],['รับนักท่องเที่ยวได้สูงสุด',data.capacity.limit]].map(([label,count])=>'<div><b>'+fmt(count)+'</b><small>'+label+'</small></div>').join('')+'</div>')+
   section('รายชื่อนักท่องเที่ยว · '+fmt(matches.length)+' คน','<div class="citizen-results">'+(cards||'<div class="citizen-empty">ไม่มีนักท่องเที่ยวตามตัวกรอง</div>')+'</div>'+
    (matches.length>(touristPage+1)*40?'<button class="citizen-more" data-tourist-more>ดูเพิ่มอีก 40 คน</button>':''));
- const body=$('touristsDashboardBody'),scroll=body.scrollTop;body.innerHTML=html;body.scrollTop=scroll;
+ refreshLifePanel($('touristsDashboardBody'),html);
 }
 
 function newCitizen(home){
@@ -5714,7 +5745,7 @@ function recoverVehicle(v,force=false){
 }
 function checkDepartureRoute(v){
  const path=v.kind==='intercity'?straightIntercityPath(v.fromGate??v.path[0],v.toGate??v.path.at(-1)):tripRoute(v.fromId,v.toId,v.fromGate??v.path[0],v.toGate??v.path.at(-1),v.citizenId);v.departureRouteVersion=state.version;v.nextDepartureRouteRetry=state.time+8+v.id%3;
- if(!path){release(v);const from=state.buildings.get(v.fromId),c=state.citizens.get(v.citizenId);if(from&&c){from.parked.add(c.id);c.locationId=from.id;c.location=CATALOG[from.key].kind;c.state='รอเส้นทางออกจากอาคาร';}setRouteMissing(v,true);v.departureNoRoute=true;v.stopReason='ไม่มีเส้นทางออกไปยังจุดหมาย · รออยู่ในอาคาร/ประตู';return false;}
+ if(!path){traceDeparture(v,'departure_route_not_found',{},'observed_rejection');release(v);const from=state.buildings.get(v.fromId),c=state.citizens.get(v.citizenId);if(from&&c){from.parked.add(c.id);c.locationId=from.id;c.location=CATALOG[from.key].kind;c.state='รอเส้นทางออกจากอาคาร';}setRouteMissing(v,true);v.departureNoRoute=true;v.stopReason='ไม่มีเส้นทางออกไปยังจุดหมาย · รออยู่ในอาคาร/ประตู';return false;}
  v.path=[...path];v.pathSet=new Set(path);v.pos=0;v.progress=0;v.motionStartPose=null;v.heldPose=null;v.turnLanes={};v.junctionQueueSince={};v.departureNoRoute=false;setRouteMissing(v,false);v.stopReason='';v.noUTurnPolicy=1;return true;
 }
 // Reuse the original trip and destination reservation; only its physical
@@ -5794,6 +5825,49 @@ let vehicleStopHistories=new WeakMap();
 // Parking diagnostics live only in memory and only after the player opts in.
 // A rejection record is made at the actual failed gate, not inferred at tow time.
 let parkingStopHistories=new WeakMap(),parkingLastBlocks=new WeakMap();
+
+let departureHistory=new WeakMap(),departureSampleTimes=new WeakMap();
+// Optional departure evidence; bounded in memory, captured only on existing ticks.
+function departureSnapshot(v){
+ const b=state?.buildings?.get(v.fromId),q=Array.isArray(b?.queue)?b.queue:[];
+ return {phase:v.phase,gameTime:state.time,
+  immobileMinutes:Math.max(0,state.time-(Number.isFinite(v.lastMovedAt)?v.lastMovedAt:state.time)),
+  lastMovedAt:v.lastMovedAt??null,fromId:v.fromId??null,originExists:!!b,
+  queuePosition:q.indexOf(v.id),queueLength:q.length,queueHead:q[0]??null,
+  originExitAccesses:(b?.access||[]).filter(a=>a.exit).slice(0,8).map(a=>({
+   node:a.node,next:Array.isArray(a.next)?a.next.slice(0,6):a.next??null,
+   roadExists:state.roads.has(a.node),roadType:state.roads.get(a.node)?.type??null})),
+  citizenId:v.citizenId??null,slotIndex:b?.parkingSlots?.indexOf(v.citizenId)??-1,
+  lotDistance:v.lotDistance??null,lotReady:!!v.lotReady,lotPathLength:v.lotPath?.length??0,
+  mergeCommitted:!!v.mergeCommitted,mergeEscapeId:v.mergeEscapeId??null,
+  roadNode:v.path?.[0]??null,nextRoadNode:v.path?.[1]??null,
+  firstRoadExists:v.path?.[0]!=null&&state.roads.has(v.path[0]),
+  nextRoadExists:v.path?.[1]!=null&&state.roads.has(v.path[1]),
+  departureNoRoute:!!v.departureNoRoute,departureRouteVersion:v.departureRouteVersion??null,
+  roadVersion:state.version,stopReason:v.stopReason||''};
+}
+function traceDeparture(v,code,proof={},decision='observation'){
+ if(!bugCaptureEnabled||!v||!state?.vehicles?.has(v.id)||!['departing','parking_out','gate_waiting'].includes(v.phase))return;
+ const list=departureHistory.get(v)||[],last=list[list.length-1],at=state.time;
+ const blockerVehicleId=proof.blockerVehicleId??null,blockerCitizenId=proof.blockerCitizenId??null;
+ if(last&&last.code===code&&last.phase===v.phase&&last.blockerVehicleId===blockerVehicleId&&
+   last.blockerCitizenId===blockerCitizenId&&at>=last.gameTime&&at-last.gameTime<5){
+  last.lastSeenAt=at;last.count++;return;
+ }
+ list.push({code,decision,phase:v.phase,gameTime:at,lastSeenAt:at,count:1,
+  blockerVehicleId,blockerCitizenId,forecastOnly:!!proof.forecastOnly,
+  observedPhysical:!!proof.observedPhysical,roadNode:proof.roadNode??null,
+  roadLane:proof.roadLane??null,requestedSlot:proof.requestedSlot??null,
+  snapshot:departureSnapshot(v)});
+ if(list.length>24)list.shift();departureHistory.set(v,list);
+}
+function sampleDeparture(v){
+ if(!bugCaptureEnabled||!['departing','parking_out','gate_waiting'].includes(v.phase)||
+   !Number.isFinite(v.lastMovedAt)||state.time-v.lastMovedAt<4)return;
+ const last=departureSampleTimes.get(v);
+ if(last!=null&&state.time>=last&&state.time-last<5)return;
+ departureSampleTimes.set(v,state.time);traceDeparture(v,'departure_stationary_sample');
+}
 function noteParkingBlock(v,code,detail={}){
  if(!bugCaptureEnabled||!v||!state?.vehicles?.has(v.id))return false;
  const now=state.time,blockerVehicleId=detail.blockerVehicleId??null,blockerCitizenId=detail.blockerCitizenId??null;
@@ -5814,6 +5888,7 @@ function noteParkingBlock(v,code,detail={}){
     now-last.gameTime<4){last.lastSeenAt=now;last.observations=(last.observations||1)+1;}
  else{history.push({...entry,lastSeenAt:now,observations:1});if(history.length>18)history.shift();}
  parkingStopHistories.set(v,history);
+ traceDeparture(v,code,detail,'observed_rejection');
  return false;
 }
 function parkingBlockChain(v){
@@ -5837,7 +5912,8 @@ function setBugCaptureEnabled(enabled){
  if(enabled===bugCaptureEnabled)return;
  bugCaptureEnabled=enabled;
  // Reset immediately in both directions: no pre-toggle history can be reported.
- vehicleStopHistories=new WeakMap();parkingStopHistories=new WeakMap();parkingLastBlocks=new WeakMap();runtimeErrors.length=0;
+ vehicleStopHistories=new WeakMap();parkingStopHistories=new WeakMap();parkingLastBlocks=new WeakMap();
+ departureHistory=new WeakMap();departureSampleTimes=new WeakMap();runtimeErrors.length=0;
  if(state?.vehicles)for(const v of state.vehicles.values()){
   delete v.lastStoppedBarrier;delete v.lastRoadTraversalBlock;
   delete v.lastJunctionDenial;delete v.lastQueueDenial;delete v.lastJunctionExitCheck;
@@ -5880,7 +5956,10 @@ function ownedRoadSpace(node,d,l,exclude){
 // Only called for a player-requested tow. No city-wide logging, no automatic uploads.
 function captureTowedVehicleEvidence(v){
  // Never reconstruct a report from pre-toggle data or an unobserved stop.
- if(!bugCaptureEnabled||(!vehicleStopHistories.get(v)?.length&&!parkingStopHistories.get(v)?.length))return null;
+ if(!bugCaptureEnabled)return null;
+ // Freshly observed state after enabling capture; never reconstruct earlier history.
+ if(['departing','parking_out','gate_waiting'].includes(v.phase)&&!departureHistory.get(v)?.length)traceDeparture(v,'manual_departure_snapshot');
+ if(!vehicleStopHistories.get(v)?.length&&!parkingStopHistories.get(v)?.length&&!departureHistory.get(v)?.length)return null;
  const plan=motionPlan(v),s=motionDistance(v,plan),pose=vehiclePosition(v),current=Number.isFinite(v.pos)?v.pos:0;
  const nextJunction=plan.junctions.find(g=>g.clear>=s);
  const direction=nextJunction?motionDirection(v.path,nextJunction.pos-1):motionDirection(v.path,current);
@@ -5928,9 +6007,14 @@ function captureTowedVehicleEvidence(v){
  const verifiedRoad=!!roadBlock&&state.time-roadBlock.gameTime>=0&&state.time-roadBlock.gameTime<=2&&actualBarrier?.reason==='รถคันหน้าขวาง';
  const verifiedPhysical=!!physical&&state.time-physical.gameTime>=0&&state.time-physical.gameTime<=2&&actualBarrier?.reason==='เว้นระยะรถ';
  const normalRed=fresh&&nextJunction?.node===recent.node&&actualBarrier?.reason==='ไฟแดง'&&recent.code==='red_signal'&&signalColor(nextJunction.node,direction,inLane)==='red';
+ const departureEvents=departureHistory.get(v)||[];
+ const directDeparture=[...departureEvents].reverse().find(e=>e.decision==='observed_rejection'&&state.time-e.lastSeenAt>=0&&state.time-e.lastSeenAt<=2);
+ const stalledDeparture=['departing','parking_out','gate_waiting'].includes(v.phase)&&state.time-(Number.isFinite(v.lastMovedAt)?v.lastMovedAt:state.time)>=4;
  const diagnosis=verifiedParking?{certainty:'observed_rejection',code:lastParking.code,gameTime:lastParking.gameTime,proof:lastParking,
   explanation:lastParking.forecastOnly?'พบการปฏิเสธจากเส้นทางที่คาดว่าจะทับกัน ไม่ใช่หลักฐานว่าตัวถังรถชนกันจริง':
    'บันทึกตรงจุดที่ลานจอดหรือทางออกปฏิเสธการเคลื่อนที่จริง; โปรดดู blockerVehicleId และ parkingBlockChain'}:
+ directDeparture?{certainty:'observed_rejection',code:directDeparture.code,gameTime:directDeparture.lastSeenAt,
+  proof:directDeparture,explanation:'บันทึกจากการปฏิเสธรถจริงระหว่างออกจากอาคาร'}:
  normalRed?{certainty:'observed_signal',code:'red_signal',gameTime:recent.gameTime,proof:recent,
   explanation:'ขณะกดเอารถออกไฟแดงจริง แต่ข้อมูลนี้ยังไม่พิสูจน์ว่าการรอนานก่อนหน้านั้นปกติ'}:
  fresh&&nextJunction?.node===recent.node&&actualBarrier?.reason==='คิวแยก'&&recent.code!=='red_signal'?{
@@ -5943,8 +6027,8 @@ function captureTowedVehicleEvidence(v){
   certainty:'observed_rejection',code:'physical_body_blocked',gameTime:physical.gameTime,
   proof:physical,explanation:'พบรถคันที่ตรวจตัวถังแล้วขวางการเคลื่อนที่จริง'
  }:{
-  certainty:'not_proven',code:'insufficient_direct_trace',
-  explanation:'ไม่พบหลักฐานการปฏิเสธล่าสุดที่สัมพันธ์กับทางแยกนี้ ไม่สรุปสาเหตุจากภาพหรือข้อความหยุด'
+  certainty:'not_proven',code:stalledDeparture?'departure_unexplained':'insufficient_direct_trace',
+  explanation:stalledDeparture?'รถไม่ออกจากอาคารจริง แต่ยังไม่มีหลักฐานยืนยันว่าเงื่อนไขไหนปฏิเสธ':'ไม่พบหลักฐานการปฏิเสธล่าสุดที่สัมพันธ์กับทางแยกนี้ ไม่สรุปสาเหตุจากภาพหรือข้อความหยุด'
  };
  const report={schemaVersion:1,kind:'manual_tow_only',capturedAt:new Date().toISOString(),
   build:document.documentElement?.dataset?.uiVersion||'unknown',city:state.city,gameTime:state.time,
@@ -5959,6 +6043,8 @@ function captureTowedVehicleEvidence(v){
   lastJunctionDenial:recent,lastQueueDenial:v.lastQueueDenial||null,latestRoadBlock:roadBlock,latestPhysicalBlock:v.lastPhysicalBlock||null,
   junctionLease:junctionSpace?JSON.parse(JSON.stringify(junctionSpace)):null,
   roadSpace:owned,queueAtClick:queues,stopHistory:vehicleStopHistories.get(v)||[],
+  departureDiagnostics:{snapshot:['departing','parking_out','gate_waiting'].includes(v.phase)?departureSnapshot(v):null,
+   history:departureEvents.slice(-24),firstRoadAdmission:v.path?.length>1?explainRoadTraversal(v,0):null},
   parkingDiagnostics:{latest:lastParking,history:parkingStopHistories.get(v)?.slice(-18)||[],blockChain:parkingBlockChain(v),
    fromBuilding:v.fromId??null,lotBuilding:v.lotBuilding??null,lotDistance:v.lotDistance??null,lotReady:!!v.lotReady,lotPath:v.lotPath||null,
    mergeCommitted:!!v.mergeCommitted,mergeEscapeId:v.mergeEscapeId??null,grandCrossing:v.grandCrossing||null},
@@ -5985,6 +6071,9 @@ function captureTowedVehicleEvidence(v){
   report.queueAtClick=[];report.vehicle.junctionPasses=report.vehicle.junctionPasses.slice(-6);
   report.parkingDiagnostics.history=report.parkingDiagnostics.history.slice(-5);
  }
+ if(measure()>maxPayloadChars){report.evidenceTruncated??=[];report.evidenceTruncated.push('departureTraceHistory');
+  report.departureDiagnostics.history=report.departureDiagnostics.history.slice(-4);
+  report.nearbyVehicles=[];report.nearbyRoads=[];report.runtimeErrors=[];}
  return report;
 }
 function canTowVehicle(v){return !!v&&(v.phase==='stuck'||v.departureNoRoute||v.wait>=48);}
@@ -6588,6 +6677,7 @@ function advanceVehicles(realDt,gameDt){
   if(!state.vehicles.has(v.id))continue;
   if(v.phase==='delivery_unload'){if(state.time>=(v.delivery?.until??Infinity))startDeliveryReturn(v);continue;}
   if(!Number.isFinite(v.lastMovedAt))v.lastMovedAt=state.time-Math.max(0,Number.isFinite(v.wait)?v.wait:0);
+  if(bugCaptureEnabled)sampleDeparture(v);
   if(missingRoute(v)&&Number.isFinite(v.routeMissingSince)&&state.time-v.routeMissingSince>=NO_ROUTE_TIMEOUT){towVehicle(v.id);continue;}
    // Restore one car from an observed two-car physical deadlock without collision bypass.
    // Reuse the existing trip-preserving gate recovery; never reset both vehicles.
@@ -6632,8 +6722,9 @@ function advanceVehicles(realDt,gameDt){
   }
   if(v.phase==='parking_out'){
    if(v.mergeEscapeId){noteParkingBlock(v,'merge_escape_yield',{blockerVehicleId:v.mergeEscapeId});v.stopReason='ให้รถบนถนนที่ขวางกันผ่านก่อน';updateTrafficSpatial(v);continue;}
-   if(!v.mergeCommitted&&!canCommitParkingMerge(v)){v.stopReason='รอช่องว่างตลอดทางออก';updateTrafficSpatial(v);continue;}
+   if(!v.mergeCommitted&&!canCommitParkingMerge(v)){traceDeparture(v,'parking_merge_commit_waiting');v.stopReason='รอช่องว่างตลอดทางออก';updateTrafficSpatial(v);continue;}
    if(advanceLot(v,simDt)){
+    traceDeparture(v,'parking_merge_completed',{},'transition');
     const b=state.buildings.get(v.fromId);
     if(b){b.queue=b.queue.filter(id=>id!==v.id);b.parked.delete(v.citizenId);b.visitors.delete(v.citizenId);freeParkingSpace(b,v.citizenId);}
     const c=state.citizens.get(v.citizenId);
@@ -6655,10 +6746,10 @@ function advanceVehicles(realDt,gameDt){
   if(v.phase==='gate_waiting'||v.phase==='departing'){
    v.wait+=gameDt;if(v.phase==='departing'&&!v.departureNoRoute){if(!prepareLotDeparture(v,simDt)){updateTrafficSpatial(v);continue;}updateTrafficSpatial(v);}if(v.retryAt>state.time)continue;v.retryAt=state.time+.35;
    const from=state.buildings.get(v.fromId);
-   if(v.departureRouteVersion!==state.version||v.departureNoRoute&&!(v.nextDepartureRouteRetry>state.time)){if(routeBudget<=0||!routeChecks.has(v.id))continue;routeBudget--;if(!checkDepartureRoute(v))continue;}
+   if(v.departureRouteVersion!==state.version||v.departureNoRoute&&!(v.nextDepartureRouteRetry>state.time)){if(routeBudget<=0||!routeChecks.has(v.id)){traceDeparture(v,'departure_route_check_deferred');continue;}routeBudget--;if(!checkDepartureRoute(v))continue;}
    if(v.departureNoRoute)continue;
    if(from){const ahead=[...state.vehicles.values()].find(car=>car.id!==v.id&&car.fromId===from.id&&car.phase==='parking_out');if(ahead){noteParkingBlock(v,'shared_driveway_exit_in_progress',{blockerVehicleId:ahead.id});continue;}}
-   if(!from){if(gateAttempt.has(v.path[0]))continue;gateAttempt.add(v.path[0]);}
+   if(!from){if(gateAttempt.has(v.path[0])){traceDeparture(v,'gate_entry_serialized');continue;}gateAttempt.add(v.path[0]);}
    const i=v.path[0],next=v.path[1];if(next==null){arrive(v);continue;}
    const d=dir(i,next),lane=plannedLane(v,0);
    if(from){
@@ -6670,10 +6761,19 @@ function advanceVehicles(realDt,gameDt){
      start,lotPoint(from,t.plotWidth-.45,t.frontageV),
      lotPoint(from,t.frontageExitU,t.frontageV),end]:[start,end];
     v.lotDistance=0;v.lotReady=false;
+    traceDeparture(v,'parking_exit_corridor_created',{},'transition');
     v.mergeCommitted=false;v.mergePolicy=2;v.mergeWaitSeconds=0;v.mergeAdmitted=null;v.mergeDrainStarted=false;v.mergeEscapeId=null;v.phase='parking_out';v.stopReason='รอช่องทางออกสู่ถนน';
     updateTrafficSpatial(v);continue;
    }
-   if(cellAvailable(i,d,lane,v.id)&&physicalTrafficLimit(v,motionPlan(v),0,.01)>0){
+   // Keep the original cell -> physical clearance short-circuit order.
+   if(!cellAvailable(i,d,lane,v.id)){
+    traceDeparture(v,'gate_road_cell_rejected',{roadNode:i,roadLane:lane},'observed_rejection');
+   }else if(!(physicalTrafficLimit(v,motionPlan(v),0,.01)>0)){
+    traceDeparture(v,'gate_physical_entry_rejected',{
+     roadNode:i,roadLane:lane,blockerVehicleId:v.lastPhysicalBlock?.ownerId??null,
+     observedPhysical:!!v.lastPhysicalBlock},'observed_rejection');
+   }else{
+    traceDeparture(v,'gate_road_entry_admitted',{},'transition');
     if(c){c.location='travel';c.state=TRIPS[v.kind].name;}
     v.phase='driving';v.speed=0;v.stopReason='';if(c?.tourist)touristEnter(c,v);
     occupy(v,0);v.wait=0;v.lastMovedAt=state.time;updateTrafficSpatial(v);
@@ -8014,7 +8114,7 @@ function openCityReport(){
  const dev=window.SMGameCreatorCanOpen===true;
  modal('<div class="menu-heading"><span class="menu-logo">⚠</span><div><span class="eyebrow">SMCITY · BUG REPORTS</span><h2>รายงานรถบัค</h2></div></div>'+
  '<div class="smcity-menu-list" role="group" aria-label="ตั้งค่าบันทึกหลักฐานบัค"><button type="button" id="bugCaptureToggle" role="switch" aria-checked="'+String(bugCaptureEnabled)+'"><span class="menu-symbol">'+(bugCaptureEnabled?'●':'○')+'</span><span><b>บันทึกหลักฐานบัค · '+(bugCaptureEnabled?'เปิด':'ปิด')+'</b><small>'+(bugCaptureEnabled?'เก็บเหตุผลจากถนนและลานจอด · กดเอารถออกเพื่อส่งรายงาน':'ไม่บันทึกหลักฐานและไม่ส่งรายงาน · เกมทำงานปกติ')+'</small></span><span class="menu-chevron">'+(bugCaptureEnabled?'✓':'›')+'</span></button></div>'+
- '<p>ปิดไว้จะไม่เก็บประวัติบัค เปิดแล้วจะเก็บ ID รถที่ขวางและเหตุผลที่ถูกปฏิเสธทั้งบนถนนและในลานจอด และส่งเฉพาะตอนกด <b>เอารถออก · ส่งรายงานบัค</b> เท่านั้น ระบบจราจรและการแก้รถค้างยังทำงานตามปกติ</p>'+
+ '<p>เปิดแล้วจะบันทึกช่วงออกจากอาคาร คิวทางออก ลานจอด และเงื่อนไขถนนปฏิเสธรถ พร้อมตัวอย่างรถค้างทุก 5 นาทีเกม · ส่งรายงานเฉพาะเมื่อกด <b>เอารถออก · ส่งรายงานบัค</b></p>'+
  (dev?'<p>Dev เท่านั้น · ข้อมูลจาก Supabase</p><div id="vehicleBugReportItems">กำลังโหลดรายงาน…</div><div class="actions"><button id="vehicleBugRefresh" class="primary">รีเฟรช</button><button id="vehicleBugClose">กลับไปเล่น</button></div>':
  '<p>รายงานที่ผู้เล่นส่งจะถูกเก็บให้ Dev ตรวจใน Supabase โดยผู้เล่นทั่วไปไม่สามารถเปิดดูรายงานของผู้อื่นได้</p><div class="actions"><button id="vehicleBugClose" class="primary">กลับไปเล่น</button></div>'));
  $('vehicleBugClose').onclick=closeModal;
