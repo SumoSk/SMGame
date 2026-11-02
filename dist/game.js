@@ -6106,7 +6106,15 @@ function reserveIntersection(v,pos){
 }
 function refreshMotionReservations(v,plan,s){
  if(!v.junctionPasses?.length)return;
- const active=v.junctionPasses.filter(p=>{const g=plan.junctions.find(g=>g.pos===p.pos&&g.node===p.node);return g&&s<g.clear;});
+  const active=v.junctionPasses.filter(p=>{
+   const g=plan.junctions.find(g=>g.pos===p.pos&&g.node===p.node);
+   if(!g||s>=g.clear)return false;
+   // A waiting approach must not retain a lease that blocks the car ahead.
+   // Keep every lease once the owner has physically entered the junction.
+   if(s<g.entry-1e-6&&trafficSpatial&&
+     physicalTrafficLimit(v,plan,s,Math.max(.1,g.entry-s+.1))<g.entry-1e-6)return false;
+   return true;
+  });
  if(active.length!==v.junctionPasses.length){clearVehicleReservations(v);v.junctionPasses=active;}
  for(const p of active)reserveIntersection(v,p.pos);
  v.committedJunction=active.length?active[active.length-1].node:null;
@@ -6320,7 +6328,9 @@ function motionBarrier(v,plan,s,budget=-1){
   if(!allowed){
    const stop=Math.max(s,g.stop);
    if(stop<limit){limit=stop;reason=!isAirTraffic(v)&&signalRequired(g.node)&&!signalAllows(g.node,dir(v.path[g.pos-1],g.node),plannedLane(v,g.pos-1))?'ไฟแดง':'คิวแยก';}
-  }else if(inside||(budget>=0&&g.stop<=s+budget+1e-8&&g.stop<=limit))reserveIntersection(v,g.pos);
+  // Commit only when this step can reach the entry, not merely the stop line.
+  // Otherwise a follower can lock out its leader while waiting behind it.
+  }else if(inside||(budget>=0&&g.entry<=s+budget+1e-8&&g.entry<=limit))reserveIntersection(v,g.pos);
  }
  return{limit,reason};
 }
