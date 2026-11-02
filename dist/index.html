@@ -1022,6 +1022,22 @@ dialog.member-gate .member-card :is(input,button){box-sizing:border-box!importan
  #citySummaryStats .metric-delta{font-size:7.5px!important;letter-spacing:-.25px!important}
  #citySummaryStats #moneyDelta{font-size:8px!important;line-height:1.15!important}
 }
+
+/* Keep the balance and today's change together on one compact money strip. */
+#citySummaryStats .metric-money{container-type:inline-size}
+#citySummaryStats .metric-money .metric-text{
+ flex-direction:row!important;align-items:baseline!important;gap:5px!important;
+}
+#citySummaryStats #money{
+ font-size:clamp(9px,9cqw,18px)!important;flex:0 1 auto!important;min-width:0!important;
+}
+#citySummaryStats #moneyDelta{
+ display:inline!important;flex:0 0 auto!important;
+ font-size:clamp(6px,5.5cqw,10px)!important;line-height:1.15!important;
+}
+@media(max-width:520px) and (orientation:portrait){
+ #citySummaryStats .metric-money .metric-text{gap:3px!important}
+}
 </style>
 
 <style id="smcity-level-copy-fit-20261101">
