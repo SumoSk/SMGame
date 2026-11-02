@@ -586,7 +586,8 @@ function prepareLotDeparture(v,dt){
   }
   if(!canLeaveParkingSpace(v,v.lotPath)){grandSignalRelease(v);v.grandCrossing=null;v.lotPath=null;v.lotDistance=0;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
  }
- v.stopReason='กำลังออกจากช่องจอด';if(!advanceLot(v,dt))return false;v.lotReady=true;v.stopReason='รอถนนว่างเพื่อออกจากลาน';return true;
+ v.stopReason='กำลังออกจากช่องจอด';if(!advanceLot(v,dt))return false;
+ v.lotReady=true;v.stopReason='รอถนนว่างเพื่อออกจากลาน';traceDeparture(v,'parking_bay_exit_ready',{},'transition');return true;
 }
 // Keep parking claims exclusive, and replace one only after finding a viable
 // forward bay. A car already in the one-way aisle must never reverse or teleport.
@@ -5833,10 +5834,15 @@ function departureSnapshot(v){
   immobileMinutes:Math.max(0,state.time-(Number.isFinite(v.lastMovedAt)?v.lastMovedAt:state.time)),
   lastMovedAt:v.lastMovedAt??null,fromId:v.fromId??null,originExists:!!b,
   queuePosition:q.indexOf(v.id),queueLength:q.length,queueHead:q[0]??null,
+  originExitAccesses:(b?.access||[]).filter(a=>a.exit).slice(0,8).map(a=>({
+   node:a.node,next:Array.isArray(a.next)?a.next.slice(0,6):a.next??null,
+   roadExists:state.roads.has(a.node),roadType:state.roads.get(a.node)?.type??null})),
   citizenId:v.citizenId??null,slotIndex:b?.parkingSlots?.indexOf(v.citizenId)??-1,
   lotDistance:v.lotDistance??null,lotReady:!!v.lotReady,lotPathLength:v.lotPath?.length??0,
   mergeCommitted:!!v.mergeCommitted,mergeEscapeId:v.mergeEscapeId??null,
   roadNode:v.path?.[0]??null,nextRoadNode:v.path?.[1]??null,
+  firstRoadExists:v.path?.[0]!=null&&state.roads.has(v.path[0]),
+  nextRoadExists:v.path?.[1]!=null&&state.roads.has(v.path[1]),
   departureNoRoute:!!v.departureNoRoute,departureRouteVersion:v.departureRouteVersion??null,
   roadVersion:state.version,stopReason:v.stopReason||''};
 }
@@ -6716,8 +6722,9 @@ function advanceVehicles(realDt,gameDt){
   }
   if(v.phase==='parking_out'){
    if(v.mergeEscapeId){noteParkingBlock(v,'merge_escape_yield',{blockerVehicleId:v.mergeEscapeId});v.stopReason='ให้รถบนถนนที่ขวางกันผ่านก่อน';updateTrafficSpatial(v);continue;}
-   if(!v.mergeCommitted&&!canCommitParkingMerge(v)){v.stopReason='รอช่องว่างตลอดทางออก';updateTrafficSpatial(v);continue;}
+   if(!v.mergeCommitted&&!canCommitParkingMerge(v)){traceDeparture(v,'parking_merge_commit_waiting');v.stopReason='รอช่องว่างตลอดทางออก';updateTrafficSpatial(v);continue;}
    if(advanceLot(v,simDt)){
+    traceDeparture(v,'parking_merge_completed',{},'transition');
     const b=state.buildings.get(v.fromId);
     if(b){b.queue=b.queue.filter(id=>id!==v.id);b.parked.delete(v.citizenId);b.visitors.delete(v.citizenId);freeParkingSpace(b,v.citizenId);}
     const c=state.citizens.get(v.citizenId);
@@ -6754,10 +6761,19 @@ function advanceVehicles(realDt,gameDt){
      start,lotPoint(from,t.plotWidth-.45,t.frontageV),
      lotPoint(from,t.frontageExitU,t.frontageV),end]:[start,end];
     v.lotDistance=0;v.lotReady=false;
+    traceDeparture(v,'parking_exit_corridor_created',{},'transition');
     v.mergeCommitted=false;v.mergePolicy=2;v.mergeWaitSeconds=0;v.mergeAdmitted=null;v.mergeDrainStarted=false;v.mergeEscapeId=null;v.phase='parking_out';v.stopReason='รอช่องทางออกสู่ถนน';
     updateTrafficSpatial(v);continue;
    }
-   if(cellAvailable(i,d,lane,v.id)&&physicalTrafficLimit(v,motionPlan(v),0,.01)>0){
+   // Keep the original cell -> physical clearance short-circuit order.
+   if(!cellAvailable(i,d,lane,v.id)){
+    traceDeparture(v,'gate_road_cell_rejected',{roadNode:i,roadLane:lane},'observed_rejection');
+   }else if(!(physicalTrafficLimit(v,motionPlan(v),0,.01)>0)){
+    traceDeparture(v,'gate_physical_entry_rejected',{
+     roadNode:i,roadLane:lane,blockerVehicleId:v.lastPhysicalBlock?.ownerId??null,
+     observedPhysical:!!v.lastPhysicalBlock},'observed_rejection');
+   }else{
+    traceDeparture(v,'gate_road_entry_admitted',{},'transition');
     if(c){c.location='travel';c.state=TRIPS[v.kind].name;}
     v.phase='driving';v.speed=0;v.stopReason='';if(c?.tourist)touristEnter(c,v);
     occupy(v,0);v.wait=0;v.lastMovedAt=state.time;updateTrafficSpatial(v);
@@ -8098,7 +8114,7 @@ function openCityReport(){
  const dev=window.SMGameCreatorCanOpen===true;
  modal('<div class="menu-heading"><span class="menu-logo">⚠</span><div><span class="eyebrow">SMCITY · BUG REPORTS</span><h2>รายงานรถบัค</h2></div></div>'+
  '<div class="smcity-menu-list" role="group" aria-label="ตั้งค่าบันทึกหลักฐานบัค"><button type="button" id="bugCaptureToggle" role="switch" aria-checked="'+String(bugCaptureEnabled)+'"><span class="menu-symbol">'+(bugCaptureEnabled?'●':'○')+'</span><span><b>บันทึกหลักฐานบัค · '+(bugCaptureEnabled?'เปิด':'ปิด')+'</b><small>'+(bugCaptureEnabled?'เก็บเหตุผลจากถนนและลานจอด · กดเอารถออกเพื่อส่งรายงาน':'ไม่บันทึกหลักฐานและไม่ส่งรายงาน · เกมทำงานปกติ')+'</small></span><span class="menu-chevron">'+(bugCaptureEnabled?'✓':'›')+'</span></button></div>'+
- '<p>เปิดแล้วจะเก็บข้อมูลช่วงออกจากอาคาร ลานจอด และถนน รวมตัวอย่างรถค้างทุก 5 นาทีเกม โดยไม่เพิ่มลูปสแกนทั้งเมือง · ส่งรายงานเฉพาะเมื่อกด <b>เอารถออก · ส่งรายงานบัค</b></p>'+
+ '<p>เปิดแล้วจะบันทึกช่วงออกจากอาคาร คิวทางออก ลานจอด และเงื่อนไขถนนปฏิเสธรถ พร้อมตัวอย่างรถค้างทุก 5 นาทีเกม · ส่งรายงานเฉพาะเมื่อกด <b>เอารถออก · ส่งรายงานบัค</b></p>'+
  (dev?'<p>Dev เท่านั้น · ข้อมูลจาก Supabase</p><div id="vehicleBugReportItems">กำลังโหลดรายงาน…</div><div class="actions"><button id="vehicleBugRefresh" class="primary">รีเฟรช</button><button id="vehicleBugClose">กลับไปเล่น</button></div>':
  '<p>รายงานที่ผู้เล่นส่งจะถูกเก็บให้ Dev ตรวจใน Supabase โดยผู้เล่นทั่วไปไม่สามารถเปิดดูรายงานของผู้อื่นได้</p><div class="actions"><button id="vehicleBugClose" class="primary">กลับไปเล่น</button></div>'));
  $('vehicleBugClose').onclick=closeModal;
