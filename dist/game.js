@@ -3359,9 +3359,38 @@ function showCitizenDashboard(){
  renderCitizenDashboard(true);
 }
 function hideCitizenDashboard(){const panel=$('citizensDashboard');if(panel)panel.classList.add('hidden');}
+// Keep hourly tables in place across live data refreshes. Wait for touch
+// scrolling (including momentum) to settle before rebuilding the panel.
+const lifePanelInteractions=new WeakMap();
+function lifePanelBusy(body){
+ if(!body)return false;
+ let interaction=lifePanelInteractions.get(body);
+ if(!interaction){
+  interaction={touching:false,until:0};lifePanelInteractions.set(body,interaction);
+  const hold=()=>{interaction.until=Date.now()+1000;};
+  body.addEventListener?.('touchstart',()=>{interaction.touching=true;hold();},{passive:true});
+  const end=()=>{interaction.touching=false;hold();};
+  body.addEventListener?.('touchend',end,{passive:true});
+  body.addEventListener?.('touchcancel',end,{passive:true});
+  body.addEventListener?.('scroll',hold,{passive:true,capture:true});
+  body.addEventListener?.('wheel',hold,{passive:true});
+ }
+ return interaction.touching||Date.now()<interaction.until;
+}
+function refreshLifePanel(body,html){
+ const top=body.scrollTop;
+ const positions=Array.from(body.querySelectorAll?.('.life-timeline-scroll')||[],node=>node.scrollLeft);
+ const focused=body.querySelector?.('.life-timeline-scroll')===document.activeElement;
+ body.innerHTML=html;
+ const timelines=body.querySelectorAll?.('.life-timeline-scroll')||[];
+ timelines.forEach((node,i)=>{node.scrollLeft=positions[i]||0;});
+ if(focused)timelines[0]?.focus?.({preventScroll:true});
+ body.scrollTop=top;
+}
 function renderCitizenDashboard(force=false){
  const panel=$('citizensDashboard');
  if(!panel||tool!=='citizenDashboard'||panel.classList.contains('hidden'))return;
+ if(lifePanelBusy($('citizensDashboardBody')))return;
  if(!force&&Date.now()-citizenDashboardUpdatedAt<1500)return;
  citizenDashboardUpdatedAt=Date.now();
  const data=citizenDashboardData(),{summary:m,traits,moods,rush,problems,locations}=data;
@@ -3424,7 +3453,7 @@ function renderCitizenDashboard(force=false){
        Math.max(2,Math.round(count/Math.max(1,...rush)*61))+'px"></div><small>'+String((6+i*2)%24).padStart(2,'0')+'</small></div>').join('')+'</div>')+
     '<p class="citizen-note">ข้อความปัญหาอ้างอิงสถานะและผลการเดินทางของตัวละคร ไม่ใช่ความคิดเห็นที่ประชาชนพูดจริง</p>'+
   '</div></details>';
- const body=$('citizensDashboardBody'),scroll=body.scrollTop;body.innerHTML=html;body.scrollTop=scroll;
+ refreshLifePanel($('citizensDashboardBody'),html);
 }
 const TREE_KINDS=[
  {key:'shade',name:'ต้นไม้พุ่มกลม',icon:'🌳'},
@@ -4886,6 +4915,7 @@ function hideTouristDashboard(){$('touristsDashboard')?.classList.add('hidden');
 function showTouristDashboard(){hideCitizenDashboard();selected=null;$('inspector').classList.add('hidden');$('touristsDashboard')?.classList.remove('hidden');renderTouristDashboard(true);}
 function renderTouristDashboard(force=false){
  const panel=$('touristsDashboard');if(!panel||tool!=='touristDashboard'||panel.classList.contains('hidden'))return;
+ if(lifePanelBusy($('touristsDashboardBody')))return;
  if(!force&&Date.now()-touristDashboardAt<1500)return;touristDashboardAt=Date.now();
  const data=touristDashboardData(),m=data.stats;
  const filters=$('touristFilters');
@@ -4916,7 +4946,7 @@ function renderTouristDashboard(force=false){
    [['เตียงโรงแรมทั้งหมด',data.capacity.beds],['จองห้องทั้งหมด',data.capacity.booked],['รับนักท่องเที่ยวได้สูงสุด',data.capacity.limit]].map(([label,count])=>'<div><b>'+fmt(count)+'</b><small>'+label+'</small></div>').join('')+'</div>')+
   section('รายชื่อนักท่องเที่ยว · '+fmt(matches.length)+' คน','<div class="citizen-results">'+(cards||'<div class="citizen-empty">ไม่มีนักท่องเที่ยวตามตัวกรอง</div>')+'</div>'+
    (matches.length>(touristPage+1)*40?'<button class="citizen-more" data-tourist-more>ดูเพิ่มอีก 40 คน</button>':''));
- const body=$('touristsDashboardBody'),scroll=body.scrollTop;body.innerHTML=html;body.scrollTop=scroll;
+ refreshLifePanel($('touristsDashboardBody'),html);
 }
 
 function newCitizen(home){
