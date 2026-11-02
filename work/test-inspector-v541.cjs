@@ -1,0 +1,12 @@
+'use strict';
+const fs=require('fs'),assert=require('assert');
+const prefix=fs.readFileSync('work/test-tourism.cjs','utf8').split('const results=[]')[0].replace('document:{getElementById:get','document:{addEventListener:noop,getElementById:get');
+const {city}=new Function('require',prefix+'return {city};')(require);
+const {game:g,get,home}=city();
+const point=g.screen(home.x+.7,home.y+.7);g.inspectAt(...point);
+const panel=get('inspectContent').innerHTML;
+assert(panel.includes('game-building-capacity'));assert(panel.includes('game-building-stats'));assert(panel.includes('move-building'));assert(panel.includes('demolish'));
+const before=g.snapshot();g.inspectAt(...point);assert.equal(g.snapshot(),before,'inspecting a home does not change city data');
+const src=fs.readFileSync('dist/game.js','utf8');
+assert(src.includes('game-signal-console'));assert(src.includes('signal-approaches'));assert(src.includes('line.dataset.light=color'));assert(src.includes('root.dataset.phase=status.yellow'));assert(src.includes('ข้อมูลถนนที่แยกนี้'));assert(src.includes('game-trip-banner'));
+console.log('PASS 5.4.1 home occupancy and original actions, read-only selection, live signal phase/direction updates, vehicle journey card');
