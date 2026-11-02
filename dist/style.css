@@ -7766,3 +7766,6 @@ html body #inspector .game-signal-network small{color:#7f835e;font-size:10px}
 html body #inspector .game-signal-network strong{font-size:20px;color:#37563f}
 html body #inspector .game-signal-network p{margin:0!important;color:#768069;font-size:11px}
 @media(max-width:600px){html body #inspector .sm-inspector-heading{padding:11px!important;gap:9px!important}html body #inspector .sm-inspector-heading h2{font-size:18px!important}html body #inspector .sm-inspector-mark{width:44px!important;height:44px!important;flex-basis:44px!important;font-size:26px!important}html body #inspector .signal-current{padding:10px!important}html body #inspector .signal-current strong{font-size:14px!important}html body #inspector .signal-direction{padding:8px!important;gap:3px 7px!important}html body #inspector .signal-control{padding:10px!important}html body #inspector .game-building-stats strong{font-size:16px!important}}
+
+html body #inspector .game-signal-network,html body #inspector .game-building-capacity,html body #inspector .game-building-stats,html body #inspector .selected-car-journey{grid-column:1/-1!important;width:auto!important;min-width:0!important}
+html body #inspector .sm-inspector-heading .tag{opacity:1!important;color:#bce3ce!important}
