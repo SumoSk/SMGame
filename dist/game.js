@@ -584,7 +584,7 @@ function prepareLotDeparture(v,dt){
    const crossingAt=lotPathLength(v.lotPath.slice(0,junctionSegment));
    v.grandCrossing={approach:slot.zone,crossingAt,stopAt:Math.max(0,crossingAt-1.12),clearAt:crossingAt+1.02,granted:false,cleared:false};
   }
-  if(!canLeaveParkingSpace(v,v.lotPath)){v.lotPath=null;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
+  if(!canLeaveParkingSpace(v,v.lotPath)){grandSignalRelease(v);v.grandCrossing=null;v.lotPath=null;v.lotDistance=0;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
  }
  v.stopReason='กำลังออกจากช่องจอด';if(!advanceLot(v,dt))return false;v.lotReady=true;v.stopReason='รอถนนว่างเพื่อออกจากลาน';return true;
 }
@@ -5639,11 +5639,13 @@ function respawnVehicle(v,reason='stalled'){
  let entrance=gates[0],path=null;
  for(const gate of gates){const candidate=tripRoute(null,v.toId,gate,v.toGate);if(candidate?.length>1){entrance=gate;path=candidate;break;}}
  const from=state.buildings.get(v.fromId),c=state.citizens.get(v.citizenId);
+ // Release a held internal parking signal before relocating its owner.
+ grandSignalRelease(v);v.grandCrossing=null;
  release(v);
  if(from){from.queue=from.queue.filter(id=>id!==v.id);if(c){from.parked.delete(c.id);from.visitors.delete(c.id);freeParkingSpace(from,c.id);}}
  v.fromId=null;v.fromGate=entrance;v.path=path?[...path]:[entrance];v.pathSet=new Set(v.path);
  v.pos=0;v.progress=0;v.lane=0;v.motionStartPose=null;v.motionSeedLane=null;v.emergencyInitialLane=null;v.heldPose=null;
- v.lotPath=null;v.lotDistance=0;v.lotBuilding=null;v.lotReady=false;v.mergeCommitted=false;v.mergeGhostUntil=null;v.mergeExitActive=false;v.mergeEscapeId=null;v.parkingEscapeFor=null;v.mergeAdmitted=null;v.mergeDrainStarted=false;v.mergeWaitSeconds=0;cleanupParkingVehicle(v);
+ v.lotPath=null;v.lotDistance=0;v.lotBuilding=null;v.lotReady=false;v.grandCrossing=null;v.mergeCommitted=false;v.mergeGhostUntil=null;v.mergeExitActive=false;v.mergeEscapeId=null;v.parkingEscapeFor=null;v.mergeAdmitted=null;v.mergeDrainStarted=false;v.mergeWaitSeconds=0;cleanupParkingVehicle(v);
  v.turnLanes={};v.junctionPasses=[];v.junctionQueueSince={};v.committedJunction=null;
  v.phase='gate_waiting';v.speed=0;v.wait=0;v.lastMovedAt=state.time;v.respawns=(v.respawns||0)+1;
  v.retryAt=0;v.departureRouteVersion=path?state.version:-1;v.nextDepartureRouteRetry=state.time;
