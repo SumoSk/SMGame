@@ -3920,7 +3920,7 @@ const action=(name,key,value)=>`<button class="action" data-action="${key}" data
 function signalSlotName(slot){return slot?SIGNAL_DIRECTION_NAMES[slot.incoming]+' · '+slot.lanes+' เลน':'แดงทุกทิศ';}
 function globalSignalInspector(){
  const s=state.signalDefaults,count=[...state.roads.keys()].filter(i=>junction(i)>=3).length;
- return `<span class="tag">ระบบไฟจราจรทั้งเมือง</span><h2>🚦 ตั้งค่าไฟทุกแยก</h2>${row('แยกที่มีไฟจราจร',count+' แยก')}`+
+ return `<span class="tag">ระบบไฟจราจรทั้งเมือง</span><h2>🚦 ตั้งค่าไฟทุกแยก</h2><section class="game-signal-network"><span aria-hidden="true">🚦</span><div><small>ศูนย์ควบคุมเมือง</small><strong>${count} แยกพร้อมดูแล</strong><p>ตั้งจังหวะไฟให้เมืองเดินทางลื่นไหล</p></div></section>`+
  `<section class="signal-control"><h3>เวลาเขียวต่อทิศ · ทุกเลนออกพร้อมกัน</h3><div class="signal-times">`+
  `<label for="signalDefaultEW">ทิศแนวนอน <span><input class="signal-minutes" id="signalDefaultEW" type="number" inputmode="numeric" min="5" max="240" step="1" value="${s.eastWest}"> นาที</span></label>`+
  `<label for="signalDefaultNS">ทิศแนวตั้ง <span><input class="signal-minutes" id="signalDefaultNS" type="number" inputmode="numeric" min="5" max="240" step="1" value="${s.northSouth}"> นาที</span></label></div>`+
@@ -3938,12 +3938,12 @@ function signalInspector(i){
  const remaining=status.remaining==null?'รอสั่งสลับไฟ':Math.ceil(status.remaining)+' นาทีในเกม';
  const rows=slots.map((slot,n)=>{
   const color=signalColor(i,slot.incoming);
-  return `<div class="signal-direction" data-slot="${n}"><span class="signal-lamp ${color}"></span>
+  return `<div class="signal-direction" data-slot="${n}" data-light="${color}"><span class="signal-lamp ${color}" aria-hidden="true"><i></i><i></i><i></i></span><span class="signal-arrow" aria-hidden="true">${["→","↓","←","↑"][slot.incoming]}</span>
   <span>${signalSlotName(slot)}</span><b>${color==='green'?'เขียว':color==='yellow'?'เหลือง':'แดง'}</b></div>`;
  }).join('');
  const next=slots.length?slots[(signalManualSlot(i,setting,slots)+1)%slots.length]:null;
- return `<section class="signal-control" data-node="${i}"><h3>🚦 ควบคุมไฟแยกนี้</h3>
-  <div class="signal-current"><span class="signal-mode">${smart?'✦ AI อัจฉริยะ':manual?'ควบคุมเอง':'อัตโนมัติ'}</span><strong>${current}</strong><small>${remaining}</small></div>${rows}
+ return `<section class="signal-control game-signal-console" data-node="${i}" data-phase="${status.yellow?"yellow":status.phase>=0?"green":"red"}"><h3>🚦 ห้องควบคุมแยก</h3>
+  <div class="signal-current"><span class="signal-mode">${smart?'✦ AI อัจฉริยะ':manual?'ควบคุมเอง':'อัตโนมัติ'}</span><strong>${current}</strong><small>${remaining}</small></div><div class="signal-approaches">${rows}</div>
   <details class="inspect-section signal-settings"><summary>${smart?'เวลาไฟเดิม':'ตั้งเวลาและควบคุมไฟ'}</summary><div class="inspect-section-body"><div class="signal-times">
   <label for="signalEW">ทิศแนวนอน <span><input class="signal-minutes" id="signalEW" type="number" min="5" max="240" value="${setting.eastWest}"> นาที</span></label>
   <label for="signalNS">ทิศแนวตั้ง <span><input class="signal-minutes" id="signalNS" type="number" min="5" max="240" value="${setting.northSouth}"> นาที</span></label></div>
@@ -3959,6 +3959,7 @@ function refreshSignalInspector(i){
  const root=$('inspectContent').querySelector?.(`.signal-control[data-node="${i}"]`);
  if(!root)return false;
  const status=signalStatus(i),setting=signalSettings(i),slots=signalSlots(i),active=slots[status.slotIndex];
+ root.dataset.phase=status.yellow?'yellow':status.phase>=0?'green':'red';
  root.querySelector('.signal-mode').textContent=setting.mode==='smart'?'✦ AI อัจฉริยะ':setting.mode==='manual'?'ควบคุมเอง':'อัตโนมัติ';
  root.querySelector('.signal-current strong').textContent=status.yellow?'ไฟเหลือง · '+signalSlotName(active):
   status.phase>=0?signalSlotName(active):'แดงทุกทิศ';
@@ -3966,6 +3967,7 @@ function refreshSignalInspector(i){
  for(let n=0;n<slots.length;n++){
   const slot=slots[n],line=root.querySelector(`.signal-direction[data-slot="${n}"]`);if(!line)continue;
   const color=signalColor(i,slot.incoming);
+  line.dataset.light=color;
   line.querySelector('.signal-lamp').className='signal-lamp '+color;
   line.querySelector('b').textContent=color==='green'?'เขียว':color==='yellow'?'เหลือง':'แดง';
  }
@@ -3988,7 +3990,7 @@ else if(selected.kind==='parked'){
 else if(selected.kind==='building'){
  const b=state.buildings.get(selected.id);if(!b){selected=null;$('inspector').classList.add('hidden');return;}
  const t=CATALOG[b.key],traffic=buildingTraffic(b);
- html=`<span class="tag">${KINDS[t.kind].icon} อาคาร #${b.id}</span><h2>${t.name}</h2><div class="inspect-overview">`;
+ html=`<span class="tag">${KINDS[t.kind].icon} อาคาร #${b.id}</span><h2>${t.name}</h2><div class="inspect-overview game-building-stats">`;
  if(t.residents)html+=row('ผู้อยู่อาศัย',b.residents.size+' / '+t.residents);
  if(t.jobs)html+=row('พนักงาน',b.workers.size+' / '+t.jobs);
  if(t.service)html+=row('ผู้ใช้บริการ',b.visitors.size+' / '+t.service);
@@ -3999,14 +4001,16 @@ else if(selected.kind==='building'){
  if(t.beds)detail+=row('กำลังพักโรงแรม',[...(b.guests||[])].filter(id=>state.citizens.get(id)?.sleepUntil>state.time).length+' คน');
  if(t.service&&t.kind!=='civic')detail+=row('จองเดินทางมา',b.reservedService+' คน')+row('เปิดบริการ',['casino','civic'].includes(t.kind)?'24 ชั่วโมง':timeText(SERVICE_HOURS[t.kind][0])+'–'+timeText(SERVICE_HOURS[t.kind][1]));
  detail+=row('รอเส้นทาง',[...b.queue].filter(id=>state.vehicles.get(id)?.departureNoRoute).length+' คัน')+row('เดินทางมาถึง',b.arrivals+' ครั้ง')+'<p>เข้าออกจากขอบทางฝั่งซ้ายตามทิศรถ หากอยู่คนละฝั่ง รถต้องวนกลับตามเส้นทาง</p>';
- html+=inspectorDisclosure('รายละเอียดอาคารและการเดินทาง',detail,'building-info');
+ const capacity=t.residents||t.beds||t.jobs||t.service||0,used=t.residents?b.residents.size:t.beds?(b.guests?.size||0):t.jobs?b.workers.size:b.visitors.size;
+ if(capacity)html=html.replace('<div class="inspect-overview game-building-stats">','<section class="game-building-capacity"><span>'+(t.residents?'🏡 เพื่อนบ้าน':t.beds?'🛎️ ผู้เข้าพัก':t.jobs?'👷 ทีมงาน':'✨ ผู้ใช้บริการ')+'</span><strong>'+used+' <small>/ '+capacity+' คน</small></strong><div class="game-capacity-track" role="meter" aria-label="การใช้งานอาคาร" aria-valuemin="0" aria-valuemax="'+capacity+'" aria-valuenow="'+Math.min(used,capacity)+'"><i style="width:'+Math.max(0,Math.min(100,used/capacity*100))+'%"></i></div></section><div class="inspect-overview game-building-stats">');
+ html+=inspectorDisclosure('สมุดอาคาร · รายละเอียดและการเดินทาง',detail,'building-info');
  const people=[...new Set([...b.residents,...b.workers,...b.visitors,...(b.guests||[])])].slice(0,24);
  if(people.length)html+=inspectorDisclosure('ประชาชน · '+people.length+' คน','<div class="inspect-list">'+people.map(c=>action(citizenName(state.citizens.get(c)),'citizen',c)).join('')+'</div>','building-people');
  html+='<div class="inspect-actions">'+action('ย้ายอาคาร','move-building',b.id)+action('รื้ออาคาร · ฟรี','demolish',b.id)+'</div>';
 }
 else if(selected.kind==='citizen'||selected.kind==='vehicle'){const v=selected.kind==='vehicle'?state.vehicles.get(selected.id):null,c=selected.kind==='citizen'?state.citizens.get(selected.id):v?.citizenId?state.citizens.get(v.citizenId):null;if(!c&&!v){html='<h2>เดินทางถึงจุดหมายแล้ว</h2><p>รถคันนี้เดินทางเสร็จแล้ว เลือกอาคารปลายทางเพื่อดูประชาชนต่อค่ะ</p>';}else if(c?.tourist){html=touristInspector(c);}else if(c){const cv=state.vehicles.get(c.vehicleId);html=`<span class="tag">ชีวิตประชาชน #${c.id}</span><h2>${citizenName(c)}</h2>`+row('บุคลิก',CITIZEN_TRAITS[c.profile.trait])+row('รูปแบบชีวิตวันนี้',lifestyleName(c.dailyPlan))+row('สถานะ',c.state)+row('Performance',Math.round(personalPerformance(c))+'%')+row('ผลทริปรอบนี้',(c.performance?.current?.ontime||0)+' / '+(c.performance?.current?.total||0))+row('ภาษีวันนี้',money(workTax(c)))+row('บ้าน',buildingName(c.homeId))+row('งาน',c.profile.trait===3?'ไม่ต้องทำงาน':buildingName(c.workId))+row('ปัญหาล่าสุด',c.problem||'ยังไม่มีปัญหา');if(cv)html+=row('การเดินทาง',TRIPS[cv.kind].name)+row('จุดหมาย',cv.toId?buildingName(cv.toId):'ประตูเมือง')+row('เวลารอ',Math.floor(cv.wait)+' นาที')+action(follow===cv.id?'หยุดติดตามรถ':'ติดตามรถและเส้นทาง','follow',cv.id)+vehicleRecoveryActions(cv);html+='<h3>ตารางชีวิต</h3>'+row('ออกทำงานวันนี้',c.dailyPlan?.works?timeText(c.dailyPlan.day*1440+c.dailyPlan.leave):'—')+row('เลิกงานวันนี้',c.dailyPlan?.works?timeText(c.dailyPlan.day*1440+c.dailyPlan.end):'—')+row('ปรับออกเร็วขึ้น',Math.round(c.routine?.advance||0)+' นาที')+row('กิจกรรมโปรด',KINDS[c.profile.leisure]?.name||'กลับบ้าน');if(c.dailyPlan?.steps?.length)html+='<h3>แผนกิจกรรมวันนี้</h3><p>'+c.dailyPlan.steps.map(s=>timeText(c.dailyPlan.day*1440+(s.estimatedAt??s.at))+' '+lifestyleStepName(s)+((s.estimatedAt??s.at)>=1440?' (วันถัดไป)':'')).join('<br>')+'</p><p>เวลาโดยประมาณ ปรับตามการเดินทางและเวลาถึงจริง</p>';if(c.lifeRun&&c.lifeRun.day!==c.dailyPlan?.day)html+=row('กิจกรรมต่อจากวันก่อน',lifestyleStepName(c.lifeRun.plan.steps[c.lifeRun.index]));if(c.history.length)html+='<h3>การเดินทางล่าสุด</h3><p>'+c.history.slice(-4).reverse().join('<br>')+'</p>';}
 else html='<span class="tag">รถภายนอก</span><h2>เดินทางผ่านเมือง</h2><p>รถจากประตูเมืองหนึ่งไปอีกประตูเมืองหนึ่ง ไม่มีประชาชนเจ้าของในเมืองนี้</p>'+action('ติดตามเส้นทาง','follow',v.id)+vehicleRecoveryActions(v);}
-else if(selected.kind==='road'){const r=state.roads.get(selected.id);if(!r){$('inspector').classList.add('hidden');return;}const t=ROADS[r.type],j=junction(selected.id);html='<span class="tag">โครงข่ายจราจร</span><h2>'+t.name+'</h2>'+row('จำนวนเลน',t.lanes+' เลน')+row('ความจุจริง',t.lanes+' คัน / ช่อง')+row('รถในช่องนี้',occupancy(selected.id)+' คัน')+row('ค่าดูแล / วัน',r.main?'ฟรี':money(t.maint))+row('ทางแยก',j===4?'สี่แยก · ไฟจราจร':j===3?'สามแยก · ไฟจราจร':j===1?'ทางตัน · กลับรถไม่ได้':'ถนนต่อเนื่อง')+'<p>'+(r.main?'ถนนหลักเริ่มต้นของเมือง รื้อไม่ได้':'รถขับชิดซ้ายและใช้เลนตามเส้นทาง เมื่อเต็มจะรอคิว')+'</p>';if(j>=3)html+=signalInspector(selected.id);}
+else if(selected.kind==='road'){const r=state.roads.get(selected.id);if(!r){$('inspector').classList.add('hidden');return;}const t=ROADS[r.type],j=junction(selected.id);html='<span class="tag">โครงข่ายจราจร</span><h2>'+t.name+'</h2>'+row('จำนวนเลน',t.lanes+' เลน')+row('ความจุจริง',t.lanes+' คัน / ช่อง')+row('รถในช่องนี้',occupancy(selected.id)+' คัน')+row('ค่าดูแล / วัน',r.main?'ฟรี':money(t.maint))+row('ทางแยก',j===4?'สี่แยก · ไฟจราจร':j===3?'สามแยก · ไฟจราจร':j===1?'ทางตัน · กลับรถไม่ได้':'ถนนต่อเนื่อง')+'<p>'+(r.main?'ถนนหลักเริ่มต้นของเมือง รื้อไม่ได้':'รถขับชิดซ้ายและใช้เลนตามเส้นทาง เมื่อเต็มจะรอคิว')+'</p>';if(j>=3){const heading=html.match(/^[\s\S]*?<\/h2>/)?.[0]||'';html=heading+signalInspector(selected.id)+inspectorDisclosure('ข้อมูลถนนที่แยกนี้',html.slice(heading.length),'junction-road');}}
 else if(selected.kind==='money')html='<span class="tag">การคลังเมือง</span><h2>งบประมาณ</h2>'+row('เงินคงเหลือ',money(state.money))+row('ภาษีประชาชน / วัน',money(s.tax))+row('ภาษีธุรกิจ / วัน',money(s.business))+row('ท่องเที่ยวรับจริงวันนี้',money(tourismLedger().fees-tourismLedger().refunds))+row('ค่าดูแลทั้งหมด / วัน',money(s.maint))+row('สุทธิ / วัน',money(s.net))+'<p>ภาษีปกติ 500 บาท ทำงานสาย 400 บาท พลาดงาน 250 บาท กิจกรรมอื่นไม่ลดภาษี ถนนหลักไม่มีค่าดูแล</p>';
 else if(selected.kind==='tourists')html='<span class="tag">การท่องเที่ยว</span><h2>นักท่องเที่ยว</h2>'+touristSummaryMarkup()+action('ดูรายชื่อนักท่องเที่ยว','tourist-dashboard');
 else if(selected.kind==='population')html='<span class="tag">ผู้คนในเมือง</span><h2>ประชากร '+s.pop+' คน</h2>'+row('กำลังย้ายเข้า',[...state.citizens.values()].filter(c=>!c.resident&&!c.removed&&!c.tourist).length+' คน')+row('ที่ว่างในบ้าน',s.freeHomes+' คน')+row('ตำแหน่งงานทั้งหมด',s.jobs)+row('ว่างงาน',s.unemployed+' คน')+'<p>มีบ้านว่าง เส้นทางจากประตูเมือง และPerformanceตั้งแต่ 70% จึงจะมีคนย้ายเข้า คนจะนับเป็นประชากรเมื่อเดินทางถึงบ้านจริง</p><div class="inspect-list">'+[...state.citizens.values()].filter(c=>c.resident&&!c.removed).slice(0,40).map(c=>action(citizenName(c),'citizen',c.id)).join('')+'</div>';
@@ -4029,7 +4033,7 @@ if(['vehicle','citizen'].includes(selected.kind)){
 const journey=selectedCarVehicle();
  if(journey){const status=vehicleTimeliness(journey),remaining=Number.isFinite(journey.deadline)?journey.deadline-(journey.arrivedAt??state.time):null;
   const label=remaining==null?'ไม่มีเวลานัด':status==='red'?'สายแล้ว '+Math.ceil(-remaining)+' นาที':journey.arrivedAt!=null?'ถึงอาคารแล้ว':status==='orange'?'เหลือ '+Math.ceil(remaining)+' นาที ก่อนสาย':'ยังไม่สาย';
-  html='<section class="selected-car-journey">'+row('ต้นทาง',escapeSaveText(trackingOrigin(journey)))+row('ปลายทาง',escapeSaveText(trackingDestination(journey)))+row('สถานะเวลา',(CAR_STATUS_EMOJI[status]?CAR_STATUS_EMOJI[status]+' ':'')+label)+'</section>'+html;
+  html='<section class="selected-car-journey"><div class="game-trip-banner"><span aria-hidden="true">🚗</span><div><small>ภารกิจการเดินทาง</small><strong>'+escapeSaveText(TRIPS[journey.kind]?.name||'เดินทางในเมือง')+'</strong></div><span class="game-trip-status" data-status="'+status+'">'+escapeSaveText(label)+'</span></div>'+row('ต้นทาง',escapeSaveText(trackingOrigin(journey)))+row('ปลายทาง',escapeSaveText(trackingDestination(journey)))+row('สถานะเวลา',(CAR_STATUS_EMOJI[status]?CAR_STATUS_EMOJI[status]+' ':'')+label)+'</section>'+html;
  }
 // Consistent, semantic headers across buildings, vehicles, roads and city metrics.
  const inspectorKinds={
@@ -4040,7 +4044,10 @@ const journey=selectedCarVehicle();
   happiness:['♡','คุณภาพชีวิต'],tourists:['✧','นักท่องเที่ยว'],
   traffic:['↗','การจราจร']
  };
- const [panelIcon,panelLabel]=inspectorKinds[selected.kind]||['▦','ข้อมูลเมือง'];
+ let [panelIcon,panelLabel]=inspectorKinds[selected.kind]||['▦','ข้อมูลเมือง'];
+ if(selected.kind==='building'){const spec=CATALOG[state.buildings.get(selected.id)?.key];panelIcon=spec?.residents?'🏡':KINDS[spec?.kind]?.icon||'🏢';}
+ else if(['vehicle','parked'].includes(selected.kind))panelIcon='🚗';
+ else if(selected.kind==='signals'||selected.kind==='road'&&junction(selected.id)>=3)panelIcon='🚦';
  // Car routes appear below the header rather than interrupting the title.
  let journeyCard='';
  html=html.replace(/<section class="selected-car-journey">[\s\S]*?<\/section>/,part=>{journeyCard=part;return '';});

@@ -7614,16 +7614,16 @@ html body>.city-level-strip .city-level-compact{display:none!important}
 }
 
 /* SMCITY 5.4 — city life, sunrise to sunrise. Scoped to the requested screens. */
-html[data-ui-version="5.4"] .citizens-dashboard:not(.hidden){width:min(660px,calc(100vw - 116px))!important;height:min(820px,calc(100dvh - 150px))!important;max-height:calc(100dvh - 130px)!important;top:76px!important;box-shadow:0 16px 60px #122c4040!important;border:2px solid #b8d6cd!important;border-radius:22px!important}
-html[data-ui-version="5.4"] .citizens-dashboard .citizens-top{background:linear-gradient(115deg,#183f46,#245955)!important;border:0!important;padding:14px 16px!important}
-html[data-ui-version="5.4"] .citizens-dashboard .citizens-top h2{color:#fff8df!important;font-size:18px!important}
-html[data-ui-version="5.4"] .citizens-dashboard .citizens-top h2 span{display:block;color:#c5e1da!important;margin-top:3px!important}
-html[data-ui-version="5.4"] .citizens-dashboard .citizens-close{background:#ffffff18!important;color:white!important;border:1px solid #ffffff33!important}
-html[data-ui-version="5.4"] .citizens-dashboard-body{background:#f1f5ee!important;padding:13px!important;scrollbar-gutter:stable}
-html[data-ui-version="5.4"] .citizens-toolbar{padding:0!important;background:#e6eee7!important}
-html[data-ui-version="5.4"] .citizens-toolbar>summary{padding:8px 14px;cursor:pointer;font-size:11px;font-weight:750;color:#36584b;list-style:none}
-html[data-ui-version="5.4"] .citizens-toolbar[open]{padding:0 12px 9px!important}
-html[data-ui-version="5.4"] .citizens-toolbar[open]>summary{padding-left:2px}
+html[data-ui-version^="5.4"] .citizens-dashboard:not(.hidden){width:min(660px,calc(100vw - 116px))!important;height:min(820px,calc(100dvh - 150px))!important;max-height:calc(100dvh - 130px)!important;top:76px!important;box-shadow:0 16px 60px #122c4040!important;border:2px solid #b8d6cd!important;border-radius:22px!important}
+html[data-ui-version^="5.4"] .citizens-dashboard .citizens-top{background:linear-gradient(115deg,#183f46,#245955)!important;border:0!important;padding:14px 16px!important}
+html[data-ui-version^="5.4"] .citizens-dashboard .citizens-top h2{color:#fff8df!important;font-size:18px!important}
+html[data-ui-version^="5.4"] .citizens-dashboard .citizens-top h2 span{display:block;color:#c5e1da!important;margin-top:3px!important}
+html[data-ui-version^="5.4"] .citizens-dashboard .citizens-close{background:#ffffff18!important;color:white!important;border:1px solid #ffffff33!important}
+html[data-ui-version^="5.4"] .citizens-dashboard-body{background:#f1f5ee!important;padding:13px!important;scrollbar-gutter:stable}
+html[data-ui-version^="5.4"] .citizens-toolbar{padding:0!important;background:#e6eee7!important}
+html[data-ui-version^="5.4"] .citizens-toolbar>summary{padding:8px 14px;cursor:pointer;font-size:11px;font-weight:750;color:#36584b;list-style:none}
+html[data-ui-version^="5.4"] .citizens-toolbar[open]{padding:0 12px 9px!important}
+html[data-ui-version^="5.4"] .citizens-toolbar[open]>summary{padding-left:2px}
 .life-planner{--life-ink:#24483e;--life-muted:#61786d;--life-line:#dce6da;--life-card:#fffefa;color:var(--life-ink);font-size:12px;line-height:1.55;margin-bottom:20px}
 .life-planner *{box-sizing:border-box}
 .life-hero{display:flex;gap:12px;align-items:center;padding:4px 0 15px;border-bottom:1px solid var(--life-line);position:relative}
@@ -7656,7 +7656,7 @@ html[data-ui-version="5.4"] .citizens-toolbar[open]>summary{padding-left:2px}
 .life-place{display:flex;align-items:center;gap:9px;border-top:1px dashed var(--life-line);padding:10px 0}.life-place:last-child{padding-bottom:2px}
 .life-place-rank{display:grid;place-items:center;flex:none;width:25px;height:27px;border-radius:8px;background:#e9f1dc;font-size:12px;font-weight:850;color:#648243}
 .life-place>div{flex:1;min-width:0}.life-place b{display:block;font-size:11px;overflow-wrap:anywhere}.life-place small{display:block;color:var(--life-muted);font-size:9px}.life-place>strong{font-size:17px;white-space:nowrap;text-align:right}.life-place>strong>small{font-size:9px;font-weight:500}
-html[data-ui-version="5.4"] .citizen-overview-heading{padding-top:14px!important;border-top:2px dashed #d0ddca!important}
+html[data-ui-version^="5.4"] .citizen-overview-heading{padding-top:14px!important;border-top:2px dashed #d0ddca!important}
 html body #dialog .game-day-recap .sm-report-header h2{font-size:22px!important;letter-spacing:0!important}
 html body .game-day-recap .game-recap-hero{background:linear-gradient(140deg,#1c464c,#2e6658)!important;border:2px solid #79a58a!important;border-radius:22px!important;text-align:center;position:relative;overflow:hidden;padding:18px!important;box-shadow:inset 0 -5px #143c3c}
 .game-recap-hero .sm-daily-hero-top{position:relative;z-index:1;color:#f8e8b2!important}
@@ -7670,15 +7670,15 @@ html body .game-day-recap .game-recap-hero{background:linear-gradient(140deg,#1c
 html body #dialog .game-day-recap .sm-daily-finance{padding:10px!important}.game-day-recap .sm-daily-finance strong{font-size:18px!important}
 html body #missionDailyAuto .game-recap-medal{font-size:38px}html body #missionDailyAuto .game-recap-hero>h3{font-size:18px!important}html body #missionDailyAuto .game-recap-score strong{font-size:27px}
 :root.smcity-gray-ui .life-planner{--life-ink:#e4efe0;--life-muted:#adc3b4;--life-line:#3b5549;--life-card:#223c33}
-:root.smcity-gray-ui[data-ui-version="5.4"] .citizens-dashboard-body{background:#192f28!important}
+:root.smcity-gray-ui[data-ui-version^="5.4"] .citizens-dashboard-body{background:#192f28!important}
 :root.smcity-gray-ui .life-hero-icon,:root.smcity-gray-ui .life-kind-icon,:root.smcity-gray-ui .life-place-rank{background:#345240}
 :root.smcity-gray-ui .life-source-note{background:#253f31;border-color:#4d6e51}
 :root.smcity-gray-ui .life-spotlight{background:linear-gradient(110deg,#5a4c2e,#403e2a);border-color:#786540}.smcity-gray-ui .life-spotlight :is(strong,p,small){color:#f6e4b4}
 :root.smcity-gray-ui .game-recap-loot>div{background:#294335;color:#e2efcc;border-color:#4c6650}
 @media(max-width:700px){
- html[data-ui-version="5.4"] .citizens-dashboard:not(.hidden){width:calc(100vw - 24px)!important;left:12px!important;right:12px!important;top:66px!important;height:calc(100dvh - 138px)!important;max-height:calc(100dvh - 92px)!important;border-radius:18px!important}
- html[data-ui-version="5.4"] .citizens-dashboard .citizens-top{padding:10px 12px!important}
- html[data-ui-version="5.4"] .citizens-dashboard-body{padding:10px!important}
+ html[data-ui-version^="5.4"] .citizens-dashboard:not(.hidden){width:calc(100vw - 24px)!important;left:12px!important;right:12px!important;top:66px!important;height:calc(100dvh - 138px)!important;max-height:calc(100dvh - 92px)!important;border-radius:18px!important}
+ html[data-ui-version^="5.4"] .citizens-dashboard .citizens-top{padding:10px 12px!important}
+ html[data-ui-version^="5.4"] .citizens-dashboard-body{padding:10px!important}
  .life-hero{gap:9px}.life-hero-icon{width:43px;height:45px;font-size:26px;border-radius:13px}.life-hero h3{font-size:17px!important}.life-day-badge{font-size:8px;padding:3px 5px}.life-spotlight strong{font-size:22px}.life-section{padding:10px;border-radius:13px}.life-need-card{gap:7px}.life-need-card p{font-size:10px}.life-kind-icon{width:29px;font-size:20px}
  .game-recap-loot{gap:5px}.game-recap-loot>div{padding:8px 3px}.game-recap-loot strong{font-size:18px}.game-recap-loot small{font-size:8px}
  html body #dialog .game-day-recap .sm-report-header h2{font-size:19px!important}.game-recap-hero>h3{font-size:20px!important}
@@ -7703,3 +7703,66 @@ html body #missionDailyAuto .game-recap-medal{font-size:38px}html body #missionD
  html body #dialog #dialogContent .garage-buy{min-height:34px!important;padding:4px!important;font-size:10px!important}
  html body #dialog .garage-bottom{padding:5px 8px!important}
 }
+
+/* SMCITY 5.4.1 · playable city inspectors */
+html[data-ui-version^="5.4"] body #inspector{background:#f3f5e9!important;border:2px solid #254a43!important;border-radius:22px!important;box-shadow:0 8px 0 #173b3726,0 18px 48px #122b3d40!important;overflow:hidden}
+html body #inspector .sm-inspector-heading{padding:16px!important;margin:-2px -2px 14px!important;background:linear-gradient(135deg,#183d3c,#285852)!important;border-radius:18px 18px 12px 12px!important;color:#fff8da!important;gap:12px!important}
+html body #inspector .sm-inspector-heading h2{color:#fff8da!important;font-size:21px!important;line-height:1.3!important}
+html body #inspector .sm-inspector-heading .tag{color:#bce3ce!important;font-size:11px!important}
+html body #inspector .sm-inspector-mark{width:54px!important;height:54px!important;flex:0 0 54px!important;font-size:32px!important;background:#fff6d9!important;border:2px solid #dfbd68!important;border-radius:16px!important;box-shadow:0 4px 0 #0d282c80!important;display:grid!important;place-items:center!important}
+html body #inspector .game-building-capacity{padding:14px 16px;background:#fff9e6;border:1px solid #dbc78d;border-radius:16px;margin:0 0 12px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;color:#365548}
+html body #inspector .game-building-capacity strong{font-size:24px;color:#1c5446}
+html body #inspector .game-building-capacity small{font-size:12px;font-weight:600}
+html body #inspector .game-capacity-track{height:10px;background:#e5e8d3;border-radius:8px;grid-column:1/-1;overflow:hidden}
+html body #inspector .game-capacity-track i{display:block;height:100%;background:linear-gradient(90deg,#3e997a,#a0cf6e);border-radius:8px}
+html body #inspector .game-building-stats{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;background:transparent!important;border:0!important;padding:0!important;margin:0 0 12px!important}
+html body #inspector .game-building-stats .detail-row{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important;padding:11px 12px!important;background:#fffdf5!important;border:1px solid #d6e0cf!important;border-radius:13px!important;min-width:0}
+html body #inspector .game-building-stats strong{font-size:18px!important;color:#204e45!important}
+html body #inspector .game-building-stats span{font-size:11px!important;color:#65766b!important}
+html body #inspector .selected-car-journey{background:#fff9e8!important;border:1px solid #d8cda6!important;border-radius:16px!important;padding:12px!important;margin:0 0 12px!important}
+html body #inspector .game-trip-banner{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-bottom:11px;margin-bottom:5px;border-bottom:1px dashed #d2c8a6}
+html body #inspector .game-trip-banner>span:first-child{font-size:30px}
+html body #inspector .game-trip-banner>div{display:grid;gap:2px;flex:1;min-width:100px}
+html body #inspector .game-trip-banner small{font-size:10px;color:#79836b}
+html body #inspector .game-trip-banner strong{color:#234c43;font-size:16px}
+html body #inspector .game-trip-status{font-size:11px;font-weight:800;padding:5px 8px;border-radius:10px;background:#dcefd5;color:#2f6545}
+html body #inspector .game-trip-status[data-status="red"]{background:#ffe0d6;color:#a2372d}
+html body #inspector .game-trip-status[data-status="orange"]{background:#ffedbd;color:#865b18}
+html body #inspector[data-kind="vehicle"] .detail-row,html body #inspector[data-kind="parked"] .detail-row{padding:9px 10px!important;border-bottom:1px dashed #d3ddcc!important;gap:12px!important;align-items:start!important}
+html body #inspector[data-kind="vehicle"] .detail-row strong,html body #inspector[data-kind="parked"] .detail-row strong{color:#244e45!important;max-width:66%;overflow-wrap:anywhere;text-align:right}
+html body #inspector .inspect-section{background:#ffffff95!important;border:1px solid #d2dfcc!important;border-radius:13px!important;margin-top:9px!important}
+html body #inspector .inspect-section summary{padding:11px 12px!important;color:#35554b!important;font-weight:800!important}
+html body #inspector .action{border-radius:12px!important;padding:11px 12px!important;font-weight:800!important;min-height:42px!important;white-space:normal!important;line-height:1.4!important}
+html body #inspector .signal-control{background:#e7eee2!important;border:1px solid #b8ccba!important;border-radius:17px!important;padding:12px!important;margin:10px 0!important;color:#26473c!important}
+html body #inspector .signal-control h3{font-size:16px!important;color:#2d5548!important;margin:0 0 11px!important}
+html body #inspector .signal-current{display:grid!important;grid-template-columns:1fr auto!important;gap:6px 10px!important;background:#173d3a!important;color:#fff6dc!important;border:2px solid #709786!important;border-radius:15px!important;padding:14px!important;margin-bottom:10px!important}
+html body #inspector .signal-current .signal-mode{grid-column:1/-1;color:#c5d7bc!important;font-size:11px!important;background:transparent!important;padding:0!important}
+html body #inspector .signal-current strong{font-size:17px!important;color:#b9f6b5!important;align-self:center;line-height:1.4!important}
+html body #inspector .signal-current small{font-size:12px!important;color:#fff3c5!important;max-width:95px;text-align:right;align-self:center}
+html body #inspector [data-phase="red"] .signal-current strong{color:#ffaca1!important}
+html body #inspector [data-phase="yellow"] .signal-current strong{color:#ffdd76!important}
+html body #inspector .signal-approaches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
+html body #inspector .signal-direction{display:grid!important;grid-template-columns:22px 1fr!important;gap:4px 8px!important;align-items:center!important;padding:10px!important;background:#fffdf5!important;border:1px solid #d4ddcc!important;border-radius:13px!important;min-width:0!important}
+html body #inspector .signal-direction>span:not(.signal-lamp):not(.signal-arrow){font-size:11px!important;line-height:1.5!important;grid-column:2;overflow-wrap:anywhere}
+html body #inspector .signal-direction b{font-size:11px!important;grid-column:2;color:#a8433b!important}
+html body #inspector .signal-direction[data-light="green"]{background:#edfbe5!important;border-color:#70aa72!important;box-shadow:inset 0 0 0 1px #70aa72}
+html body #inspector .signal-direction[data-light="green"] b{color:#32713f!important}
+html body #inspector .signal-direction[data-light="yellow"]{background:#fff4cd!important;border-color:#d0ac4e!important}
+html body #inspector .signal-direction[data-light="yellow"] b{color:#826016!important}
+html body #inspector .signal-arrow{grid-column:2;font-size:24px!important;line-height:1!important;font-weight:900;color:#4f7461}
+html body #inspector .signal-lamp{display:flex!important;flex-direction:column!important;gap:3px!important;grid-column:1;grid-row:1/4!important;width:20px!important;height:53px!important;padding:4px!important;box-sizing:border-box!important;border-radius:7px!important;background:#263d3b!important;box-shadow:0 3px 0 #102b2a!important;border:0!important}
+html body #inspector .signal-lamp i{display:block;width:12px;height:12px;background:#50605a;border-radius:50%}
+html body #inspector .signal-lamp.red i:first-child{background:#f88170;box-shadow:0 0 6px #fc766880}
+html body #inspector .signal-lamp.yellow i:nth-child(2){background:#ffda62;box-shadow:0 0 6px #ffdc6270}
+html body #inspector .signal-lamp.green i:last-child{background:#a8f482;box-shadow:0 0 6px #b2ff8270}
+html body #inspector .signal-times{display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+html body #inspector .signal-times label{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:8px!important;padding:10px!important;background:#fffcf0!important;border-radius:11px!important;color:#34594b!important;font-size:12px!important}
+html body #inspector .signal-minutes{width:68px!important;min-height:40px!important;border-radius:9px!important;border:1px solid #b9cbae!important;background:#fff!important;color:#254e41!important;text-align:center;font-size:17px!important;font-weight:800!important}
+html body #inspector .signal-note{font-size:11px!important;line-height:1.6!important;color:#60715f!important;margin:8px 0!important}
+html body #inspector .game-signal-network{display:flex;align-items:center;gap:14px;background:#fff7db;border:1px solid #dfc582;border-radius:16px;padding:15px;margin-bottom:12px}
+html body #inspector .game-signal-network>span{font-size:42px}
+html body #inspector .game-signal-network>div{display:grid;gap:3px}
+html body #inspector .game-signal-network small{color:#7f835e;font-size:10px}
+html body #inspector .game-signal-network strong{font-size:20px;color:#37563f}
+html body #inspector .game-signal-network p{margin:0!important;color:#768069;font-size:11px}
+@media(max-width:600px){html body #inspector .sm-inspector-heading{padding:11px!important;gap:9px!important}html body #inspector .sm-inspector-heading h2{font-size:18px!important}html body #inspector .sm-inspector-mark{width:44px!important;height:44px!important;flex-basis:44px!important;font-size:26px!important}html body #inspector .signal-current{padding:10px!important}html body #inspector .signal-current strong{font-size:14px!important}html body #inspector .signal-direction{padding:8px!important;gap:3px 7px!important}html body #inspector .signal-control{padding:10px!important}html body #inspector .game-building-stats strong{font-size:16px!important}}
