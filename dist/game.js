@@ -5202,15 +5202,20 @@ function openMissionOutcomeDetails(kind='failed',previous=false){
   '<li><div><strong>'+escape(entry.citizen)+'</strong><span>'+escape(entry.kind)+' · '+escape(entry.place)+'</span></div>'+
   '<p>'+escape(entry.reason)+(entry.congestion>0?' · รอจราจร '+fmt(entry.congestion)+' นาที':'')+'</p>'+
   '<small>เวลา '+escape(timeText(entry.at))+' น.'+(entry.deadline!=null?' · กำหนดถึง '+escape(timeText(entry.deadline))+' น.':'')+'</small></li>').join('');
- modal('<div class="mission-outcome-detail '+tone+'"><h2>'+heading+' · '+fmt(expected)+' ครั้ง</h2>'+
-  '<p class="mission-outcome-period">'+(previous?'รอบที่ปิดแล้ว':'รอบวันนี้')+' · 06:00–06:00 · คะแนน '+(d.total?Math.round(100*successCount/d.total)+'%':'—%')+'</p>'+
-  '<h3>สาเหตุและประเภทภารกิจ</h3><ul class="mission-reason-groups">'+
+ const rate=d.total?Math.round(100*successCount/d.total)+'%':'—';
+ modal('<div class="mission-outcome-detail mission-scorecard '+tone+'">'+
+  '<header class="mission-result-hero"><span class="mission-result-emblem" aria-hidden="true">'+(tone==='success'?'★':'!')+'</span>'+
+  '<small>SMCITY · บันทึกภารกิจเมือง</small><h2>'+heading+'</h2>'+
+  '<div class="mission-result-stats"><div><strong>'+fmt(expected)+'</strong><span>ภารกิจในหมวดนี้</span></div>'+
+  '<div><strong>'+rate+'</strong><span>อัตราสำเร็จรวม</span></div></div>'+
+  '<p class="mission-outcome-period">'+(previous?'รอบเมื่อวาน':'รอบวันนี้')+' · 06:00–06:00</p></header>'+
+  '<h3>✦ สรุปภารกิจ</h3><ul class="mission-reason-groups">'+
   (summary||'<li>ยังไม่มีรายการในรอบนี้</li>')+
   (unknown?'<li><span>ผลภารกิจเดิมก่อนเริ่มเก็บรายละเอียดสาเหตุ</span><b>'+fmt(unknown)+' ครั้ง</b></li>':'')+'</ul>'+
-  '<h3>เหตุการณ์ล่าสุด'+(samples?' · แสดงไม่เกิน 35 รายการ':'')+'</h3>'+
+  '<h3>◈ บันทึกการเดินทาง'+(samples?' · แสดงไม่เกิน 35 รายการ':'')+'</h3>'+
   '<ul class="mission-reason-events">'+(samples||'<li>ยังไม่มีรายละเอียดเหตุการณ์ที่บันทึกไว้</li>')+'</ul>'+
   '<div class="actions">'+(p.previous?'<button type="button" id="missionDetailPeriod">'+(previous?'ดูวันนี้':'ดูเมื่อวาน')+'</button>':'')+
-  '<button type="button" class="primary" id="missionDetailClose">ปิด</button></div></div>');
+  '<button type="button" class="primary" id="missionDetailClose">กลับเข้าเมือง</button></div></div>');
  $('missionDetailClose').onclick=closeModal;
  if($('missionDetailPeriod'))$('missionDetailPeriod').onclick=()=>openMissionOutcomeDetails(kind,!previous);
 }
