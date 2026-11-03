@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=5.4.3-shop-rear';
+import { TrafficRenderer } from './renderer3d.js?v=5.4.3-night-light';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
 await import('./game.js?v=5.4.3-mission-scorecard');
 await import('./member.js?v=b69077e85804');
