@@ -1580,7 +1580,7 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
    const a=-.08,z=Math.max(.06,gap+.035),corners=[[-width/2,a],[width/2,a],[width/2,z],[-width/2,z]].map(([s,v])=>[x+side[0]*s+n[0]*v,y+side[1]*s+n[1]*v]);
    const xs=corners.map(p=>p[0]),ys=corners.map(p=>p[1]);
    indexRect({x0:Math.min(...xs)-.035,y0:Math.min(...ys)-.035,x1:Math.max(...xs)+.035,y1:Math.max(...ys)+.035,gate:true});
-   if(gap>1e-4)gates.push({corners,building:b.id});
+   if(gap>1e-4)gates.push({corners,building:b.id,grade:{x,y,nx:n[0],ny:n[1],start:a,end:z}});
   }
  }
  const clip=(poly,axis,value,less)=>{
@@ -1595,11 +1595,11 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
   }
   return outside;
  };
- const emit=(points,color,height,thickness,role,ignoreBuilding=null,driveway=false)=>{
+ const emit=(points,color,height,thickness,role,ignoreBuilding=null,grade=null)=>{
   const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),obstacles=new Set();
-  for(let x=Math.floor(x0/8);x<=Math.floor(x1/8);x++)for(let y=Math.floor(y0/8);y<=Math.floor(y1/8);y++)for(const r of blockers.get(x+':'+y)||[])if(!(r.building===ignoreBuilding||driveway&&r.gate)&&r.x0<x1&&r.x1>x0&&r.y0<y1&&r.y1>y0)obstacles.add(r);
+  for(let x=Math.floor(x0/8);x<=Math.floor(x1/8);x++)for(let y=Math.floor(y0/8);y<=Math.floor(y1/8);y++)for(const r of blockers.get(x+':'+y)||[])if(!(r.building===ignoreBuilding||grade&&r.gate)&&r.x0<x1&&r.x1>x0&&r.y0<y1&&r.y1>y0)obstacles.add(r);
   let parts=[points];for(const r of obstacles){parts=parts.flatMap(poly=>subtract(poly,r));if(!parts.length)return;}
-  for(const poly of parts){let area=0;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];area+=a[0]*b[1]-a[1]*b[0];}if(Math.abs(area)>1e-7)faces.push({points:poly,color,height,thickness,role});}
+  for(const poly of parts){let area=0;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];area+=a[0]*b[1]-a[1]*b[0];}if(Math.abs(area)>1e-7)faces.push({points:poly,color,height,thickness,role,grade});}
  };
  const strip=(points,inner,outer,color,height,thickness,role)=>{
   const pairs=[];
@@ -1659,7 +1659,7 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
    }else{strip(points,.055,w,'#c6c9c4',.135,.045,'sidewalk');strip(points,0,.055,'#e1dfd5',.16,.065,'curb');}
   }
  }
- for(const gate of gates)emit(gate.corners,'#58666a',.104,.025,'driveway',gate.building,true);
+ for(const gate of gates)emit(gate.corners,'#58666a',.103,.045,'driveway',gate.building,gate.grade);
  roadsideVisualCache.set(roadState,{stamp,details:roadDetails,faces});return faces;
 }
 function drawRoads(roadState=state,roadDetails=junctionDetails){
