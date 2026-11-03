@@ -6961,6 +6961,20 @@ updateIntercityFreight();updateNightDeliveries();advanceVehicles(dt*NORMAL_SPEED
 function lineCells(a,b){let [x,y]=xy(a),[u,v]=xy(b),dx=u-x,dy=v-y;const horizontal=Math.abs(dx)>=Math.abs(dy);if(horizontal)v=y;else u=x;const steps=Math.max(Math.abs(u-x),Math.abs(v-y)),result=[];for(let n=0;n<=steps;n++){const xx=Math.round(x+(u-x)*(steps?n/steps:0)),yy=Math.round(y+(v-y)*(steps?n/steps:0));if(!valid(xx,yy))continue;const raw=id(xx,yy),snapped=owner(raw),point=xy(snapped),aligned=horizontal?point[1]===y:point[0]===x,p=aligned?snapped:raw;if(result[result.length-1]!==p)result.push(p);}return result;}
 function checkRoad(cells,type){let cost=0;const t=ROADS[type];if(!cells.length)return{error:'เลือกตำแหน่งถนนบนแผนที่'};const centerline=new Set(cells);for(const i of cells)if(!state.roads.has(i)&&state.footprint[i]>=0&&!centerline.has(state.footprint[i]))return{error:'แนวถนนซ้อนขอบถนนเดิม ลากให้เชื่อมตรงกลางหรือขยับแนวถนนค่ะ'};for(const i of cells){const [x,y]=xy(i),r=state.roads.get(i),w=Math.max(roadClearanceWidth(t),r?roadClearanceWidth(ROADS[r.type]):0),lo=Math.floor(w/2);for(let yy=y-lo;yy<y+w-lo;yy++)for(let xx=x-lo;xx<x+w-lo;xx++){if(!valid(xx,yy))continue;if(state.buildGrid[id(xx,yy)]>=0)return{error:'ถนนทับพื้นที่อาคาร เลือกแนวถนนใหม่ค่ะ'};}cost+=r?Math.max(0,t.cost-ROADS[r.type].cost):t.cost;}
 const adds=new Map();for(let k=1;k<cells.length;k++){const a=cells[k-1],b=cells[k];if(a===b)continue;const pa=xy(a),pb=xy(b);if(pa[0]!==pb[0]&&pa[1]!==pb[1])return{error:'แนวถนนต้องตรงเข้าจุดเชื่อม ลองลากจากกลางถนนเดิมค่ะ'};for(const[p,q]of[[a,b],[b,a]]){if(!adds.has(p))adds.set(p,new Set(state.roads.get(p)?.links||[]));adds.get(p).add(q);if(adds.get(p).size>4)return{error:'จุดเชื่อมนี้มีถนนเกิน 4 แขนง ลองขยับแนวถนนค่ะ'};}}
+const minimumJunctionSpacing=4;
+for(const [node,links] of adds){
+ if(links.size<3||(state.roads.get(node)?.links.size??0)>=3)continue;
+ const [x,y]=xy(node);
+ for(let dy=1-minimumJunctionSpacing;dy<minimumJunctionSpacing;dy++){
+  const reach=minimumJunctionSpacing-1-Math.abs(dy);
+  for(let dx=-reach;dx<=reach;dx++){
+   if((!dx&&!dy)||!valid(x+dx,y+dy))continue;
+   const nearby=id(x+dx,y+dy);
+   if((adds.get(nearby)?.size??state.roads.get(nearby)?.links.size??0)>=3)
+    return{error:'แยกใกล้เกินไป · จุดกึ่งกลางแยกต้องห่างกันอย่างน้อย 4 บล็อกค่ะ'};
+  }
+ }
+}
 if(state.money<0||state.money-cost< -10000)return{error:'งบประมาณไม่พอ ลองถนนสั้นลงหรือรอรายรับวันถัดไปค่ะ'};return{cost};}
 // A detached road graph gives both renderers the same geometry as construction.
 // Never install preview nodes into the live city or charge until confirmation.
