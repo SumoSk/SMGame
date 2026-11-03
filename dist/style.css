@@ -7812,5 +7812,5 @@ html body #inspector .sm-inspector-heading .tag{opacity:1!important;color:#bce3c
  :root.smcity-gray-ui #citizensDashboard .life-need-card>b{background:#36794e;color:#fff}
  :root.smcity-gray-ui #citizensDashboard .life-need-card.has-shortage>b{background:#a95124;color:#fff}
  :root.smcity-gray-ui #citizensDashboard .life-kind-icon{background:#365641}
- html body :is(#cityAdvisorTicker,#cityAdvisor,#cameraRotateHint,#hint,#guide,.tool-hint,#missionFailureSummary,#missionFailureToggle){display:none!important}
+ html body :is(#cityAdvisor,#cameraRotateHint,#hint,#guide,.tool-hint){display:none!important}
 }
