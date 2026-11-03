@@ -2852,8 +2852,8 @@ $('buildingQuickDemolish').onclick=()=>{
  updateBuildingQuickActions();
 };
 
-// Start every page session with visual overlays hidden; buttons remain available.
-let aiPinsVisible=false;
+// Show junction AI pins when a page session starts.
+let aiPinsVisible=true;
 let aiPinExpanded=null,aiPinPopover=null;
 let aiPinState=null,aiPinVersion=-1,aiPinNodes=[],aiPinLast=-Infinity;
 let aiPinHover=null,aiPinLocked=null,aiPinLockUntil=0,aiLastActivatedNode=null,aiLastActivatedAt=-Infinity;
@@ -2874,16 +2874,7 @@ function toggleAIPinLabels(){
  if(aiPinsVisible){aiPinLast=-Infinity;updateAISignalPins();}
 }
 const aiPinToggle=$('toggleAIPins');
-if(aiPinToggle){
- aiPinToggle.onclick=toggleAIPinLabels;
- if(!aiPinsVisible){
-  aiPinToggle.classList.add('is-hidden');
-  aiPinToggle.setAttribute('aria-pressed','true');
-  aiPinToggle.setAttribute('aria-label','เซ่อนปุ่ม AI ที่ทางแยก');
-  aiPinToggle.title='แสดงปุ่ม AI ที่ทางแยก';
-  if($('toggleAIPinsText'))$('toggleAIPinsText').textContent='เปิด AI';
- }
-}
+if(aiPinToggle)aiPinToggle.onclick=toggleAIPinLabels;
 function activateAISignalPin(node){
  if(!state.roads.has(node)||junction(node)<3)return false;
  const now=Date.now();
