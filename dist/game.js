@@ -1577,10 +1577,21 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
    const u=access.entry?(t.frontageEntranceU??.45):(t.frontageExitU??(t.dualParking?(access.zone==='A'?t.parkingExitA:t.parkingExitB):t.parkingExitU??t.plotWidth-.45));
    const p=lotPoint(b,u,t.plotHeight),x=p.x-.5,y=p.y-.5,rx=access.node%W,ry=Math.floor(access.node/W),half=roadVisualWidth(road.type)/2;
    const gap=(rx-x)*n[0]+(ry-y)*n[1]-half,width=t.compactCottage?.36:t.dualParking?.54:.72;
-   const a=-.08,z=Math.max(.06,gap+.035),corners=[[-width/2,a],[width/2,a],[width/2,z],[-width/2,z]].map(([s,v])=>[x+side[0]*s+n[0]*v,y+side[1]*s+n[1]*v]);
-   const xs=corners.map(p=>p[0]),ys=corners.map(p=>p[1]);
-   indexRect({x0:Math.min(...xs)-.035,y0:Math.min(...ys)-.035,x1:Math.max(...xs)+.035,y1:Math.max(...ys)+.035,gate:true});
-   if(gap>1e-4)gates.push({corners,building:b.id});
+   const a=-.08,z=Math.max(.06,gap+.035);
+   // Widen toward the street with a curved shoulder on either side.
+   const flare=Math.min(width*.20,Math.max(0,gap*.32));
+   const edge=Array.from({length:7},(_,i)=>{
+    const t=i/6;
+    return [width/2+flare*t*t,a+(z-a)*t];
+   });
+   const corners=[...edge.map(([s,v])=>[-s,v]),...edge.reverse()].map(([s,v])=>[x+side[0]*s+n[0]*v,y+side[1]*s+n[1]*v]);
+   const grade={x,y,nx:n[0],ny:n[1],start:a,end:z};
+   for(let i=0;i<6;i++){
+    const outline=[corners[i],corners[13-i],corners[12-i],corners[i+1]];
+    const xs=outline.map(p=>p[0]),ys=outline.map(p=>p[1]);
+    indexRect({x0:Math.min(...xs),y0:Math.min(...ys),x1:Math.max(...xs),y1:Math.max(...ys),gate:true,outline});
+    if(gap>1e-4)gates.push({corners:outline,building:b.id,grade});
+   }
   }
  }
  const clip=(poly,axis,value,less)=>{
@@ -1590,16 +1601,35 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
  };
  const subtract=(poly,r)=>{
   let inside=poly;const outside=[];
+  if(r.outline){
+   for(let i=0;i<r.outline.length;i++){
+    const a=r.outline[i],b=r.outline[(i+1)%r.outline.length];
+    const distance=p=>(b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]);
+    const kept=[],removed=[];
+    for(let j=0;j<inside.length;j++){
+     const p=inside[j],q=inside[(j+1)%inside.length],dp=distance(p),dq=distance(q);
+     (dp<=0?kept:removed).push(p);
+     if((dp<=0)!==(dq<=0)){
+      const t=dp/(dp-dq),cross=[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t];
+      kept.push(cross);removed.push(cross);
+     }
+    }
+    if(removed.length>=3)outside.push(removed);
+    inside=kept;
+    if(inside.length<3)break;
+   }
+   return outside;
+  }
   for(const [axis,value,less] of [[0,r.x0,false],[0,r.x1,true],[1,r.y0,false],[1,r.y1,true]]){
    const part=clip(inside,axis,value,!less);if(part.length>=3)outside.push(part);inside=clip(inside,axis,value,less);if(inside.length<3)break;
   }
   return outside;
  };
- const emit=(points,color,height,thickness,role,ignoreBuilding=null,driveway=false)=>{
+ const emit=(points,color,height,thickness,role,ignoreBuilding=null,grade=null)=>{
   const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),obstacles=new Set();
-  for(let x=Math.floor(x0/8);x<=Math.floor(x1/8);x++)for(let y=Math.floor(y0/8);y<=Math.floor(y1/8);y++)for(const r of blockers.get(x+':'+y)||[])if(!(r.building===ignoreBuilding||driveway&&r.gate)&&r.x0<x1&&r.x1>x0&&r.y0<y1&&r.y1>y0)obstacles.add(r);
+  for(let x=Math.floor(x0/8);x<=Math.floor(x1/8);x++)for(let y=Math.floor(y0/8);y<=Math.floor(y1/8);y++)for(const r of blockers.get(x+':'+y)||[])if(!(r.building===ignoreBuilding||grade&&r.gate)&&r.x0<x1&&r.x1>x0&&r.y0<y1&&r.y1>y0)obstacles.add(r);
   let parts=[points];for(const r of obstacles){parts=parts.flatMap(poly=>subtract(poly,r));if(!parts.length)return;}
-  for(const poly of parts){let area=0;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];area+=a[0]*b[1]-a[1]*b[0];}if(Math.abs(area)>1e-7)faces.push({points:poly,color,height,thickness,role});}
+  for(const poly of parts){let area=0;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];area+=a[0]*b[1]-a[1]*b[0];}if(Math.abs(area)>1e-7)faces.push({points:poly,color,height,thickness,role,grade});}
  };
  const strip=(points,inner,outer,color,height,thickness,role)=>{
   const pairs=[];
@@ -1659,7 +1689,7 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
    }else{strip(points,.055,w,'#c6c9c4',.135,.045,'sidewalk');strip(points,0,.055,'#e1dfd5',.16,.065,'curb');}
   }
  }
- for(const gate of gates)emit(gate.corners,'#58666a',.104,.025,'driveway',gate.building,true);
+ for(const gate of gates)emit(gate.corners,'#58666a',.103,.045,'driveway',gate.building,gate.grade);
  roadsideVisualCache.set(roadState,{stamp,details:roadDetails,faces});return faces;
 }
 function drawRoads(roadState=state,roadDetails=junctionDetails){
