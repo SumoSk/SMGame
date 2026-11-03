@@ -6741,7 +6741,7 @@ function stoppedInSignalBox(v,plan=motionPlan(v)){
  });
 }
 function advanceVehicles(realDt,gameDt){
- let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);let pairedDeadlocks=null;for(const car of state.vehicles.values()){if(mutualPhysicalDeadlock(car))(pairedDeadlocks??=new Set()).add(car.id);if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,poseMemo:new WeakMap(),parkingGrid:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
+ let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);let pairedDeadlocks=null;for(const car of state.vehicles.values()){if(mutualPhysicalDeadlock(car))(pairedDeadlocks??=new Set()).add(car.id);if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if((car.phase==='gate_waiting'||car.phase==='departing'&&(car.lotReady||car.departureNoRoute||!state.buildings.has(car.fromId)))&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,poseMemo:new WeakMap(),parkingGrid:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
  prepareParkingMerges(simDt);
  const emergencyAlerts=parkingGateAlerts();
  for(const v of [...state.vehicles.values()]){
@@ -6816,10 +6816,11 @@ function advanceVehicles(realDt,gameDt){
   }
   const c=state.citizens.get(v.citizenId);
   if(v.phase==='gate_waiting'||v.phase==='departing'){
-   v.wait+=gameDt;if(v.phase==='departing'&&!v.departureNoRoute){if(!prepareLotDeparture(v,simDt)){updateTrafficSpatial(v);continue;}updateTrafficSpatial(v);}if(v.retryAt>state.time)continue;v.retryAt=state.time+.35;
+   v.wait+=gameDt;if(v.phase==='departing'&&!v.departureNoRoute){if(!prepareLotDeparture(v,simDt)){updateTrafficSpatial(v);continue;}updateTrafficSpatial(v);}if(v.retryAt>state.time)continue;
    const from=state.buildings.get(v.fromId);
    if(v.departureRouteVersion!==state.version||v.departureNoRoute&&!(v.nextDepartureRouteRetry>state.time)){if(routeBudget<=0||!routeChecks.has(v.id)){traceDeparture(v,'departure_route_check_deferred');continue;}routeBudget--;if(!checkDepartureRoute(v))continue;}
    if(v.departureNoRoute)continue;
+   v.retryAt=state.time+.35;
    if(from){const ahead=[...state.vehicles.values()].find(car=>car.id!==v.id&&car.fromId===from.id&&car.phase==='parking_out');if(ahead){noteParkingBlock(v,'shared_driveway_exit_in_progress',{blockerVehicleId:ahead.id});continue;}}
    if(!from){if(gateAttempt.has(v.path[0])){traceDeparture(v,'gate_entry_serialized');continue;}gateAttempt.add(v.path[0]);}
    const i=v.path[0],next=v.path[1];if(next==null){arrive(v);continue;}
