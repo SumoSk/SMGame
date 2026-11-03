@@ -2223,7 +2223,16 @@ export class TrafficRenderer{
   const key=face.color+':'+face.role;if(!streetSurfaces.has(key))streetSurfaces.set(key,{...face,vertices:[]});
   const out=streetSurfaces.get(key).vertices,points=face.points.map(p=>[...p]);let area=0;
   for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length];area+=a[0]*b[1]-a[1]*b[0];}if(area>0)points.reverse();
-  const top=points.map(([x,z])=>[x,face.height,z]),bottom=points.map(([x,z])=>[x,face.height-face.thickness,z]);
+  const grade=face.grade;
+  const top=points.map(([x,z])=>{
+   if(!grade)return [x,face.height,z];
+   // Match the parking asphalt at the lot and meet the street at its lip.
+   const distance=(x-grade.x)*grade.nx+(z-grade.y)*grade.ny;
+   const progress=Math.max(0,Math.min(1,(distance-grade.start)/(grade.end-grade.start)));
+   const lotHeight=.0715;
+   return [x,lotHeight+(face.height-lotHeight)*progress,z];
+  });
+  const bottom=top.map(([x,y,z])=>[x,y-face.thickness,z]);
   for(let i=2;i<top.length;i++)out.push(...top[0],...top[i-1],...top[i]);
   for(let i=0;i<top.length;i++){const j=(i+1)%top.length;out.push(...top[i],...bottom[i],...top[j],...top[j],...bottom[i],...bottom[j]);}
  }
