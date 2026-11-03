@@ -294,8 +294,8 @@ const VEHICLE_STYLES=[
  [.745,.300,.076,-.020,.205,.075], // low orange-red F1 open-wheel racecar
  [.745,.300,.240,.22,.22,.175], // compact six-wheel delivery truck, F1 road footprint
  [.745,.300,.240,.22,.22,.175], // compact eight-wheel delivery truck, same footprint
- [.745,.300,.30,.89,.44,.175], // same length and width as the F1, two compact cargo trailers
- [.745,.300,.30,.20,.20,.12], // LOW-detail road train, created only for low preset
+ [.620,.300,.30,.220,.170,.175], // compact two-trailer road train: centered medium LOD cab
+ [.620,.300,.30,.200,.170,.12], // compact LOW-detail road train
  [.615,.274,.133,-.042,.337,.135] // low-poly yellow taxi sedan with roof sign
 ];
 const VEHICLE_PALETTES=[
@@ -344,9 +344,9 @@ function carGeometries(style){
  const metal=luxury?'#eadbb9':chromed?'#c7dbe2':'#9aaab4';
  const wheelR=(pickup||suv||van)?.083:sport?.069:.076;
  const box=(parts,color,x,y,z,l,h,w,rot=0)=>{
-  // Intercity tractor + both trailers share the F1's road footprint;
-  // compress only longitudinal positions/boxes, never the wheel shape.
-  if(roadTrain){x*=.30;l*=.30;}
+  // Keep all freight sections inside the road collision capsule (~.64 long).
+  if(roadTrain){x*=.24;l*=.24;}
+  if(roadTrainLow){x*=.80;l*=.80;}
   const geo=new THREE.BoxGeometry(l,h,w);
   if(rot)geo.rotateZ(rot);geo.translate(x,y,z);
   parts.push({color,geo});
@@ -383,7 +383,7 @@ function carGeometries(style){
   }
  }else if(roadTrainLow){
   // LOW preset: only three cargo/cab solids and minimal landmark trim.
-  // Stay inside the original F1 road envelope [-.3725,+.3725].
+  // Keep both trailers and tractor within a compact ~.60-unit silhouette.
   box(paint,'#ffffff',-.242,.325,0,.226,.25,.276); // rear trailer
   box(paint,'#ffffff',.002,.325,0,.216,.25,.276); // forward trailer
   box(paint,'#ffffff',.251,.247,0,.222,.191,.271); // tractor cab
@@ -395,7 +395,7 @@ function carGeometries(style){
    box(detail,'#b4dae2',-.242,.290,side,.184,.024,.010);
    box(detail,'#b4dae2',.002,.290,side,.178,.024,.010);
    for(const axle of [-.302,-.158,.058,.278])
-    box(detail,'#15232c',axle,.115,sign*.150,.056,.080,.036);
+    box(detail,'#15232c',axle*.80,.115,sign*.132,.056,.080,.036);
   }
  }else if(roadTrain){
   // Compact tractor + TWO distinct cargo bodies, all within an F1-length silhouette.
@@ -433,12 +433,12 @@ function carGeometries(style){
   // Multiple physical wheel pairs; high contrast even at normal game zoom.
   for(const axle of [-1.103,-.902,-.481,-.186,.650,.999]){
    for(const sign of [-1,1]){
-    const zz=sign*.167;
+    const zz=sign*.135;
     const wheel=new THREE.CylinderGeometry(.034,.034,.043,12);
-    wheel.rotateX(Math.PI/2);wheel.translate(axle*.30,.112,zz);
+    wheel.rotateX(Math.PI/2);wheel.translate(axle*.24,.112,zz);
     detail.push({color:'#161f27',geo:wheel});
     const rim=new THREE.CylinderGeometry(.022,.022,.047,12);
-    rim.rotateX(Math.PI/2);rim.translate(axle*.30,.112,zz+sign*.006);
+    rim.rotateX(Math.PI/2);rim.translate(axle*.24,.112,zz+sign*.006);
     detail.push({color:'#b8cbd4',geo:rim});
    }
   }

@@ -19,6 +19,7 @@ function applyGraphicQuality(value){
 const W=300,H=300,T=18,DIR=[[1,0],[0,1],[-1,0],[0,-1]],fmt=n=>Math.round(n).toLocaleString('th-TH'),money=n=>'฿'+fmt(n);
 const ROADS={small:{name:'ถนนเล็ก',lanes:2,cost:50,maint:.5,speed:3,width:1,clearanceWidth:2,visualWidth:1.175},medium:{name:'ถนนกลาง',lanes:4,cost:150,maint:1,speed:4.5,width:2,visualWidth:2.35},large:{name:'ถนนใหญ่',lanes:8,cost:600,maint:5,speed:6,width:4,visualWidth:3.72}};
 const TRAFFIC_RULES={stopLineOffset:.52,vehicleHalfLength:.28,maxIntersectionLookahead:3,maxIntersectionReservation:3};
+const ROAD_TRAIN_SIGNAL_BUFFER=.12; // only intercity road trains need extra intersection clearance
 // Never change lanes just because one is a little faster. Only react to real
 // obstruction, with ample room before a turn/junction and a clear swept path.
 const ADAPTIVE_LANE_RULES={minWait:2,obstacleAhead:2.2,turnBuffer:9,junctionBuffer:5,cooldown:8,sweep:3.1};
@@ -1992,7 +1993,7 @@ function drawDeliveryTruckShape(x,y,angle,color,z,axles){
 }
 
 function drawIntercityRoadTrain(x,y,angle,color,z){
- ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.scale(.30,1);
+ ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.scale(.24,1);ctx.translate(5.25*z,0);
  const outline='#1a313e',cargo='#f3f6f3',glass='#36576c';
  // Road train has a separate tractor plus two visible cargo bodies.
  for(const [cx,w] of [[-15.0,12.8],[-0.5,12.8]]){
@@ -2198,7 +2199,9 @@ function motionPlan(v){
   const boundaryIn=distanceAt(Math.max(0,route[i]-halfIn)),boundaryOut=distanceAt(Math.min(route[n-1],route[i]+halfOut));
   const start=turn?Math.min(turn.startDistance,boundaryIn):boundaryIn;
   const end=turn?Math.max(turn.endDistance,boundaryOut):boundaryOut;
-  junctions.push({pos:i,node:path[i],entry:start,stop:Math.max(0,start-TRAFFIC_RULES.vehicleHalfLength-.1),clear:end+TRAFFIC_RULES.vehicleHalfLength});
+  junctions.push({pos:i,node:path[i],entry:start,
+   stop:Math.max(0,start-TRAFFIC_RULES.vehicleHalfLength-.1-(v.kind==='intercity'?ROAD_TRAIN_SIGNAL_BUFFER:0)),
+   clear:end+TRAFFIC_RULES.vehicleHalfLength});
  }
  const plan={path,version:state.version,lanes,route,nodes,pieces,turns:corners,junctions,total};motionPlans.set(v,plan);return plan;
 }
