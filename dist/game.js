@@ -2745,24 +2745,7 @@ let roadJoinWarnings=null,roadJoinLayer=null;
 function findRoadJoinWarnings(roads){
  const points=[];
  for(const [node,road] of roads){
-  if(road.links.size!==1)continue;
-  const [x,y]=xy(node),[px,py]=xy(road.links.values().next().value);
-  const dx=Math.sign(x-px),dy=Math.sign(y-py);
-  if(Math.abs(dx)+Math.abs(dy)!==1)continue;
-  for(let distance=1;distance<=4;distance++){
-   const tx=x+dx*distance,ty=y+dy*distance;
-   if(!valid(tx,ty))break;
-   const target=id(tx,ty),other=roads.get(target);
-   if(!other)continue;
-   if(road.links.has(target)||other.links.has(node))break;
-   const directions=[...other.links].map(xy);
-   const crosses=directions.some(([nx,ny])=>dx?ny!==ty:nx!==tx);
-   const faces=other.links.size===1&&directions.some(([nx,ny])=>(nx-tx)*dx+(ny-ty)*dy>0);
-   if((crosses&&distance<=roadVisualWidth(other.type)/2+1.15)||(faces&&distance<=2)){
-    points.push([x,y]);
-   }
-   break;
-  }
+  if(road.links.size<=1)points.push(xy(node));
  }
  return points;
 }
