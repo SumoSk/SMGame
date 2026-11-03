@@ -1075,6 +1075,11 @@ html body #dialog:has(.mission-scorecard)[open]{width:min(580px,calc(100vw - 24p
 #dialog .mission-scorecard :is(.mission-reason-groups,.mission-reason-events){max-height:none;overflow:visible}
 #dialog .mission-scorecard :is(.mission-reason-groups,.mission-reason-events)>li{background:transparent;color:#f4f8fa;border:0;border-bottom:1px solid #31454e;border-radius:0;padding:9px 0;font-size:14px;line-height:1.55}
 #dialog .mission-scorecard li :is(span,p,small){color:#d5e4ea;opacity:1;font-size:13px}
+html body #dialog:has(.mission-scorecard){--sm-panel-ink:#f4f8fa;--sm-panel-muted:#d5e4ea}
+html body #dialog .mission-scorecard :is(h3,li,b,strong){color:#f4f8fa!important}
+html body #dialog .mission-scorecard :is(p,small,span:not(.mission-result-emblem)){color:#d5e4ea!important}
+html body #dialog .mission-scorecard h2{color:var(--result-accent)!important}
+html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!important;background:#223640!important;border-color:#536975!important}
 #dialog .mission-scorecard #missionDetailClose{background:var(--result-accent)!important;color:#14242d!important;border-color:transparent!important}
 </style>
 </head>
