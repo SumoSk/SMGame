@@ -2382,7 +2382,7 @@ function buildingGaugeMetrics(b,approaching){
 }
 let placeLabelLayer=null,placeLabelState=null,placeLabels=new Map(),placeLabelCounts=new Map(),placeLabelAt=0,placeLabelProjectionKey=null,routeWarningMarkers=new Map(),buildingLabelsVisible=false;
 const NO_ROUTE_TIMEOUT=150;
-const IMMOBILE_RESPAWN_TIMEOUT=150;
+const IMMOBILE_RESPAWN_TIMEOUT=120;
 function missingRoute(v){return !!v&&(!!v.departureNoRoute||v.phase==='stuck'&&v.routeMissing!==false&&!/พบเส้นทางแล้ว/.test(v.stopReason||''));}
 function setRouteMissing(v,missing){if(missing){if(v.routeMissing===false||!Number.isFinite(v.routeMissingSince))v.routeMissingSince=state.time;v.routeMissing=true;}else{v.routeMissing=false;v.routeMissingSince=null;}}
 // Incident gameplay: detect the stopped root, not the queue behind it.
@@ -6175,7 +6175,7 @@ function towVehicle(id,incidentForce=false,playerForce=false){
    if(Array.isArray(other.mergeAdmitted))other.mergeAdmitted=other.mergeAdmitted.filter(x=>x!==id);
   }
  }
- const c=state.citizens.get(v.citizenId),from=state.buildings.get(v.fromId);cancelVehicle(v);
+ const c=state.citizens.get(v.citizenId);cancelVehicle(v);
  if(incidentForce){
   // Remove only dead or self-owned occupancy/leases left by the incident.
   for(const [key,ownerId]of state.occ)if(ownerId===id||!state.vehicles.has(ownerId))state.occ.delete(key);
@@ -6186,8 +6186,8 @@ function towVehicle(id,incidentForce=false,playerForce=false){
    }else if(claim.id===id||!state.vehicles.has(claim.id))state.reservations.delete(key);
   }
  }
- if(c){if(c.tourist){touristActivityResult(c,c.itinerary[v.tourIndex],'cancelled');if(v.kind==='leisure')touristTrafficFailure(c,v,c.itinerary[v.tourIndex]);tourismLedger().departures++;removeCitizen(c);}else if(!c.resident){removeCitizen(c);}else{let origin=from||state.buildings.get(c.homeId);if(origin&&CATALOG[origin.key].service&&origin.visitors.size>=CATALOG[origin.key].service)origin=state.buildings.get(c.homeId);
-  for(const b of state.buildings.values()){b.parked.delete(c.id);b.visitors.delete(c.id);}if(origin){origin.parked.add(c.id);parkingSpace(origin,c.id,true);if(CATALOG[origin.key].service)origin.visitors.add(c.id);c.locationId=origin.id;c.location=CATALOG[origin.key].kind;}else{c.locationId=null;c.location='home';}
+ if(c){if(c.tourist){touristActivityResult(c,c.itinerary[v.tourIndex],'cancelled');if(v.kind==='leisure')touristTrafficFailure(c,v,c.itinerary[v.tourIndex]);tourismLedger().departures++;removeCitizen(c);}else if(!c.resident){removeCitizen(c);}else{const origin=state.buildings.get(c.homeId);
+  for(const b of state.buildings.values()){b.parked.delete(c.id);b.visitors.delete(c.id);freeParkingSpace(b,c.id);}if(origin){origin.parked.add(c.id);parkingSpace(origin,c.id,true);if(CATALOG[origin.key].service)origin.visitors.add(c.id);c.locationId=origin.id;c.location=CATALOG[origin.key].kind;}else{c.locationId=null;c.location='home';}
   c.state='ยกเลิกเที่ยวเดินทาง · อยู่'+(origin?CATALOG[origin.key].name:'ที่พัก');c.problem='รถถูกลากออก เที่ยวเดินทางไม่สำเร็จ';c.pending=null;c.queued=null;c.history.push(timeText(state.time)+' ยกเลิกเที่ยวเดินทาง · ลากรถออก');c.history=c.history.slice(-12);resumeCancelledLife(c,v,'รถถูกลากออก เที่ยวเดินทางไม่สำเร็จ');
  }}
  if(follow===id)follow=null;return true;
@@ -6768,8 +6768,8 @@ function advanceVehicles(realDt,gameDt){
   if(missingRoute(v)&&Number.isFinite(v.routeMissingSince)&&state.time-v.routeMissingSince>=NO_ROUTE_TIMEOUT){towVehicle(v.id);continue;}
    // Restore one car from an observed two-car physical deadlock without collision bypass.
    // Remove only one vehicle to break the deadlock.
-   if(respawnBudget>0&&pairedDeadlocks?.has(v.id)&&respawnVehicle(v,'paired_deadlock')){respawnBudget--;continue;}
-  // Apply the same 150-game-minute recovery to every moving/stalled trip,
+   if(respawnBudget>0&&pairedDeadlocks?.has(v.id)&&incidentStoppedFor(v)>=IMMOBILE_RESPAWN_TIMEOUT&&towVehicle(v.id,true)){respawnBudget--;continue;}
+  // Apply the same 120-game-minute recovery to every moving/stalled trip,
   // INCLUDING parking_in, parking_out and departing without an active lotPath.
   // This check must precede the early continue branches for parking motion.
   if(respawnBudget>0&&['departing','parking_in','parking_out','driving','stuck'].includes(v.phase)
@@ -6778,12 +6778,12 @@ function advanceVehicles(realDt,gameDt){
     // simply for sitting in a long normal traffic queue.
     // A broken source parking slot is not a normal traffic queue. Previous
      // incidentNormalWait() classified every departing vehicle as normal and
-     // permanently exempted these immobile cars from the 150-minute fallback.
+     // permanently exempted these immobile cars from the 120-minute fallback.
      const brokenDepartureSlot=v.phase==='departing'&&!!v.fromId&&!v.lotPath&&
       (v.stopReason==='ไม่พบช่องจอดของรถ'||!state.buildings.has(v.fromId));
      if((brokenDepartureSlot||!incidentForVehicle.has(v.id))&&(brokenDepartureSlot||!incidentNormalWait(v))&&
        (brokenDepartureSlot||!incidentBlockingVehicle(v))){
-     if(respawnVehicle(v)){respawnBudget--;continue;}
+     if(towVehicle(v.id,true)){respawnBudget--;continue;}
     }
    }
   trackJourney(v,gameDt);
@@ -6967,7 +6967,7 @@ function autoRescueIncidents(){
     root.phase==='gate_waiting'||
     root.phase==='driving'&&incidentNormalWait(root)&&!mutualPhysicalDeadlock(root)
   ))continue;
-  if(resolveIncident(root.id,true))budget--;
+  if(towVehicle(root.id,true))budget--;
  }
 }
 function tick(dt){if(!state.speed)return;const old=state.time,gameDt=dt*GAME_MINUTES_PER_SECOND*state.speed*NORMAL_SPEED_SCALE;state.time+=gameDt;smartSignalStep();if(performanceDay(old)!==performanceDay())daily();let count=0,trips=0;while(state.events.length&&state.events[0].at<=state.time&&count<42&&trips<14){const e=eventPop(),c=state.citizens.get(e.citizenId);runAction(c,e.action,e);count++;trips++;}
