@@ -4136,13 +4136,19 @@ const journey=selectedCarVehicle();
  else if(['vehicle','parked'].includes(selected.kind))panelIcon='🚗';
  else if(selected.kind==='signals'||selected.kind==='road'&&junction(selected.id)>=3)panelIcon='🚦';
  // Car routes appear below the header rather than interrupting the title.
+ let towTop='';
+ if(selected.kind==='vehicle'&&state.vehicles.has(selected.id)){
+  const button=action(bugCaptureEnabled?'เอารถออก · ส่งรายงานบัค':'เอารถออก','tow',selected.id);
+  html=html.replace(button,'');
+  towTop=button;
+ }
  let journeyCard='';
  html=html.replace(/<section class="selected-car-journey">[\s\S]*?<\/section>/,part=>{journeyCard=part;return '';});
  html=html.replace(/(<span class="tag">[^<]*<\/span>)?\s*(<h2>[\s\S]*?<\/h2>)/,
   (_all,tag,heading)=>'<header class="sm-inspector-heading"><span class="sm-inspector-mark" aria-hidden="true">'+panelIcon+
-   '</span><div class="sm-inspector-heading-text">'+(tag||'<span class="tag">'+panelLabel+'</span>')+heading+'</div></header>'+journeyCard);
+   '</span><div class="sm-inspector-heading-text">'+(tag||'<span class="tag">'+panelLabel+'</span>')+heading+'</div></header>'+towTop+journeyCard);
  if($('inspector').dataset)$('inspector').dataset.kind=selected.kind;
- const content=$('inspectContent'),scroll=content.scrollTop;
+ const content=$('inspectContent'),scroll=towTop&&content.dataset?.selection!=='vehicle:'+selected.id?0:content.scrollTop;
  if(content.__inspectMarkup!==html){content.innerHTML=html;content.__inspectMarkup=html;}
  if(content.dataset)content.dataset.selection=selected.kind+':'+selected.id;
  content.scrollTop=scroll;

@@ -1192,7 +1192,7 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
 (function(){
  const layer=document.getElementById('smcityWelcome'),card=document.getElementById('smcityWelcomeCard'),image=document.getElementById('smcityWelcomeImage');
  if(!layer||!card||!image)return;
- const tipKey='smcity-first-play-tips-v1';
+ const tipKey='smcity-first-play-tips-v2';
  const tips=[
   ['🚗 รถค้างหรือขวางทาง','คลิกหรือแตะรถคันที่ขวาง แล้วกด “เอารถออก” ในแผงข้อมูลรถ'],
   ['🚦 อัปเกรดทางแยก','แตะป้าย AI ที่แยกเพื่อดูตัวเลือกอัปเกรด'],
@@ -1205,7 +1205,7 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
   const tip=document.createElement('aside');
   tip.id='smcityFirstPlayTip';
   tip.setAttribute('aria-label','วิธีเล่น SMCITY');
-  tip.innerHTML='<p aria-live="polite"><strong></strong><br><span></span></p><div><button type="button" data-next>ถัดไป</button><button type="button" data-close>ข้าม</button></div>';
+  tip.innerHTML='<p aria-live="polite"><strong></strong><br><span></span></p><div><button type="button" data-next>ถัดไป</button></div>';
   let step=0;
   const next=tip.querySelector('[data-next]');
   const finish=()=>{try{localStorage.setItem(tipKey,'1');}catch{}tip.remove();};
@@ -1215,7 +1215,6 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
    next.textContent=step===tips.length-1?'เข้าใจแล้ว':'ถัดไป';
   };
   next.onclick=()=>{if(++step===tips.length)finish();else render();};
-  tip.querySelector('[data-close]').onclick=finish;
   render();document.body.append(tip);
  }
  function closeWelcome(){
@@ -1414,7 +1413,7 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
  schedule();
 })();
 </script>
-<script type="module" src="dist/bootstrap.js?v=5.4.2-creator-history"></script></body></html>
+<script type="module" src="dist/bootstrap.js?v=5.4.2-vehicle-action-top"></script></body></html>
 
 
 
