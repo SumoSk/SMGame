@@ -1083,11 +1083,11 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
 #dialog .mission-scorecard #missionDetailClose{background:var(--result-accent)!important;color:#14242d!important;border-color:transparent!important}
 </style>
 <style>
-#smcityFirstPlayTip{position:fixed;z-index:419;top:clamp(68px,12vh,112px);right:12px;width:min(335px,calc(100vw - 24px));box-sizing:border-box;padding:14px;background:#132b40;color:#fff;border:1px solid #6ad7ef;border-radius:14px;box-shadow:0 6px 20px #061d3766;font:15px/1.55 Tahoma,sans-serif}
+#smcityFirstPlayTip{position:fixed;z-index:419;top:50%;left:50%;transform:translate(-50%,-50%);width:min(620px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;text-align:center;box-sizing:border-box;padding:clamp(20px,5vw,36px);background:#132b40;color:#fff;border:1px solid #6ad7ef;border-radius:14px;box-shadow:0 6px 20px #061d3766;font:clamp(17px,3.5vw,22px)/1.55 Tahoma,sans-serif}
 #smcityFirstPlayTip p{margin:0 0 10px}
-#smcityFirstPlayTip strong{color:#ffe18a;font-size:16px}
-#smcityFirstPlayTip div{display:flex;gap:8px}
-#smcityFirstPlayTip button{padding:5px 10px;border:1px solid #6ad7ef;border-radius:7px;background:#e1f7ff;color:#142b40;font:inherit;cursor:pointer}
+#smcityFirstPlayTip strong{color:#ffe18a;font-size:clamp(23px,5vw,34px)}
+#smcityFirstPlayTip div{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:18px}
+#smcityFirstPlayTip button{min-height:44px;padding:8px 20px;border:1px solid #6ad7ef;border-radius:7px;background:#e1f7ff;color:#142b40;font:inherit;cursor:pointer}
 </style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
@@ -1221,7 +1221,7 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
  function closeWelcome(){
   if(layer.hidden)return;
   layer.hidden=true;
-  setTimeout(showFirstPlayTips,5000);
+  setTimeout(showFirstPlayTips,2000);
  }
  function updateWelcome(){
   if(layer.hidden)return;
