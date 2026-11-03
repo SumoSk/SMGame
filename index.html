@@ -1057,7 +1057,23 @@ dialog.member-gate .member-card :is(input,button){box-sizing:border-box!importan
   text-overflow:ellipsis!important;
  }
 }
-</style></head>
+</style><style>
+#dialog .mission-scorecard{--result-accent:#ffe397;--result-glow:#64501e;background:#111f2b;color:#edf4f7;border:1px solid #405265;border-radius:20px;padding:clamp(12px,3vw,24px)}
+#dialog .mission-scorecard.failed{--result-accent:#ffae98;--result-glow:#69362e}
+#dialog .mission-result-hero{text-align:center;padding:20px 12px 12px;border:1px solid var(--result-accent);border-radius:15px;background:radial-gradient(ellipse at 50% 0,var(--result-glow),#172633 72%)}
+#dialog .mission-result-emblem{display:grid;place-items:center;margin:0 auto 10px;width:52px;height:52px;border-radius:16px;background:var(--result-accent);color:#172633;font-size:34px;font-weight:900;box-shadow:0 0 22px var(--result-glow)}
+#dialog .mission-result-hero small,#dialog .mission-result-hero h2{color:var(--result-accent)}
+#dialog .mission-result-hero h2{font-size:clamp(24px,6vw,38px);margin:6px 0 14px}
+#dialog .mission-result-stats{display:flex;justify-content:center;gap:8px}
+#dialog .mission-result-stats div{display:grid;flex:0 1 145px;gap:3px;background:#101e2a;border-radius:10px;padding:8px 5px}
+#dialog .mission-result-stats strong{color:var(--result-accent);font-size:24px}
+#dialog .mission-result-stats span,#dialog .mission-result-hero p{color:#cad9e2;font-size:12px}
+#dialog .mission-scorecard h3{color:var(--result-accent);margin-top:16px}
+#dialog .mission-scorecard :is(.mission-reason-groups,.mission-reason-events)>li{background:#1b2c3a;color:#e6eff4;border:1px solid #384b5a;border-radius:9px}
+#dialog .mission-scorecard li :is(span,p,small){color:#ccdce6}
+#dialog .mission-scorecard #missionDetailClose{background:var(--result-accent);color:#172633;border-color:transparent}
+</style>
+</head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
 <aside id="cameraPitchRail" aria-label="ควบคุมมุมก้มเงยกล้อง" hidden>
@@ -1353,7 +1369,7 @@ dialog.member-gate .member-card :is(input,button){box-sizing:border-box!importan
  schedule();
 })();
 </script>
-<script type="module" src="dist/bootstrap.js?v=5.4.3-shop-rear"></script></body></html>
+<script type="module" src="dist/bootstrap.js?v=5.4.3-mission-scorecard"></script></body></html>
 
 
 
