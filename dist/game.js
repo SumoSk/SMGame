@@ -2743,11 +2743,23 @@ function routeWarningPosition(v){
 }
 // Detect unfinished joins from the live road graph, independent of building labels.
 let roadJoinWarnings=null,roadJoinLayer=null;
-function findRoadJoinWarnings(roads,gates){
- const gateNodes=new Set(gates);
- const points=[];
+function findRoadJoinWarnings(roads,gates,layoutFor=junctionDetails){
+ const gateNodes=new Set(gates),hiddenEnds=new Set(),points=[];
  for(const [node,road] of roads){
-  if(!road.main&&!gateNodes.has(node)&&road.links.size===0)points.push(xy(node));
+  if(road.links.size<3)continue;
+  for(const [a,b] of layoutFor(node).hiddenEdges){
+   if(roads.get(a)?.links.size===1)hiddenEnds.add(a);
+   if(roads.get(b)?.links.size===1)hiddenEnds.add(b);
+  }
+ }
+ for(const [node,road] of roads){
+  if(road.main||gateNodes.has(node)||hiddenEnds.has(node)||road.links.size>1)continue;
+  const [neighbor]=road.links;
+  if(neighbor!==undefined&&(roads.get(neighbor)?.links.size??0)>=3){
+   const port=layoutFor(neighbor).ports.find(p=>p.node===node);
+   if(port&&distance(neighbor,node)<=port.extent)continue;
+  }
+  points.push(xy(node));
  }
  return points;
 }
