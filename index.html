@@ -1082,7 +1082,13 @@ html body #dialog .mission-scorecard h2{color:var(--result-accent)!important}
 html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!important;background:#223640!important;border-color:#536975!important}
 #dialog .mission-scorecard #missionDetailClose{background:var(--result-accent)!important;color:#14242d!important;border-color:transparent!important}
 </style>
-</head>
+<style>
+#smcityFirstPlayTip{position:fixed;z-index:419;top:clamp(68px,12vh,112px);right:12px;width:min(335px,calc(100vw - 24px));box-sizing:border-box;padding:14px;background:#132b40;color:#fff;border:1px solid #6ad7ef;border-radius:14px;box-shadow:0 6px 20px #061d3766;font:15px/1.55 Tahoma,sans-serif}
+#smcityFirstPlayTip p{margin:0 0 10px}
+#smcityFirstPlayTip strong{color:#ffe18a;font-size:16px}
+#smcityFirstPlayTip div{display:flex;gap:8px}
+#smcityFirstPlayTip button{padding:5px 10px;border:1px solid #6ad7ef;border-radius:7px;background:#e1f7ff;color:#142b40;font:inherit;cursor:pointer}
+</style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
 <aside id="cameraPitchRail" aria-label="ควบคุมมุมก้มเงยกล้อง" hidden>
@@ -1186,7 +1192,37 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
 (function(){
  const layer=document.getElementById('smcityWelcome'),card=document.getElementById('smcityWelcomeCard'),image=document.getElementById('smcityWelcomeImage');
  if(!layer||!card||!image)return;
- function closeWelcome(){layer.hidden=true;}
+ const tipKey='smcity-first-play-tips-v1';
+ const tips=[
+  ['🚗 รถค้างหรือขวางทาง','คลิกหรือแตะรถคันที่ขวาง แล้วกด “เอารถออก” ในแผงข้อมูลรถ'],
+  ['🚦 อัปเกรดทางแยก','แตะป้าย AI ที่แยกเพื่อดูตัวเลือกอัปเกรด'],
+  ['🏠 รื้อบ้าน','เลือก “รื้อถอน” แล้วแตะบ้านที่ต้องการรื้อ'],
+  ['🛣 เชื่อมปลายถนน','ลากถนนจากปลายที่มีป้ายเตือนไปเชื่อมอีกเส้น รถกลับรถที่ปลายตันไม่ได้']
+ ];
+ function showFirstPlayTips(){
+  try{if(localStorage.getItem(tipKey))return;}catch{}
+  if(document.getElementById('smcityFirstPlayTip'))return;
+  const tip=document.createElement('aside');
+  tip.id='smcityFirstPlayTip';
+  tip.setAttribute('aria-label','วิธีเล่น SMCITY');
+  tip.innerHTML='<p aria-live="polite"><strong></strong><br><span></span></p><div><button type="button" data-next>ถัดไป</button><button type="button" data-close>ข้าม</button></div>';
+  let step=0;
+  const next=tip.querySelector('[data-next]');
+  const finish=()=>{try{localStorage.setItem(tipKey,'1');}catch{}tip.remove();};
+  const render=()=>{
+   tip.querySelector('strong').textContent=tips[step][0]+' · '+(step+1)+'/'+tips.length;
+   tip.querySelector('span').textContent=tips[step][1];
+   next.textContent=step===tips.length-1?'เข้าใจแล้ว':'ถัดไป';
+  };
+  next.onclick=()=>{if(++step===tips.length)finish();else render();};
+  tip.querySelector('[data-close]').onclick=finish;
+  render();document.body.append(tip);
+ }
+ function closeWelcome(){
+  if(layer.hidden)return;
+  layer.hidden=true;
+  setTimeout(showFirstPlayTips,5000);
+ }
  function updateWelcome(){
   if(layer.hidden)return;
   const w=window.innerWidth,h=window.innerHeight;
