@@ -1107,15 +1107,26 @@ function missionFailureLabel(kind,reason){
  // Compact text reflects the exact result reason; no extra failures are inferred.
  const raw=String(reason||'').trim();
  const category=kind==='ใช้บริการ / พักผ่อน'&&raw.includes(' · ')?raw.split(' · ')[0].trim():kind;
- if(raw.includes('บริการหรือที่จอดเต็ม'))return category+'เต็ม';
- if(raw.includes('ยังไม่มีอาคาร'))return category+'ไม่มีอาคาร';
+ if(/บริการหรือที่จอดเต็ม|จำนวนผู้ใช้บริการและการจองเต็ม|ยังไม่มีอาคาร|ไม่มีอาคารที่มีทั้งบริการและที่จอดว่าง/.test(raw))return category+'ไม่พอ';
+ if(raw.includes('ที่จอดปลายทางเต็ม'))return 'ที่จอด'+category+'ไม่พอ';
  if(raw.includes('ไม่มีสถานที่เปิด'))return category+'ปิด';
  if(raw.includes('ถนนเชื่อมไปไม่ถึง')||raw.includes('ไม่มีเส้นทาง'))return category+'ไปไม่ถึง';
  if(raw.includes('ที่จอดเต็ม'))return category+'ที่จอดเต็ม';
  if(raw.includes('เลยเวลา')||raw.includes('ช้ากว่า')||raw.includes('มาสาย')||raw.includes('ไปสาย')||raw.includes('ไม่ทัน'))return category+'สาย';
  if(raw.includes('เวลาในตารางไม่พอ')||raw.includes('หมดเวลา'))return category+'หมดเวลา';
  if(raw.includes('ยกเลิก'))return category+'ยกเลิก';
- return category+' · '+(raw||'ไม่ระบุสาเหตุ').slice(0,42);
+ return category==='อื่น ๆ'?'สาเหตุอื่น':(raw.split(' · ').pop()||'ไม่ระบุสาเหตุ').slice(0,42);
+}
+function groupMissionFailures(rows=[]){
+ const groups=new Map();
+ for(const item of rows){
+  if(!(item.count>0))continue;
+  const label=missionFailureLabel(item.kind,item.reason);
+  const group=groups.get(label)||{count:0,reason:item.reason};
+  group.count+=item.count;
+  groups.set(label,group);
+ }
+ return [...groups].sort((a,b)=>b[1].count-a[1].count||a[0].localeCompare(b[0],'th'));
 }
 function renderMissionFailureSummary(day,failedCount){
  const holder=$('missionFailureSummary'),toggle=$('missionFailureToggle');
@@ -1130,12 +1141,7 @@ function renderMissionFailureSummary(day,failedCount){
  if(!expanded)return;
  const record=day?.outcomeDetails?.failed;
  const groups=new Map();
- for(const item of record?.groups||[]){
-  const key=String(item.tag||missionFailureLabel(item.kind,item.reason));
-  if(!key||!(item.count>0))continue;
-  const current=groups.get(key)||{count:0,reason:item.reason};
-  current.count+=item.count;groups.set(key,current);
- }
+ for(const [key,data] of groupMissionFailures(record?.groups))groups.set(key,data);
  const notRecorded=Math.max(0,failedCount-Math.max(0,record?.count||0));
  if(notRecorded)groups.set('ไม่ทราบสาเหตุย้อนหลัง',{count:notRecorded,reason:'ข้อมูลก่อนเริ่มบันทึกสาเหตุ'});
  const badges=[...groups].sort((a,b)=>b[1].count-a[1].count||a[0].localeCompare(b[0],'th')).map(([name,data])=>
@@ -5241,7 +5247,8 @@ function openMissionOutcomeDetails(kind='failed',previous=false){
  const escape=missionDetailEscape;
  const heading=kind==='success'?'ภารกิจสำเร็จ':'ภารกิจไม่สำเร็จ';
  const tone=kind==='success'?'success':'failed';
- const summary=groups.map(row=>'<li><span>'+escape(row.kind)+' · '+escape(row.reason)+'</span><b>'+fmt(row.count)+' ครั้ง</b></li>').join('');
+ const summaryRows=kind==='failed'?groupMissionFailures(groups):groups.map(row=>[row.kind+' · '+row.reason,row]);
+ const summary=summaryRows.map(([label,row])=>'<li><span>'+escape(label)+'</span><b>'+fmt(row.count)+' ครั้ง</b></li>').join('');
  const samples=(logged?.recent||[]).slice().reverse().slice(0,35).map(entry=>
   '<li><div><strong>'+escape(entry.citizen)+'</strong><span>'+escape(entry.kind)+' · '+escape(entry.place)+'</span></div>'+
   '<p>'+escape(entry.reason)+(entry.congestion>0?' · รอจราจร '+fmt(entry.congestion)+' นาที':'')+'</p>'+
