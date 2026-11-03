@@ -2747,7 +2747,7 @@ function findRoadJoinWarnings(roads,gates){
  const gateNodes=new Set(gates);
  const points=[];
  for(const [node,road] of roads){
-  if(!road.main&&!gateNodes.has(node)&&road.links.size<=1)points.push(xy(node));
+  if(!road.main&&!gateNodes.has(node)&&road.links.size===0)points.push(xy(node));
  }
  return points;
 }
