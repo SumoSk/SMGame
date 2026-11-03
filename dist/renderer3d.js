@@ -2441,6 +2441,19 @@ export class TrafficRenderer{
      width,height,.018,0,angle,0,id,false,'shop-sign-face');
    }
   };
+  const shopFascia=(u,y,v,width,depth)=>{
+   const bands=[
+    ['#ff7514',.116,.102],['#fffefa',.057,.016],
+    ['#008451',-.011,.120],['#fffefa',-.079,.016],
+    ['#e52236',-.110,.046]
+   ];
+   for(const [color,offset,height] of bands){
+    for(const sign of [-1,1]){
+     block(color,u,y+offset,v+sign*depth/2,width+.062,height,.060,'matte');
+     block(color,u+sign*width/2,y+offset,v,.060,height,depth-.060,'matte');
+    }
+   }
+  };
   const gable=(color,u,v,w,d,base,rise)=>{
    const p=point(u,v);
    batch.add(PITCHED_ROOF,color,p.x-.5,base,p.y-.5,w,rise,d,0,turn,0,id,false,'stone');
@@ -3070,18 +3083,13 @@ export class TrafficRenderer{
      block('#39728c',xx,1.800,zz,.73,.020,.19,'shop-roof-essential');
      if(!low)block('#99bbce',xx,1.816,zz,.024,.014,.21,'metal');
     }
-    // Thai frontage has three distinct full-length 7-Eleven brand stripes.
-    for(const [color,y,h] of[[orange,1.49,.090],[green,1.393,.094],[red,1.313,.048]])
-     block(color,1.50,y,1.105,2.48,h,.046,'metal');
-    for(const y of[1.441,1.339])
-     block('#ffffff',1.50,y,1.13,2.49,.020,.052,'metal');
-    // Single square roof sign, clear in LOW, with no duplicate badge on fascia.
+    shopFascia(1.50,1.49,.63,2.61,1.15);
     led('#fff1cd',1.50,1.215,1.15,2.20,.024,.022,'essential');
-    for(const xx of[1.07,1.93])
-     block('#cbd5ce',xx,1.80,.965,.073,.34,.095,'shop-roof-essential');
-    block(green,1.50,2.30,1.026,1.43,1.14,.082,'shop-brand-essential');
-    block('#fffefa',1.50,2.30,1.070,1.31,1.04,.022,'shop-brand-essential');
-    shopSignFace(1.50,2.30,1.041,1.31,1.04,.045,.071);
+    for(const xx of[1.20,1.80])
+     block('#cbd5ce',xx,1.80,.965,.060,.22,.080,'shop-roof-essential');
+    block(green,1.50,2.10,1.026,1.02,.78,.082,'shop-brand-essential');
+    block('#fffefa',1.50,2.10,1.070,.94,.71,.022,'shop-brand-essential');
+    shopSignFace(1.50,2.10,1.041,.94,.71,.045,.071);
     led('#fff0c5',1.50,1.71,1.081,1.15,.020,.021,'essential');
     for(const xx of[.39,2.61])
      led('#d7fff0',xx,.91,1.129,.019,.61,.016,'essential');
@@ -4072,26 +4080,14 @@ export class TrafficRenderer{
     base(x,y-.025,z,w+.07,.065,d+.06,white,'metal');
     base(x,y+.007,z,w+.08,.022,d+.07,'#aabcc0','metal');
    };
-   const roofCrest=(x,z,roofY,width,height=width*.84)=>{
-    // Upright generous signage; lower edge stays above the rooftop.
-    const plaqueY=roofY+.14+height*.50,signZ=z;
+   const roofCrest=(x,signZ,roofY,maxWidth)=>{
+    const width=maxWidth*.73,height=width*.84;
+    const plaqueY=roofY+.10+height*.50;
     for(const dx of[-width*.30,width*.30])
-     base(x+dx,roofY+.175,signZ-.087,.085,.35,.11,silver,'shop-roof-essential');
-    base(x,roofY+.14,signZ-.070,width*.88,.058,.18,green,'shop-roof-essential');
+     base(x+dx,roofY+.114,signZ-.087,.065,.23,.09,silver,'shop-roof-essential');
+    base(x,roofY+.10,signZ-.070,width*.88,.058,.18,green,'shop-roof-essential');
     plaque(x,plaqueY,signZ,width,height);
     led('#fff0cb',x,roofY+.050,signZ+.095,width*.82,.022,.024,'essential');
-   };
-   const stripes=(x,y,z,width,frontSide=true)=>{
-    // Real Thai convenience-store fascia: orange, green, red, with
-    // narrow white separators between each continuous coloured band.
-    const offset=frontSide?.035:-.035;
-    base(x,y+.105,z+offset,width,.12,.05,orange,'metal');
-    base(x,y+.015,z+offset,width,.023,.057,white,'metal');
-    base(x,y-.076,z+offset,width,.14,.05,green,'metal');
-    base(x,y-.161,z+offset,width,.022,.060,white,'metal');
-    base(x,y-.211,z+offset,width,.075,.053,red,'metal');
-    led('#fff1d4',x,y+.173,z+offset+.013,width*.97,.020,.021,'essential');
-    if(!low)led('#b6efce',x,y-.151,z+offset+.014,width*.94,.016,.018);
    };
    const counter=(x,z,y=.28)=>{
     base(x,y+.38,z,.69,.59,.39,'#ece5db');
@@ -4156,8 +4152,7 @@ export class TrafficRenderer{
     base(x,1.83,z,w+.06,.11,d+.10,white,'metal');
     base(x,1.915,z,w+.09,.047,d+.12,silver,'metal');
     solarRoof(x,z,w*.80,d*.72,1.985);
-    // The small store has a single roof sign; no second branded fascia.
-    if(level!==1)stripes(x,1.98,face+.024,w-.07);
+    shopFascia(x,1.847,z,w+.16,d+.19);
     if(!upper)roofCrest(x,face-.19,1.978,Math.min(1.22,w*.70));
     led(cream,x,1.73,face+.065,w*.85,.027,.024,'essential');
     for(const xx of[x-w*.40,x+w*.40])
@@ -4183,6 +4178,7 @@ export class TrafficRenderer{
      base(x,3.50,z,w+.14,.11,d+.13,white,'metal');
      base(x,3.58,z,w+.17,.048,d+.16,silver,'metal');
      solarRoof(x,z,w*.81,d*.70,3.665);
+     shopFascia(x,3.515,z,w+.24,d+.23);
      roofCrest(x,face-.17,3.600,Math.min(1.24,w*.62));
      led(cream,x,3.45,face-.075,w*.87,.028,.028,'essential');
      if(!low)led('#bfeee2',x,3.62,face-.072,w*.87,.017,.020);
