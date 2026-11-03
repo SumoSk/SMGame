@@ -2740,6 +2740,57 @@ function routeWarningPosition(v){
  if(renderer3d)return n<s-1?screen(b.x+.54+n*.53,b.y+s-.28,18):null;
  return n<Math.min(b.parked.size,Math.floor(s*2))?screen(b.x+.38+(n%Math.floor(s))*.62,b.y+s-.3-Math.floor(n/s)*.4,12):null;
 }
+// Detect unfinished joins from the live road graph, independent of building labels.
+let roadJoinWarnings=null,roadJoinLayer=null;
+function findRoadJoinWarnings(roads){
+ const joins=new Map();
+ for(const [node,road] of roads){
+  if(road.links.size!==1)continue;
+  const [x,y]=xy(node),[px,py]=xy(road.links.values().next().value);
+  const dx=Math.sign(x-px),dy=Math.sign(y-py);
+  if(Math.abs(dx)+Math.abs(dy)!==1)continue;
+  for(let distance=1;distance<=3;distance++){
+   const tx=x+dx*distance,ty=y+dy*distance;
+   if(!valid(tx,ty))break;
+   const target=id(tx,ty),other=roads.get(target);
+   if(!other)continue;
+   const directions=[...other.links].map(xy);
+   const crosses=directions.some(([nx,ny])=>dx?ny!==ty:nx!==tx);
+   const faces=other.links.size===1&&directions.some(([nx,ny])=>(nx-tx)*dx+(ny-ty)*dy>0);
+   if(!other.links.has(node)&&((crosses&&distance<=roadVisualWidth(other.type)/2+.55)||(faces&&distance===1))){
+    const key=node<target?node+':'+target:target+':'+node;
+    const edge=crosses?distance-roadVisualWidth(other.type)/2:distance;
+    joins.set(key,[[x-dx*.28,y-dy*.28],[x+dx*(edge+.26),y+dy*(edge+.26)]]);
+   }
+   break;
+  }
+ }
+ return [...joins.values()].flat();
+}
+function updateRoadJoinWarnings(){
+ if(typeof document.createElement!=='function')return;
+ if(!roadJoinWarnings||roadJoinWarnings.state!==state||roadJoinWarnings.version!==state.version){
+  const points=findRoadJoinWarnings(state.roads);
+  roadJoinWarnings={state,version:state.version,points};
+  if(!roadJoinLayer&&points.length){
+   roadJoinLayer=document.createElement('div');
+   Object.assign(roadJoinLayer.style,{position:'absolute',inset:'0',overflow:'hidden',pointerEvents:'none'});
+   canvas.insertAdjacentElement('afterend',roadJoinLayer);
+  }
+  if(roadJoinLayer)roadJoinLayer.replaceChildren(...points.map(()=>{
+   const sign=document.createElement('div');
+   sign.textContent='⚠ เชื่อมถนนก่อน · รถผ่านไม่ได้';
+   Object.assign(sign.style,{position:'absolute',transform:'translate(-50%,-100%)',whiteSpace:'nowrap',padding:'4px 7px',borderRadius:'7px',background:'#552716',border:'1px solid #ffad65',color:'#fff3d9',font:'bold 11px/1.4 Tahoma,sans-serif',boxShadow:'0 2px 6px #0006'});
+   return sign;
+  }));
+ }
+ if(!roadJoinLayer)return;
+ roadJoinWarnings.points.forEach(([x,y],i)=>{
+  const [sx,sy]=screen(x,y,i%2?15:31),sign=roadJoinLayer.children[i];
+  sign.hidden=sx<30||sx>view.w-30||sy<55||sy>view.h-85;
+  sign.style.left=sx+'px';sign.style.top=sy+'px';
+ });
+}
 function updateRouteWarnings(){
  if(!placeLabelLayer)return;
  const visible=new Set();
@@ -2975,7 +3026,7 @@ function updateAISignalPins(){
  updateAIPinPopover();
 }
 
-function draw(){normalizeSelectedCar();const roadPreview=getRoadPreview(),placement=hover&&CATALOG[tool]?assistedBuildingPlacement(tool,hover.x,hover.y):null,visualHover=placement?{...hover,x:placement.x,y:placement.y,placement}:hover,demolitionPreview=getDemolitionPreview();if(renderer3d){renderer3d.render({state,cam,hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible});updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
+function draw(){normalizeSelectedCar();const roadPreview=getRoadPreview(),placement=hover&&CATALOG[tool]?assistedBuildingPlacement(tool,hover.x,hover.y):null,visualHover=placement?{...hover,x:placement.x,y:placement.y,placement}:hover,demolitionPreview=getDemolitionPreview();if(renderer3d){renderer3d.render({state,cam,hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible});updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
 drawDemolitionPreview2D(demolitionPreview);
 if(hover&&tool!=='hand'&&!ROADS[tool]){if(CATALOG[tool])drawBuilding({key:tool,x:visualHover.x,y:visualHover.y,rotation:placement.rotation||0},true);else if(!demolitionPreview){const cells=drag?.cells||[owner(id(hover.x,hover.y))];for(const i of cells){const [x,y]=xy(i),s=screen(x,y);ctx.fillStyle=tool.startsWith('erase')?'#df7e6c99':'#fbe3989c';ctx.fillRect(s[0],s[1],T*cam.z,T*cam.z*.78);}}}
 if(state.buildings.size===0){const p=screen(154,143);ctx.fillStyle='#214c3ac9';ctx.font=`500 ${Math.max(12,14*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillText('เมืองใหม่ เริ่มจากถนนเส้นแรก',p[0],p[1]);ctx.font=`${Math.max(10,11*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillStyle='#3f6148';ctx.fillText('ถนนหลัก 8 เลนพร้อมแล้ว · เลือกถนนเล็ก แล้วลากต่อออกมา',p[0],p[1]+22*cam.z);}
