@@ -6314,12 +6314,16 @@ function recoverOrphanJunctionClaims(v,node){
 // Only track owners identified by an actual conflicting green approach.
 let junctionTowState=null,junctionTowClock=0;
 const junctionTowCandidates=new Map();
+const junctionTowDenials=new WeakMap();
 const junctionTowLog=[];
 function watchJunctionTow(v,owner,pos,node,approachPos){
  if(junctionTowState!==state||!trafficSpatial||isAirTraffic(v)||isAirTraffic(owner))return;
  const plan=motionPlan(v),distance=motionDistance(v,plan),guard=plan.junctions.find(g=>g.pos===approachPos);
  if(!guard||distance<guard.stop-.35||distance>guard.entry)return;
  if(!signalAllows(node,motionDirection(v.path,guard.pos-1),plannedLane(v,guard.pos-1)))return;
+ const denial=junctionTowDenials.get(v);
+ if(denial)Object.assign(denial,{owner,node,clock:junctionTowClock});
+ else junctionTowDenials.set(v,{owner,node,clock:junctionTowClock});
  const current=junctionTowCandidates.get(owner.id);
  if(current?.owner===owner&&current.pos===pos&&current.node===node){current.seen=junctionTowClock;return;}
  if(junctionTowCandidates.size<64)junctionTowCandidates.set(owner.id,{owner,pos,node,seen:junctionTowClock,next:junctionTowClock});
@@ -6342,9 +6346,12 @@ function processJunctionTows(simDt){
   if(junctionTowClock<candidate.next||junctionTowClock-candidate.still<7)continue;
   candidate.next=junctionTowClock+.5;
   const block=owner.lastPhysicalBlock,peer=state.vehicles.get(block?.ownerId),back=peer?.lastPhysicalBlock;
-  const reciprocal=peer?.phase==='driving'&&peer.speed<=1e-7&&back?.ownerId===id&&
-   block?.reason==='physical_capsule_overlap'&&back.reason==='physical_capsule_overlap'&&
-   block.gameTime===state.time&&back.gameTime===state.time;
+  const denial=peer&&junctionTowDenials.get(peer);
+  const mixed=denial?.owner===owner&&denial.node===node&&denial.clock===junctionTowClock;
+  const physical=back?.ownerId===id&&back.reason==='physical_capsule_overlap'&&back.gameTime===state.time;
+  const reciprocal=peer?.phase==='driving'&&peer.speed<=1e-7&&peer.lastMovedAt!==state.time&&
+   block?.reason==='physical_capsule_overlap'&&block.gameTime===state.time&&
+   (physical||(mixed&&block.distance>=distance&&block.distance-distance<=.15));
   const clearDistance=Math.min(plan.total,guard.clear)-distance;
   const previousExit=owner.lastJunctionExitCheck;
   const open=clearDistance>0&&guard.clear<=plan.total&&junctionExitAvailable(owner,pos)&&computePhysicalTrafficLimit(owner,plan,distance,clearDistance+.001)>=guard.clear;
@@ -6358,7 +6365,7 @@ function processJunctionTows(simDt){
   if(junctionTowClock-candidate.seen>1||(!clearStall&&!deadlock))continue;
   if(towVehicle(id,false,true)){
    junctionTowCandidates.delete(id);
-   junctionTowLog.push({id,node,time:state.time,reason:clearStall?'clear_exit_stall':'reciprocal_deadlock'});
+   junctionTowLog.push({id,node,time:state.time,reason:clearStall?'clear_exit_stall':mixed?'physical_lease_deadlock':'reciprocal_deadlock'});
    if(junctionTowLog.length>20)junctionTowLog.shift();
   }
   break;
