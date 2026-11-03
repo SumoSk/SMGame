@@ -62,11 +62,18 @@ game.state.time=12*60+59.99;
 game.updateIntercityFreight();
 assert.equal(game.state.intercityHour.total,6);
 assert.equal(game.state.intercityHour.next,6);
-// The displayed long truck model must not exceed the F1 longitudinal scale.
+// The high/medium/low models stay inside the collision capsule, with extra red-light clearance.
 const visual=fs.readFileSync('dist/renderer3d.js','utf8');
-assert(visual.includes("[.745,.300,.30"),'Road train length matches F1');
-assert(visual.includes("if(roadTrain){x*=.30;l*=.30;}"),'3D trailer segments are compressed into F1 footprint');
-assert(fs.readFileSync('dist/game.js','utf8').includes('ctx.scale(.30,1)'), '2D fallback is equally compact');
+const code=fs.readFileSync('dist/game.js','utf8');
+assert(visual.includes("[.620,.300,.30,.220,.170,.175]"),'medium LOD cabin is centered');
+assert(visual.includes("if(roadTrain){x*=.24;l*=.24;}"),'high-detail body shrunk to collision envelope');
+assert(visual.includes("if(roadTrainLow){x*=.80;l*=.80;}"),'low-detail body shrunk to collision envelope');
+assert(visual.includes("wheel.translate(axle*.24,.112,zz)"),'high-detail wheels shrink with body');
+assert(code.includes('ctx.scale(.24,1);ctx.translate(5.25*z,0)'), '2D body is compact and centered');
+assert(code.includes("v.kind==='intercity'?ROAD_TRAIN_SIGNAL_BUFFER:0"),'only intercity stops earlier');
+assert(.220+.170/2<=.32,'medium cab front within collision');
+assert((1.239+.015/2)*.24<=.32,'high cab front within collision');
+assert((.251+.222/2)*.80<=.32,'low cab front within collision');
 // A disconnected expressway must not produce a detour via local streets.
 const broken=trains[0].path[70],next=trains[0].path[71];
 game.state.roads.get(broken).links.delete(next);
