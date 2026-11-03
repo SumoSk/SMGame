@@ -1538,7 +1538,8 @@ function junctionDetails(i){
  const width=road=>roadVisualWidth(road?.type),threshold=Math.max(width(r),...[...r.links].map(n=>width(state.roads.get(n))))/2+.3;
  for(const n of r.links){const d=dir(i,n);let current=n,previous=i,travel=distance(i,n),edges=[[i,n]],steps=0;
   while(travel<threshold&&steps++<8){const next=[...(state.roads.get(current)?.links||[])].filter(k=>k!==previous&&dir(current,k)===d).sort((a,b)=>distance(i,b)-distance(i,a))[0];if(next==null)break;edges.push([current,next]);previous=current;current=next;travel=distance(i,current);}
-  const arm={dir:d,node:n,width:width(state.roads.get(current)),reach:travel,edges,valid:travel>=threshold||state.gates?.includes(current)};if(!raw.has(d)||raw.get(d).reach<travel)raw.set(d,arm);
+  const continuesAroundBend=[...(state.roads.get(current)?.links||[])].some(k=>k!==previous&&dir(current,k)%2!==d%2);
+  const arm={dir:d,node:n,width:width(state.roads.get(current)),reach:travel,edges,valid:travel>=threshold||continuesAroundBend||state.gates?.includes(current)};if(!raw.has(d)||raw.get(d).reach<travel)raw.set(d,arm);
  }
  let arms=[...raw.values()];if(arms.length>=3){const valid=arms.filter(a=>a.valid);if(valid.length>=2){for(const a of arms)if(!a.valid)hiddenEdges.push(...a.edges);arms=valid;}}
  const bend=arms.length===2&&arms[0].dir%2!==arms[1].dir%2;
@@ -2742,17 +2743,18 @@ function routeWarningPosition(v){
 }
 // Detect unfinished joins from the live road graph, independent of building labels.
 let roadJoinWarnings=null,roadJoinLayer=null;
-function findRoadJoinWarnings(roads){
+function findRoadJoinWarnings(roads,gates){
+ const gateNodes=new Set(gates);
  const points=[];
  for(const [node,road] of roads){
-  if(road.links.size<=1)points.push(xy(node));
+  if(!road.main&&!gateNodes.has(node)&&road.links.size<=1)points.push(xy(node));
  }
  return points;
 }
 function updateRoadJoinWarnings(){
  if(typeof document.createElement!=='function')return;
  if(!roadJoinWarnings||roadJoinWarnings.state!==state||roadJoinWarnings.version!==state.version){
-  const points=findRoadJoinWarnings(state.roads);
+  const points=findRoadJoinWarnings(state.roads,state.gates);
   roadJoinWarnings={state,version:state.version,points};
   if(!roadJoinLayer&&points.length){
    roadJoinLayer=document.createElement('div');
@@ -7018,7 +7020,14 @@ if(state.time-state.lastImmigration>=1){state.lastImmigration=state.time;immigra
 if(Math.floor(old/2)!==Math.floor(state.time/2)){let n=0;for(const c of state.citizens.values()){if(c.pending&&!c.pending.life&&c.pending.next<=state.time&&n++<80){const p=c.pending;if(p.expires<state.time){c.pending=null;continue;}runAction(c,p.action,p);}}}
 if(state.time-state.lastPass>=90){state.lastPass=state.time;if(computeStats().pop<1200&&state.vehicles.size<3600){const index=Math.floor(state.time/90)%4;createTrip(null,'pass',null,null,state.gates[index],state.gates[(index+2)%4],null);}}
 updateIntercityFreight();updateNightDeliveries();advanceVehicles(dt*NORMAL_SPEED_SCALE,gameDt);updateTourism(gameDt);updateCityActivity();refreshComplaints();scanIncidents();autoRescueIncidents();for(const r of state.roads.values()){if(r.load>.001)r.load*=Math.pow(.90,dt*4);if(r.wait>.001)r.wait*=Math.pow(.72,dt*4);}if(state.stats.happy<70&&state.time-(state.lastHappyAlert||0)>180){addNews('คนใหม่หยุดย้ายเข้า ช่วยแก้ปัญหาให้ Performance ตั้งแต่ 70%');state.lastHappyAlert=state.time;}}
-function lineCells(a,b){let [x,y]=xy(a),[u,v]=xy(b),dx=u-x,dy=v-y;const horizontal=Math.abs(dx)>=Math.abs(dy);if(horizontal)v=y;else u=x;const steps=Math.max(Math.abs(u-x),Math.abs(v-y)),result=[];for(let n=0;n<=steps;n++){const xx=Math.round(x+(u-x)*(steps?n/steps:0)),yy=Math.round(y+(v-y)*(steps?n/steps:0));if(!valid(xx,yy))continue;const raw=id(xx,yy),snapped=owner(raw),point=xy(snapped),aligned=horizontal?point[1]===y:point[0]===x,p=aligned?snapped:raw;if(result[result.length-1]!==p)result.push(p);}return result;}
+function lineCells(a,b){let [x,y]=xy(a),[u,v]=xy(b),dx=u-x,dy=v-y;const horizontal=Math.abs(dx)>=Math.abs(dy);if(horizontal)v=y;else u=x;
+ // Snap an unfinished end by one tile along the stroke, preserving its axis.
+ const sx=Math.sign(u-x),sy=Math.sign(v-y);
+ if(sx||sy){
+  if(!state.roads.has(id(x,y))&&valid(x-sx,y-sy)&&state.roads.has(id(x-sx,y-sy))){x-=sx;y-=sy;}
+  if(!state.roads.has(id(u,v))&&valid(u+sx,v+sy)&&state.roads.has(id(u+sx,v+sy))){u+=sx;v+=sy;}
+ }
+ const steps=Math.max(Math.abs(u-x),Math.abs(v-y)),result=[];for(let n=0;n<=steps;n++){const xx=Math.round(x+(u-x)*(steps?n/steps:0)),yy=Math.round(y+(v-y)*(steps?n/steps:0));if(!valid(xx,yy))continue;const raw=id(xx,yy),snapped=owner(raw),point=xy(snapped),aligned=horizontal?point[1]===y:point[0]===x,p=aligned?snapped:raw;if(result[result.length-1]!==p)result.push(p);}return result;}
 function checkRoad(cells,type){let cost=0;const t=ROADS[type];if(!cells.length)return{error:'เลือกตำแหน่งถนนบนแผนที่'};const centerline=new Set(cells);for(const i of cells)if(!state.roads.has(i)&&state.footprint[i]>=0&&!centerline.has(state.footprint[i]))return{error:'แนวถนนซ้อนขอบถนนเดิม ลากให้เชื่อมตรงกลางหรือขยับแนวถนนค่ะ'};for(const i of cells){const [x,y]=xy(i),r=state.roads.get(i),w=Math.max(roadClearanceWidth(t),r?roadClearanceWidth(ROADS[r.type]):0),lo=Math.floor(w/2);for(let yy=y-lo;yy<y+w-lo;yy++)for(let xx=x-lo;xx<x+w-lo;xx++){if(!valid(xx,yy))continue;if(state.buildGrid[id(xx,yy)]>=0)return{error:'ถนนทับพื้นที่อาคาร เลือกแนวถนนใหม่ค่ะ'};}cost+=r?Math.max(0,t.cost-ROADS[r.type].cost):t.cost;}
 const adds=new Map();for(let k=1;k<cells.length;k++){const a=cells[k-1],b=cells[k];if(a===b)continue;const pa=xy(a),pb=xy(b);if(pa[0]!==pb[0]&&pa[1]!==pb[1])return{error:'แนวถนนต้องตรงเข้าจุดเชื่อม ลองลากจากกลางถนนเดิมค่ะ'};for(const[p,q]of[[a,b],[b,a]]){if(!adds.has(p))adds.set(p,new Set(state.roads.get(p)?.links||[]));adds.get(p).add(q);if(adds.get(p).size>4)return{error:'จุดเชื่อมนี้มีถนนเกิน 4 แขนง ลองขยับแนวถนนค่ะ'};}}
 const minimumJunctionSpacing=4;
@@ -7630,7 +7639,7 @@ canvas.addEventListener('pointermove',e=>{
   if((e.buttons&3)===3){if(!mouseOrbit){if(beginMouseOrbit(e))return;}else{e.preventDefault();moveMouseOrbit(e);return;}}
   if(mouseChordHeld){mouseOrbit=null;drag=null;if(!e.buttons){mouseChordHeld=false;mouseRightPending=false;pointers.delete(e.pointerId);}return;}
  }
- const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1]),rawX:p[0],rawY:p[1],snap:landscapeSnap,landscape:movingLandscape};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch){moveTouchOrbit();hover=null;return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(owner(id(drag.x,drag.y)),owner(id(hover.x,hover.y)));
+ const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1]),rawX:p[0],rawY:p[1],snap:landscapeSnap,landscape:movingLandscape};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch){moveTouchOrbit();hover=null;return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(id(drag.x,drag.y),id(hover.x,hover.y));
  else if((tool==='eraseRoad'||tool==='erase')&&drag.eraseBuildingId==null)appendRoadEraseStroke(drag,hover.x,hover.y);
  drag.lastX=e.clientX;drag.lastY=e.clientY;});
 function finishCanvasInteraction(d,x,y,activeTool){
