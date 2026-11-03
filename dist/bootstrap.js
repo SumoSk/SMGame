@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=5.4.3-driveway-flare';
+import { TrafficRenderer } from './renderer3d.js?v=5.4.3-shop-fascia';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
 await import('./game.js?v=5.4.3-driveway-flare');
 await import('./member.js?v=b69077e85804');
