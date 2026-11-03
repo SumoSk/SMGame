@@ -63,6 +63,36 @@ const SHOP_SIGN_FACE=(()=>{
  texture.magFilter=THREE.LinearFilter;texture.anisotropy=4;
  return {geometry:new THREE.PlaneGeometry(1,1),texture};
 })();
+// Painted retail interiors share one small, mipmapped storefront atlas.
+const RETAIL_WINDOW_TEXTURES=['shop','mall'].map(kind=>{
+ const canvas=document.createElement('canvas');canvas.width=256;canvas.height=128;
+ const ctx=canvas.getContext('2d',{alpha:false});
+ const paint=(color,x,y,w,h)=>{ctx.fillStyle=color;ctx.fillRect(x,y,w,h);};
+ paint('#695343',0,0,256,128);
+ paint('#b99769',0,14,256,89);
+ paint('#8e7860',0,104,256,24);
+ paint('#f7d7a1',0,9,256,5);
+ const palette=kind==='shop'?['#ce6c51','#e1b656','#88a27c','#e0d7b6','#70909a']:['#a96355','#c2a478','#78918c','#ded1b6'];
+ for(let bay=0;bay<4;bay++){
+  const x=10+bay*64;
+  paint('#594a3e',x,29,45,75);
+  for(let row=0;row<3;row++){
+   const y=40+row*21;
+   for(let item=0;item<(kind==='shop'?6:3);item++){
+    const pitch=kind==='shop'?6:12,height=8+(bay+item+row)%5;
+    paint(palette[(item+row*2+bay)%palette.length],x+4+item*pitch,y-height,pitch-2,height);
+   }
+   paint('#e3bf89',x,y,45,3);
+  }
+ }
+ const reflection=ctx.createLinearGradient(0,0,0,128);
+ reflection.addColorStop(0,'rgba(151,190,209,.30)');
+ reflection.addColorStop(1,'rgba(71,112,136,.10)');
+ ctx.fillStyle=reflection;ctx.fillRect(0,0,256,128);
+ const texture=new THREE.CanvasTexture(canvas);
+ texture.colorSpace=THREE.SRGBColorSpace;
+ return texture;
+});
 const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry];
 
 // One tapered GPU-instanced light streak per beam; no floating glow spheres.
@@ -783,6 +813,8 @@ class Batch{
  box(color,x,y,z,sx,sy,sz,ry=0,id=null,glow=false,finish='matte'){this.add(BOX,color,x,y,z,sx,sy,sz,0,ry,0,id,glow,finish);}
  build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,fine=false,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=finish==='shop-sign-face'?
  new THREE.MeshBasicMaterial({map:SHOP_SIGN_FACE.texture,side:THREE.FrontSide,toneMapped:false,depthWrite:true}):
+ finish==='retail-window-shop'||finish==='retail-window-mall'?
+ new THREE.MeshBasicMaterial({map:RETAIL_WINDOW_TEXTURES[finish==='retail-window-mall'?1:0]}):
  new THREE.MeshStandardMaterial({color,roughness:glow?.4:roughness,metalness,transparent:!!glow,opacity:glow?0:1,depthWrite:!glow});if(glow){
   material.emissive.set(color);material.emissiveIntensity=1.6;
   material.toneMapped=false;
@@ -808,7 +840,7 @@ class Batch{
   };
   material.customProgramCacheKey=()=>finish==='bark'?'landscape-bark-v1':'landscape-foliage-v1';
  }
- const mesh=new THREE.InstancedMesh(geo,material,items.length);const isMallAppleLogo=finish==='mall-sign'&&geo.type==='ShapeGeometry';if(isMallAppleLogo){material.side=THREE.DoubleSide;material.emissive.set(color);material.emissiveIntensity=1.15;material.toneMapped=false;}if(glow&&(finish.startsWith('factory-night-')||finish.startsWith('mall-night-')||finish.startsWith('shop-night-')))mesh.renderOrder=2;mesh.castShadow=shadow&&!glow&&finish!=='shop-sign-face';mesh.receiveShadow=!glow&&finish!=='shop-sign-face';mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.mallAppleLogo=isMallAppleLogo;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark','shop-sign-face'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;mesh.userData.mallNightTier=finish.startsWith('mall-night-')?finish.slice(11):null;mesh.userData.shopNightTier=finish.startsWith('shop-night-')?finish.slice(11):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
+ const mesh=new THREE.InstancedMesh(geo,material,items.length);const isMallAppleLogo=finish==='mall-sign'&&geo.type==='ShapeGeometry';if(isMallAppleLogo){material.side=THREE.DoubleSide;material.emissive.set(color);material.emissiveIntensity=1.15;material.toneMapped=false;}if(glow&&(finish.startsWith('factory-night-')||finish.startsWith('mall-night-')||finish.startsWith('shop-night-')))mesh.renderOrder=2;mesh.castShadow=shadow&&!glow&&finish!=='shop-sign-face'&&!finish.startsWith('retail-window-');mesh.receiveShadow=!glow&&finish!=='shop-sign-face';mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.mallAppleLogo=isMallAppleLogo;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark','shop-sign-face'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;mesh.userData.mallNightTier=finish.startsWith('mall-night-')?finish.slice(11):null;mesh.userData.shopNightTier=finish.startsWith('shop-night-')?finish.slice(11):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
 }
 
 // Scale only the requested two old decoration categories: paths/fences and street furniture.
@@ -2441,6 +2473,10 @@ export class TrafficRenderer{
      width,height,.018,0,angle,0,id,false,'shop-sign-face');
    }
   };
+  const retailWindow=(u,y,v,w,h)=>{
+   const p=point(u,v);
+   batch.add(SHOP_SIGN_FACE.geometry,'#ffffff',p.x-.5,y,p.y-.5,w,h,.004,0,turn,0,id,false,'retail-window-'+kind);
+  };
   const shopFascia=(u,y,v,width,depth)=>{
    const bands=[
     ['#ff7514',.116,.102],['#fffefa',.057,.016],
@@ -3061,6 +3097,7 @@ export class TrafficRenderer{
     }
     for(const zz of[1.07]){
      block('#83b8c2',1.50,.86,zz,2.28,1.04,.055,'glass');
+     retailWindow(1.50,.86,zz+.029,2.24,1.00);
      for(const xx of[.75,1.48,2.22])
       block('#e0e8e5',xx,.84,zz+.035,.039,1.13,.047,'metal');
     }
@@ -3147,6 +3184,7 @@ export class TrafficRenderer{
      for(const zz of[z-.37,z+.37]){
       block(pale,x,1.38,zz,w+.12,.060,.080,'metal');
       block('#9bc1c8',x,.90,zz,w-.10,1.01,.035,'glass');
+     if(zz>z)retailWindow(x,.90,z+.412,w-.12,.96);
      }
      block('#dee8e4',x,1.50,z,w+.15,.075,.95,'metal');
      block(metal,x,1.565,z,w+.17,.045,.97,'metal');
@@ -4130,6 +4168,7 @@ export class TrafficRenderer{
     }
     for(const zz of[face-.047]){
      base(x,1.04,zz,w-.18,1.27,.055,glass,'glass');
+     retailWindow(x,1.04,zz+.029,w-.21,1.23);
      for(let j=0;j<3;j++){
       const xx=x+(j-1)*w*.28;
       base(xx,1.05,zz+.026,.043,1.40,.065,silver,'metal');
@@ -4163,6 +4202,7 @@ export class TrafficRenderer{
      base(x,2.83,back+.10,w-.16,1.15,.12,white);
      for(const zz of[face-.06]){
       base(x,2.88,zz,w-.19,1.01,.045,glass,'glass');
+     retailWindow(x,2.88,zz+.024,w-.22,.97);
       for(const xx of[x-w*.31,x,x+w*.31])
        base(xx,2.89,zz+.042,.029,1.11,.047,silver,'metal');
       if(zz>z)led('#fff0d0',x,3.25,zz+.07,w*.77,.026,.019,'essential');
@@ -4257,6 +4297,7 @@ export class TrafficRenderer{
    const edge=(u,y,v,w,d,color=steel)=>block(color,u,y,v,w,.060,d,'metal');
    const glassWall=(u,y,v,w,h,side='front')=>{
     block(glass,u,y,v,w,h,.045,'glass');
+     if(side==='front')retailWindow(u,y,v+.024,w-.03,h-.04);
     const count=Math.max(3,Math.round(w/.48));
     for(let i=1;i<count;i++){
      const x=u-w/2+i*w/count;
@@ -4611,6 +4652,7 @@ export class TrafficRenderer{
     }
     for(const zz of[back+.08,face-.06]){
      solid('#8ebdc7',x,1.04,zz,wingW-.20,1.31,.043,'glass');
+     if(zz>z)retailWindow(x,1.04,zz+.023,wingW-.23,1.27);
      for(let k=0;k<4;k++){
       const xx=x-wingW*.37+(k+.5)*wingW*.74/4;
       solid(silver,xx,1.10,zz+.029,.029,1.42,.033,'metal');
@@ -4665,6 +4707,7 @@ export class TrafficRenderer{
      solid('#d0d9d6',x,2.32,back+.14,wingW-.22,.08,.30);
      for(const zz of[back+.08,face-.09]){
       solid('#88bec9',x,3.11,zz,wingW-.18,1.38,.042,'glass');
+     if(zz>z)retailWindow(x,3.11,zz+.023,wingW-.21,1.34);
       for(let k=0;k<3;k++){
        const xx=x-wingW*.34+k*wingW*.34;
        solid(silver,xx,3.11,zz+.035,.033,1.43,.035,'metal');
