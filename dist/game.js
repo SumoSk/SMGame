@@ -6311,11 +6311,64 @@ function recoverOrphanJunctionClaims(v,node){
  }
  return changed;
 }
+// Only track owners identified by an actual conflicting green approach.
+let junctionTowState=null,junctionTowClock=0;
+const junctionTowCandidates=new Map();
+const junctionTowLog=[];
+function watchJunctionTow(v,owner,pos,node,approachPos){
+ if(junctionTowState!==state||!trafficSpatial||isAirTraffic(v)||isAirTraffic(owner))return;
+ const plan=motionPlan(v),distance=motionDistance(v,plan),guard=plan.junctions.find(g=>g.pos===approachPos);
+ if(!guard||distance<guard.stop-.35||distance>guard.entry)return;
+ if(!signalAllows(node,motionDirection(v.path,guard.pos-1),plannedLane(v,guard.pos-1)))return;
+ const current=junctionTowCandidates.get(owner.id);
+ if(current?.owner===owner&&current.pos===pos&&current.node===node){current.seen=junctionTowClock;return;}
+ if(junctionTowCandidates.size<64)junctionTowCandidates.set(owner.id,{owner,pos,node,seen:junctionTowClock,next:junctionTowClock});
+}
+function processJunctionTows(simDt){
+ if(!(simDt>0))return;
+ const count=Math.min(4,junctionTowCandidates.size);
+ for(let i=0;i<count;i++){
+  const [id,candidate]=junctionTowCandidates.entries().next().value;
+  junctionTowCandidates.delete(id);
+  const {owner,pos,node}=candidate;
+  if(state.vehicles.get(id)!==owner||owner.phase!=='driving'||owner.path[pos]!==node||!ownsJunctionPass(owner,pos)||junctionTowClock-candidate.seen>20)continue;
+  const plan=motionPlan(owner),guard=plan.junctions.find(g=>g.pos===pos),distance=motionDistance(owner,plan);
+  if(!guard||distance<guard.entry||distance>=guard.clear)continue;
+  junctionTowCandidates.set(id,candidate);
+  if(candidate.plan!==plan||candidate.distance!==distance||owner.speed>1e-7){
+   Object.assign(candidate,{plan,distance,still:junctionTowClock,open:null,cycle:null});
+   continue;
+  }
+  if(junctionTowClock<candidate.next||junctionTowClock-candidate.still<7)continue;
+  candidate.next=junctionTowClock+.5;
+  const block=owner.lastPhysicalBlock,peer=state.vehicles.get(block?.ownerId),back=peer?.lastPhysicalBlock;
+  const reciprocal=peer?.phase==='driving'&&peer.speed<=1e-7&&back?.ownerId===id&&
+   block?.reason==='physical_capsule_overlap'&&back.reason==='physical_capsule_overlap'&&
+   block.gameTime===state.time&&back.gameTime===state.time;
+  const clearDistance=Math.min(plan.total,guard.clear)-distance;
+  const previousExit=owner.lastJunctionExitCheck;
+  const open=clearDistance>0&&guard.clear<=plan.total&&junctionExitAvailable(owner,pos)&&computePhysicalTrafficLimit(owner,plan,distance,clearDistance+.001)>=guard.clear;
+  owner.lastPhysicalBlock=block;
+  owner.lastJunctionExitCheck=previousExit;
+  candidate.open=open?(candidate.open??junctionTowClock):null;
+  candidate.cycle=reciprocal&&candidate.peer===peer?(candidate.cycle??junctionTowClock):reciprocal?junctionTowClock:null;
+  candidate.peer=reciprocal?peer:null;
+  const clearStall=candidate.open!==null&&junctionTowClock-candidate.open>=3&&junctionTowClock-candidate.still>=10;
+  const deadlock=candidate.cycle!==null&&junctionTowClock-candidate.cycle>=3&&junctionTowClock-candidate.still>=20;
+  if(junctionTowClock-candidate.seen>1||(!clearStall&&!deadlock))continue;
+  if(towVehicle(id,false,true)){
+   junctionTowCandidates.delete(id);
+   junctionTowLog.push({id,node,time:state.time,reason:clearStall?'clear_exit_stall':'reciprocal_deadlock'});
+   if(junctionTowLog.length>20)junctionTowLog.shift();
+  }
+  break;
+ }
+}
 function intersectionAllowed(v,pos,ignoreSignal=false){
  if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
  const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(!isAirTraffic(v)&&signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return noteVehicleJunctionDenial(v,i,'red_signal',{incoming:entering,lane,signal:signalColor(i,entering,lane)});
  const connector=junctionConnector(v,pos),lock=state.reservations.get(trafficJunctionKey(v,i));
- for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos)))return noteVehicleJunctionDenial(v,i,'conflicting_junction_lease',{ownerId:pass.id,ownerPhase:other.phase,ownerPos:pass.pos??other.pos,ownerStopReason:other.stopReason||''});}}
+ for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos))){if(!ignoreSignal)watchJunctionTow(v,other,pass.pos??other.pos,i,pos);return noteVehicleJunctionDenial(v,i,'conflicting_junction_lease',{ownerId:pass.id,ownerPhase:other.phase,ownerPos:pass.pos??other.pos,ownerStopReason:other.stopReason||''});}}}
  // Exit clearance is dynamic: check on EVERY admission attempt, never cache
  // across simulation steps. Reuse this read-only result within this attempt.
  // A queued follower cannot pass the head of its lane. Avoid the expensive
@@ -6738,6 +6791,8 @@ function emergencyRightReroute(v,alerts){
 function advanceVehicles(realDt,gameDt){
  let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);let pairedDeadlocks=null;for(const car of state.vehicles.values()){if(mutualPhysicalDeadlock(car))(pairedDeadlocks??=new Set()).add(car.id);if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if((car.phase==='gate_waiting'||car.phase==='departing'&&(car.lotReady||car.departureNoRoute||!state.buildings.has(car.fromId)))&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,poseMemo:new WeakMap(),parkingGrid:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
  prepareParkingMerges(simDt);
+ if(junctionTowState!==state){junctionTowState=state;junctionTowCandidates.clear();junctionTowLog.length=0;junctionTowClock=0;}
+ junctionTowClock+=simDt;
  const emergencyAlerts=parkingGateAlerts();
  for(const v of [...state.vehicles.values()]){
   try{
@@ -6908,6 +6963,7 @@ function advanceVehicles(realDt,gameDt){
   updateTrafficSpatial(v);
   }finally{updateParkingRoadSpatial(v);}
  }
+ processJunctionTows(simDt);
  trafficSpatial=null;parkingMerges=[];
  for(const [key,res]of state.reservations){if(res.passes){res.passes=res.passes.filter(p=>p.until>=state.time&&state.vehicles.has(p.id));if(res.passes.length)res.id=res.passes[0].id;else state.reservations.delete(key);}else if(res.until<state.time||!state.vehicles.has(res.id))state.reservations.delete(key);}
 }
