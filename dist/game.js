@@ -2629,10 +2629,9 @@ function resolveIncident(id,automatic=false){
     if((probe===Infinity||probe>d+.08)&&!physicalConflict){method='เปลี่ยนเส้นทางและออกตัว';v.lastMovedAt=state.time;}
    }
   }
-  // Keep the current trip/seat/reservation when a safe reroute is impossible.
+  // End the blocked trip if a safe reroute is impossible.
   if(method!=='เปลี่ยนเส้นทางและออกตัว'){
-   if(respawnVehicle(v,'incident_recovery'))method='กู้รถ · ย้ายกลับประตูเมืองโดยคงภารกิจ';
-   else towVehicle(cid,true);
+   if(towVehicle(cid,true))method='นำรถออกจากจุดที่กีดขวาง';
   }
   outcomes.push({id:cid,method,remaining:state.vehicles.has(cid)});
  }
@@ -5837,34 +5836,9 @@ function checkDepartureRoute(v){
  if(!path){traceDeparture(v,'departure_route_not_found',{},'observed_rejection');release(v);const from=state.buildings.get(v.fromId),c=state.citizens.get(v.citizenId);if(from&&c){from.parked.add(c.id);c.locationId=from.id;c.location=CATALOG[from.key].kind;c.state='รอเส้นทางออกจากอาคาร';}setRouteMissing(v,true);v.departureNoRoute=true;v.stopReason='ไม่มีเส้นทางออกไปยังจุดหมาย · รออยู่ในอาคาร/ประตู';return false;}
  v.path=[...path];v.pathSet=new Set(path);v.pos=0;v.progress=0;v.motionStartPose=null;v.heldPose=null;v.turnLanes={};v.junctionQueueSince={};v.departureNoRoute=false;setRouteMissing(v,false);v.stopReason='';v.noUTurnPolicy=1;return true;
 }
-// Reuse the original trip and destination reservation; only its physical
-// location and route change. Route finding is throttled in advanceVehicles.
-function respawnVehicle(v,reason='stalled'){
- if(!v||!state.vehicles.has(v.id))return false;
- if(v.kind==='intercity'){cancelVehicle(v);return true;}
- const gates=(state.gates||[]).filter(gate=>state.roads.has(gate));
- if(!gates.length)return false;
- const target=state.buildings.get(v.toId),end=target?.access?.[0]?.node??v.toGate??v.path.at(-1);
- const gateQueue=new Map(gates.map(gate=>[gate,0]));
- for(const other of state.vehicles.values())if(other.phase==='gate_waiting'&&gateQueue.has(other.fromGate))gateQueue.set(other.fromGate,gateQueue.get(other.fromGate)+1);
- gates.sort((a,b)=>gateQueue.get(a)-gateQueue.get(b)||distance(a,end)-distance(b,end)||a-b);
- let entrance=gates[0],path=null;
- for(const gate of gates){const candidate=tripRoute(null,v.toId,gate,v.toGate);if(candidate?.length>1){entrance=gate;path=candidate;break;}}
- const from=state.buildings.get(v.fromId),c=state.citizens.get(v.citizenId);
- // Release a held internal parking signal before relocating its owner.
- grandSignalRelease(v);v.grandCrossing=null;
- release(v);
- if(from){from.queue=from.queue.filter(id=>id!==v.id);if(c){from.parked.delete(c.id);from.visitors.delete(c.id);freeParkingSpace(from,c.id);}}
- v.fromId=null;v.fromGate=entrance;v.path=path?[...path]:[entrance];v.pathSet=new Set(v.path);
- v.pos=0;v.progress=0;v.lane=0;v.motionStartPose=null;v.motionSeedLane=null;v.emergencyInitialLane=null;v.heldPose=null;
- v.lotPath=null;v.lotDistance=0;v.lotBuilding=null;v.lotReady=false;v.grandCrossing=null;v.mergeCommitted=false;v.mergeGhostUntil=null;v.mergeExitActive=false;v.mergeEscapeId=null;v.parkingEscapeFor=null;v.mergeAdmitted=null;v.mergeDrainStarted=false;v.mergeWaitSeconds=0;cleanupParkingVehicle(v);
- v.turnLanes={};v.junctionPasses=[];v.junctionQueueSince={};v.committedJunction=null;
- v.phase='gate_waiting';v.speed=0;v.wait=0;v.lastMovedAt=state.time;v.respawns=(v.respawns||0)+1;
- v.retryAt=0;v.departureRouteVersion=path?state.version:-1;v.nextDepartureRouteRetry=state.time;
- v.departureNoRoute=!path;v.routeCheckedVersion=state.version;v.noUTurnPolicy=1;v.trafficModel=2;
- setRouteMissing(v,!path);v.stopReason=path?'กลับมาเริ่มเข้าที่ประตูเมืองใหม่':'กลับมาประตูเมืองแล้ว · ยังไม่มีเส้นทางถึงจุดหมาย';
- if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+(reason==='demolition'?' ถนนถูกรื้อ · กลับเข้าประตูเมืองใหม่':reason==='paired_deadlock'?' รถขวางกันเป็นคู่ · เปิดทางด้วยการกลับเข้าประตูเมืองใหม่':' รถติดครบ 150 นาที · กลับเข้าประตูเมืองใหม่'));c.history=c.history.slice(-12);}
- updateTrafficSpatial(v);return true;
+// A relocated trip ends. Residents go home; all other vehicles leave the map.
+function respawnVehicle(v){
+ return !!v&&towVehicle(v.id,false,true);
 }
 // Constant-time deadlock detection: read the two blocking IDs already recorded by
 // physicalTrafficLimit. No city-wide search, new geometry scan or ghost collisions.
@@ -6177,7 +6151,7 @@ function towVehicle(id,incidentForce=false,playerForce=false){
    if(Array.isArray(other.mergeAdmitted))other.mergeAdmitted=other.mergeAdmitted.filter(x=>x!==id);
   }
  }
- const c=state.citizens.get(v.citizenId),from=state.buildings.get(v.fromId);cancelVehicle(v);
+ const c=state.citizens.get(v.citizenId);cancelVehicle(v);
  if(incidentForce){
   // Remove only dead or self-owned occupancy/leases left by the incident.
   for(const [key,ownerId]of state.occ)if(ownerId===id||!state.vehicles.has(ownerId))state.occ.delete(key);
@@ -6188,8 +6162,8 @@ function towVehicle(id,incidentForce=false,playerForce=false){
    }else if(claim.id===id||!state.vehicles.has(claim.id))state.reservations.delete(key);
   }
  }
- if(c){if(c.tourist){touristActivityResult(c,c.itinerary[v.tourIndex],'cancelled');if(v.kind==='leisure')touristTrafficFailure(c,v,c.itinerary[v.tourIndex]);tourismLedger().departures++;removeCitizen(c);}else if(!c.resident){removeCitizen(c);}else{let origin=from||state.buildings.get(c.homeId);if(origin&&CATALOG[origin.key].service&&origin.visitors.size>=CATALOG[origin.key].service)origin=state.buildings.get(c.homeId);
-  for(const b of state.buildings.values()){b.parked.delete(c.id);b.visitors.delete(c.id);}if(origin){origin.parked.add(c.id);parkingSpace(origin,c.id,true);if(CATALOG[origin.key].service)origin.visitors.add(c.id);c.locationId=origin.id;c.location=CATALOG[origin.key].kind;}else{c.locationId=null;c.location='home';}
+ if(c){if(c.tourist){touristActivityResult(c,c.itinerary[v.tourIndex],'cancelled');if(v.kind==='leisure')touristTrafficFailure(c,v,c.itinerary[v.tourIndex]);tourismLedger().departures++;removeCitizen(c);}else if(!c.resident){removeCitizen(c);}else{const origin=state.buildings.get(c.homeId);
+  for(const b of state.buildings.values()){b.parked.delete(c.id);b.visitors.delete(c.id);freeParkingSpace(b,c.id);}if(origin){origin.parked.add(c.id);parkingSpace(origin,c.id,true);if(CATALOG[origin.key].service)origin.visitors.add(c.id);c.locationId=origin.id;c.location=CATALOG[origin.key].kind;}else{c.locationId=null;c.location='home';}
   c.state='ยกเลิกเที่ยวเดินทาง · อยู่'+(origin?CATALOG[origin.key].name:'ที่พัก');c.problem='รถถูกลากออก เที่ยวเดินทางไม่สำเร็จ';c.pending=null;c.queued=null;c.history.push(timeText(state.time)+' ยกเลิกเที่ยวเดินทาง · ลากรถออก');c.history=c.history.slice(-12);resumeCancelledLife(c,v,'รถถูกลากออก เที่ยวเดินทางไม่สำเร็จ');
  }}
  if(follow===id)follow=null;return true;
@@ -6757,6 +6731,16 @@ function emergencyRightReroute(v,alerts){
  v.lastMovedAt=state.time;
  return true;
 }
+function stoppedInSignalBox(v,plan=motionPlan(v)){
+ if(isAirTraffic(v))return false;
+ const pose=vehiclePosition(v);
+ if(!pose)return false;
+ return plan.junctions.some(({node})=>{
+  if(!signalRequired(node))return false;
+  const box=junctionDetails(node);
+  return Math.abs(pose.x-box.x)<box.halfX-1e-6&&Math.abs(pose.y-box.y)<box.halfY-1e-6;
+ });
+}
 function advanceVehicles(realDt,gameDt){
  let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);let pairedDeadlocks=null;for(const car of state.vehicles.values()){if(mutualPhysicalDeadlock(car))(pairedDeadlocks??=new Set()).add(car.id);if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if(['departing','gate_waiting'].includes(car.phase)&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,poseMemo:new WeakMap(),parkingGrid:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
  prepareParkingMerges(simDt);
@@ -6769,7 +6753,7 @@ function advanceVehicles(realDt,gameDt){
   if(bugCaptureEnabled)sampleDeparture(v);
   if(missingRoute(v)&&Number.isFinite(v.routeMissingSince)&&state.time-v.routeMissingSince>=NO_ROUTE_TIMEOUT){towVehicle(v.id);continue;}
    // Restore one car from an observed two-car physical deadlock without collision bypass.
-   // Reuse the existing trip-preserving gate recovery; never reset both vehicles.
+   // Remove only one vehicle to break the deadlock.
    if(respawnBudget>0&&pairedDeadlocks?.has(v.id)&&respawnVehicle(v,'paired_deadlock')){respawnBudget--;continue;}
   // Apply the same 150-game-minute recovery to every moving/stalled trip,
   // INCLUDING parking_in, parking_out and departing without an active lotPath.
@@ -6869,7 +6853,7 @@ function advanceVehicles(realDt,gameDt){
    }
    continue;
   }
-  if(v.phase==='stuck'){v.wait+=gameDt;v.speed=0;if(routeBudget>0&&routeChecks.has(v.id)&&recoveryDue(v)){routeBudget--;recoverVehicle(v);}continue;}
+  if(v.phase==='stuck'){if(stoppedInSignalBox(v)){towVehicle(v.id,false,true);continue;}v.wait+=gameDt;v.speed=0;if(routeBudget>0&&routeChecks.has(v.id)&&recoveryDue(v)){routeBudget--;recoverVehicle(v);}continue;}
   if(v.routeCheckedVersion!==state.version){v.routeCheckedVersion=state.version;if(!remainingRouteValid(v)){if(v.kind==='intercity')cancelVehicle(v);else strandVehicle(v,'เส้นทางเดิมขาด');continue;}}
   if(v.pos+1>=v.path.length){arrive(v);continue;}
   if(emergencyAlerts.length&&v.kind!=='intercity')emergencyRightReroute(v,emergencyAlerts);
@@ -6921,6 +6905,7 @@ function advanceVehicles(realDt,gameDt){
    }
   }
   if(!state.vehicles.has(v.id)||v.phase==='parking_in')continue;
+  if(simDt>0&&blocked&&v.speed<=1e-7&&stoppedInSignalBox(v,plan)){towVehicle(v.id,false,true);continue;}
   refreshMotionReservations(v,plan,s);
   if(s-initial>1e-7)v.lastMovedAt=state.time;
   if(blocked&&s-initial<1e-7){
