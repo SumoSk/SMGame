@@ -68,21 +68,65 @@ const RETAIL_WINDOW_TEXTURES=['shop','mall'].map(kind=>{
  const canvas=document.createElement('canvas');canvas.width=256;canvas.height=128;
  const ctx=canvas.getContext('2d',{alpha:false});
  const paint=(color,x,y,w,h)=>{ctx.fillStyle=color;ctx.fillRect(x,y,w,h);};
- paint('#695343',0,0,256,128);
- paint('#b99769',0,14,256,89);
- paint('#8e7860',0,104,256,24);
- paint('#f7d7a1',0,9,256,5);
- const palette=kind==='shop'?['#ce6c51','#e1b656','#88a27c','#e0d7b6','#70909a']:['#a96355','#c2a478','#78918c','#ded1b6'];
- for(let bay=0;bay<4;bay++){
-  const x=10+bay*64;
-  paint('#594a3e',x,29,45,75);
-  for(let row=0;row<3;row++){
-   const y=40+row*21;
-   for(let item=0;item<(kind==='shop'?6:3);item++){
-    const pitch=kind==='shop'?6:12,height=8+(bay+item+row)%5;
-    paint(palette[(item+row*2+bay)%palette.length],x+4+item*pitch,y-height,pitch-2,height);
+ if(kind==='shop'){
+  const shape=(color,points)=>{
+   ctx.fillStyle=color;ctx.beginPath();
+   points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
+   ctx.closePath();ctx.fill();
+  };
+  paint('#f1e5cb',0,0,256,128);
+  shape('#b6b6a7',[[0,128],[77,77],[179,77],[256,128]]);
+  shape('#fff3d7',[[0,0],[256,0],[179,22],[77,22]]);
+  paint('#dcf4ef',91,27,75,50);
+  for(let door=0;door<4;door++){
+   const x=94+door*18;
+   paint('#46676c',x,29,16,47);
+   paint('#b9dcd6',x+2,31,12,40);
+   for(let row=0;row<4;row++){
+    const y=37+row*8;
+    paint('#607f77',x+2,y+5,12,1);
+    for(let item=0;item<3;item++)
+     paint(['#bf5d4b','#f6edba','#629385','#e5ac51'][(door+row+item)%4],x+3+item*4,y,2,5);
    }
-   paint('#e3bf89',x,y,45,3);
+  }
+  for(const side of [0,1]){
+   ctx.save();
+   if(side){ctx.translate(256,0);ctx.scale(-1,1);}
+   shape('#8e7963',[[6,50],[76,35],[76,80],[6,110]]);
+   for(let row=0;row<3;row++){
+    const y=58+row*16;
+    shape('#f0c78a',[[6,y],[76,41+row*12],[76,44+row*12],[6,y+4]]);
+    for(let item=0;item<9;item++){
+     const x=9+item*7,top=y-((y-41-row*12)*x/76);
+     const color=['#e89745','#b65a52','#e9d797','#659279','#8da8b1'][(item+row+side)%5];
+     paint(color,x,top-8,4,8);
+    }
+   }
+   ctx.restore();
+  }
+  // A painted sliding entrance stays aligned with the aisle behind the glass.
+  for(const x of [101,128,155])paint('#526461',x,5,2,117);
+  paint('#526461',101,5,56,2);paint('#526461',101,120,56,2);
+  paint('#e37b2e',103,53,52,2);paint('#168454',103,55,52,2);
+  paint('#e9eee7',121,67,2,12);paint('#e9eee7',134,67,2,12);
+  paint('#f7f2dc',106,59,9,7);paint('#cae0dc',142,62,8,10);
+ }else{
+  paint('#695343',0,0,256,128);
+  paint('#b99769',0,14,256,89);
+  paint('#8e7860',0,104,256,24);
+  paint('#f7d7a1',0,9,256,5);
+  const palette=['#a96355','#c2a478','#78918c','#ded1b6'];
+  for(let bay=0;bay<4;bay++){
+   const x=10+bay*64;
+   paint('#594a3e',x,29,45,75);
+   for(let row=0;row<3;row++){
+    const y=40+row*21;
+    for(let item=0;item<3;item++){
+     const pitch=12,height=8+(bay+item+row)%5;
+     paint(palette[(item+row*2+bay)%palette.length],x+4+item*pitch,y-height,pitch-2,height);
+    }
+    paint('#e3bf89',x,y,45,3);
+   }
   }
  }
  const reflection=ctx.createLinearGradient(0,0,0,128);
