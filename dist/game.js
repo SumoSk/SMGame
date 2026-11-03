@@ -2742,29 +2742,28 @@ function routeWarningPosition(v){
 // Detect unfinished joins from the live road graph, independent of building labels.
 let roadJoinWarnings=null,roadJoinLayer=null;
 function findRoadJoinWarnings(roads){
- const joins=new Map();
+ const points=[];
  for(const [node,road] of roads){
   if(road.links.size!==1)continue;
   const [x,y]=xy(node),[px,py]=xy(road.links.values().next().value);
   const dx=Math.sign(x-px),dy=Math.sign(y-py);
   if(Math.abs(dx)+Math.abs(dy)!==1)continue;
-  for(let distance=1;distance<=3;distance++){
+  for(let distance=1;distance<=4;distance++){
    const tx=x+dx*distance,ty=y+dy*distance;
    if(!valid(tx,ty))break;
    const target=id(tx,ty),other=roads.get(target);
    if(!other)continue;
+   if(road.links.has(target)||other.links.has(node))break;
    const directions=[...other.links].map(xy);
    const crosses=directions.some(([nx,ny])=>dx?ny!==ty:nx!==tx);
    const faces=other.links.size===1&&directions.some(([nx,ny])=>(nx-tx)*dx+(ny-ty)*dy>0);
-   if(!other.links.has(node)&&((crosses&&distance<=roadVisualWidth(other.type)/2+.55)||(faces&&distance===1))){
-    const key=node<target?node+':'+target:target+':'+node;
-    const edge=crosses?distance-roadVisualWidth(other.type)/2:distance;
-    joins.set(key,[[x-dx*.28,y-dy*.28],[x+dx*(edge+.26),y+dy*(edge+.26)]]);
+   if((crosses&&distance<=roadVisualWidth(other.type)/2+1.15)||(faces&&distance<=2)){
+    points.push([x,y]);
    }
    break;
   }
  }
- return [...joins.values()].flat();
+ return points;
 }
 function updateRoadJoinWarnings(){
  if(typeof document.createElement!=='function')return;
@@ -2785,7 +2784,7 @@ function updateRoadJoinWarnings(){
  }
  if(!roadJoinLayer)return;
  roadJoinWarnings.points.forEach(([x,y],i)=>{
-  const [sx,sy]=screen(x,y,i%2?15:31),sign=roadJoinLayer.children[i];
+  const [sx,sy]=screen(x,y,18),sign=roadJoinLayer.children[i];
   sign.hidden=sx<30||sx>view.w-30||sy<55||sy>view.h-85;
   sign.style.left=sx+'px';sign.style.top=sy+'px';
  });
