@@ -1192,12 +1192,13 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
 (function(){
  const layer=document.getElementById('smcityWelcome'),card=document.getElementById('smcityWelcomeCard'),image=document.getElementById('smcityWelcomeImage');
  if(!layer||!card||!image)return;
- const tipKey='smcity-first-play-tips-v2';
+ const tipKey='smcity-first-play-tips-v3';
  const tips=[
   ['🚗 รถค้างหรือขวางทาง','คลิกหรือแตะรถคันที่ขวาง แล้วกด “เอารถออก” ในแผงข้อมูลรถ'],
   ['🚦 อัปเกรดทางแยก','แตะป้าย AI ที่แยกเพื่อดูตัวเลือกอัปเกรด'],
   ['🏠 รื้อบ้าน','เลือก “รื้อถอน” แล้วแตะบ้านที่ต้องการรื้อ'],
-  ['🛣 เชื่อมปลายถนน','ลากถนนจากปลายที่มีป้ายเตือนไปเชื่อมอีกเส้น รถกลับรถที่ปลายตันไม่ได้']
+  ['🛣 เชื่อมปลายถนน','ลากถนนจากปลายที่มีป้ายเตือนไปเชื่อมอีกเส้น รถกลับรถที่ปลายตันไม่ได้'],
+  ['🛣 อัปเกรดถนนเล็ก','เลือก “ถนนกลาง” แล้วลากทับแนวถนนเล็กเดิม จากนั้นกดยืนยัน']
  ];
  function showFirstPlayTips(){
   try{if(localStorage.getItem(tipKey))return;}catch{}
