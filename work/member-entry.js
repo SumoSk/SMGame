@@ -554,6 +554,43 @@ if (gate) {
       button.disabled = false;
     }
   }
+function creatorHistoryDashboard(target,entries,render){
+ const section=target.closest('section');
+ let panel=section.querySelector('.cr-history-dashboard');
+ if(!panel){
+  panel=document.createElement('div');
+  panel.className='cr-history-dashboard';
+  panel.innerHTML='<div class="cr-toolbar" style="display:flex;flex-wrap:wrap;gap:8px"><label>วัน <select data-filter="day"></select></label><label>อุปกรณ์ <select data-filter="device"></select></label><label>เมือง <select data-filter="city"></select></label></div><p data-summary role="status"></p><details><summary>แยกตามวัน อุปกรณ์ และเมือง</summary><ul data-breakdown></ul></details>';
+  section.insertBefore(panel,section.querySelector('.cr-table-box'));
+ }
+ const fmt=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'});
+ const day=value=>{const date=new Date(value);return value&&!Number.isNaN(+date)?fmt.format(date):'ไม่ระบุ';};
+ const devices={desktop:'คอมพิวเตอร์',ipad:'iPad',iphone:'iPhone',android:'Android',tablet:'แท็บเล็ต',other:'อื่น ๆ'};
+ const fields={day:row=>day(row.started_at),device:row=>devices[row.device]||'อื่น ๆ',city:row=>row.city||'ไม่ระบุ'};
+ const filters=Object.entries(fields).map(([key,get])=>{
+  const select=panel.querySelector('[data-filter="'+key+'"]'),previous=select.value;
+  const values=[...new Set(entries.map(get))].sort((a,b)=>key==='day'?b.localeCompare(a):a.localeCompare(b,'th'));
+  select.replaceChildren(new Option('ทั้งหมด',''),...values.map(value=>new Option(value,value)));
+  if(values.includes(previous))select.value=previous;
+  return {select,get};
+ });
+ const update=()=>{
+  const rows=entries.filter(row=>filters.every(({select,get})=>!select.value||get(row)===select.value));
+  const minutes=Math.round(rows.reduce((total,row)=>total+Math.max(0,Number(row.active_seconds)||0),0)/60);
+  panel.querySelector('[data-summary]').textContent=rows.length.toLocaleString('th-TH')+' จาก '+entries.length.toLocaleString('th-TH')+' รายการล่าสุด · เวลาเล่นรวม '+minutes.toLocaleString('th-TH')+' นาที · เวลาไทย';
+  const breakdown=panel.querySelector('[data-breakdown]');
+  breakdown.replaceChildren(...filters.map(({get},i)=>{
+   const counts=new Map();
+   for(const row of rows){const key=get(row);counts.set(key,(counts.get(key)||0)+1);}
+   const li=document.createElement('li');
+   li.textContent=['รายวัน','อุปกรณ์','เมือง'][i]+' · '+([...counts].sort((a,b)=>i===0?b[0].localeCompare(a[0]):b[1]-a[1]).map(([label,count])=>label+' '+count).join(' / ')||'ไม่มีข้อมูล');
+   return li;
+  }));
+  render(target,rows,false);
+ };
+ for(const {select} of filters)select.onchange=update;
+ update();
+}
   async function creatorReload() {
     if (creatorLoading || !creatorAllowed || !creatorDialog.open) return;
     creatorLoading = true; cr('crStatus').textContent = 'กำลังโหลดข้อมูล…';
@@ -564,7 +601,7 @@ if (gate) {
       cr('crOnline').textContent = nfmt(result.onlineCount);
       cr('crPlaying').textContent = nfmt(result.playingCount);
       populateCreatorTable(cr('crLive'), result.online || [], true);
-      populateCreatorTable(cr('crHistory'), result.recent || [], false);
+      creatorHistoryDashboard(cr('crHistory'), result.recent || [], populateCreatorTable);
       cr('crStatus').textContent = 'อัปเดต ' + dfmt(result.checkedAt);
     } catch (error) { cr('crStatus').textContent = 'โหลดข้อมูลไม่ได้: ' + (error?.message || 'ไม่ทราบสาเหตุ'); }
     finally { creatorLoading = false; }
