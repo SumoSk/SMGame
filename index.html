@@ -430,7 +430,9 @@ body>.city-level-strip :is(.city-level-button,.city-ai-quota-button){overflow:hi
   max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
   overflow-x:hidden!important;overflow-y:auto!important;pointer-events:auto!important;
   overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
 }
+#cityLevelCelebration .sm-level-celebration-card::-webkit-scrollbar{display:none}
 #cityLevelCelebration .sm-level-celebration-eyebrow{font-size:11px!important}
 #cityLevelCelebration .sm-level-celebration-open{min-height:42px!important;font-size:13px!important}
 :is(#inspector,.citizens-dashboard,#missionDailyAuto):not(.hidden){
