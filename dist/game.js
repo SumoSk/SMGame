@@ -7272,11 +7272,13 @@ $('subcategories').onclick=e=>{
 $('tools').onclick=e=>{
  const landscape=e.target.closest('[data-landscape-group]');
  if(landscape&&category==='landscape'){
+  if(tool!=='hand'&&dockItems('landscape').some(item=>item.key===tool)&&landscapeGroupForTool(tool)===landscape.dataset.landscapeGroup){cancelInteraction();return;}
   openLandscapeGroup=openLandscapeGroup===landscape.dataset.landscapeGroup?null:landscape.dataset.landscapeGroup;
   openBuildingKind=null;renderTools();return;
  }
  const type=e.target.closest('[data-build-kind]');
  if(type){
+  if(CATALOG[tool]?.kind===type.dataset.buildKind){cancelInteraction();return;}
   openBuildingKind=openBuildingKind===type.dataset.buildKind?null:type.dataset.buildKind;
   renderTools();
   return;
@@ -7303,9 +7305,11 @@ $('buildVariantPopup').onclick=e=>{
  if(category==='landscape'){
   if(!dockItems('landscape').some(t=>t.key===key))return;
   if(key==='snapDecor'){landscapeSnap=!landscapeSnap;renderTools();if(selected?.kind==='landscape')renderInspector();return;}
+  if(tool===key){cancelInteraction();return;}
   closeBuildingVariants();selectTool(key);return;
  }
  if(!CATALOG[key]||!BUILD_DOCK_KINDS[category]?.includes(CATALOG[key].kind))return;
+ if(tool===key){cancelInteraction();return;}
  // Keep the same box list available for placing another building; selection
  // and all quota confirmations go through the existing selectTool() path.
  selectTool(key);
@@ -7558,7 +7562,11 @@ canvas.addEventListener('pointerup',e=>{
  if(e.pointerType==='touch'&&!d.moved){lastTap={x,y,at:Date.now()};pendingTap={action,timer:setTimeout(()=>{pendingTap=null;lastTap=null;action();},doubleTapDelay)};return;}
  action();
 });
-canvas.addEventListener('pointercancel',e=>{ignoredTouchPointers.delete(e.pointerId);pointers.delete(e.pointerId);drag=null;pinch=null;mouseOrbit=null;mouseChordHeld=false;mouseRightPending=false;orbitHintTravel=0;});canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('pointerleave',()=>hover=null);
+canvas.addEventListener('pointercancel',e=>{ignoredTouchPointers.delete(e.pointerId);pointers.delete(e.pointerId);drag=null;pinch=null;mouseOrbit=null;mouseChordHeld=false;mouseRightPending=false;orbitHintTravel=0;});canvas.addEventListener('contextmenu',e=>e.preventDefault());
+for(const id of ['tools','subcategories','buildVariantPopup'])$(id).addEventListener('contextmenu',e=>{
+ if(tool==='hand'||$('dialog').open)return;
+ e.preventDefault();cancelInteraction();
+});canvas.addEventListener('pointerleave',()=>hover=null);
 canvas.addEventListener('wheel',e=>{e.preventDefault();const before=world(e.clientX,e.clientY);cam.z=Math.max(.22,Math.min(5.2,cam.z*(e.deltaY<0?1.12:.89)));if(renderer3d)renderer3d.updateCamera(cam);const after=world(e.clientX,e.clientY);cam.x+=before[0]-after[0];cam.y+=before[1]-after[1];},{passive:false});
 // Close nonmodal city panels when the user touches anywhere else.
 // Do not consume the pointer event: map and toolbar remain immediately usable.
