@@ -2885,18 +2885,13 @@ export class TrafficRenderer{
     }
     drain(.30,.063,1.00);drain(2.70,.063,1.00);
    }else if(t.kind==='shop'){
-    // Delivery door and stock-room windows, yellow side fascia and roller vent.
-    window('rear',.77,.79,.095,.58,.30,'#859c8b');
-    window('rear',2.22,.79,.095,.58,.30,'#859c8b');
-    door('rear',1.50,.095,.40,.75,'#758575');
-    vent('rear',2.23,.39,.095,.40,.17,'#b6b69c');
-    light('rear',1.50,1.05,.095);
-    for(const [face,x] of [['left',.26],['right',2.74]]){
-     window(face,x,.70,.57,.43,.43,'#789782');
-     wall(face,'#d7ae4c',x,1.05,.57,.83,.11,.035,.025,'metal');
-     wall(face,'#b9a16b',x,.28,.57,.86,.07,.025,.025,'wood');
-    }
-    drain(.29,.058,1.00);drain(2.71,.058,1.00);
+    // One stockroom elevation, aligned to the solid rear wall.
+    door('rear',1.50,.085,.44,.80,'#526761');
+    light('rear',1.50,1.15,.085);
+    for(const x of [.78,2.22])
+     window('rear',x,.83,.085,.43,.22,'#78928c','#dce4df',false);
+    vent('rear',2.22,.48,.085,.30,.14,'#aebdb5');
+    drain(.35,.065,1.15);drain(2.65,.065,1.15);
    }else if(t.kind==='restaurant'){
     // High kitchen windows, rear serving hatch, extractor and herb boxes.
     window('rear',.65,.79,.12,.43,.29,'#9cb4b4');
@@ -3061,11 +3056,10 @@ export class TrafficRenderer{
     block('#c6c9c1',1.50,.12,.63,2.67,.15,1.10,'stone');
     block('#f0eee8',1.50,.25,.60,2.42,.055,.96,'stone');
     block('#e4e7e1',1.50,.85,.14,2.39,1.06,.11,'stone');
-    rearService(1.50,.075,1.55,.32,.94);
     for(const xx of[.30,1.08,1.93,2.69]){
      block('#c9d2ce',xx,.93,.61,.056,1.28,.94,'metal');
     }
-    for(const zz of[.21,1.07]){
+    for(const zz of[1.07]){
      block('#83b8c2',1.50,.86,zz,2.28,1.04,.055,'glass');
      for(const xx of[.75,1.48,2.22])
       block('#e0e8e5',xx,.84,zz+.035,.039,1.13,.047,'metal');
@@ -4134,7 +4128,7 @@ export class TrafficRenderer{
      for(const zz of[back+.19,face-.18])
       base(xx,1.01,zz,.071,1.33,.061,'#e5eeeb','metal');
     }
-    for(const zz of[back+.070,face-.047]){
+    for(const zz of[face-.047]){
      base(x,1.04,zz,w-.18,1.27,.055,glass,'glass');
      for(let j=0;j<3;j++){
       const xx=x+(j-1)*w*.28;
@@ -4167,7 +4161,7 @@ export class TrafficRenderer{
      // storey; side convenience blocks remain modest one-storey volumes.
      base(x,2.16,z,w-.14,.13,d-.25,'#e8e8df');
      base(x,2.83,back+.10,w-.16,1.15,.12,white);
-     for(const zz of[back+.07,face-.06]){
+     for(const zz of[face-.06]){
       base(x,2.88,zz,w-.19,1.01,.045,glass,'glass');
       for(const xx of[x-w*.31,x,x+w*.31])
        base(xx,2.89,zz+.042,.029,1.11,.047,silver,'metal');
