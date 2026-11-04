@@ -2781,7 +2781,7 @@ function updateRoadJoinWarnings(){
   }
   if(roadJoinLayer)roadJoinLayer.replaceChildren(...points.map(()=>{
    const sign=document.createElement('div');
-   sign.textContent='⚠ เชื่อมถนนก่อน · รถผ่านไม่ได้';
+   sign.textContent='⚠ เชื่อมถนนก่อน - ไม่มีที่กลับรถ รถไม่ผ่านทั้งเส้น';
    Object.assign(sign.style,{position:'absolute',transform:'translate(-50%,-100%)',whiteSpace:'nowrap',padding:'4px 7px',borderRadius:'7px',background:'#552716',border:'1px solid #ffad65',color:'#fff3d9',font:'bold 11px/1.4 Tahoma,sans-serif',boxShadow:'0 2px 6px #0006'});
    return sign;
   }));
