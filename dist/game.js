@@ -3162,7 +3162,7 @@ function updateCityAdvisor(){
  // Show category rows only. Detailed reports remain available in their own panels.
  set('demand',html);
  set('advisorHeadline',e(advice.headline));set('advisorOverview',e(advice.overview));set('advisorGood',advice.good.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>เริ่มจากบ้านและถนน แล้วรอชีวิตเมืองเริ่มเดินทาง</li>');set('advisorProblems',advice.problems.map(t=>'<li>'+e(t)+'</li>').join('')||'<li>ยังไม่พบปัญหาที่ต้องเร่งแก้จากข้อมูลปัจจุบัน</li>');
- set('advisorNext',advice.next.map((a,i)=>'<li><span>'+e(a.text)+'</span>'+(a.report?'<button data-advice-report>ตรวจเมือง</button>':a.category?'<button data-advice-category="'+a.category+'">เปิดหมวดสร้าง</button>':'')+'</li>').join(''));
+ set('advisorNext',advice.next.map((a,i)=>'<li><span>'+e(a.text)+'</span>'+(a.report&&bugReportDeveloperId()?'<button data-advice-report>ตรวจเมือง</button>':a.category?'<button data-advice-category="'+a.category+'">เปิดหมวดสร้าง</button>':'')+'</li>').join(''));
 }
 
 // Delegated handler survives dashboard DOM replacement and runs before game input handlers.
@@ -3847,7 +3847,7 @@ window.addEventListener('pagehide',()=>{if(travelRecording)travelLogStop('ปิ
 
 function dockItems(currentCategory){
  if(currentCategory==='civic')return []; // retired build category; never fall back to homes
- if(currentCategory==='reports')return[{key:'cityReport',name:'รายงานรถบัค',icon:'▤',price:'ผู้เล่นกดเอารถออกเพื่อส่งหลักฐาน · Dev ดูจาก Supabase'}];
+ if(currentCategory==='reports')return bugReportDeveloperId()?[{key:'cityReport',name:'รายงานรถบัค',icon:'▤',price:'ดูหลักฐานที่ผู้เล่นส่ง'}]:[];
  let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[{key:'landscapeSelect',name:'จับ/ย้ายของตกแต่ง',icon:'✋',price:'แตะซ้ำเพื่อวนเลือกชิ้นที่ซ้อนกัน'},{key:'snapDecor',name:landscapeSnap?'Snap: เปิด':'Snap: ปิด',icon:landscapeSnap?'🧲':'🎯',price:landscapeSnap?'ยึดกึ่งกลางช่อง · กดเพื่อปิด':'วางอิสระละเอียด 0.01 ช่อง · กดเพื่อเปิด'},...LANDSCAPE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อวางทีละชิ้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub','casino']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home','hotel'];items=Object.values(CATALOG).filter(t=>!t.legacyOnly&&kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
@@ -8291,23 +8291,27 @@ async function sendCurrentMapToAi(){
  try{downloadAiMapFile(filename,blob);showAiMapSendGuide(filename,blob,true);}
  catch(e){console.error('SMCITY download failed:',e);showAiMapSendGuide(filename,blob,false);}
 }
+function bugReportDeveloperId(){
+ return window.SMGameCreatorCanOpen===true?window.SMGameAccount?.user?.id:null;
+}
 function openCityReport(){
- const dev=window.SMGameCreatorCanOpen===true;
+ const developerId=bugReportDeveloperId();
+ if(!developerId)return;
  modal('<div class="menu-heading"><span class="menu-logo">⚠</span><div><span class="eyebrow">SMCITY · BUG REPORTS</span><h2>รายงานรถบัค</h2></div></div>'+
  '<div class="smcity-menu-list" role="group" aria-label="ตั้งค่าบันทึกหลักฐานบัค"><button type="button" id="bugCaptureToggle" role="switch" aria-checked="'+String(bugCaptureEnabled)+'"><span class="menu-symbol">'+(bugCaptureEnabled?'●':'○')+'</span><span><b>บันทึกหลักฐานบัค · '+(bugCaptureEnabled?'เปิด':'ปิด')+'</b><small>'+(bugCaptureEnabled?'เก็บเหตุผลจากถนนและลานจอด · กดเอารถออกเพื่อส่งรายงาน':'ไม่บันทึกหลักฐานและไม่ส่งรายงาน · เกมทำงานปกติ')+'</small></span><span class="menu-chevron">'+(bugCaptureEnabled?'✓':'›')+'</span></button></div>'+
  '<p>เปิดแล้วจะบันทึกช่วงออกจากอาคาร คิวทางออก ลานจอด และเงื่อนไขถนนปฏิเสธรถ พร้อมตัวอย่างรถค้างทุก 5 นาทีเกม · ส่งรายงานเฉพาะเมื่อกด <b>เอารถออก · ส่งรายงานบัค</b></p>'+
- (dev?'<p>Dev เท่านั้น · ข้อมูลจาก Supabase</p><div id="vehicleBugReportItems">กำลังโหลดรายงาน…</div><div class="actions"><button id="vehicleBugRefresh" class="primary">รีเฟรช</button><button id="vehicleBugClose">กลับไปเล่น</button></div>':
- '<p>รายงานที่ผู้เล่นส่งจะถูกเก็บให้ Dev ตรวจใน Supabase โดยผู้เล่นทั่วไปไม่สามารถเปิดดูรายงานของผู้อื่นได้</p><div class="actions"><button id="vehicleBugClose" class="primary">กลับไปเล่น</button></div>'));
+ '<p>Dev เท่านั้น · ข้อมูลจาก Supabase</p><div id="vehicleBugReportItems">กำลังโหลดรายงาน…</div><div class="actions"><button id="vehicleBugRefresh" class="primary">รีเฟรช</button><button id="vehicleBugClose">กลับไปเล่น</button></div>');
+ $('vehicleBugReportItems').dataset.developerId=developerId;
  $('vehicleBugClose').onclick=closeModal;
- $('bugCaptureToggle').onclick=()=>{setBugCaptureEnabled(!bugCaptureEnabled);openCityReport();};
- if(!dev)return;
+ $('bugCaptureToggle').onclick=()=>{if(bugReportDeveloperId()!==developerId)return;setBugCaptureEnabled(!bugCaptureEnabled);openCityReport();};
  let generation=0;
  const refresh=async()=>{
   const token=++generation,el=$('vehicleBugReportItems');
-  if(!el)return;el.textContent='กำลังโหลดรายงานจาก Supabase…';
+  if(!el||bugReportDeveloperId()!==developerId)return;
+  el.textContent='กำลังโหลดรายงานจาก Supabase…';
   try{
    const rows=await window.SMGameAccount?.listVehicleBugReports?.();
-   if(token!==generation||!$('vehicleBugReportItems'))return;
+   if(token!==generation||$('vehicleBugReportItems')!==el||bugReportDeveloperId()!==developerId)return;
    if(!rows){el.textContent='ยังเชื่อมต่อ Supabase ไม่ได้';return;}
    el.innerHTML=rows.length?rows.map(r=>{
     const d=r.details||{},diagnosis=d.diagnosis||{};
@@ -8316,7 +8320,7 @@ function openCityReport(){
       '<p><b>เหตุผล:</b> '+escapeSaveText(r.stop_reason||'ไม่มี')+' · '+escapeSaveText(note)+' · '+escapeSaveText(r.trace_code||'—')+'</p>'+
       '<pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;font-size:11px">'+escapeSaveText(JSON.stringify(d,null,2))+'</pre></details>';
    }).join(''):'ยังไม่มีรายงานรถบัคที่ผู้เล่นส่ง';
-  }catch(err){if(token===generation&&$('vehicleBugReportItems'))el.textContent='อ่านรายงานไม่ได้: '+(err?.message||'เกิดข้อผิดพลาด');}
+  }catch(err){if(token===generation&&$('vehicleBugReportItems')===el&&bugReportDeveloperId()===developerId)el.textContent='อ่านรายงานไม่ได้: '+(err?.message||'เกิดข้อผิดพลาด');}
  };
  $('vehicleBugRefresh').onclick=()=>void refresh();
  void refresh();
@@ -8327,6 +8331,8 @@ if($('accountQuick'))$('accountQuick').onclick=openAccountDialog;
 if($('saveGameQuick'))$('saveGameQuick').onclick=openCloudSaveDialog;
 
 window.SMGameOnAuthChanged=loggedIn=>{
+ const report=$('vehicleBugReportItems')||$('reportMenu');
+ if(report&&(!loggedIn||report.dataset.developerId!==bugReportDeveloperId()))closeModal();
  if(!travelLogAdmin()){travelRecording=false;travelLog=null;if($('travelLogBody'))closeModal();}
  renderTools();
  if(loggedIn)void syncManualIncidentLogs();
@@ -8357,9 +8363,11 @@ function openGraphicsMenu(){
  }
 }
 function openMainMenu(){
- modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b></span><span class="menu-chevron">›</span></button><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b></span><span class="menu-chevron">›</span></button><button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>รายงานรถบัค</b><small>บันทึกหลักฐาน: '+(bugCaptureEnabled?'เปิด':'ปิด')+'</small></span><span class="menu-chevron">›</span></button><button type="button" id="graphicsMenu"><span class="menu-symbol">◈</span><span><b>ตั้งค่ากราฟิก</b></span><span class="menu-chevron">›</span></button><button type="button" id="helpMenu"><span class="menu-symbol">?</span><span><b>คู่มือเล่นเกม</b></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
+ const developerId=bugReportDeveloperId();
+ modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b></span><span class="menu-chevron">›</span></button><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b></span><span class="menu-chevron">›</span></button>'+(developerId?'<button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>รายงานรถบัค</b><small>บันทึกหลักฐาน: '+(bugCaptureEnabled?'เปิด':'ปิด')+'</small></span><span class="menu-chevron">›</span></button>':'')+'<button type="button" id="graphicsMenu"><span class="menu-symbol">◈</span><span><b>ตั้งค่ากราฟิก</b></span><span class="menu-chevron">›</span></button><button type="button" id="helpMenu"><span class="menu-symbol">?</span><span><b>คู่มือเล่นเกม</b></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
  const creatorAnchor=$('reportMenu');
- if(window.SMGameCreatorCanOpen&&creatorAnchor){
+ if(creatorAnchor){
+  creatorAnchor.dataset.developerId=developerId;
   const button=document.createElement('button');
   button.id='creatorMenu';button.type='button';
   button.innerHTML='<span class="menu-symbol">✦</span><span><b>ผู้สร้าง</b><small>ผู้เล่นออนไลน์และประวัติการเข้าเว็บ</small></span><span class="menu-chevron">›</span>';
@@ -8369,7 +8377,7 @@ function openMainMenu(){
  $('menuClose').onclick=closeModal;
  $('accountMenu').onclick=openAccountDialog;
  $('saveMenu').onclick=openCloudSaveDialog;
- $('reportMenu').onclick=openReportMenu;
+ if(creatorAnchor)creatorAnchor.onclick=openReportMenu;
  $('helpMenu').onclick=()=>{ $('help').click(); };
  $('newCityMenu').onclick=openNewCityDialog;
  $('graphicsMenu').onclick=openGraphicsMenu;
