@@ -346,10 +346,18 @@ const HOME_SIDE_CLEARANCE_ERROR='เว้นระยะจากบ้าน 1
 function homeSideClearanceCells(b){
  const {w,h}=buildingBounds(b),cells=[];
  for(let gap=1;gap<=HOME_SIDE_CLEARANCE_BLOCKS;gap++){
+  // The frontage row is exempt: the entrance street is intentionally allowed
+  // to run across both front corners, including its paved lip.
   if((b.rotation||0)%2===0){
-   for(let y=b.y;y<b.y+h;y++)for(const x of [b.x-gap,b.x+w-1+gap])if(valid(x,y))cells.push(id(x,y));
+   for(let y=b.y;y<b.y+h;y++){
+    if(y===((b.rotation||0)===0?b.y+h-1:b.y))continue;
+    for(const x of [b.x-gap,b.x+w-1+gap])if(valid(x,y))cells.push(id(x,y));
+   }
   }else{
-   for(let x=b.x;x<b.x+w;x++)for(const y of [b.y-gap,b.y+h-1+gap])if(valid(x,y))cells.push(id(x,y));
+   for(let x=b.x;x<b.x+w;x++){
+    if(x===((b.rotation||0)===1?b.x:b.x+w-1))continue;
+    for(const y of [b.y-gap,b.y+h-1+gap])if(valid(x,y))cells.push(id(x,y));
+   }
   }
  }
  return cells;
