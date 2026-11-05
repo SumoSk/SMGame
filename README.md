@@ -1,5 +1,11 @@
 # SMCITY 🏙️
 
+## 5.4.13
+
+- Compress live player-city snapshots with the existing save codec and transfer them through private Storage.
+- Verify file size and SHA-256 before loading, without overwriting player saves or displaying player-side prompts.
+- Preserve the existing creator button and support the legacy snapshot format.
+
 ## 5.4.12
 
 - Prevent opposing buildings from admitting vehicles into the same narrow-street merge simultaneously.
