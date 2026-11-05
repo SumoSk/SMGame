@@ -342,14 +342,22 @@ function parkingAccess(b){
 // v5.4.10: one road-free grid cell beside both sides of each home parcel.
 // Rotation changes which parcel edges are sides; the front stays unrestricted.
 const HOME_SIDE_CLEARANCE_BLOCKS=1;
-const HOME_SIDE_CLEARANCE_ERROR='บ้านต้องเว้นถนนด้านข้างซ้าย–ขวาอย่างน้อย 1 บล็อกค่ะ';
+const HOME_SIDE_CLEARANCE_ERROR='เว้นระยะจากบ้าน 1 ช่อง';
 function homeSideClearanceCells(b){
  const {w,h}=buildingBounds(b),cells=[];
  for(let gap=1;gap<=HOME_SIDE_CLEARANCE_BLOCKS;gap++){
+  // The frontage row is exempt: the entrance street is intentionally allowed
+  // to run across both front corners, including its paved lip.
   if((b.rotation||0)%2===0){
-   for(let y=b.y;y<b.y+h;y++)for(const x of [b.x-gap,b.x+w-1+gap])if(valid(x,y))cells.push(id(x,y));
+   for(let y=b.y;y<b.y+h;y++){
+    if(y===((b.rotation||0)===0?b.y+h-1:b.y))continue;
+    for(const x of [b.x-gap,b.x+w-1+gap])if(valid(x,y))cells.push(id(x,y));
+   }
   }else{
-   for(let x=b.x;x<b.x+w;x++)for(const y of [b.y-gap,b.y+h-1+gap])if(valid(x,y))cells.push(id(x,y));
+   for(let x=b.x;x<b.x+w;x++){
+    if(x===((b.rotation||0)===1?b.x:b.x+w-1))continue;
+    for(const y of [b.y-gap,b.y+h-1+gap])if(valid(x,y))cells.push(id(x,y));
+   }
   }
  }
  return cells;
@@ -363,7 +371,7 @@ function checkParkingBuilding(key,x,y,ignoreId=null,preferredRotation=null){
   const b={key,x,y,rotation},bounds=buildingBounds(b);if(!valid(x,y)||!valid(x+bounds.w-1,y+bounds.h-1)){error='พื้นที่อาคารและลานจอดต้องอยู่ในแผนที่ค่ะ';continue;}
   let blocked=false;for(let yy=y;yy<y+bounds.h&&!blocked;yy++)for(let xx=x;xx<x+bounds.w;xx++){const i=id(xx,yy);if(state.footprint[i]>=0||(state.buildGrid[i]>=0&&state.buildGrid[i]!==ignoreId)){blocked=true;break;}}
   if(blocked){error='พื้นที่อาคารและลานจอดทับถนนหรือสิ่งปลูกสร้างค่ะ';continue;}
-  if(t.kind==='home'&&homeSideClearanceCells(b).some(i=>state.footprint[i]>=0)){error=HOME_SIDE_CLEARANCE_ERROR;continue;}
+  if(t.kind==='home'&&homeSideClearanceCells(b).some(i=>state.homeSideRoadFootprint?.[i])){error=HOME_SIDE_CLEARANCE_ERROR;continue;}
   const access=parkingAccess(b);if(access.length)return{access,rotation,bounds};
  }
  return{error};
@@ -1488,8 +1496,8 @@ function startNewCity(city='phuket'){
  const streets=[[[164,132],[176,132]],[[176,132],[176,144]],[[176,144],[164,144]],[[164,138],[176,138]]];
  for(const [a,b] of streets)if(!buildRoad(lineCells(id(a[0],villageY(a[1])),id(b[0],villageY(b[1]))),'small',true))throw Error('Starter village road could not be placed');
  const plots=[
-  ['home_starter',166,128,0],['home_starter',170,128,0],
-  ['home_starter',166,133,2],['park_starter',170,133,2],
+  ['home_starter',167,128,0],['home_starter',170,128,0],
+  ['home_starter',167,133,2],['park_starter',170,133,2],
   ['restaurant_starter',166,140,0],['shop_starter',170,140,0],
   ['mall_starter',166,145,2],['office_starter',170,145,2],
   ['factory_starter',160,134,3],['hotel_starter',160,140,3],
@@ -1539,7 +1547,29 @@ function link(a,b){if(a===b)return;state.roads.get(a)?.links.add(b);state.roads.
 // Road centerlines sit on grid boundaries; the narrow carriageway still
 // touches both adjacent plot cells. Clearance is independent of lane width.
 function roadClearanceWidth(t){return t.clearanceWidth||t.width;}
-function rebuildFootprint(){state.footprint.fill(-1);for(const [i,r]of state.roads){const [x,y]=xy(i),w=roadClearanceWidth(ROADS[r.type]),lo=Math.floor(w/2);for(let dy=-lo;dy<w-lo;dy++)for(let dx=-lo;dx<w-lo;dx++)if(valid(x+dx,y+dy)){const p=id(x+dx,y+dy);if(state.footprint[p]<0||Math.hypot(dx,dy)<distance(p,state.footprint[p]))state.footprint[p]=i;}}}
+// Keep vehicle/lot clearance unchanged. Home side setbacks instead use the
+// full visual road surface, which can extend beyond its integer tile footprint.
+function roadVisualCoveredCells(i,type){
+ const [x,y]=xy(i),radius=(ROADS[type].visualWidth||ROADS[type].width)/2,reach=Math.ceil(radius+.5),cells=[];
+ for(let dy=-reach;dy<=reach;dy++)for(let dx=-reach;dx<=reach;dx++){
+  if(!valid(x+dx,y+dy)||Math.abs(dx)>=radius+.5||Math.abs(dy)>=radius+.5)continue;
+  cells.push(id(x+dx,y+dy));
+ }
+ return cells;
+}
+function rebuildFootprint(){
+ state.footprint.fill(-1);
+ if(!state.homeSideRoadFootprint||state.homeSideRoadFootprint.length!==W*H)state.homeSideRoadFootprint=new Uint8Array(W*H);
+ state.homeSideRoadFootprint.fill(0);
+ for(const [i,r]of state.roads){
+  const [x,y]=xy(i),w=roadClearanceWidth(ROADS[r.type]),lo=Math.floor(w/2);
+  for(let dy=-lo;dy<w-lo;dy++)for(let dx=-lo;dx<w-lo;dx++)if(valid(x+dx,y+dy)){
+   const p=id(x+dx,y+dy);
+   if(state.footprint[p]<0||Math.hypot(dx,dy)<distance(p,state.footprint[p]))state.footprint[p]=i;
+  }
+  for(const tile of roadVisualCoveredCells(i,r.type))state.homeSideRoadFootprint[tile]=1;
+ }
+}
 function distance(a,b){const p=xy(a),q=xy(b);return Math.hypot(p[0]-q[0],p[1]-q[1]);}
 function screen(x,y,h=0){if(renderer3d)return renderer3d.screen(x,y,h);return[(x-cam.x)*T*cam.z+view.w/2,(y-cam.y)*T*cam.z*.78+view.h*.47-h*cam.z];}
 function world(x,y){if(renderer3d)return renderer3d.world(x,y);return[(x-view.w/2)/(T*cam.z)+cam.x,(y-view.h*.47)/(T*cam.z*.78)+cam.y];}
@@ -3042,7 +3072,10 @@ function updateAISignalPins(){
  updateAIPinPopover();
 }
 
-function draw(){updateLandscapeQuickActions();normalizeSelectedCar();const roadPreview=getRoadPreview(),placement=hover&&CATALOG[tool]?assistedBuildingPlacement(tool,hover.x,hover.y):null,visualHover=placement?{...hover,x:placement.x,y:placement.y,placement}:hover,demolitionPreview=getDemolitionPreview();if(renderer3d){renderer3d.render({state,cam,hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible});updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
+function draw(){updateLandscapeQuickActions();normalizeSelectedCar();const roadPreview=getRoadPreview(),placement=hover&&CATALOG[tool]?assistedBuildingPlacement(tool,hover.x,hover.y):null,visualHover=placement?{...hover,x:placement.x,y:placement.y,placement}:hover,demolitionPreview=getDemolitionPreview();
+ // An invalid active road stroke warns once; mere hovering never spams a toast.
+ if(drag&&!drag.pan&&ROADS[tool]&&roadPreview?.error===HOME_SIDE_CLEARANCE_ERROR&&!drag.sideGapNoticeShown){drag.sideGapNoticeShown=true;toast(HOME_SIDE_CLEARANCE_ERROR);}
+if(renderer3d){renderer3d.render({state,cam,hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible});updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
 drawDemolitionPreview2D(demolitionPreview);
 if(hover&&tool!=='hand'&&!ROADS[tool]){if(CATALOG[tool])drawBuilding({key:tool,x:visualHover.x,y:visualHover.y,rotation:placement.rotation||0},true);else if(!demolitionPreview){const cells=drag?.cells||[owner(id(hover.x,hover.y))];for(const i of cells){const [x,y]=xy(i),s=screen(x,y);ctx.fillStyle=tool.startsWith('erase')?'#df7e6c99':'#fbe3989c';ctx.fillRect(s[0],s[1],T*cam.z,T*cam.z*.78);}}}
 if(state.buildings.size===0){const p=screen(154,143);ctx.fillStyle='#214c3ac9';ctx.font=`500 ${Math.max(12,14*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillText('เมืองใหม่ เริ่มจากถนนเส้นแรก',p[0],p[1]);ctx.font=`${Math.max(10,11*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillStyle='#3f6148';ctx.fillText('ถนนหลัก 8 เลนพร้อมแล้ว · เลือกถนนเล็ก แล้วลากต่อออกมา',p[0],p[1]+22*cam.z);}
@@ -7127,7 +7160,11 @@ for(const i of cells){
   if(!valid(xx,yy))continue;
   const tile=id(xx,yy);
   if(state.buildGrid[tile]>=0)return{error:'ถนนทับพื้นที่อาคาร เลือกแนวถนนใหม่ค่ะ'};
-  if(expanding&&(!r||xx<x-oldLo||xx>=x+oldWidth-oldLo||yy<y-oldLo||yy>=y+oldWidth-oldLo))newRoadSideTiles.add(tile);
+  // Existing building/parking overlap uses the same legacy clearance grid.
+ }
+ if(expanding){
+  const oldVisual=r?new Set(roadVisualCoveredCells(i,r.type)):null;
+  for(const tile of roadVisualCoveredCells(i,type))if(!oldVisual?.has(tile))newRoadSideTiles.add(tile);
  }
  cost+=r?Math.max(0,t.cost-ROADS[r.type].cost):t.cost;
 }
