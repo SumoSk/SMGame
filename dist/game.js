@@ -127,7 +127,7 @@ for(const t of Object.values(CATALOG)){
 // Construction quotas are separate for each building kind. A successful build
 // spends one allowance and earns one for the next tier; demolition never refunds.
 const BUILDING_CHAINS=Object.fromEntries(Object.keys(KINDS).filter(kind=>kind!=='civic').map(kind=>[kind,kind==='home'
- ?['home_starter','home_large','home_dual','home_grand']
+ ?['home_starter','home_large','home_dual','home_grand','home_mahanakhon']
  :['starter','small','medium','large'].map(tier=>kind+'_'+tier)]));
 function buildingQuotaStatus(key){
  const t=CATALOG[key],chain=t&&BUILDING_CHAINS[t.kind],tier=chain?.indexOf(key)??-1;
@@ -143,11 +143,21 @@ function recordBuildingQuota(key){
  if(tier<chain.length-1){const next=chain[tier+1];state.buildingQuota[next]=(state.buildingQuota[next]||0)+1;}
 }
 function restoreBuildingQuota(saved){
- if(saved!=null)return Object.fromEntries(Object.values(BUILDING_CHAINS).flatMap(chain=>chain.slice(1).map(key=>[key,saved[key]||0])));
- // Existing buildings stay intact. Older cities receive their unused allowances
-// from current plots, without retroactive debt for previously unrestricted builds.
+ // Quotas are transactional: a successful build earns one allowance at the
+ // next tier, and neither moving nor demolishing refunds it.
+ // Upgrade old saved cities WITHOUT rewriting existing balances. Older saves
+ // predate the home_mahanakhon key because it was originally unrestricted.
+ // For that one missing key, grant a fair one-time allowance for every
+ // existing grand home not already matched by a Mahanakhon. Existing towers
+ // remain untouched even when their earlier free build had no grand home.
  const counts={};for(const b of state.buildings.values())counts[b.key]=(counts[b.key]||0)+1;
- return Object.fromEntries(Object.values(BUILDING_CHAINS).flatMap(chain=>chain.slice(1).map((key,i)=>[key,Math.max(0,(counts[chain[i]]||0)-(counts[key]||0))])));
+ const legacyMahanakhon=Math.max(0,(counts.home_grand||0)-(counts.home_mahanakhon||0));
+ if(saved!=null)return Object.fromEntries(Object.values(BUILDING_CHAINS).flatMap(chain=>chain.slice(1).map(key=>
+  [key,key==='home_mahanakhon'&&!Object.prototype.hasOwnProperty.call(saved,key)?legacyMahanakhon:saved[key]||0])));
+ // Existing buildings stay intact. Older cities without a quota section
+ // receive only currently unused allowances, without retroactive debt.
+ return Object.fromEntries(Object.values(BUILDING_CHAINS).flatMap(chain=>chain.slice(1).map((key,i)=>
+  [key,Math.max(0,(counts[chain[i]]||0)-(counts[key]||0))])));
 }
 function showBuildingQuotaWarning(key){
  const q=buildingQuotaStatus(key),t=CATALOG[key];if(!q.locked||!t)return;

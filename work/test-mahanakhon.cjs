@@ -9,7 +9,8 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert.equal(t.frontageEntranceU,3);assert.equal(t.frontageExitU,5);
  assert.equal(t.frontageV,5.43);
  assert.equal(t.parkingRows,2);assert.equal(t.parkingPhysicalRows,4);
- assert.equal(g.buildingQuotaStatus('home_mahanakhon').locked,false,'no new unlock');
+ assert.equal(g.buildingQuotaStatus('home_mahanakhon').locked,true,'Mahanakhon is locked until a grand house earns a build allowance');
+ assert(g.buildingQuotaStatus('home_mahanakhon').message.includes('บ้านใหญ่'),'show the grand house prerequisite');
  assert(g.dockItems('home').some(x=>x.key==='home_mahanakhon'),'must appear in homes');
  const b={key:t.key,x:20,y:20,rotation:0,parkingSlots:Array(80).fill(null)};
  const slots=g.lotSlots(b);
@@ -33,7 +34,11 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(marks.some(x=>x.color==='#515f62'&&x.w>7.8&&x.h>5.8),'continuous asphalt');
  assert(!marks.some(x=>['#bdc6ae','#d7cfbc','#96af8f'].includes(x.color)),'no old white base');
  assert(marks.every(r=>r.w>0&&r.h>0&&Number.isFinite(r.w+r.h)));
- g.state.money=1e9;const before=g.state.money;
+ g.state.money=1e9;
+ // Model/parking exercise uses a pre-earned quota; actual earning and
+ // consumption are covered by test-building-quota.cjs.
+ g.state.buildingQuota.home_mahanakhon=1;
+ const before=g.state.money;
  const home=g.buildBuilding('home_mahanakhon',160,142,true);
  assert(home,'two authentic street gates are required');
  assert.equal(home.access.length,2);assert.equal(home.parkingSlots.length,80);

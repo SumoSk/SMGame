@@ -23,6 +23,59 @@ test('every kind requires one build for each subsequent allowance',()=>{
   build(g,chain[0],285);if(chain.length>1)assert.equal(quota(g,chain[1]),1);else assert.equal(quota(g,chain[0]),Infinity,'single-tier civic service remains buildable');
  }
 });
+test('Mahanakhon is a locked fifth home tier; each grand home earns exactly one build',()=>{
+ const {game:g,get}=fresh();
+ const tower='home_mahanakhon',last='home_grand';
+ assert.equal(g.BUILDING_CHAINS.home.at(-1),tower);
+ assert.equal(g.buildingQuotaStatus(tower).locked,true);
+ assert.equal(quota(g,tower),0);
+ assert.equal(g.selectTool(tower),false);
+ assert(get('dialogContent').innerHTML.includes('บ้านใหญ่'));
+ assert(g.checkBuilding(tower,160,142).error.includes('บ้านใหญ่'));
+ // The premium tower is visibly selectable only after earning a quota.
+ g.state.buildingQuota[last]=1;const grand=build(g,last,200);
+ assert.equal(quota(g,tower),1);
+ assert.equal(g.buildingQuotaStatus(tower).locked,false);
+ const towerBuilding=build(g,tower,160);
+ assert.equal(g.CATALOG[tower].cost,500000);
+ assert.equal(towerBuilding.parkingSlots.length,80);
+ assert.equal(quota(g,tower),0);
+ assert.equal(g.buildBuilding(tower,240,148-g.CATALOG[tower].plotHeight,true),false);
+ const balances=JSON.stringify(g.state.buildingQuota);
+ assert(g.beginMoveBuilding(towerBuilding.id));
+ assert(g.moveBuilding(towerBuilding.id,160,148-g.CATALOG[tower].plotHeight,true,0));
+ assert.equal(JSON.stringify(g.state.buildingQuota),balances);
+ assert(g.demolishBuilding(towerBuilding,true));
+ assert(g.demolishBuilding(grand,true));
+ assert.equal(quota(g,tower),0);
+ const saved=g.snapshot();assert(g.loadGame(true,null,saved));
+ assert.equal(quota(g,tower),0);
+});
+test('existing cities gain only unused Mahanakhon allowances and retain built towers',()=>{
+ const {game:g}=fresh();const grandKey='home_grand',tower='home_mahanakhon';
+ g.state.buildingQuota[grandKey]=2;
+ build(g,grandKey,160);build(g,grandKey,200);
+ // Simulate an old unrestricted Mahanakhon build from a pre-unlock save.
+ g.state.buildingQuota[tower]=1;
+ const oldTower=build(g,tower,240);
+ const legacy=JSON.parse(g.snapshot()),originalBuildings=JSON.stringify(legacy.buildings);
+ delete legacy.buildingQuota[tower];
+ assert(g.loadGame(true,null,JSON.stringify(legacy)));
+ assert.equal(quota(g,tower),1,'2 grand homes less 1 existing tower');
+ assert.equal(g.state.buildings.size,3);
+ assert.equal(JSON.stringify(JSON.parse(g.snapshot()).buildings),originalBuildings);
+ const saved=g.snapshot();
+ assert(g.loadGame(true,null,saved));
+ assert.equal(quota(g,tower),1,'saving new balance must not mint more allowances');
+ assert.equal(g.state.buildings.get(oldTower.id).key,tower);
+ const noGrand=JSON.parse(saved);noGrand.buildingQuota={...noGrand.buildingQuota};delete noGrand.buildingQuota[tower];
+ // No grand home in this legacy city, but a previously-free tower
+ // remains without creating any negative or refunded balance.
+ noGrand.buildings=noGrand.buildings.filter(([id,b])=>b.key!==grandKey);
+ assert(g.loadGame(true,null,JSON.stringify(noGrand)));
+ assert.equal(g.state.buildings.get(oldTower.id).key,tower);
+ assert.equal(quota(g,tower),0);
+});
 test('five starters accumulate five small allowances and spend one at a time',()=>{
  const {game:g}=fresh();
  for(let n=0;n<5;n++)build(g,'home_starter',160+n*5);
@@ -39,7 +92,7 @@ test('locked cards remain visible, show zero at top right and explain the prereq
  assert(tray.innerHTML.includes('data-build-kind="home"'));
  tray.onclick({target:{closest:selector=>selector==='[data-build-kind]'?{dataset:{buildKind:'home'}}:null}});
  const html=get('buildVariantPopup').innerHTML;
- for(const key of ['home_starter','home_large','home_dual','home_grand'])assert(html.includes('data-tool="'+key+'"'));
+ for(const key of ['home_starter','home_large','home_dual','home_grand','home_mahanakhon'])assert(html.includes('data-tool="'+key+'"'));
  assert(html.includes('tool-quota-count is-locked'));
  assert(html.includes('ต้องสร้างบ้านเริ่มต้นเพิ่มอีก 1 ตึก'));
  assert(html.includes('aria-disabled="true"'));
@@ -111,7 +164,7 @@ test('legacy cities retain all buildings and seed only unused allowances without
  const buildings=JSON.stringify(legacy.buildings),cash=g.state.money;
  assert(g.loadGame(true,null,JSON.stringify(legacy)));
  assert.equal(g.state.buildings.size,5);assert.equal(g.state.money,cash);
- assert.equal(quota(g,'home_large'),2);assert.equal(quota(g,'home_dual'),1);assert.equal(quota(g,'home_grand'),0);
+ assert.equal(quota(g,'home_large'),2);assert.equal(quota(g,'home_dual'),1);assert.equal(quota(g,'home_grand'),0);assert.equal(quota(g,'home_mahanakhon'),1);
  assert.equal(JSON.stringify(JSON.parse(g.snapshot()).buildings),buildings);
  const balances=JSON.stringify(g.state.buildingQuota);assert(g.loadGame(true,null,g.snapshot()));assert.equal(JSON.stringify(g.state.buildingQuota),balances);
 });
