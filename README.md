@@ -1,5 +1,11 @@
 # SMCITY 🏙️
 
+## 5.4.10
+
+- Require one empty grid block separating each home's left and right parcel edges from roads, following rotation.
+- Apply rules when placing/moving a home or adding/widening roads. Front driveways remain valid.
+- Existing saved cities are not changed automatically.
+
 ## 5.4.9
 
 - Keep starter-home exit queues inside the plot, serialize departures, and migrate saved parking paths.
