@@ -3643,7 +3643,7 @@ function updateLandscapeQuickActions(){
  const active=item||moving||(placing&&hover?{kind:tool.slice(5)}:null);
  if(!active||drag?.pan||$('dialog').open||window.SMGameAuthLocked){landscapeQuickActions.hidden=true;return;}
  const canRotate=LANDSCAPE_KIND_MAP.has(active.kind);
- $('landscapeQuickRotate').hidden=!canRotate;$('landscapeQuickDelete').hidden=!item;
+ $('landscapeQuickRotate').hidden=!canRotate;$('landscapeQuickMove').hidden=!item;$('landscapeQuickDelete').hidden=!item;
  if(!canRotate&&!item){landscapeQuickActions.hidden=true;return;}
  const rotation=item?.rotation??landscapeRotation;
  $('landscapeQuickRotate').setAttribute?.('aria-label','หมุนของตกแต่ง 90 องศา · ขณะนี้ '+(rotation*90)+' องศา');
@@ -3663,6 +3663,7 @@ if(landscapeQuickActions){
   const action=e.target.closest?.('[data-landscape-action]')?.dataset.landscapeAction;if(!action)return;
   e.preventDefault?.();e.stopPropagation?.();
   if(action==='rotate')rotateLandscape();
+  else if(action==='move'){const record=selected?.kind==='landscape'&&selected.record;if(record)beginMoveLandscape(record);}
   else if(action==='delete'){const record=selected?.kind==='landscape'&&selected.record;if(record&&deleteLandscape(record))toast('ลบของตกแต่งแล้วค่ะ');}
   updateLandscapeQuickActions();
  };
@@ -3723,12 +3724,11 @@ function beginMoveLandscape(record){
  $('hint').textContent='ย้ายต้นไม้หรือของตกแต่ง · แตะตำแหน่งใหม่บนแผนที่ · Esc เพื่อยกเลิก';return true;
 }
 function renderLandscapeInspector(){
- const record=selected?.record,item=landscapeItem(record);if(!item){selected=null;$('inspector').classList.add('hidden');return;}
- const type=LANDSCAPE_KIND_MAP.get(item.kind),prop=DECOR_KIND_MAP.has(item.kind);
- const count=lastLandscapePick?.version===state.landscapeVersion?lastLandscapePick.choices.length:0;
- const cycle=count>1?'<button data-action="next-landscape" title="เลือกชิ้นที่ซ้อนอยู่ตำแหน่งเดียวกัน">ชิ้นถัดไป ('+(lastLandscapePick.index+1)+'/'+count+')</button>':'';
- $('inspectContent').innerHTML='<span class="tag">ต้นไม้และของตกแต่ง</span><h2>'+escapeSaveText(type?.name||'ต้นไม้')+'</h2><p>วางซ้อนกันได้ · ย้ายได้ฟรี · บันทึกตำแหน่งละเอียด · '+(landscapeSnap?'Snap เปิด':'Snap ปิด')+'</p><div class="actions">'+cycle+'<button data-action="move-landscape">ย้าย</button>'+'<button data-action="rotate-landscape">หมุน 90°</button>'+'<button class="danger" data-action="delete-landscape">ลบ</button></div>';
- $('inspector').classList.remove('hidden');
+ const record=selected?.record,item=landscapeItem(record);
+ $('inspector').classList.add('hidden');$('inspectContent').innerHTML='';
+ if(!item){selected=null;if(landscapeQuickActions)landscapeQuickActions.hidden=true;return;}
+ if(landscapeQuickActions)landscapeQuickActions.setAttribute?.('aria-label','จัดการ'+(LANDSCAPE_KIND_MAP.get(item.kind)?.name||'ของตกแต่ง'));
+ updateLandscapeQuickActions();
 }
 let currentTreeKind='shade';
 function landscapeClear(x,y){
@@ -4028,7 +4028,7 @@ function setDockCollapsed(collapsed){
  if(icon)icon.textContent=collapsed?'⌃':'⌄';
  if(label)label.textContent=collapsed?'กางเครื่องมือ':'หุบเครื่องมือ';
 }
-function selectTool(t,existingBuilding=null){landscapeQuickAnchor=null;if(t.startsWith('tree:')&&t.slice(5)!==currentTreeKind)landscapeRotation=0;if(landscapeQuickActions)landscapeQuickActions.hidden=true;if(t==='hand')closeBuildingVariants();movingLandscape=null;const quota=buildingQuotaStatus(t);if(quota.locked&&!(existingBuilding&&state.buildings.get(existingBuilding.id)===existingBuilding&&existingBuilding.key===t)){showBuildingQuotaWarning(t);$('hint').textContent=quota.message;return false;}movingBuildingId=null;$('cancelMoveBuilding').hidden=true;if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · เกมช่วยจัดตำแหน่งติดถนนใกล้เมาส์หรือนิ้ว`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'วางต้นไม้ได้ทุกตำแหน่งในแผนที่ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลัก · รถบนถนนที่รื้อจะกลับเข้าเมืองใหม่':t==='erase'?'แตะตึกเพื่อรื้อ หรือลากตามถนนเพื่อลบต่อเนื่อง · ยืนยันก่อนรื้อทุกครั้ง':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูPerformance ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}}
+function selectTool(t,existingBuilding=null){landscapeQuickAnchor=null;if(t.startsWith('tree:')&&t.slice(5)!==currentTreeKind)landscapeRotation=0;if(landscapeQuickActions)landscapeQuickActions.hidden=true;if(t==='hand')closeBuildingVariants();movingLandscape=null;const quota=buildingQuotaStatus(t);if(quota.locked&&!(existingBuilding&&state.buildings.get(existingBuilding.id)===existingBuilding&&existingBuilding.key===t)){showBuildingQuotaWarning(t);$('hint').textContent=quota.message;return false;}movingBuildingId=null;$('cancelMoveBuilding').hidden=true;if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · เกมช่วยจัดตำแหน่งติดถนนใกล้เมาส์หรือนิ้ว`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'วางต้นไม้ได้ทุกตำแหน่งในแผนที่ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลัก · รถบนถนนที่รื้อจะกลับเข้าเมืองใหม่':t==='erase'?'แตะตึกเพื่อรื้อ หรือลากตามถนนเพื่อลบต่อเนื่อง · ยืนยันก่อนรื้อทุกครั้ง':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูPerformance ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถเพื่อดูรายละเอียด · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}if(t.startsWith('tree:')){const p=hover?[hover.rawX??hover.x,hover.rawY??hover.y]:[cam.x,cam.y];hover={x:Math.floor(p[0]),y:Math.floor(p[1]),rawX:p[0],rawY:p[1],snap:landscapeSnap,decorationRotation:landscapeRotation};$('inspector').classList.add('hidden');updateLandscapeQuickActions();}}
 let dialogRevision=0;
 function panelHeading(icon,title,subtitle=''){
  return '<header class="menu-heading"><span class="menu-logo" aria-hidden="true">'+icon+'</span><div><h2>'+title+'</h2>'+(subtitle?'<p class="panel-subtitle">'+subtitle+'</p>':'')+'</div></header>';
