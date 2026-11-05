@@ -96,6 +96,7 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-mahanakhon.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mahanakhon-traffic.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mahanakhon-arrivals.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-mahanakhon-road-entry-stress.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-pub-small-model.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-architecture-collection.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-detailed-facades.cjs
