@@ -74,18 +74,15 @@ for(const t of Object.values(CATALOG)){
  t.parkingLayout=null;
  if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.88;t.plotWidth=20;t.plotHeight=11;t.parkingAisle=9.15;t.parkingUpperAisle=6.55;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
  if(t.stackedParking){t.parkingColumns=15;t.parkingRows=2;t.parkingPhysicalRows=4;t.parkingPitch=.55;t.parkingRowOffset=.79;t.parkingAisle=4.90;t.parkingRearAisle=2.05;t.plotWidth=11;t.plotHeight=13;t.compactParking=true;t.frontageEntranceU=3.0;t.frontageExitU=8.0;t.frontageV=12.43;}
- // Mahanakhon: 80 real ground-floor bays, 4 rows x 20, in a 10x10 plot.
- // Physical cars use half-width .13; 0.40 pitch leaves lateral clearance.
- // Two one-way aisles and full left/right spines use existing routing.
+ // Four full-size rows of twenty vehicles on ONE ground level. Pitch .55
+ // preserves actual maneuvering space and avoids compact 8x6 trapped bays.
  if(t.key==='home_mahanakhon'){
   t.parkingColumns=20;t.parkingRows=2;t.parkingPhysicalRows=4;
-  // New 8x6 single-level court: 4 x 20 real car bays with two through aisles.
-  t.parkingPitch=.32;t.parkingStartU=.80;t.parkingRowOffset=.65;
-  t.parkingAisle=3.80;t.parkingRearAisle=1.42;
-  t.plotWidth=8;t.plotHeight=6;t.compactParking=true;
-  // Central FRONT gate pair only: green entry (3), amber exit (5).
-  t.frontageEntranceU=3.0;t.frontageExitU=5.0;t.frontageV=5.43;
-  t.parkingWaitV=5.80;
+  t.parkingPitch=.55;t.parkingStartU=1.30;t.parkingRowOffset=.79;
+  t.parkingAisle=4.90;t.parkingRearAisle=2.05;
+  t.plotWidth=14;t.plotHeight=8;t.compactParking=true;
+  t.frontageEntranceU=6.0;t.frontageExitU=8.0;t.frontageV=7.43;
+  t.parkingWaitV=7.80;
  }
  if(t.starterTier){
   t.compactCottage=true;t.parkingColumns=t.kind==='civic'?5:6;t.parkingPhysicalRows=1;
@@ -124,6 +121,16 @@ for(const t of Object.values(CATALOG)){
   }
  }
 }
+// Older 8x6 plots remain available only for saves without room to enlarge.
+// NEVER forcibly overwrite a neighbour or road. No new player can build this
+// old footprint through the catalogue, and its 80 resident cars are retained.
+CATALOG.home_mahanakhon_compact={...CATALOG.home_mahanakhon,
+ key:'home_mahanakhon_compact',name:'ตึกมหานคร (พื้นที่เดิม)',
+ legacyOnly:true,plotWidth:8,plotHeight:6,
+ parkingPitch:.32,parkingStartU:.80,parkingRowOffset:.65,
+ parkingAisle:3.80,parkingRearAisle:1.42,
+ frontageEntranceU:3.0,frontageExitU:5.0,frontageV:5.43,
+ parkingWaitV:5.80,parkingLayout:null};
 // Construction quotas are separate for each building kind. A successful build
 // spends one allowance and earns one for the next tier; demolition never refunds.
 const BUILDING_CHAINS=Object.fromEntries(Object.keys(KINDS).filter(kind=>kind!=='civic').map(kind=>[kind,kind==='home'
@@ -171,7 +178,7 @@ function buildingQuotaMarkup(key){
 }
 
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
-function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5,...(b.key==='home_mahanakhon'?{tightParking:true}:{})};}
+function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5,...(b.key==='home_mahanakhon_compact'?{tightParking:true}:{})};}
 function lotSlots(b){
  const t=CATALOG[b.key];if(t.parkingLayout)return t.parkingLayout;
  const slots=[];
@@ -746,7 +753,7 @@ function parkingBankBusy(b,index,arriving,requester=null){
  // merges locally at the exact physical conflict, without cross-bank deadlocks.
  const target=lotSlots(b)[index];
  if(!target)return false;
- if(b.key==='home_mahanakhon'){
+ if(b.key==='home_mahanakhon'||b.key==='home_mahanakhon_compact'){
   // The compact court must not lock a whole row just because another car
   // was ASSIGNED a neighbouring bay. Check its ACTUAL current position:
   // departed cars may already be metres away on the exit connector.
@@ -783,7 +790,7 @@ function prepareLotDeparture(v,dt){
   const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){noteParkingBlock(v,'departure_missing_parking_slot',{requestedSlot:index});v.stopReason='ไม่พบช่องจอดของรถ';return false;}
   if(parkingBankBusy(b,index,false,v)){v.stopReason='รอรถเข้าจอดในแถวเดียวกัน';return false;}
   const t=CATALOG[b.key],exitU=t.dualParking?(slot.zone==='A'?t.parkingExitA:t.parkingExitB):(t.parkingExitU??t.plotWidth-.45);
-  if(b.key==='home_mahanakhon'){
+  if(b.key==='home_mahanakhon'||b.key==='home_mahanakhon_compact'){
    // One vehicle may MERGE out of each tightly-spaced 40-bay court at
    // a time. Without this local admission guard, two cars leave nearby
    // bays into the same aisle, stop nose-to-side, and deadlock forever.
@@ -804,7 +811,7 @@ function prepareLotDeparture(v,dt){
   v.lotPath=[parkingSlotPose(b,index),lotPoint(b,slot.u,slot.aisle),lotPoint(b,exitU,slot.aisle)];
   // Rear court must physically cross the front aisle before leaving.
   if(t.stackedParking&&t.parkingRows>1&&slot.zone==='rear')v.lotPath.push(lotPoint(b,exitU,t.parkingAisle));
-  if(b.key==='home_mahanakhon'){
+  if(b.key==='home_mahanakhon'||b.key==='home_mahanakhon_compact'){
    // Exit cars cross the inner-right spine to the dedicated center gate.
    v.lotPath.push(lotPoint(b,exitU,t.frontageV));
    v.lotPath.push(lotPoint(b,t.frontageExitU,t.frontageV));
@@ -817,7 +824,7 @@ function prepareLotDeparture(v,dt){
    // Hold the compact tower's one shared exit token until the car has
    // actually merged onto the city road, not just until it leaves the
    // internal T-junction. Otherwise rear/front cars meet at the centre gate.
-   const clearAt=b.key==='home_mahanakhon'?Infinity:crossingAt+1.02;
+   const clearAt=(b.key==='home_mahanakhon'||b.key==='home_mahanakhon_compact')?Infinity:crossingAt+1.02;
    v.grandCrossing={approach:slot.zone,crossingAt,stopAt:Math.max(0,crossingAt-1.12),clearAt,granted:false,cleared:false};
   }
   if(!canLeaveParkingSpace(v,v.lotPath)){grandSignalRelease(v);v.grandCrossing=null;v.lotPath=null;v.lotDistance=0;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
@@ -851,7 +858,7 @@ function parkingArrivalPath(v,b,index,replan=false){
  }
  const start=parkingPose(v);if(!start)return null;
  const local=localParkingPoint(b,start);
- if(slot.u<local.u+(b.key==='home_mahanakhon'?.28:.8))return null;
+ if(slot.u<local.u+(b.key==='home_mahanakhon_compact'?.28:.8))return null;
  if(local.u>.85&&Math.abs(local.v-slot.aisle)>.65)return null;
  if(t.stackedParking&&Math.abs(local.v-slot.aisle)>.15)
   return [start,lotPoint(b,.45,slot.aisle),aisle,end];
@@ -865,7 +872,7 @@ function parkingBayObstructed(v,b,index){
  for(const cid of b.parked){
   if(cid===v.citizenId||parkingIsMoving(cid))continue;
   const other=parkingSlotPose(b,parkingSpace(b,cid));
-  if(other&&lotCarsOverlap(pose,other,CATALOG[b.key].dualParking?0:b.key==='home_mahanakhon'?.015:.03))return true;
+  if(other&&lotCarsOverlap(pose,other,CATALOG[b.key].dualParking?0:['home_mahanakhon','home_mahanakhon_compact'].includes(b.key)?.015:.03))return true;
  }
  for(const other of parkingLotCars(b.id)){
   if(other.id===v.id||other.lotBuilding!==b.id||!other.lotPath)continue;
@@ -886,7 +893,7 @@ function assignArrivalParking(v,replan=false,includeOld=false){
  for(let i=0;i<slots.length;i++){
   if(b.parkingSlots[i]!==null&&b.parkingSlots[i]!==v.citizenId)continue;
   if(replan&&i===old&&!includeOld)continue;
-  if(replan&&slots[i].u<(current?.u??0)+(b.key==='home_mahanakhon'?.28:.8))continue;
+  if(replan&&slots[i].u<(current?.u??0)+(b.key==='home_mahanakhon_compact'?.28:.8))continue;
   options.push(i);
  }
  const dual=CATALOG[b.key].dualParking,stacked=CATALOG[b.key].stackedParking,zoneLoad=[0,0];
@@ -950,7 +957,7 @@ function syncParkingSlots(){for(const b of state.buildings.values()){if(!b.parki
 function parkingVisuals(b){
  const t=CATALOG[b.key],rects=[];
  const rect=(u,v,w,h,color)=>rects.push({u,v,w,h,color});
- if(t.key==='home_mahanakhon'){
+ if(t.key==='home_mahanakhon'||t.key==='home_mahanakhon_compact'){
   // Asphalt is continuous under every tower support: no pale old podium.
   rect(t.plotWidth/2,t.plotHeight/2,t.plotWidth-.08,t.plotHeight-.08,'#515f62');
   for(const aisle of [t.parkingRearAisle,t.parkingAisle]){
@@ -7257,7 +7264,7 @@ function advanceVehicles(realDt,gameDt){
     const t=CATALOG[from.key];
     // This building has ALREADY reached the centre-front exit.
     // Never send it back to the far-right garage spine and turn around.
-    v.lotPath=t.stackedParking&&from.key!=='home_mahanakhon'?[
+    v.lotPath=t.stackedParking&&!['home_mahanakhon','home_mahanakhon_compact'].includes(from.key)?[
      start,lotPoint(from,t.plotWidth-.45,t.frontageV),
      lotPoint(from,t.frontageExitU,t.frontageV),end]:[start,end];
     v.lotDistance=0;v.lotReady=false;
@@ -7569,7 +7576,7 @@ function moveBuilding(buildingId,x,y,confirmed=false,preferredRotation=null){
  syncParkingSlots();movingBuildingId=null;hover=null;selectTool('hand');selected={kind:'building',id:b.id};renderInspector();updateUI();toast('ย้ายอาคารแล้ว · ฟรี');return true;
 }
 
-function buildBuilding(key,x,y,confirmed=false,preferredRotation=null){if(buildingQuotaStatus(key).locked){showBuildingQuotaWarning(key);return false;}const check=checkParkingBuilding(key,x,y,null,preferredRotation),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true,preferredRotation));positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,shopCompactLotV1:key==='shop_large',starterCompact:key==='home_starter',starterFrontRowV2:key==='home_starter',starterParkingV3:key==='home_starter',starterCottageV4:key==='home_starter',starterCottage3x3:key==='home_starter',starterGroundV6:key==='home_starter',starterExitV1:key==='home_starter',grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,mahanakhonCompactPlotV2:key==='home_mahanakhon',compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,moveOutCooldowns:[],queue:[],arrivals:0};state.buildings.set(b.id,b);recordBuildingQuota(key);clearDemandNoticeForBuild(t);renderTools();state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;markBuildingPlot(b,b.id);state.money-=t.cost;missionMoney('buildingCost',t.cost);missionCount('buildingsBuilt');for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
+function buildBuilding(key,x,y,confirmed=false,preferredRotation=null){if(buildingQuotaStatus(key).locked){showBuildingQuotaWarning(key);return false;}const check=checkParkingBuilding(key,x,y,null,preferredRotation),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true,preferredRotation));positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,shopCompactLotV1:key==='shop_large',starterCompact:key==='home_starter',starterFrontRowV2:key==='home_starter',starterParkingV3:key==='home_starter',starterCottageV4:key==='home_starter',starterCottage3x3:key==='home_starter',starterGroundV6:key==='home_starter',starterExitV1:key==='home_starter',grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,mahanakhonCompactPlotV2:key==='home_mahanakhon',mahanakhonExpandedPlotV3:key==='home_mahanakhon',compactLotV2:!!t.dualParking,compactLotV3:!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,moveOutCooldowns:[],queue:[],arrivals:0};state.buildings.set(b.id,b);recordBuildingQuota(key);clearDemandNoticeForBuild(t);renderTools();state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;markBuildingPlot(b,b.id);state.money-=t.cost;missionMoney('buildingCost',t.cost);missionCount('buildingsBuilt');for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
 function demolishBuilding(b,confirmed=false,anchor=null){if(!b||!state.buildings.has(b.id))return false;const t=CATALOG[b.key],fee=0;if(!confirmed){const details=t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ และการเดินทางมาที่นี่จะถูกยกเลิก';confirmDemolition('รื้อ'+t.name+'?',details,()=>demolishBuilding(b,true),anchor||screen(b.x+buildingBounds(b).w/2,b.y+buildingBounds(b).h/2));pendingDemolitionPreview={cells:[],eraseBuildingId:b.id};return true;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);resumeCancelledLife(c,v,'อาคารต้นทางหรือปลายทางถูกรื้อ');}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
 markBuildingPlot(b,-1);state.buildings.delete(b.id);state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;state.money-=fee;missionCount('buildingsRemoved');for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
 // Freehand demolition follows every crossed cell, even between sparse pointer samples.
@@ -8227,6 +8234,13 @@ async function commitDialogSave(name,slotId,button){const error=$('saveError');e
 function saveGame(silent=false,name='บันทึกด่วน',slotId='quick'){
  try{const slots=readSaveSlots(),clean=String(name).trim().slice(0,80);if(!clean)throw Error('Missing name');const record={id:slotId,name:clean,savedAt:Date.now(),data:snapshot()},index=slots.findIndex(s=>s.id===slotId);if(index<0)slots.push(record);else slots[index]=record;const raw=JSON.stringify({format:2,slots});localStorage.setItem(SAVE_KEY,raw);if(localStorage.getItem(SAVE_KEY)!==raw)throw Error('Save verification failed');if(!silent)toast('บันทึก “'+clean+'” แล้วค่ะ');return true;}catch(e){console.error('Save failed:',e);if(!silent)toast('บันทึกไม่สำเร็จ เบราว์เซอร์อาจไม่อนุญาตหรือพื้นที่เต็มค่ะ');return false;}
 }
+function savedBuildingBounds(b){
+ if(b.key==='home_mahanakhon'&&!b.mahanakhonExpandedPlotV3){
+  if(!b.mahanakhonCompactPlotV2)return{w:10,h:10};
+  return (b.rotation||0)%2?{w:6,h:8}:{w:8,h:6};
+ }
+ return buildingBounds(b);
+}
 function validateSave(s){
  if(!s||s.format!==2||s.parkingVersion!==PARKING_VERSION)throw Error('เมืองนี้เป็นระบบลานจอดรุ่นเก่า กรุณาเริ่มเมืองใหม่');
  if(s.cityLevel!==undefined){const l=s.cityLevel;
@@ -8247,7 +8261,7 @@ function validateSave(s){
  !Number.isFinite(c.smartUntil)||!Number.isFinite(c.smartSince)||
  !Array.isArray(c.smartLast)||c.smartLast.length>4||
  c.smartLast.some(x=>!Number.isFinite(x)))))throw Error('Invalid signal setting');}}
- for(const [,b]of s.buildings)if(!CATALOG[b.key]||!Number.isInteger(b.x)||!Number.isInteger(b.y)||!valid(b.x,b.y)||!valid(b.x+buildingBounds(b).w-1,b.y+buildingBounds(b).h-1)||!Number.isInteger(b.rotation)||b.rotation<0||b.rotation>3||!Array.isArray(b.parkingSlots)||(b.parkingSlots.length!==CATALOG[b.key].parkingCapacity&&!(b.key==='civic_starter'&&b.parkingSlots.length===60))||['residents','workers','visitors','parked','access'].some(k=>!Array.isArray(b[k])))throw Error('Invalid building');
+ for(const [,b]of s.buildings)if(!CATALOG[b.key]||!Number.isInteger(b.x)||!Number.isInteger(b.y)||!valid(b.x,b.y)||!valid(b.x+savedBuildingBounds(b).w-1,b.y+savedBuildingBounds(b).h-1)||!Number.isInteger(b.rotation)||b.rotation<0||b.rotation>3||!Array.isArray(b.parkingSlots)||(b.parkingSlots.length!==CATALOG[b.key].parkingCapacity&&!(b.key==='civic_starter'&&b.parkingSlots.length===60))||['residents','workers','visitors','parked','access'].some(k=>!Array.isArray(b[k])))throw Error('Invalid building');
  for(const [,c]of s.citizens)if(!Array.isArray(c.scheduled)||!Array.isArray(c.failKinds))throw Error('Invalid citizen');
  for(const [,v]of s.vehicles)if(!Array.isArray(v.pathSet)||!Array.isArray(v.path))throw Error('Invalid vehicle');
 }
@@ -8327,6 +8341,47 @@ function migrateCompactHomes(){
   if(moved.has(v.fromId)&&v.phase==='departing'){v.departureRouteVersion=-1;v.retryAt=0;}
  }
 }
+// Do not let a dimension upgrade overwrite roads, homes or the map edge.
+// Expand old 8x6 saves around the same FRONT pair of driveway nodes.
+// If the room is unavailable, preserve the exact original 80-car footprint
+// under a hidden legacy catalogue key, rather than corrupt the saved city.
+function migrateMahanakhonSpaciousLots(){
+ rebuildFootprint();
+ const oldBounds=b=>b.key==='home_mahanakhon'&&!b.mahanakhonExpandedPlotV3
+  ?((b.rotation||0)%2?{w:6,h:8}:{w:8,h:6}):buildingBounds(b);
+ let changed=0;
+ for(const b of state.buildings.values()){
+  if(b.key!=='home_mahanakhon'||b.mahanakhonExpandedPlotV3)continue;
+  const rotation=b.rotation||0;
+  const nx=b.x-(rotation===0||rotation===2?3:rotation===3?2:0);
+  const ny=b.y-(rotation===1||rotation===3?3:rotation===0?2:0);
+  const wider={...b,x:nx,y:ny,mahanakhonExpandedPlotV3:true};
+  const bounds=buildingBounds(wider);
+  let clear=valid(nx,ny)&&valid(nx+bounds.w-1,ny+bounds.h-1);
+  if(clear)for(let y=ny;y<ny+bounds.h&&clear;y++)for(let x=nx;x<nx+bounds.w;x++){
+   if(state.footprint[id(x,y)]>=0){clear=false;break;}
+   for(const other of state.buildings.values()){
+    if(other.id===b.id)continue;
+    const o=oldBounds(other);
+    if(x>=other.x&&x<other.x+o.w&&y>=other.y&&y<other.y+o.h){clear=false;break;}
+   }
+   if(!clear)break;
+  }
+  if(clear&&homeSideClearanceCells(wider).some(i=>state.homeSideRoadFootprint?.[i]))clear=false;
+  if(clear){b.x=nx;b.y=ny;}
+  else b.key='home_mahanakhon_compact';
+  b.mahanakhonExpandedPlotV3=true;b.grandSignal=null;changed++;
+  for(const v of state.vehicles.values()){
+   if(v.lotBuilding!==b.id)continue;
+   grandSignalRelease(v);v.grandCrossing=null;v.lotPath=null;v.lotDistance=0;
+   v.lotReady=false;v.lotBuilding=null;v.parkingStage=false;
+   v.mergeCommitted=false;v.mergeExitActive=false;v.mergeEscapeId=null;v.heldPose=null;
+   if(v.phase==='parking_in'){v.phase='driving';v.speed=0;v.parkingReplanAt=0;}
+   else if(v.phase==='parking_out'){v.phase='departing';v.speed=0;v.departureRouteVersion=-1;v.retryAt=0;}
+  }
+ }
+ return changed;
+}
 function migrateJourneyRules(){
  for(const c of state.citizens.values()){
   if(c.tourist||c.journeyRuleVersion===25)continue;
@@ -8346,7 +8401,7 @@ function migrateJourneyRules(){
 }
 function loadGame(silent=false,slotId=null,rawOverride=null){const previous={state,cam,news};try{const slots=rawOverride===null?readSaveSlots():[],slot=slotId?slots.find(s=>s.id===slotId):slots[0],raw=rawOverride??slot?.data;if(!raw){if(!silent)toast('ยังไม่มีเมืองที่บันทึกไว้ค่ะ');return false;}const s=JSON.parse(raw);validateSave(s);reset(s.city);state.intercityHour=s.intercityHour&&Number.isInteger(s.intercityHour.hour)&&Number.isInteger(s.intercityHour.total)&&s.intercityHour.total>=0&&Number.isInteger(s.intercityHour.next)&&s.intercityHour.next>=0&&s.intercityHour.next<=s.intercityHour.total?{hour:s.intercityHour.hour,total:s.intercityHour.total,next:s.intercityHour.next,offset:Math.floor(s.intercityHour.offset||0)%4}:null;state.deliveryRun=s.deliveryRun&&Number.isInteger(s.deliveryRun.night)&&Array.isArray(s.deliveryRun.plan)&&Number.isInteger(s.deliveryRun.next)&&s.deliveryRun.plan.length<=3000?{...s.deliveryRun,next:Math.max(0,Math.min(s.deliveryRun.plan.length,s.deliveryRun.next)),delivered:s.deliveryRun.delivered||{}}:null;state.money=s.money;state.vehicleTechLevels=normalizedVehicleTechLevels(s.vehicleTechLevels,s.vehicleTechUnit,s.citizens);state.time=s.time;state.morningPlanningDay=s.morningPlanningDay;const savedRewards=s.incidentRewards||{};state.incidentRewards={day:Math.floor(s.time/1440),count:savedRewards.day===Math.floor(s.time/1440)&&Number.isFinite(savedRewards.count)?Math.max(0,Math.min(INCIDENT_REWARD_DAILY_LIMIT,Math.floor(savedRewards.count))):0};state.nextId=s.nextId;state.profileSeq=s.profileSeq??s.citizens.length;state.lastImmigration=s.time;state.lastPass=s.time;state.tourism=s.tourism;state.plantedTrees=(s.plantedTrees||[]).filter(t=>!RETIRED_DECOR_KINDS.includes(t.kind));state.hiddenAutoTrees=s.hiddenAutoTrees||[];state.autoTreeRotations=s.autoTreeRotations||{};state.landscapeVersion=0;state.nextTouristAt=s.nextTouristAt||s.time+3;state.missionStats=restoreMissionStats(s.missionStats);missionAutoClose();state.roads=new Map(s.roads.map(([i,r])=>[i,{...r,links:new Set(r.links)}]));state.buildings=new Map(s.buildings.map(([i,b])=>[i,{...b,residents:new Set(b.residents),workers:new Set(b.workers),visitors:new Set(b.visitors),parked:new Set(b.parked),guests:new Set(b.guests||[]),moveOutCooldowns:Array.isArray(b.moveOutCooldowns)?b.moveOutCooldowns.filter(expiry=>Number.isFinite(expiry)&&expiry>s.time).slice(0,CATALOG[b.key]?.residents||0):[]}]));// Preserve old civic plots, parked cars and active trips without shrinking old saves.
  for(const b of state.buildings.values())if(b.key==='civic_starter'&&b.parkingSlots.length===60)b.key='civic_legacy';
- state.buildingQuota=restoreBuildingQuota(s.buildingQuota);state.demandNotices=restoreDemandNotices(s.demandNotices);state.citizens=new Map(s.citizens.map(([i,c])=>[i,{...c,scheduled:new Set(c.scheduled),failKinds:new Set(c.failKinds)}]));state.cityLevel=restoreCityLevel(s.cityLevel);state.vehicles=new Map(s.vehicles.map(([i,v])=>[i,{...v,trafficModel:v.trafficModel??1,pathSet:new Set(v.pathSet)}]));state.signals=new Map(s.signals||[]);nextAISignalPoll=-Infinity;state.signalDefaults=s.signalDefaults||state.signalDefaults;state.events=s.events;eventHeapify();cam=s.cam||cam;news=s.news||[];migrateCompactHomes();migrateJourneyRules();migrateActivity251();rebuildFootprint();state.buildGrid.fill(-1);for(const b of state.buildings.values()){markBuildingPlot(b,b.id);b.access=accessFor(b);}// Previously saved grand homes share the exact same 11x13 footprint, so
+ state.buildingQuota=restoreBuildingQuota(s.buildingQuota);state.demandNotices=restoreDemandNotices(s.demandNotices);state.citizens=new Map(s.citizens.map(([i,c])=>[i,{...c,scheduled:new Set(c.scheduled),failKinds:new Set(c.failKinds)}]));state.cityLevel=restoreCityLevel(s.cityLevel);state.vehicles=new Map(s.vehicles.map(([i,v])=>[i,{...v,trafficModel:v.trafficModel??1,pathSet:new Set(v.pathSet)}]));state.signals=new Map(s.signals||[]);nextAISignalPoll=-Infinity;state.signalDefaults=s.signalDefaults||state.signalDefaults;state.events=s.events;eventHeapify();cam=s.cam||cam;news=s.news||[];migrateCompactHomes();migrateMahanakhonSpaciousLots();migrateJourneyRules();migrateActivity251();rebuildFootprint();state.buildGrid.fill(-1);for(const b of state.buildings.values()){markBuildingPlot(b,b.id);b.access=accessFor(b);}// Previously saved grand homes share the exact same 11x13 footprint, so
  // relocate only internal geometry and reset in-flight lot manoeuvres.
  // Preserve citizens, parking reservations and every existing save.
  for(const b of state.buildings.values())if(b.key==='home_grand'&&!b.grandFrontageV3){
