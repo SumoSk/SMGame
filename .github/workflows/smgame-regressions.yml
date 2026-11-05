@@ -94,6 +94,7 @@ jobs:
       - run: node -r ./work/test-dom-compat.cjs work/test-camera-joystick.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-new-building-program.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mahanakhon.cjs
+      - run: node -r ./work/test-dom-compat.cjs work/test-mahanakhon-spacing.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mahanakhon-traffic.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mahanakhon-arrivals.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-mahanakhon-road-entry-stress.cjs

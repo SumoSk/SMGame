@@ -6,7 +6,7 @@ const t=g.CATALOG.home_mahanakhon;
 const home=g.buildBuilding('home_mahanakhon',160,148-t.plotHeight,true);
 const office=g.buildBuilding('office_medium',195,148-g.CATALOG.office_medium.plotHeight,true);
 assert(home&&office,'the home and office must be connected to actual roads');
-assert.deepEqual([t.plotWidth,t.plotHeight],[8,6]);
+assert.deepEqual([t.plotWidth,t.plotHeight],[14,8]);
 assert.equal(home.access.filter(a=>a.entry).length,1);
 assert.equal(home.access.filter(a=>a.exit).length,1);
 const occupied=[...Array(64).keys()];
