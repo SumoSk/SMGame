@@ -2494,15 +2494,16 @@ export class TrafficRenderer{
    const p=point(u,v);batch.box(color,p.x-.5,y,p.y-.5,w,h,d,turn,id,glow,finish);
   };
 
-  if(b.key==='home_mahanakhon'){
+  if(b.key==='home_mahanakhon'||b.key==='home_mahanakhon_compact'){
    // Mahanakhon slim edition: tower centered over a symmetric four-pier
    // entrance canopy. Keep the same 8x6 parcel, true 80 single-level bays
    // and 12-storey height; only the architectural mesh changes.
-   const cx=4,cz=3,topY=1.50;
+   const legacy=b.key==='home_mahanakhon_compact',cx=t.plotWidth/2,cz=t.plotHeight/2,topY=1.50;
    // Short structural piers are inset under the narrower podium beam.
    // Their x positions are now directly aligned under the slender tower.
    // Keep the piers off real parked car bodies and central front gate lanes.
-   for(const u of [2.83,5.17])for(const v of [.17,4.95]){
+   for(const u of (legacy?[2.83,5.17]:[cx-2.05,cx+2.05]))
+    for(const v of (legacy?[.17,4.95]:[.50,7.05])){
     block('#748c9b',u,.09,v,.35,.16,.27,'stone');
     block('#344d62',u,.58,v,.23,.82,.22,'metal');
     block('#adc1c5',u,.99,v,.31,.12,.29,'stone');
@@ -2510,15 +2511,15 @@ export class TrafficRenderer{
    }
    // Deliberately symmetrical deep-blue canopy that binds the 4 piers to
    // the narrow facade; no decorative white ground or parking floor above.
-   block('#334e65',cx,1.28,cz,2.95,.23,5.40,'metal');
-   block('#7797a7',cx,1.41,cz,3.05,.045,5.48,'metal');
+   block('#334e65',cx,1.28,cz,legacy?2.95:4.55,.23,legacy?5.40:7.30,'metal');
+   block('#7797a7',cx,1.41,cz,legacy?3.05:4.64,.045,legacy?5.48:7.36,'metal');
    // Two subtle chamfer-like shoulders tie the roof visually to each pier.
-   for(const u of [2.83,5.17]){
-    block('#496a7d',u,1.20,cz,.18,.12,4.75,'metal');
-    block('#90b5c2',u,1.27,cz,.07,.025,4.70,'glass');
+   for(const u of (legacy?[2.83,5.17]:[cx-2.05,cx+2.05])){
+    block('#496a7d',u,1.20,cz,.18,.12,legacy?4.75:6.90,'metal');
+    block('#90b5c2',u,1.27,cz,.07,.025,legacy?4.70:6.85,'glass');
    }
    // Warm recessed lights beneath the cantilever, not an opaque lower floor.
-   for(const v of [.65,1.90,3.10,4.35,5.15])
+   for(const v of (legacy?[.65,1.90,3.10,4.35,5.15]:[.85,2.30,4.0,5.60,7.0]))
     block('#f4d4a4',cx,1.14,v,1.65,.025,.07,'glass',true);
    // Keep previous height EXACTLY: 12 floors x .66 units = 7.92.
    const foot=topY,levels=12,storey=.66,height=levels*storey;
