@@ -2495,72 +2495,64 @@ export class TrafficRenderer{
   };
 
   if(b.key==='home_mahanakhon'){
-   // Bangkok Mahanakhon-inspired pixel ribbon; low-poly boxes only, same
-   // instanced geometry and four-way lot rotation as the existing renderer.
-   // All supports are outside the parking slots, aisles and side driveways.
-   const cx=5,cz=5;
-   for(const u of [1.8,8.2])for(const v of [3.47,7.5]){
-    block('#455b68',u,.19,v,.45,.26,.45,'stone');
-    block('#344c5b',u,1.42,v,.34,2.58,.34,'metal');
-    block('#a5b7bf',u,2.75,v,.52,.13,.52,'stone');
+   // Entirely redesigned compact 8x6 landmark. Supports do not occupy
+   // parking bays, moving aisles or the pair of front-center gates.
+   const cx=4,cz=3;
+   // Short polished piers instead of four tall bare stilts.
+   for(const u of [1.30,6.70])for(const v of [.20,4.97]){
+    block('#849baa',u,.11,v,.45,.12,.38,'stone');
+    block('#4b6b80',u,.63,v,.30,.89,.28,'stone');
+    block('#8eb0bb',u,.69,v,.31,.72,.055,'metal');
+    block('#d7e2e2',u,1.16,v,.49,.12,.42,'stone');
    }
-   // The entire 80-car court is open at street level; no ramp or second deck.
-   block('#4e6475',cx,2.91,cz,7.10,.29,7.10,'metal');
-   block('#98b9c8',cx,3.08,cz,7.16,.065,7.16,'glass');
-   for(const u of [2.1,3.9,6.1,7.9])for(const v of [3.55,7.35])
-    block('#cbe9ea',u,2.71,v,.40,.035,.17,'glass',true);
-   // A flat-ended rectangular tower with visibly recessed and protruding
-   // pixels advancing around four faces. Its mass is suspended above cars.
-   const foot=3.18,levels=44,storey=.72,height=levels*storey;
-   block('#17374e',cx,foot+height/2,cz,5.02,height,5.02,'glass');
+   // Suspended slim support beam, not a second parking floor.
+   block('#4f7189',cx,1.31,cz,5.93,.20,5.40,'metal');
+   block('#a4c5cc',cx,1.45,cz,5.99,.055,5.45,'glass');
+   for(const u of [1.38,3.05,4.95,6.62])for(const v of [.45,5.47])
+    block('#b8e1e6',u,1.15,v,.28,.024,.10,'glass',true);
+   // Original tower facade 44 x .72 = 31.68; this facade is 12 x .66
+   // = 7.92, exactly one quarter of the former upper-tower height.
+   const foot=1.50,levels=12,storey=.66,height=levels*storey;
+   block('#17374e',cx,foot+height/2,cz,4.35,height,4.35,'glass');
+   // Recessed and protruding pixel ribbon wraps four faces clockwise.
    for(let floor=0;floor<levels;floor++){
     const y=foot+(floor+.5)*storey;
-    const activeFace=Math.floor(floor/11)%4;
-    const ribbonCol=Math.min(7,Math.floor((floor%11)*8/11));
-    for(let face=0;face<4;face++){
-     for(let col=0;col<8;col++){
-      const offset=-2.80+col*.80;
-      const recessed=(face===activeFace&&Math.abs(col-ribbonCol)<=1)||
-       (face===(activeFace+1)%4&&floor%11>=9&&col<=1);
-      const depth=recessed?2.47:3.20;
-      const palette=recessed?['#497f9f','#366c8b','#5b90af']:
-       ['#2b6489','#316f93','#3c789c','#245a7f'];
-      const shade=palette[(floor+col+face)%palette.length];
-      const emissive=!recessed&&((floor*11+col*7+face*13)%47===0);
-      const color=emissive?'#c5d5cf':shade;
-      if(face===0)block(color,cx+offset,y,cz+depth,.765,.673,.105,'glass',emissive);
-      if(face===1)block(color,cx+depth,y,cz+offset,.105,.673,.765,'glass',emissive);
-      if(face===2)block(color,cx+offset,y,cz-depth,.765,.673,.105,'glass',emissive);
-      if(face===3)block(color,cx-depth,y,cz+offset,.105,.673,.765,'glass',emissive);
-      if(recessed&&(floor%3===0||col===ribbonCol)){
-       // An exposed ledge makes each carved pixel read in 3D, not as paint.
-       if(face===0)block('#8bb5cb',cx+offset,y-storey*.45,cz+2.84,.77,.065,.73,'metal');
-       if(face===1)block('#8bb5cb',cx+2.84,y-storey*.45,cz+offset,.73,.065,.77,'metal');
-       if(face===2)block('#8bb5cb',cx+offset,y-storey*.45,cz-2.84,.77,.065,.73,'metal');
-       if(face===3)block('#8bb5cb',cx-2.84,y-storey*.45,cz+offset,.73,.065,.77,'metal');
-      }
+    const faceTurn=Math.floor(floor/3)%4;
+    const ribbonCol=Math.min(7,Math.floor((floor%3)*8/3));
+    for(let face=0;face<4;face++)for(let col=0;col<8;col++){
+     const offset=-2.24+col*.64;
+     const carved=(face===faceTurn&&Math.abs(col-ribbonCol)<=1)||
+      (face===(faceTurn+1)%4&&floor%3===2&&col<=1);
+     const reach=carved?1.97:2.56;
+     const pal=carved?['#527e99','#376c88','#6696ac']:
+      ['#2b6489','#316f93','#3c789c','#245a7f'];
+     const illuminated=!carved&&(floor*11+col*7+face*13)%47===0;
+     const color=illuminated?'#bedbd8':pal[(floor+col+face)%pal.length];
+     if(face===0)block(color,cx+offset,y,cz+reach,.61,.607,.095,'glass',illuminated);
+     if(face===1)block(color,cx+reach,y,cz+offset,.095,.607,.61,'glass',illuminated);
+     if(face===2)block(color,cx+offset,y,cz-reach,.61,.607,.095,'glass',illuminated);
+     if(face===3)block(color,cx-reach,y,cz+offset,.095,.607,.61,'glass',illuminated);
+     if(carved&&(floor%3===0||col===ribbonCol)){
+      if(face===0)block('#93b8c9',cx+offset,y-storey*.45,cz+2.28,.60,.040,.54,'metal');
+      if(face===1)block('#93b8c9',cx+2.28,y-storey*.45,cz+offset,.54,.040,.60,'metal');
+      if(face===2)block('#93b8c9',cx+offset,y-storey*.45,cz-2.28,.60,.040,.54,'metal');
+      if(face===3)block('#93b8c9',cx-2.28,y-storey*.45,cz+offset,.54,.040,.60,'metal');
      }
     }
-    if(floor%4===0){
-     for(const side of [-1,1]){
-      block('#183b56',cx,y-storey*.48,cz+side*3.23,6.35,.036,.055,'metal');
-      block('#183b56',cx+side*3.23,y-storey*.48,cz,.055,.036,6.35,'metal');
-     }
+    if(floor%3===0)for(const side of [-1,1]){
+     block('#25475d',cx,y-storey*.48,cz+side*2.59,5.16,.037,.044,'metal');
+     block('#25475d',cx+side*2.59,y-storey*.48,cz,.044,.037,5.16,'metal');
     }
    }
    const top=foot+height;
-   block('#26465c',cx,top+.07,cz,6.55,.20,6.55,'metal');
-   // Flat roof, transparent parapet, restrained rooftop utilities.
+   // Crisp flat top: no tall antenna and no extra parking storey.
+   block('#25465b',cx,top+.07,cz,5.35,.17,5.35,'metal');
    for(const side of [-1,1]){
-    block('#7c9aab',cx,top+.22,cz+side*3.18,6.42,.24,.08,'glass');
-    block('#7c9aab',cx+side*3.18,top+.22,cz,.08,.24,6.42,'glass');
+    block('#7b9ba9',cx,top+.22,cz+side*2.59,5.18,.19,.07,'glass');
+    block('#7b9ba9',cx+side*2.59,top+.22,cz,.07,.19,5.18,'glass');
    }
-   block('#718894',cx-.9,top+.30,cz-.7,1.15,.36,.88,'metal');
-   block('#475f6d',cx+1.1,top+.25,cz+.75,1.08,.26,.82,'metal');
-   for(const [u,v] of [[-2.95,-2.95],[2.95,2.95]]){
-    block('#a7c1c8',cx+u,top+.55,cz+v,.055,.72,.055,'metal');
-    block('#f6b0a3',cx+u,top+.93,cz+v,.16,.12,.16,'glass',true);
-   }
+   block('#718894',cx-.75,top+.29,cz-.6,.92,.22,.65,'metal');
+   block('#475f6d',cx+.80,top+.25,cz+.65,.81,.16,.65,'metal');
    return;
   }
 
