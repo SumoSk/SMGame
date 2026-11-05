@@ -26,23 +26,37 @@ for(let rotation=0;rotation<4;rotation++){
   assert.equal(gg.buildBuilding('home_starter',x,y,true,rotation),false,'cannot put a home beside street');
  }
 }
-// The boundary itself matters: exactly ONE empty tile must be legal,
-// and widening an initially legal two-cell road into four cells must fail.
+// The displayed asphalt is wider than the integer route-tile occupancy for
+// small/large roads. Every road size must preserve a FULL empty grid tile.
 for(let rotation=0;rotation<4;rotation++)for(const side of [-1,1])for(const type of ['small','medium','large']){
  const {g,x,y}=setup(rotation),house=g.buildBuilding('home_starter',x,y,true,rotation);
  assert(house,'existing house');
- const {w,h}=g.buildingBounds(house),width=type==='large'?4:2,low=Math.floor(width/2);
- const axis=side<0?-(width-low+1):low+1;
- const roadX=rotation%2?x+Math.floor(w/2):side<0?x+axis:x+w+axis;
- const roadY=rotation%2?(side<0?y+axis:y+h+axis):y+Math.floor(h/2);
- const node=g.id(roadX,roadY);
- assert.equal(g.checkRoad([node],type).error,undefined,'exactly one empty side tile must allow '+type+', rotation '+rotation+', side '+side);
- assert.equal(g.buildRoad([node],type,true),true,'road built with one empty side tile');
- if(type==='small')assert.match(g.checkRoad([node],'large').error||'',/ด้านข้าง/,'widening street must not consume one-block setback');
+ const {w,h}=g.buildingBounds(house),radius=g.ROADS[type].visualWidth/2;
+ const near=Math.ceil(radius+.5)-1,far=Math.ceil(radius+.5),axis=rotation%2===1?'y':'x';
+ const base=axis==='y'?(side<0?y-1:y+h):(side<0?x-1:x+w);
+ const center=(step)=>base+side*step;
+ const along=axis==='y'?x+Math.floor(w/2):y+Math.floor(h/2);
+ const node=(step)=>axis==='y'?g.id(along,center(step)):g.id(center(step),along);
+ assert.match(g.checkRoad([node(near)],type).error||'',/เว้นระยะจากบ้าน 1 ช่อง/,'side road must be rejected with visible pavement: '+type+', rotation '+rotation+', side '+side);
+ assert.equal(g.buildRoad([node(near)],type,true),false,'blocked side road was built');
+ assert.equal(g.checkRoad([node(far)],type).error,undefined,'one FULL empty tile must allow '+type+', rotation '+rotation+', side '+side);
+ assert.equal(g.buildRoad([node(far)],type,true),true,'road built with a full empty side tile');
  const env=setup(rotation),gg=env.g;
- assert.equal(gg.buildRoad([node],type,true),true,'road with a legal gap can precede home');
- assert(gg.buildBuilding('home_starter',x,y,true,rotation),'home with exactly one empty side tile remains allowed');
+ assert.equal(gg.buildRoad([node(near)],type,true),true,'side road may predate home');
+ assert.equal(gg.buildBuilding('home_starter',x,y,true,rotation),false,'cannot place home beside '+type+' pavement');
+ const ok=setup(rotation),gok=ok.g;
+ assert.equal(gok.buildRoad([node(far)],type,true),true,'road at safe boundary');
+ assert(gok.buildBuilding('home_starter',x,y,true,rotation),'home permitted with full empty side tile');
 }
+// Upgrading a formerly safe narrow road can consume the home setback.
+for(let rotation=0;rotation<4;rotation++)for(const side of [-1,1]){
+ const {g,x,y}=setup(rotation),home=g.buildBuilding('home_starter',x,y,true,rotation);assert(home);
+ const {w,h}=g.buildingBounds(home),offset=side<0?-3:3;
+ const node=rotation%2?g.id(x+Math.floor(w/2),side<0?y+offset:y+h-1+offset):g.id(side<0?x+offset:x+w-1+offset,y+Math.floor(h/2));
+ assert.equal(g.buildRoad([node],'small',true),true,'narrow road starts outside setback');
+ assert.match(g.checkRoad([node],'large').error||'',/เว้นระยะจากบ้าน 1 ช่อง/,'widening to large violates side setback');
+}
+
 {
  const {g,x,y}=setup(0),house=g.buildBuilding('home_starter',x,y,true,0);
  assert(house);
