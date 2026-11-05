@@ -6,8 +6,8 @@ global.document??={
   width:512,height:512,
   getContext:()=>({
    fillRect(){},clearRect(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},
-   fill(){},fillText(){},save(){},restore(){},stroke(){},
-   createRadialGradient:()=>({addColorStop(){}})
+   fill(){},fillText(){},save(){},restore(){},stroke(){},translate(){},rotate(){},scale(){},
+   createRadialGradient:()=>({addColorStop(){}}),createLinearGradient:()=>({addColorStop(){}})
   })
  })
 };

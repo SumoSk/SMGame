@@ -1,5 +1,13 @@
 # Traffic Fixer Thailand
 
+## 5.4.8
+
+- Fix incomplete road erasure: pick every visible road surface beneath a stroke, clear incoming legacy links, and do not render links to deleted nodes.
+- Show rotate/delete controls beside decorations, rotate placement previews with the button or R, and preserve rotation across save/load.
+- Include the full-screen creator dashboard, its entry button, filters, sortable history, levels and statistics.
+- Focused road/decor and creator-dashboard regression tests pass; legacy decoration/save tests pass.
+
+
 เกมสร้างเมืองและแก้ปัญหาจราจรแบบไทย แสดงผล 3 มิติด้วย Three.js
 
 ## เปิดเล่นบนเครื่อง
@@ -264,3 +272,11 @@ Focused checks: node work/test-dynamic-citizens.cjs, node work/test-citizens-das
 - **ถ้ามันแย่ลงก็ต้องยอมย้อน:** หลายครั้งมีการใช้แบ็กอัปหรือย้อน Commit แทนการฝืนแพตช์ซ้อน
 - **การทดสอบสำคัญ แต่คนเล่นยังเจอสิ่งที่ชุดทดสอบไม่เจอ:** จึงมีการทดลองซ้ำจากการเล่นจริงและกลับมาปรับกฎอีกหลายรอบ
 - **กราฟิกกับ UX ไม่ใช่งานแต่งหน้าทีหลัง:** ปุ่มกดได้หรือไม่ได้ ตัวเลขอ่านออกหรือเปล่า และเมนูบังเมืองแค่ไหน ล้วนกระทบความสนุก
+
+## Creator dashboard (2026-11-05)
+
+Open ผู้สร้าง → ดูแบบเต็มจอ for full-history analytics. Filters cover search, Thai dates, city, device, account type, online status and level. All data columns sort, missing metrics remain unknown, and the table renders 50/100/200 records per page. History is fetched in 500-row keyset pages without a 150-record cap. Existing live-city, account and save controls remain available.
+
+New clients report level, budget, mission score, traffic flow, unemployment, daily net income and game day. Older records are retained with null metrics; no historical levels are invented. The additive schema change is recorded in supabase/creator-dashboard-metrics.sql and was applied to SUMOWEB as smgame_creator_dashboard_metrics. The Edge Function uses the current deployed account/auth implementation as its base.
+
+Validation: test-creator-dashboard.cjs, test-creator-endpoint.cjs, test-creator-dashboard-ui.cjs (provide the path to an installed linkedom module as its first argument), test-dev-quick-login.cjs and test-cloud-save-adapter.cjs pass. Production build passes. Legacy test-game.cjs has the same pre-existing map/immigration assertions on main; browser visual QA is unavailable because local browser connections are blocked in this environment.

@@ -1,3 +1,4 @@
+import { installCreatorDashboard } from './creator-dashboard.js';
 import { createClient } from '@supabase/supabase-js';
 
 // This is a public, browser-safe publishable key. Never use a service-role key here.
@@ -427,7 +428,7 @@ if (gate) {
         isPlaying: !document.hidden && city.isPlaying === true,
         city: city.city || 'unknown', population: city.population || 0,
         tourists: city.tourists || 0, vehicles: city.vehicles || 0,
-        buildings: city.buildings || 0,
+        buildings: city.buildings || 0, metrics: city.metrics || null,
       });
       if (response?.liveRequestId && !document.hidden) void creatorSendLiveSnapshot(response.liveRequestId);
     } catch (error) {
@@ -606,6 +607,7 @@ function creatorHistoryDashboard(target,entries,render){
     } catch (error) { cr('crStatus').textContent = 'โหลดข้อมูลไม่ได้: ' + (error?.message || 'ไม่ทราบสาเหตุ'); }
     finally { creatorLoading = false; }
   }
+  installCreatorDashboard({dialog:creatorDialog,request:creatorRequest,allowed:()=>creatorAllowed&&!!creatorUser(),loadCity:creatorRequestLiveCity,loadLive:()=>void creatorReload()});
   window.SMGameCreatorRequest = creatorRequest;
   window.SMGameCreatorOpen = () => {
     if (!creatorAllowed || !creatorUser()) return;
