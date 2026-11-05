@@ -18,7 +18,7 @@ for(let rotation=0;rotation<4;rotation++){
  assert(house.access.length>=2,'driveway accessible');
  for(const [sx,sy]of sides){
   const check=g.checkRoad([g.id(sx,sy)],'small');
-  assert.match(check.error||'',/ด้านข้าง/, 'cannot draw side street for rotation '+rotation);
+  assert.match(check.error||'',/เว้นระยะจากบ้าน 1 ช่อง/, 'cannot draw side street for rotation '+rotation);
  }
  for(const [sx,sy]of sides){
   const env=setup(rotation),gg=env.g;
