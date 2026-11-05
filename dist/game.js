@@ -731,6 +731,22 @@ function parkingBankBusy(b,index,arriving,requester=null){
  // merges locally at the exact physical conflict, without cross-bank deadlocks.
  const target=lotSlots(b)[index];
  if(!target)return false;
+ if(b.key==='home_mahanakhon'){
+  // The compact court must not lock a whole row just because another car
+  // was ASSIGNED a neighbouring bay. Check its ACTUAL current position:
+  // departed cars may already be metres away on the exit connector.
+  // Continuous swept collisions remain enforced by lotClear and
+  // canLeaveParkingSpace, including against stationary parked residents.
+  const bay=parkingSlotPose(b,index);
+  for(const other of parkingLotCars(b.id)){
+   if(other.id===requester?.id||!other.lotPath)continue;
+   const moving=parkingPose(other);
+   if(moving&&lotCarsOverlap(bay,moving,.09))
+    return requester?noteParkingBlock(requester,arriving?'arrival_live_bay_busy':'departure_live_bay_busy',
+     {blockerVehicleId:other.id,requestedSlot:index,observedPhysical:true}):true;
+  }
+  return false;
+ }
  for(const other of state.vehicles.values()){
   if(!other.lotPath||other.lotBuilding!==b.id)continue;
   const otherIndex=b.parkingSlots?.indexOf(other.citizenId)??-1;
