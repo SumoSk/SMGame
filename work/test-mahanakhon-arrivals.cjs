@@ -40,4 +40,11 @@ run('rear-aisle partially occupied / front full',
  [...Array(20).keys(),...Array(40).keys()].map((i,j)=>j<20?i:40+(j-20)),10);
 run('front aisle partly occupied / rear full',
  [...Array(40).keys(),...Array(20).keys()].map((i,j)=>j<40?i:40+(j-40)),10);
+const allSlots=Array.from({length:80},(_,i)=>i);
+const leftEdge=[0,1,20,21,40,41,60,61];
+const rightEdge=[18,19,38,39,58,59,78,79];
+run('last eight vacancies beside left drive spine',allSlots.filter(i=>!leftEdge.includes(i)),8);
+run('last eight vacancies at far right exit spine',allSlots.filter(i=>!rightEdge.includes(i)),8);
+run('last two front-row vacancies',allSlots.filter(i=>![78,79].includes(i)),2);
+run('last two rear-row vacancies',allSlots.filter(i=>![0,1].includes(i)),2);
 run('empty tower / staggered arrivals',[],16);
