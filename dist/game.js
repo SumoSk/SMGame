@@ -865,7 +865,7 @@ function parkingBayObstructed(v,b,index){
  for(const cid of b.parked){
   if(cid===v.citizenId||parkingIsMoving(cid))continue;
   const other=parkingSlotPose(b,parkingSpace(b,cid));
-  if(other&&lotCarsOverlap(pose,other,CATALOG[b.key].dualParking?0:.03))return true;
+  if(other&&lotCarsOverlap(pose,other,CATALOG[b.key].dualParking?0:b.key==='home_mahanakhon'?.015:.03))return true;
  }
  for(const other of parkingLotCars(b.id)){
   if(other.id===v.id||other.lotBuilding!==b.id||!other.lotPath)continue;
