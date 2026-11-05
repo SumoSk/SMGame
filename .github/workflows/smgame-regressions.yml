@@ -32,6 +32,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check dist/game.js
+      - run: node -r ./work/test-dom-compat.cjs work/test-home-side-clearance.cjs
       - run: node --check dist/renderer3d.js
       - run: node -r ./work/test-dom-compat.cjs work/test-orange-factories.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-factory-night-effects.cjs
