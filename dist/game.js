@@ -6441,63 +6441,6 @@ function processJunctionTows(simDt){
   break;
  }
 }
-
-const JUNCTION_BODY_CLEAR_TIMEOUT=6; // six in-game minutes, including partial intrusions
-let junctionBodySweepState=null,junctionBodySweepAt=-Infinity;
-// Junctions are rendered from junctionDetails().halfX/halfY. Treat any
-// portion of the car footprint inside that rectangle as occupying the box.
-// This independent watchdog is intentionally not gated on signal, queue,
-// route, junction lease, or collision-reason classifications.
-function junctionVehicleBodyTouches(pose,layout){
- if(!pose||!layout||layout.arms.length<3)return false;
- const dx=pose.x-(layout.x+.5),dy=pose.y-(layout.y+.5);
- const len=Math.hypot(pose.dx||0,pose.dy||0);
- const angle=Math.atan2(Math.sin(pose.angle||0)/.78,Math.cos(pose.angle||0));
- const ux=len>1e-8?pose.dx/len:Math.cos(angle),uy=len>1e-8?pose.dy/len:Math.sin(angle);
- const vx=-uy,vy=ux,hl=.285,hw=.13,hx=layout.halfX,hy=layout.halfY;
- if(!(hx>0&&hy>0))return false;
- // Separating-axis test: the car may cross by its nose, tail or side.
- if(Math.abs(dx)>=hx+hl*Math.abs(ux)+hw*Math.abs(vx)-1e-7)return false;
- if(Math.abs(dy)>=hy+hl*Math.abs(uy)+hw*Math.abs(vy)-1e-7)return false;
- if(Math.abs(dx*ux+dy*uy)>=hl+hx*Math.abs(ux)+hy*Math.abs(uy)-1e-7)return false;
- if(Math.abs(dx*vx+dy*vy)>=hw+hx*Math.abs(vx)+hy*Math.abs(vy)-1e-7)return false;
- return true;
-}
-function junctionIntrudedByVehicle(v){
- if(!['driving','stuck','parking_in','parking_out'].includes(v.phase)||isAirTraffic(v))return null;
- const pose=vehiclePosition(v);
- if(!pose||!Number.isFinite(pose.x)||!Number.isFinite(pose.y)||(pose.altitude||0)>0)return null;
- const cx=Math.floor(pose.x-.5),cy=Math.floor(pose.y-.5);
- // Largest road box reaches less than three map cells from its grid node.
- // Four cells also covers either end of a road train touching the line.
- for(let y=Math.max(0,cy-4);y<=Math.min(H-1,cy+4);y++)
-  for(let x=Math.max(0,cx-4);x<=Math.min(W-1,cx+4);x++){
-   const node=id(x,y);
-   if(!state.roads.has(node)||junction(node)<3)continue;
-   if(junctionVehicleBodyTouches(pose,junctionDetails(node)))return node;
-  }
- return null;
-}
-function rescueStationaryJunctionIntrusions(){
- if(junctionBodySweepState!==state){junctionBodySweepState=state;junctionBodySweepAt=-Infinity;}
- if(state.time>=junctionBodySweepAt&&state.time-junctionBodySweepAt<.5)return;
- junctionBodySweepAt=state.time;
- let recovered=0;
- for(const v of [...state.vehicles.values()]){
-  if(recovered>=4)break; // limit modifications per simulation step
-  if(!['driving','stuck','parking_in','parking_out'].includes(v.phase))continue;
-  if(v.phase==='driving'&&(v.speed||0)>.02)continue;
-  if(incidentStoppedFor(v)<JUNCTION_BODY_CLEAR_TIMEOUT)continue;
-  const node=junctionIntrudedByVehicle(v);
-  if(node==null)continue;
-  if(towVehicle(v.id,true)){
-   recovered++;
-   junctionTowLog.push({id:v.id,node,time:state.time,reason:'junction_body_stalled_6_game_minutes'});
-   if(junctionTowLog.length>20)junctionTowLog.shift();
-  }
- }
-}
-
 function intersectionAllowed(v,pos,ignoreSignal=false){
  if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
  const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(!isAirTraffic(v)&&signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return noteVehicleJunctionDenial(v,i,'red_signal',{incoming:entering,lane,signal:signalColor(i,entering,lane)});
@@ -7144,7 +7087,7 @@ function tick(dt){if(!state.speed)return;const old=state.time,gameDt=dt*GAME_MIN
 if(state.time-state.lastImmigration>=1){state.lastImmigration=state.time;immigration();}
 if(Math.floor(old/2)!==Math.floor(state.time/2)){let n=0;for(const c of state.citizens.values()){if(c.pending&&!c.pending.life&&c.pending.next<=state.time&&n++<80){const p=c.pending;if(p.expires<state.time){c.pending=null;continue;}runAction(c,p.action,p);}}}
 if(state.time-state.lastPass>=90){state.lastPass=state.time;if(computeStats().pop<1200&&state.vehicles.size<3600){const index=Math.floor(state.time/90)%4;createTrip(null,'pass',null,null,state.gates[index],state.gates[(index+2)%4],null);}}
-updateIntercityFreight();updateNightDeliveries();advanceVehicles(dt*NORMAL_SPEED_SCALE,gameDt);updateTourism(gameDt);updateCityActivity();refreshComplaints();rescueStationaryJunctionIntrusions();scanIncidents();autoRescueIncidents();for(const r of state.roads.values()){if(r.load>.001)r.load*=Math.pow(.90,dt*4);if(r.wait>.001)r.wait*=Math.pow(.72,dt*4);}if(state.stats.happy<70&&state.time-(state.lastHappyAlert||0)>180){addNews('คนใหม่หยุดย้ายเข้า ช่วยแก้ปัญหาให้ Performance ตั้งแต่ 70%');state.lastHappyAlert=state.time;}}
+updateIntercityFreight();updateNightDeliveries();advanceVehicles(dt*NORMAL_SPEED_SCALE,gameDt);updateTourism(gameDt);updateCityActivity();refreshComplaints();scanIncidents();autoRescueIncidents();for(const r of state.roads.values()){if(r.load>.001)r.load*=Math.pow(.90,dt*4);if(r.wait>.001)r.wait*=Math.pow(.72,dt*4);}if(state.stats.happy<70&&state.time-(state.lastHappyAlert||0)>180){addNews('คนใหม่หยุดย้ายเข้า ช่วยแก้ปัญหาให้ Performance ตั้งแต่ 70%');state.lastHappyAlert=state.time;}}
 function lineCells(a,b){let [x,y]=xy(a),[u,v]=xy(b),dx=u-x,dy=v-y;const horizontal=Math.abs(dx)>=Math.abs(dy);if(horizontal)v=y;else u=x;
  // Snap an unfinished end by one tile along the stroke, preserving its axis.
  const sx=Math.sign(u-x),sy=Math.sign(v-y);
@@ -8490,7 +8433,7 @@ function openGraphicsMenu(){
 function openMainMenu(){
  const developerId=bugReportDeveloperId();
  modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b></span><span class="menu-chevron">›</span></button><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b></span><span class="menu-chevron">›</span></button>'+(developerId?'<button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>รายงานรถบัค</b><small>บันทึกหลักฐาน: '+(bugCaptureEnabled?'เปิด':'ปิด')+'</small></span><span class="menu-chevron">›</span></button>':'')+'<button type="button" id="graphicsMenu"><span class="menu-symbol">◈</span><span><b>ตั้งค่ากราฟิก</b></span><span class="menu-chevron">›</span></button><button type="button" id="helpMenu"><span class="menu-symbol">?</span><span><b>คู่มือเล่นเกม</b></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
- const creatorAnchor=developerId?$('reportMenu'):null;
+ const creatorAnchor=$('reportMenu');
  if(creatorAnchor){
   creatorAnchor.dataset.developerId=developerId;
   const button=document.createElement('button');
