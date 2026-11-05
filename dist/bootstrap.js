@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=mahanakhon-spacious-7613c49d';
+import { TrafficRenderer } from './renderer3d.js?v=mahanakhon-core-af5ac16f';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
 await import('./game.js?v=mahanakhon-spacious-7613c49d');
 await import('./member.js?v=4ed815769287');
