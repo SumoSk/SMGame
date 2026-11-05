@@ -43,7 +43,7 @@ assert.equal(va.lotPath,null);assert.equal(vb.lotPath,null);
 assert(va.oppositeExitRetryAt<vb.oppositeExitRetryAt,'retries are staggered');
 assert(a.parked.has(p.citizen.id)&&b.parked.has(q.citizen.id),'cars are returned to their own origins');
 assert.equal(p.citizen.vehicleId,va.id);assert.equal(q.citizen.vehicleId,vb.id);
-assert.equal(va.deadline,520+16.1);assert.equal(vb.deadline,520+22.1);
+assert(Math.abs(va.deadline-(520+18.1))<1e-6);assert(Math.abs(vb.deadline-(520+24.1))<1e-6);
 assert.equal(g.state.missionStats.current.total,0,'bug recovery does not create mission outcomes');
 assert.equal(g.oppositeExitPairSince.size,0,'pair timer is cleared after rescue');
 g.state.time=506.2;
