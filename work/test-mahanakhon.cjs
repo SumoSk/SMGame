@@ -20,7 +20,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
   for(let j=0;j<i;j++)assert(!g.lotCarsOverlap(g.parkingSlotPose(b,i),g.parkingSlotPose(b,j),.015),
    'bay '+i+' overlaps '+j);
  }
- for(const u of [1.30,6.70])for(const v of [.20,4.97])for(const s of slots)
+ for(const u of [2.83,5.17])for(const v of [.17,4.95])for(const s of slots)
   assert(Math.abs(s.u-u)>.36||Math.abs(s.v-v)>.46,'pillar would hit parked car');
  for(let rot=0;rot<4;rot++){
   const copy={...b,rotation:rot},bounds=g.buildingBounds(copy);
@@ -62,5 +62,5 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(pieces.length>360,'short pixel tower must stay detailed');
  assert(Math.max(...pieces.map(p=>p.y))<11,'quarter-height tower');
  assert(pieces.every(p=>[p.x,p.y,p.z].every(Number.isFinite)));
- console.log(JSON.stringify({passed:true,tower:'Mahanakhon',cost:t.cost,bays:80,plot:[10,10],rotation:4,save:true,driving:true,mesh:pieces.length}));
+ console.log(JSON.stringify({passed:true,tower:'Mahanakhon',cost:t.cost,bays:80,plot:[8,6],rotation:4,save:true,driving:true,mesh:pieces.length}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
