@@ -631,7 +631,7 @@ function creatorHistoryDashboard(target,entries,render){
     } catch { if (ticket === creatorAccessCounter) window.SMGameCreatorCanOpen = false; }
   };
   setTimeout(() => void creatorHeartbeat(), 500);
-  setInterval(() => void creatorHeartbeat(), 30000);
+  setInterval(() => { if (!document.hidden) void creatorHeartbeat(); }, 30000);
   setInterval(() => { if (creatorDialog.open) void creatorReload(); }, 15000);
   document.addEventListener('visibilitychange', () => void creatorHeartbeat());
   window.addEventListener('pagehide', () => {

@@ -33,9 +33,7 @@ export function summarize(rows, now=Date.now()) {
 }
 const columns=[['display_name','ผู้เล่น'],['device','อุปกรณ์'],['status','สถานะ'],['city','เมือง'],
  ['metrics.level','เลเวล'],['active_seconds','เวลาเล่น (นาที)'],['population','ประชากร'],['tourists','นักท่องเที่ยว'],
- ['vehicles','รถ'],['buildings','อาคาร'],['metrics.money','งบประมาณ'],['metrics.performance','คะแนนภารกิจ (%)'],
- ['metrics.flow','จราจรคล่องตัว (%)'],['metrics.unemployed','ว่างงาน'],['metrics.net','รายรับสุทธิต่อวัน'],
- ['metrics.gameDay','วันที่ในเกม'],['started_at','เข้าเว็บ'],['last_seen_at','ล่าสุด'],['closed_at','ออกจากเว็บ'],
+ ['vehicles','รถ'],['buildings','อาคาร'],['started_at','เข้าเว็บ'],['last_seen_at','ล่าสุด'],['closed_at','ออกจากเว็บ'],
  ['visitor_id','รหัสผู้เยี่ยมชม'],['session_id','รหัสการเข้าเว็บ'],['user_id','รหัสบัญชี']];
 const labels={playing:'กำลังเล่น',online:'เปิดหน้าเว็บ',background:'เบื้องหลัง',offline:'ออฟไลน์'};
 const devices={desktop:'คอมพิวเตอร์',ipad:'iPad',iphone:'iPhone',android:'Android',tablet:'แท็บเล็ต',other:'อื่น ๆ'};
