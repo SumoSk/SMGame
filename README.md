@@ -1,4 +1,9 @@
 # SMCITY 🏙️
+
+## 5.4.9
+
+- Keep starter-home exit queues inside the plot, serialize departures, and migrate saved parking paths.
+- Verified six cars arriving, departing and returning in all four rotations beside a junction, including blocked roads and existing saves.
 **เมืองที่การเดินทางมีความหมาย**
 
 SMCITY เป็นเกมสร้างเมือง 3 มิติแนวจำลองการจราจร คุณเป็นคนวางถนน สร้างอาคาร และดูแลการเดินทางของประชาชนที่มีตารางชีวิตของตัวเอง ตั้งแต่ออกไปทำงาน ใช้บริการ พักผ่อน จนถึงกลับบ้าน
