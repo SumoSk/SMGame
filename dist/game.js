@@ -8430,7 +8430,7 @@ function advanceLoadedCityToMorning(){
   c.activityUntil=null;c.sleepUntil=null;c.dailyPlan=null;
   c.scheduled=new Set();c.lifePlans={};
   c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';
-  c.lastTax=workTax(c,Math.floor(savedTime/1440));
+  c.lastTax=workTax(c,day-1);
   c.pain=0;c.failKinds?.clear();
   const home=state.buildings.get(c.homeId);
   if(home){home.residents.add(c.id);home.parked.add(c.id);}
