@@ -741,9 +741,11 @@ function parkingBankBusy(b,index,arriving,requester=null){
   for(const other of parkingLotCars(b.id)){
    if(other.id===requester?.id||!other.lotPath)continue;
    const moving=parkingPose(other);
-   if(moving&&lotCarsOverlap(bay,moving,.09))
-    return requester?noteParkingBlock(requester,arriving?'arrival_live_bay_busy':'departure_live_bay_busy',
-     {blockerVehicleId:other.id,requestedSlot:index,observedPhysical:true}):true;
+   if(moving&&lotCarsOverlap(bay,moving,.09)){
+   if(requester)noteParkingBlock(requester,arriving?'arrival_live_bay_busy':'departure_live_bay_busy',
+    {blockerVehicleId:other.id,requestedSlot:index,observedPhysical:true});
+   return true;
+  }
   }
   return false;
  }
@@ -766,6 +768,24 @@ function prepareLotDeparture(v,dt){
   const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){noteParkingBlock(v,'departure_missing_parking_slot',{requestedSlot:index});v.stopReason='ไม่พบช่องจอดของรถ';return false;}
   if(parkingBankBusy(b,index,false,v)){v.stopReason='รอรถเข้าจอดในแถวเดียวกัน';return false;}
   const t=CATALOG[b.key],exitU=t.dualParking?(slot.zone==='A'?t.parkingExitA:t.parkingExitB):(t.parkingExitU??t.plotWidth-.45);
+  if(b.key==='home_mahanakhon'){
+   // One vehicle may MERGE out of each tightly-spaced 40-bay court at
+   // a time. Without this local admission guard, two cars leave nearby
+   // bays into the same aisle, stop nose-to-side, and deadlock forever.
+   // Let the next car proceed once the previous one reaches the exit.
+   for(const other of state.vehicles.values()){
+    if(other.id===v.id||other.lotBuilding!==b.id||!other.lotPath)continue;
+    const incoming=other.phase==='parking_in';
+    const departing=other.phase==='departing'&&!other.lotReady;
+    if(!incoming&&!departing)continue;
+    const otherSlot=b.parkingSlots?.indexOf(other.citizenId)??-1;
+    const otherBank=otherSlot>=0?lotSlots(b)[otherSlot]?.zone:null;
+    if(other.parkingStage||otherBank===slot.zone){
+     v.stopReason=incoming?'รอรถเข้าจอดในแถวก่อน':'รอรถคันหน้าออกจากช่องจอด';
+     return false;
+    }
+   }
+  }
   v.lotPath=[parkingSlotPose(b,index),lotPoint(b,slot.u,slot.aisle),lotPoint(b,exitU,slot.aisle)];
   // Rear court must physically cross the front aisle before leaving.
   if(t.stackedParking&&t.parkingRows>1&&slot.zone==='rear')v.lotPath.push(lotPoint(b,exitU,t.parkingAisle));
