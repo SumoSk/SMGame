@@ -9,6 +9,9 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert.equal(t.frontageEntranceU,3);assert.equal(t.frontageExitU,5);
  assert.equal(t.frontageV,5.43);
  assert.equal(t.parkingRows,2);assert.equal(t.parkingPhysicalRows,4);
+ // The shared sandbox boots a sample city. Start with no earned tower quota
+ // for the unlock assertion; quota earning is exercised separately.
+ g.state.buildingQuota.home_mahanakhon=0;
  assert.equal(g.buildingQuotaStatus('home_mahanakhon').locked,true,'Mahanakhon is locked until a grand house earns a build allowance');
  assert(g.buildingQuotaStatus('home_mahanakhon').message.includes('บ้านใหญ่'),'show the grand house prerequisite');
  assert(g.dockItems('home').some(x=>x.key==='home_mahanakhon'),'must appear in homes');

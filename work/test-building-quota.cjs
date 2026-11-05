@@ -20,7 +20,7 @@ test('every kind requires one build for each subsequent allowance',()=>{
    if(i){assert.equal(quota(g,key),0);assert.equal(g.buildBuilding(key,x+2,5,true),false,'spent allowance cannot be reused');}
   }
   // A new starter starts another cycle rather than permanently unlocking a tier.
-  build(g,chain[0],285);if(chain.length>1)assert.equal(quota(g,chain[1]),1);else assert.equal(quota(g,chain[0]),Infinity,'single-tier civic service remains buildable');
+  build(g,chain[0],chain.length>4?170:285);if(chain.length>1)assert.equal(quota(g,chain[1]),1);else assert.equal(quota(g,chain[0]),Infinity,'single-tier civic service remains buildable');
  }
 });
 test('Mahanakhon is a locked fifth home tier; each grand home earns exactly one build',()=>{
@@ -45,8 +45,10 @@ test('Mahanakhon is a locked fifth home tier; each grand home earns exactly one 
  assert(g.beginMoveBuilding(towerBuilding.id));
  assert(g.moveBuilding(towerBuilding.id,160,148-g.CATALOG[tower].plotHeight,true,0));
  assert.equal(JSON.stringify(g.state.buildingQuota),balances);
- assert(g.demolishBuilding(towerBuilding,true));
- assert(g.demolishBuilding(grand,true));
+ g.demolishBuilding(towerBuilding,true);
+ g.demolishBuilding(grand,true);
+ assert(!g.state.buildings.has(towerBuilding.id));
+ assert(!g.state.buildings.has(grand.id));
  assert.equal(quota(g,tower),0);
  const saved=g.snapshot();assert(g.loadGame(true,null,saved));
  assert.equal(quota(g,tower),0);
