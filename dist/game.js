@@ -41,6 +41,8 @@ CATALOG.home_dual={key:'home_dual',kind:'home',name:'บ้านกลาง',s
 // New large home is an additional type: two complete small-home parking banks
 // stacked front-to-back, not stretched sideways. Existing homes remain intact.
 CATALOG.home_grand={key:'home_grand',kind:'home',name:'บ้านใหญ่',size:6,cost:285000,maint:980,residents:60,jobs:0,service:0,beds:0,stackedParking:true};
+// Independent landmark residence, never alters the grand villa or legacy save layouts.
+CATALOG.home_mahanakhon={key:'home_mahanakhon',kind:'home',name:'ตึกมหานคร',size:7,cost:500000,maint:0,residents:80,jobs:0,service:0,beds:0,stackedParking:true};
 // Additional starter tiers; all existing building keys and saved plots remain intact.
 const STARTER_PRICES={shop:[3000,40],restaurant:[5000,60],mall:[12000,100],office:[6000,70],factory:[8000,100],park:[2500,15],pub:[6000,70],casino:[30000,300],hotel:[2500,25]};
 for(const [kind,[cost,maint]] of Object.entries(STARTER_PRICES)){
@@ -72,6 +74,16 @@ for(const t of Object.values(CATALOG)){
  t.parkingLayout=null;
  if(t.dualParking){t.parkingColumns=30;t.parkingRows=2;t.parkingPhysicalRows=2;t.parkingPitch=.59;t.parkingRowOffset=.88;t.plotWidth=20;t.plotHeight=11;t.parkingAisle=9.15;t.parkingUpperAisle=6.55;t.parkingExitA=18.95;t.parkingExitB=19.60;t.compactParking=true;}
  if(t.stackedParking){t.parkingColumns=15;t.parkingRows=2;t.parkingPhysicalRows=4;t.parkingPitch=.55;t.parkingRowOffset=.79;t.parkingAisle=4.90;t.parkingRearAisle=2.05;t.plotWidth=11;t.plotHeight=13;t.compactParking=true;t.frontageEntranceU=3.0;t.frontageExitU=8.0;t.frontageV=12.43;}
+ // Mahanakhon: 80 real ground-floor bays, 4 rows x 20, in a 10x10 plot.
+ // Physical cars use half-width .13; 0.40 pitch leaves lateral clearance.
+ // Two one-way aisles and full left/right spines use existing routing.
+ if(t.key==='home_mahanakhon'){
+  t.parkingColumns=20;t.parkingRows=2;t.parkingPhysicalRows=4;
+  t.parkingPitch=.40;t.parkingStartU=.85;t.parkingRowOffset=.79;
+  t.parkingAisle=4.90;t.parkingRearAisle=2.05;
+  t.plotWidth=10;t.plotHeight=10;t.compactParking=true;
+  t.frontageEntranceU=3.0;t.frontageExitU=7.0;t.frontageV=9.43;
+ }
  if(t.starterTier){
   t.compactCottage=true;t.parkingColumns=t.kind==='civic'?5:6;t.parkingPhysicalRows=1;
   t.plotWidth=3;t.plotHeight=3;t.parkingStartU=.15;t.parkingPitch=.45;
@@ -4088,7 +4100,7 @@ window.addEventListener('pagehide',()=>{if(travelRecording)travelLogStop('ปิ
 function dockItems(currentCategory){
  if(currentCategory==='civic')return []; // retired build category; never fall back to homes
  if(currentCategory==='reports')return bugReportDeveloperId()?[{key:'cityReport',name:'รายงานรถบัค',icon:'▤',price:'ดูหลักฐานที่ผู้เล่นส่ง'}]:[];
- let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[{key:'landscapeSelect',name:'จับ/ย้ายของตกแต่ง',icon:'✋',price:'แตะซ้ำเพื่อวนเลือกชิ้นที่ซ้อนกัน'},{key:'snapDecor',name:landscapeSnap?'Snap: เปิด':'Snap: ปิด',icon:landscapeSnap?'🧲':'🎯',price:landscapeSnap?'ยึดกึ่งกลางช่อง · กดเพื่อปิด':'วางอิสระละเอียด 0.01 ช่อง · กดเพื่อเปิด'},...LANDSCAPE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อวางทีละชิ้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub','casino']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home','hotel'];items=Object.values(CATALOG).filter(t=>!t.legacyOnly&&kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
+ let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[{key:'landscapeSelect',name:'จับ/ย้ายของตกแต่ง',icon:'✋',price:'แตะซ้ำเพื่อวนเลือกชิ้นที่ซ้อนกัน'},{key:'snapDecor',name:landscapeSnap?'Snap: เปิด':'Snap: ปิด',icon:landscapeSnap?'🧲':'🎯',price:landscapeSnap?'ยึดกึ่งกลางช่อง · กดเพื่อปิด':'วางอิสระละเอียด 0.01 ช่อง · กดเพื่อเปิด'},...LANDSCAPE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อวางทีละชิ้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub','casino']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home','hotel'];items=Object.values(CATALOG).filter(t=>!t.legacyOnly&&kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand','home_mahanakhon'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
 // Construction categories are always visible, without an extra top-level dock row.
