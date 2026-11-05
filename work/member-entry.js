@@ -381,33 +381,68 @@ if (gate) {
     const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
     if (data?.session?.access_token) headers.Authorization = 'Bearer ' + data.session.access_token;
     else if (window.SMGameSimpleSessionToken?.()) headers.Authorization = 'Bearer ' + window.SMGameSimpleSessionToken();
-    const res = await fetch(creatorEndpoint, { method: 'POST', headers, body: JSON.stringify({ action, ...values }) });
+    const res = await fetch(creatorEndpoint, { method: 'POST', headers, body: JSON.stringify({ action, ...values }), signal: AbortSignal.timeout(120000) });
     const payload = await res.json();
     if (!res.ok) throw Error(payload.message || 'ระบบสถิติไม่พร้อม');
     return payload;
   }
   const creatorHandledLiveRequests = new Set();
+  const LIVE_SNAPSHOT_MAX_BYTES=15000000, LIVE_SNAPSHOT_MAX_ORIGINAL=64000000;
+  async function creatorLiveHash(bytes) {
+    return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join('');
+  }
+  async function creatorPackLiveSnapshot(raw) {
+    if(typeof raw!=='string'||!raw)throw Error('ไม่สามารถอ่านข้อมูลเมืองได้');
+    const originalBytes=new TextEncoder().encode(raw).length;
+    if(originalBytes>LIVE_SNAPSHOT_MAX_ORIGINAL)throw Error('ข้อมูลเมืองใหญ่เกิน 64 MB');
+    const serialized=await window.SMGameSaveCodec.encode(raw);
+    const packed=serialized.startsWith('{"__smcityPacked":')?JSON.parse(serialized):null;
+    let blob,encoding;
+    if(packed){
+      if(packed.__smcityPacked!=='smcity-gzip-json-v1'||typeof packed.payload!=='string')throw Error('รูปแบบบีบอัดไม่ถูกต้อง');
+      blob=new Blob([Uint8Array.from(atob(packed.payload),c=>c.charCodeAt(0))],{type:'application/gzip'});encoding='gzip';
+    }else{blob=new Blob([serialized],{type:'application/json'});encoding='json';}
+    if(!blob.size||blob.size>LIVE_SNAPSHOT_MAX_BYTES)throw Error('สำเนาเมืองใหญ่เกิน 15 MB หลังบีบอัด');
+    return {blob,encoding,originalBytes,bytes:blob.size,sha256:await creatorLiveHash(await blob.arrayBuffer())};
+  }
+  async function creatorReadLiveSnapshot(file) {
+    if(!file||!['gzip','json'].includes(file.encoding)||!Number.isSafeInteger(file.bytes)||file.bytes<1||file.bytes>LIVE_SNAPSHOT_MAX_BYTES||
+       !/^[a-f0-9]{64}$/.test(file.sha256||''))throw Error('ข้อมูลไฟล์เมืองสดไม่ถูกต้อง');
+    const url=new URL(file.url),origin=new URL(creatorEndpoint).origin;
+    if(url.origin!==origin||!url.pathname.startsWith('/storage/v1/object/sign/smcity-city-saves/live-snapshots/'))throw Error('ที่อยู่ไฟล์เมืองสดไม่ถูกต้อง');
+    const response=await fetch(url.href,{cache:'no-store',signal:AbortSignal.timeout(120000)});
+    if(!response.ok)throw Error('ดาวน์โหลดเมืองสดไม่สำเร็จ ('+response.status+')');
+    const bytes=new Uint8Array(await response.arrayBuffer());
+    if(bytes.length!==file.bytes||await creatorLiveHash(bytes)!==file.sha256)throw Error('สำเนาเมืองไม่ครบหรือเสียหาย');
+    if(file.encoding==='gzip'){
+      let binary='';for(let i=0;i<bytes.length;i+=16384)binary+=String.fromCharCode(...bytes.subarray(i,i+16384));
+      return JSON.stringify({__smcityPacked:'smcity-gzip-json-v1',payload:btoa(binary)});
+    }
+    const raw=new TextDecoder().decode(bytes);
+    if(JSON.parse(raw)?.format!==2)throw Error('ข้อมูลเมืองไม่ถูกต้อง');
+    return raw;
+  }
   async function creatorSendLiveSnapshot(requestId) {
     if (!requestId || creatorHandledLiveRequests.has(requestId) || document.hidden) return;
     creatorHandledLiveRequests.add(requestId);
     try {
-      const raw = window.SMGameCaptureLiveSnapshot?.();
-      if (typeof raw !== 'string' || !raw) throw Error('ไม่สามารถอ่านข้อมูลเมืองได้');
-      if (raw.length > 2500000) throw Error('เมืองมีขนาดใหญ่เกิน 2.5 MB สำหรับการส่งแบบสด');
-      // Compose JSON from a game-produced serialized snapshot without parsing it twice.
-      const header = JSON.stringify({
-        action: 'submit-live-snapshot', sessionId: creatorSession,
-        visitorId: creatorVisitor, requestId
-      });
-      const payload = header.slice(0, -1) + ',"snapshot":' + raw + '}';
-      const response = await fetch(creatorEndpoint, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
-        body: payload
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw Error(result.message || 'ไม่สามารถส่งสำเนาเมืองได้');
-      window.SMGameLiveNotice?.('ผู้สร้างได้รับสำเนาเมืองเพื่อวิเคราะห์ปัญหา โดยไม่กระทบการเล่นค่ะ');
+      const capturedAt=new Date().toISOString();
+      const raw=window.SMGameCaptureLiveSnapshot?.();
+      const file=await creatorPackLiveSnapshot(raw);
+      const identity={sessionId:creatorSession,visitorId:creatorVisitor,requestId};
+      const signed=await creatorRequest('prepare-live-snapshot',{...identity,encoding:file.encoding});
+      if(signed.bucket!=='smcity-city-saves'||typeof signed.path!=='string'||!signed.path.startsWith('live-snapshots/'+requestId+'/')||
+         !signed.token||signed.limit<file.bytes)throw Error('สิทธิ์ส่งสำเนาเมืองไม่ถูกต้อง');
+      // Capture once, retry the same immutable bytes; never create or overwrite a player save.
+      let uploadError;
+      for(let attempt=0;attempt<3;attempt++){
+        try{await window.SMGameCloudUploadSigned(signed.path,signed.token,file.blob);uploadError=null;break;}
+        catch(error){uploadError=error;if(attempt<2)await new Promise(resolve=>setTimeout(resolve,1000*(attempt+1)));}
+      }
+      // A lost upload response may still have committed the file; finish verifies the stored checksum.
+      const result=await creatorRequest('finish-live-snapshot',{...identity,encoding:file.encoding,bytes:file.bytes,
+        originalBytes:file.originalBytes,sha256:file.sha256,capturedAt});
+      if(!result.verified)throw uploadError||Error('ยังไม่ยืนยันสำเนาเมือง');
     } catch (error) {
       console.warn('SMCITY live snapshot:', error?.message || error);
       try {
@@ -534,8 +569,9 @@ if (gate) {
         const status = await creatorRequest('get-live-snapshot', { requestId: ticket.requestId });
         if (!active()) return;
         if (status.status === 'ready') {
-          if (!status.data || typeof status.data !== 'object') throw Error('ข้อมูลสำเนาเมืองไม่ถูกต้อง');
-          const raw = JSON.stringify(status.data);
+          const raw = status.file ? await creatorReadLiveSnapshot(status.file) : JSON.stringify(status.data);
+          if (!active()) return;
+          if (!status.file && (!status.data || typeof status.data !== 'object')) throw Error('ข้อมูลสำเนาเมืองไม่ถูกต้อง');
           if (typeof window.SMGameLoadCreatorSave !== 'function') throw Error('ระบบโหลดเมืองยังไม่พร้อม');
           creatorDialog.close();
           if (!window.SMGameLoadCreatorSave(raw, 'เมืองสดของ ' + item.display_name))

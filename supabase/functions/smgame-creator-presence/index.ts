@@ -4,6 +4,9 @@ const url = Deno.env.get('SUPABASE_URL')!;
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+const LIVE_BUCKET='smcity-city-saves', LIVE_MAX_BYTES=15000000, LIVE_MAX_ORIGINAL=64000000;
+const livePath=(id:string,encoding:string)=>'live-snapshots/'+id+'/snapshot.'+(encoding==='gzip'?'json.gz':'json');
+const liveSha=async(bytes:ArrayBuffer)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join('');
 const devices = new Set(['desktop', 'ipad', 'iphone', 'android', 'tablet', 'other']);
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const clean = (value: unknown, length: number) => String(value ?? '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, length);
@@ -259,12 +262,19 @@ Deno.serve(async (req: Request) => {
     if (pending.data?.length) return reply(409, { message: 'มีคำขอเมืองสดของผู้เล่นนี้อยู่แล้วค่ะ' });
     const { data: request, error } = await admin.from('smgame_live_snapshot_requests')
       .insert({ target_session_id: sessionId, target_visitor_id: target.visitor_id,
-        requester_id: authenticated.id })
+        requester_id: authenticated.id, expires_at: new Date(Date.now()+10*60000).toISOString() })
       .select('id,requested_at,expires_at').single();
     if (error) return reply(503, { message: 'Cannot create live request' });
     // Remove previously expired snapshots opportunistically; never include expired data in responses.
-    await admin.from('smgame_live_snapshot_requests').delete()
-      .lt('expires_at', new Date(Date.now() - 10 * 60000).toISOString());
+    const cleanupBefore=new Date(Date.now()-10*60000).toISOString();
+    const expired=await admin.from('smgame_live_snapshot_requests').select('id').lt('expires_at',cleanupBefore).limit(20);
+    if(!expired.error&&expired.data?.length){
+      const ids=expired.data.map(row=>row.id).filter(id=>uuid.test(id));
+      if(ids.length){
+        const removed=await admin.storage.from(LIVE_BUCKET).remove(ids.flatMap(id=>[livePath(id,'gzip'),livePath(id,'json')]));
+        if(!removed.error)await admin.from('smgame_live_snapshot_requests').delete().in('id',ids).lt('expires_at',cleanupBefore);
+      }
+    }
     return reply(200, { requestId: request.id, expiresAt: request.expires_at,
       playerName: target.display_name });
   }
@@ -280,8 +290,19 @@ Deno.serve(async (req: Request) => {
       return reply(200, { status: 'expired' });
     if (request.status === 'error')
       return reply(200, { status: 'error', message: request.error_message || 'จับภาพเมืองไม่สำเร็จ' });
-    if (request.status === 'ready')
+    if (request.status === 'ready') {
+      const file=request.snapshot;
+      if(file?.__smcityLiveFile===1){
+        if(!['gzip','json'].includes(file.encoding)||file.path!==livePath(requestId,file.encoding)||
+           !Number.isSafeInteger(file.bytes)||file.bytes<1||file.bytes>LIVE_MAX_BYTES||
+           !/^[a-f0-9]{64}$/.test(file.sha256||''))return reply(422,{message:'Invalid live file'});
+        const seconds=Math.max(1,Math.min(120,Math.floor((Date.parse(request.expires_at)-Date.now())/1000)));
+        const {data:signed,error:signError}=await admin.storage.from(LIVE_BUCKET).createSignedUrl(file.path,seconds);
+        if(signError||!signed?.signedUrl)return reply(503,{message:'Cannot download live snapshot'});
+        return reply(200,{status:'ready',file:{url:signed.signedUrl,encoding:file.encoding,bytes:file.bytes,sha256:file.sha256},capturedAt:request.captured_at});
+      }
       return reply(200, { status: 'ready', data: request.snapshot, capturedAt: request.captured_at });
+    }
     const { data: target } = await admin.from('smgame_visitor_sessions')
       .select('closed_at,last_seen_at').eq('session_id', request.target_session_id).maybeSingle();
     if (!target || target.closed_at ||
@@ -315,14 +336,14 @@ Deno.serve(async (req: Request) => {
   });
  }
 
- if (action === 'submit-live-snapshot' || action === 'fail-live-snapshot') {
+ if (action === 'submit-live-snapshot' || action === 'fail-live-snapshot' || action === 'prepare-live-snapshot' || action === 'finish-live-snapshot') {
    const sessionId = clean(body.sessionId, 40), visitorId = clean(body.visitorId, 40);
    const requestId = clean(body.requestId, 40);
    if (!uuid.test(sessionId) || !uuid.test(visitorId) || !uuid.test(requestId))
      return reply(400, { message: 'Invalid live snapshot identifiers' });
    const now = new Date().toISOString();
    const { data: pending, error: pendingError } = await admin.from('smgame_live_snapshot_requests')
-     .select('id').eq('id', requestId).eq('target_session_id', sessionId)
+     .select('id,requested_at,expires_at').eq('id', requestId).eq('target_session_id', sessionId)
      .eq('target_visitor_id', visitorId).eq('status', 'pending')
      .gt('expires_at', now).maybeSingle();
    if (pendingError) return reply(503, { message: 'Live request unavailable' });
@@ -332,6 +353,34 @@ Deno.serve(async (req: Request) => {
      const { error } = await admin.from('smgame_live_snapshot_requests')
        .update({ status: 'error', error_message: reason }).eq('id', requestId).eq('status', 'pending');
      return error ? reply(503, { message: 'Cannot report snapshot failure' }) : reply(200, { ok: true });
+   }
+   if(action==='prepare-live-snapshot'||action==='finish-live-snapshot'){
+     const encoding=String(body.encoding||'');
+     if(!['gzip','json'].includes(encoding))return reply(400,{message:'Invalid snapshot encoding'});
+     const path=livePath(requestId,encoding);
+     if(action==='prepare-live-snapshot'){
+       const {data:signed,error:signError}=await admin.storage.from(LIVE_BUCKET).createSignedUploadUrl(path);
+       if(signError||!signed?.token)return reply(503,{message:'Cannot prepare live upload'});
+       return reply(200,{bucket:LIVE_BUCKET,path,token:signed.token,limit:LIVE_MAX_BYTES});
+     }
+     const bytes=Number(body.bytes),originalBytes=Number(body.originalBytes),checksum=body.sha256;
+     const capturedAt=typeof body.capturedAt==='string'?body.capturedAt:'';
+     if(!Number.isSafeInteger(bytes)||bytes<1||bytes>LIVE_MAX_BYTES||
+        !Number.isSafeInteger(originalBytes)||originalBytes<1||originalBytes>LIVE_MAX_ORIGINAL||
+        typeof checksum!=='string'||!/^[a-f0-9]{64}$/.test(checksum)||
+        !Number.isFinite(Date.parse(capturedAt))||Date.parse(capturedAt)<Date.parse(pending.requested_at)-10000||
+        Date.parse(capturedAt)>Date.now()+10000)return reply(400,{message:'Invalid live file metadata'});
+     const {data:file,error:downloadError}=await admin.storage.from(LIVE_BUCKET).download(path);
+     if(downloadError||!file)return reply(503,{message:'Cannot verify live upload'});
+     if(file.size!==bytes)return reply(422,{message:'Incomplete live snapshot'});
+     const buffer=await file.arrayBuffer();
+     if(buffer.byteLength!==bytes||await liveSha(buffer)!==checksum)return reply(422,{message:'Live snapshot checksum mismatch'});
+     if(encoding==='gzip'){const magic=new Uint8Array(buffer);if(magic[0]!==31||magic[1]!==139)return reply(422,{message:'Invalid gzip snapshot'});}
+     const snapshot={__smcityLiveFile:1,path,encoding,bytes,originalBytes,sha256:checksum};
+     const {data:stored,error:storeError}=await admin.from('smgame_live_snapshot_requests')
+       .update({status:'ready',snapshot,captured_at:capturedAt}).eq('id',requestId).eq('status','pending').gt('expires_at',new Date().toISOString())
+       .select('id').maybeSingle();
+     return storeError||!stored?reply(409,{message:'Live request expired or completed'}):reply(200,{ok:true,verified:true});
    }
    const snapshot = body.snapshot;
    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot) ||
