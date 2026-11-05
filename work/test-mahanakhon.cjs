@@ -5,9 +5,9 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const t=g.CATALOG.home_mahanakhon;
  assert(t&&t.kind==='home'&&t.name==='ตึกมหานคร');
  assert.equal(t.cost,500000);assert.equal(t.parkingCapacity,80);
- assert.equal(t.residents,80);assert.deepEqual([t.plotWidth,t.plotHeight],[8,6]);
- assert.equal(t.frontageEntranceU,3);assert.equal(t.frontageExitU,5);
- assert.equal(t.frontageV,5.43);
+ assert.equal(t.residents,80);assert.deepEqual([t.plotWidth,t.plotHeight],[14,8]);
+ assert.equal(t.frontageEntranceU,6);assert.equal(t.frontageExitU,8);
+ assert.equal(t.frontageV,7.43);assert.equal(t.parkingPitch,.55);
  assert.equal(t.parkingRows,2);assert.equal(t.parkingPhysicalRows,4);
  // The shared sandbox boots a sample city. Start with no earned tower quota
  // for the unlock assertion; quota earning is exercised separately.
@@ -19,22 +19,22 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const slots=g.lotSlots(b);
  assert.equal(slots.length,80);assert.equal(new Set(slots.map(s=>s.index)).size,80);
  for(let i=0;i<80;i++){
-  assert(slots[i].u>.75&&slots[i].u<7.2);
-  assert(slots[i].v>.65&&slots[i].v<4.6);
+  assert(slots[i].u>1.5&&slots[i].u<12.1);
+  assert(slots[i].v>1.2&&slots[i].v<5.8);
   for(let j=0;j<i;j++)assert(!g.lotCarsOverlap(g.parkingSlotPose(b,i),g.parkingSlotPose(b,j),.015),
    'bay '+i+' overlaps '+j);
  }
- for(const u of [2.83,5.17])for(const v of [.17,4.95])for(const s of slots)
+ for(const u of [4.95,9.05])for(const v of [.50,7.05])for(const s of slots)
   assert(Math.abs(s.u-u)>.36||Math.abs(s.v-v)>.46,'pillar would hit parked car');
  for(let rot=0;rot<4;rot++){
   const copy={...b,rotation:rot},bounds=g.buildingBounds(copy);
-  assert.deepEqual([bounds.w,bounds.h],rot%2?[6,8]:[8,6]);
+  assert.deepEqual([bounds.w,bounds.h],rot%2?[8,14]:[14,8]);
   for(let i=0;i<80;i++){const p=g.parkingSlotPose(copy,i);
    assert(p.x>copy.x&&p.x<copy.x+bounds.w+1&&p.y>copy.y&&p.y<copy.y+bounds.h+1);
   }
  }
  const marks=g.parkingVisuals(b);assert(marks.length>240);
- assert(marks.some(x=>x.color==='#515f62'&&x.w>7.8&&x.h>5.8),'continuous asphalt');
+ assert(marks.some(x=>x.color==='#515f62'&&x.w>13.8&&x.h>7.8),'continuous asphalt');
  assert(!marks.some(x=>['#bdc6ae','#d7cfbc','#96af8f'].includes(x.color)),'no old white base');
  assert(marks.every(r=>r.w>0&&r.h>0&&Number.isFinite(r.w+r.h)));
  g.state.money=1e9;
@@ -42,7 +42,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  // consumption are covered by test-building-quota.cjs.
  g.state.buildingQuota.home_mahanakhon=1;
  const before=g.state.money;
- const home=g.buildBuilding('home_mahanakhon',160,142,true);
+ const home=g.buildBuilding('home_mahanakhon',160,140,true);
  assert(home,'two authentic street gates are required');
  assert.equal(home.access.length,2);assert.equal(home.parkingSlots.length,80);
  assert.equal(g.state.money,before-500000);
@@ -54,12 +54,29 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(home.parked.has(resident.id),'resident should actually reach a ground-floor bay');
  const snapshot=g.snapshot();assert(g.loadGame(true,null,snapshot));
  const old=JSON.parse(snapshot),building=old.buildings.find(([id])=>id===home.id)[1];
- building.mahanakhonCompactPlotV2=false;building.x-=1;building.y-=4;
- assert(g.loadGame(true,null,JSON.stringify(old)),'10x10 save must migrate to 8x6');
+ // Rebuild a previously saved 8x6 court at the same city-road gate positions.
+ building.mahanakhonExpandedPlotV3=false;
+ building.mahanakhonCompactPlotV2=true;
+ building.x+=3;building.y+=2;
+ assert(g.loadGame(true,null,JSON.stringify(old)),'old 8x6 city loads');
  const restored=g.state.buildings.get(home.id);
- assert.equal(restored.x,home.x);assert.equal(restored.y,home.y);
  assert.equal(restored.parkingSlots.length,80);
- assert.equal(g.state.buildings.get(home.id).key,'home_mahanakhon');
+ assert(['home_mahanakhon','home_mahanakhon_compact'].includes(restored.key));
+ if(restored.key==='home_mahanakhon'){
+  assert.equal(restored.x,home.x);assert.equal(restored.y,home.y);
+ }
+ // An old tower crowded by another building must retain its original
+ // parking area instead of overwriting its neighbour or their cars.
+ const crowded=JSON.parse(snapshot),small=crowded.buildings.find(([id])=>id===home.id)[1];
+ small.mahanakhonExpandedPlotV3=false;small.mahanakhonCompactPlotV2=true;
+ small.x+=3;small.y+=2;
+ const obstruction={...JSON.parse(JSON.stringify(small)),key:'home_starter',id:999999,
+  x:small.x-3,y:small.y,parkingSlots:Array(6).fill(null),
+  residents:[],workers:[],visitors:[],parked:[],access:[],queue:[],rotation:0};
+ crowded.buildings.push([obstruction.id,obstruction]);
+ assert(g.loadGame(true,null,JSON.stringify(crowded)),'crowded old city loads');
+ assert.equal(g.state.buildings.get(home.id).key,'home_mahanakhon_compact');
+ assert(g.state.buildings.has(obstruction.id));
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
  const source=fs.readFileSync('dist/renderer3d.js','utf8')
   .replace(/import \* as THREE from '[^']+';/,'').replace('export class TrafficRenderer','class TrafficRenderer');
@@ -70,5 +87,5 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(pieces.length>360,'short pixel tower must stay detailed');
  assert(Math.max(...pieces.map(p=>p.y))<11,'quarter-height tower');
  assert(pieces.every(p=>[p.x,p.y,p.z].every(Number.isFinite)));
- console.log(JSON.stringify({passed:true,tower:'Mahanakhon',cost:t.cost,bays:80,plot:[8,6],rotation:4,save:true,driving:true,mesh:pieces.length}));
+ console.log(JSON.stringify({passed:true,tower:'Mahanakhon',cost:t.cost,bays:80,plot:[14,8],rotation:4,save:true,driving:true,mesh:pieces.length}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
