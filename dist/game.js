@@ -799,7 +799,11 @@ function prepareLotDeparture(v,dt){
   if(t.stackedParking&&t.parkingRows>1){
    const junctionSegment=slot.zone==='rear'?4:3;
    const crossingAt=lotPathLength(v.lotPath.slice(0,junctionSegment));
-   v.grandCrossing={approach:slot.zone,crossingAt,stopAt:Math.max(0,crossingAt-1.12),clearAt:crossingAt+1.02,granted:false,cleared:false};
+   // Hold the compact tower's one shared exit token until the car has
+   // actually merged onto the city road, not just until it leaves the
+   // internal T-junction. Otherwise rear/front cars meet at the centre gate.
+   const clearAt=b.key==='home_mahanakhon'?Infinity:crossingAt+1.02;
+   v.grandCrossing={approach:slot.zone,crossingAt,stopAt:Math.max(0,crossingAt-1.12),clearAt,granted:false,cleared:false};
   }
   if(!canLeaveParkingSpace(v,v.lotPath)){grandSignalRelease(v);v.grandCrossing=null;v.lotPath=null;v.lotDistance=0;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
  }
@@ -7236,7 +7240,9 @@ function advanceVehicles(realDt,gameDt){
     // Clearance and a temporary driveway claim are checked before moving.
     const start=parkingPose(v),end=positionOnMotion(motionPlan(v),0);
     const t=CATALOG[from.key];
-    v.lotPath=t.stackedParking?[
+    // This building has ALREADY reached the centre-front exit.
+    // Never send it back to the far-right garage spine and turn around.
+    v.lotPath=t.stackedParking&&from.key!=='home_mahanakhon'?[
      start,lotPoint(from,t.plotWidth-.45,t.frontageV),
      lotPoint(from,t.frontageExitU,t.frontageV),end]:[start,end];
     v.lotDistance=0;v.lotReady=false;
