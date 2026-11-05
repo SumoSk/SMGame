@@ -65,4 +65,4 @@ for(let rotation=0;rotation<4;rotation++)for(const side of [-1,1]){
  assert.equal(g.moveBuilding(house.id,nx,ny,true,0),false,'moving a home beside a street must fail');
  assert.equal(house.x,x);assert.equal(house.y,y);
 }
-console.log('PASS: 5.4.10 four rotations, both sides, front entrance, reverse placement and moving');
+console.log('PASS: 5.4.11 four rotations, both sides, front entrance, reverse placement and moving');

@@ -1,5 +1,12 @@
 # SMCITY 🏙️
 
+## 5.4.11
+
+- Enforce one genuinely empty road-free tile beside each home using rendered carriageway widths for small, medium and large roads.
+- Validate both house placement/movement and new or widened roads, while allowing entrance streets at the front corners.
+- Show the temporary "เว้นระยะจากบ้าน 1 ช่อง" toast once during invalid road drawing and on an invalid placement attempt.
+- Preserve existing saves, road traffic and all other game features.
+
 ## 5.4.10
 
 - Require one empty grid block separating each home's left and right parcel edges from roads, following rotation.
