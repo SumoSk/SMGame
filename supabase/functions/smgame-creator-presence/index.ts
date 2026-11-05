@@ -43,54 +43,196 @@ Deno.serve(async (req: Request) => {
  if (JSON.stringify(body).length > 2400 && action !== 'submit-live-snapshot') return reply(413, { message: 'Payload too large' });
  const bearer = req.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
  let authenticated: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null = null;
+ let simpleAuthenticated = false;
  if (bearer) {
-  const { data, error } = await admin.auth.getUser(bearer);
-  if (error || !data.user) return reply(401, { message: 'Session expired; please sign in again' });
-  authenticated = data.user;
+  if (/^[a-f0-9]{64}$/i.test(bearer)) {
+   // Simple accounts use server-side sessions. Never trust client-side username
+   // or a client-controlled "developer" flag.
+   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(bearer)));
+   const tokenHash = Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+   const { data: session, error: sessionError } = await admin.from('smgame_simple_sessions')
+    .select('user_id,expires_at').eq('token_hash',tokenHash).maybeSingle();
+   if (sessionError || !session || new Date(session.expires_at).getTime() <= Date.now())
+    return reply(401, { message: 'Game session expired; sign in again' });
+   const { data: account, error: accountError } = await admin.from('smgame_simple_accounts')
+    .select('id,username,legacy_auth_id,disabled').eq('id',session.user_id).maybeSingle();
+   if(accountError || !account || account.disabled)
+    return reply(401, { message: 'Game account not available' });
+   simpleAuthenticated = true;
+   // Only migrated accounts can be represented as legacy Auth identities;
+   // an unrelated game user must never acquire another player's Auth id.
+   if (account.legacy_auth_id && account.legacy_auth_id === account.id) {
+    authenticated = {id:account.id,user_metadata:{username:account.username}};
+   }
+  } else {
+   const { data, error } = await admin.auth.getUser(bearer);
+   if (error || !data.user) return reply(401, { message: 'Session expired; please sign in again' });
+   authenticated = data.user;
+  }
  }
- if (action === 'access' || action === 'dashboard' || action === 'list-saves' || action === 'get-save' || action === 'request-live-snapshot' || action === 'get-live-snapshot') {
+
+ if(action==='adopt-legacy'){
+  if(!authenticated || simpleAuthenticated)return reply(401,{message:'กรุณาเข้าสู่ระบบบัญชีเดิมก่อน'});
+  const password=typeof body.password==='string'?body.password:'';
+  if(!password||password.length>2048)return reply(400,{message:'รหัสผ่านเดิมไม่ถูกต้อง'});
+  const {data:row,error:lookupError}=await admin.from('smgame_simple_accounts')
+   .select('id,username_key,password_text').eq('legacy_auth_id',authenticated.id).maybeSingle();
+  if(lookupError)return reply(503,{message:'ตรวจสอบบัญชีที่ย้ายไม่สำเร็จ'});
+  if(!row)return reply(404,{message:'ไม่พบบัญชีที่ย้ายมา'});
+  if(row.password_text!==null){
+    const sync=await admin.rpc('smgame_sync_legacy_saves',{p_user_id:authenticated.id});
+    return sync.error?reply(503,{message:'ซิงก์เซฟบัญชีเดิมไม่สำเร็จ'}):
+      reply(200,{ok:true,already:true,username:row.username_key,synced:sync.data||0});
+  }
+  // Require the submitted old password to authenticate this exact legacy account.
+  const verificationClient=createClient(url,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
+  const verified=await verificationClient.auth.signInWithPassword({
+   email:String(authenticated.email||''),password
+  });
+  if(verified.error||verified.data?.user?.id!==authenticated.id)
+   return reply(403,{message:'ยืนยันรหัสผ่านบัญชีเดิมไม่สำเร็จ'});
+  const {data:updated,error:updateError}=await admin.from('smgame_simple_accounts')
+   .update({password_text:password,password_salt:'',password_hash:'',
+    password_changed_at:new Date().toISOString()})
+   .eq('id',row.id).is('password_text',null)
+   .select('id').maybeSingle();
+  if(updateError)return reply(503,{message:'ย้ายรหัสผ่านเข้าระบบใหม่ไม่สำเร็จ'});
+  const sync=await admin.rpc('smgame_sync_legacy_saves',{p_user_id:authenticated.id});
+  if(sync.error)return reply(503,{message:'บันทึกรหัสแล้ว แต่ซิงก์เซฟไม่สำเร็จ'});
+  return reply(200,{ok:true,migrated:!!updated,username:row.username_key,synced:sync.data||0});
+ }
+ if (action === 'access' || action === 'dashboard-history' || action === 'dashboard' || action === 'list-saves' || action === 'get-save' || action === 'request-live-snapshot' || action === 'get-live-snapshot' || action === 'list-accounts' || action === 'reset-account-password' || action === 'list-simple-accounts' || action === 'reset-simple-password') {
   if (!authenticated) return reply(401, { message: 'Sign in required' });
   const role = await admin.from('smgame_creator_roles')
     .select('role').eq('user_id', authenticated.id).eq('role', 'developer').maybeSingle();
   if (role.error) return reply(503, { message: 'Creator access unavailable' });
   if (!role.data) return reply(403, { message: 'Developer only' });
 
+
+  if (action === 'list-accounts') {
+    const page = Math.max(1, Math.min(1000, Number.isInteger(body.page) ? Number(body.page) : 1));
+    const perPage = 100;
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) return reply(503, { message: 'อ่านรายชื่อบัญชีไม่ได้ค่ะ' });
+    const rows = (data?.users || []).map(account => ({
+      id: account.id,
+      email: clean(account.email || '', 180),
+      username: clean(account.user_metadata?.username || account.user_metadata?.display_name || '', 90),
+      createdAt: account.created_at,
+      lastSignInAt: account.last_sign_in_at || null,
+      emailConfirmed: Boolean(account.email_confirmed_at),
+      isOwn: account.id === authenticated.id
+    }));
+    return reply(200, { accounts: rows, page, perPage, hasNext: rows.length === perPage });
+  }
+  if (action === 'reset-account-password') {
+    const targetId = clean(body.userId, 40);
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!uuid.test(targetId) || !password || password.length > 256)
+      return reply(400, { message: 'ระบุบัญชีและรหัสผ่านใหม่ 1–256 ตัวอักษรค่ะ' });
+    const account = await admin.auth.admin.getUserById(targetId);
+    if (account.error || !account.data?.user) return reply(404, { message: 'ไม่พบบัญชีที่เลือกค่ะ' });
+    const changed = await admin.auth.admin.updateUserById(targetId, { password });
+    if (changed.error) {
+      const detail = String(changed.error.message || '');
+      if (/weak|short|length|character|password|pwned|leaked/i.test(detail))
+        return reply(422, { message: 'ระบบยืนยันตัวตนไม่รับรหัสนี้ กรุณาตรวจสอบนโยบายรหัสผ่านใน Supabase Auth ค่ะ' });
+      return reply(503, { message: 'ตั้งรหัสผ่านใหม่ไม่สำเร็จ กรุณาลองอีกครั้งค่ะ' });
+    }
+    return reply(200, { ok: true, userId: targetId });
+  }
+
+  if (action === 'list-simple-accounts') {
+    const {data:accounts,error}=await admin.from('smgame_simple_accounts')
+      .select('id,username,username_key,legacy_auth_id,password_text,disabled,created_at,password_changed_at')
+      .order('created_at',{ascending:false}).limit(200);
+    if(error)return reply(503,{message:'อ่านรายการบัญชีแบบง่ายไม่ได้ค่ะ'});
+    return reply(200,{accounts:accounts||[],limit:200});
+  }
+  if (action === 'reset-simple-password') {
+    const accountId=clean(body.accountId,40);
+    const password=typeof body.password==='string'?body.password:'';
+    if(!uuid.test(accountId)||!password||password.length>2048)
+      return reply(400,{message:'กรุณาเลือกบัญชีและระบุรหัสผ่านใหม่ค่ะ'});
+    const {data:target,error:updated}=await admin.from('smgame_simple_accounts')
+      .update({password_text:password,password_salt:'',password_hash:'',password_changed_at:new Date().toISOString()})
+      .eq('id',accountId).select('id,username').maybeSingle();
+    if(updated)return reply(503,{message:'ตั้งรหัสผ่านใหม่ไม่สำเร็จค่ะ'});
+    if(!target)return reply(404,{message:'ไม่พบบัญชีที่เลือกค่ะ'});
+    const revoke=await admin.from('smgame_simple_sessions').delete().eq('user_id',accountId);
+    if(revoke.error)return reply(503,{message:'เปลี่ยนรหัสผ่านแล้ว แต่เซสชันเดิมยังไม่ถูกยกเลิกค่ะ'});
+    const audit=await admin.from('smgame_simple_admin_actions').insert({
+      actor_user_id:authenticated.id,account_id:accountId,action:'password-reset'
+    });
+    if(audit.error)console.error('account reset audit',audit.error.message);
+    return reply(200,{ok:true,username:target.username});
+  }
+
+
+  if (action === 'dashboard-history') {
+    const before = body.before == null ? new Date().toISOString() : clean(body.before, 30);
+    if (!Number.isFinite(Date.parse(before))) return reply(400, {message:'Invalid cutoff'});
+    const rawCursor = body.cursor as Record<string, unknown> | null;
+    const cursorTime = rawCursor ? clean(rawCursor.startedAt, 30) : '';
+    const cursorId = rawCursor ? clean(rawCursor.sessionId, 40) : '';
+    if (rawCursor && (!Number.isFinite(Date.parse(cursorTime)) || !uuid.test(cursorId)))
+      return reply(400, {message:'Invalid cursor'});
+    let query = admin.from('smgame_visitor_sessions').select('*', {count:'exact'})
+      .lte('started_at', new Date(before).toISOString())
+      .order('started_at',{ascending:false}).order('session_id',{ascending:false});
+    if(rawCursor) query=query.or('started_at.lt.'+new Date(cursorTime).toISOString()+',and(started_at.eq.'+new Date(cursorTime).toISOString()+',session_id.lt.'+cursorId+')');
+    const {data,error,count}=await query.limit(500);
+    if(error)return reply(503,{message:'Cannot load complete history'});
+    const rows=data||[],last=rows[rows.length-1];
+    return reply(200,{rows,before,total:count??rows.length,nextCursor:rows.length===500?{startedAt:last.started_at,sessionId:last.session_id}:null});
+  }
   if (action === 'list-saves') {
-    // Metadata only. Full saves are returned individually after a developer selects one.
-    const { data: saves, error } = await admin.from('smgame_saves')
-      .select('user_id,slot_id,name,updated_at')
-      .order('updated_at', { ascending: false }).limit(200);
-    if (error) return reply(503, { message: 'Cannot load player saves' });
-    const ownerIds = [...new Set((saves || []).map(row => row.user_id))];
-    const ownerNames = new Map<string, string>();
-    for (let offset = 0; offset < ownerIds.length; offset += 8) {
-      await Promise.all(ownerIds.slice(offset, offset + 8).map(async (id: string) => {
-        const { data } = await admin.auth.admin.getUserById(id);
-        const account = data?.user;
-        const label = account?.user_metadata?.username || account?.user_metadata?.display_name ||
-          account?.email || ('ผู้เล่น #' + id.slice(0, 8));
-        ownerNames.set(id, clean(label, 90) || ('ผู้เล่น #' + id.slice(0, 8)));
+    const [legacy,newStyle]=await Promise.all([
+      admin.from('smgame_saves').select('user_id,slot_id,name,updated_at').order('updated_at',{ascending:false}).limit(200),
+      admin.from('smgame_simple_saves').select('user_id,slot_id,name,updated_at').order('updated_at',{ascending:false}).limit(200)
+    ]);
+    if(legacy.error||newStyle.error)return reply(503,{message:'อ่านรายการเซฟผู้เล่นไม่ได้'});
+    const legacyIds=[...new Set((legacy.data||[]).map(row=>row.user_id))];
+    const ownerNames=new Map<string,string>();
+    for(let i=0;i<legacyIds.length;i+=8){
+      await Promise.all(legacyIds.slice(i,i+8).map(async (id:string)=>{
+        const {data}=await admin.auth.admin.getUserById(id);
+        const account=data?.user;
+        ownerNames.set(id,clean(account?.user_metadata?.username||account?.user_metadata?.display_name||
+          account?.email||'ผู้เล่น #'+id.slice(0,8),90));
       }));
     }
-    return reply(200, {
-      saves: (saves || []).map(row => ({
-        ownerId: row.user_id, ownerName: ownerNames.get(row.user_id) || 'ผู้เล่น',
-        slotId: row.slot_id, name: row.name, updatedAt: row.updated_at,
-        isOwn: row.user_id === authenticated.id
+    const simpleIds=[...new Set((newStyle.data||[]).map(row=>row.user_id))];
+    const simpleOwners=new Map<string,string>();
+    if(simpleIds.length){
+      const lookup=await admin.from('smgame_simple_accounts').select('id,username').in('id',simpleIds);
+      if(lookup.error)return reply(503,{message:'อ่านชื่อผู้เล่นแบบง่ายไม่ได้'});
+      for(const item of lookup.data||[])simpleOwners.set(item.id,clean(item.username,90));
+    }
+    const merged=[
+      ...(legacy.data||[]).map(row=>({
+        ownerId:row.user_id,ownerName:ownerNames.get(row.user_id)||'ผู้เล่น',
+        slotId:row.slot_id,name:row.name,updatedAt:row.updated_at,
+        isOwn:row.user_id===authenticated.id
       })),
-      limit: 200
-    });
+      ...(newStyle.data||[]).map(row=>({
+        ownerId:'simple:'+row.user_id,ownerName:simpleOwners.get(row.user_id)||'ผู้เล่นแบบง่าย',
+        slotId:row.slot_id,name:row.name,updatedAt:row.updated_at,isOwn:false
+      }))
+    ].sort((x,y)=>new Date(y.updatedAt).getTime()-new Date(x.updatedAt).getTime()).slice(0,200);
+    return reply(200,{saves:merged,limit:200});
   }
-  if (action === 'get-save') {
-    const ownerId = clean(body.ownerId, 40), slotId = clean(body.slotId, 120);
-    if (!uuid.test(ownerId) || !slotId || slotId.length > 120) return reply(400, { message: 'Invalid save selection' });
-    const { data: save, error } = await admin.from('smgame_saves')
-      .select('user_id,slot_id,name,updated_at,data')
-      .eq('user_id', ownerId).eq('slot_id', slotId).maybeSingle();
-    if (error) return reply(503, { message: 'Cannot load selected save' });
-    if (!save) return reply(404, { message: 'Save not found' });
-    return reply(200, { ownerId: save.user_id, slotId: save.slot_id,
-      name: save.name, updatedAt: save.updated_at, data: save.data });
+  if(action==='get-save'){
+    const rawOwner=clean(body.ownerId,48),slotId=clean(body.slotId,120);
+    const simple=rawOwner.startsWith('simple:');
+    const ownerId=simple?rawOwner.slice(7):rawOwner;
+    if(!uuid.test(ownerId)||!slotId||slotId.length>120)return reply(400,{message:'Invalid save selection'});
+    const table=simple?'smgame_simple_saves':'smgame_saves';
+    const {data:save,error}=await admin.from(table).select('user_id,slot_id,name,updated_at,data')
+      .eq('user_id',ownerId).eq('slot_id',slotId).maybeSingle();
+    if(error)return reply(503,{message:'อ่านเซฟที่เลือกไม่ได้'});
+    if(!save)return reply(404,{message:'ไม่พบเซฟ'});
+    return reply(200,{ownerId:rawOwner,slotId:save.slot_id,name:save.name,updatedAt:save.updated_at,data:save.data});
   }
 
   if (action === 'request-live-snapshot') {
@@ -235,6 +377,16 @@ Deno.serve(async (req: Request) => {
   vehicles: nonnegative(body.vehicles, 1000000),
   buildings: nonnegative(body.buildings, 1000000)
  };
+ const rawMetrics = body.metrics;
+ if(rawMetrics && typeof rawMetrics === 'object' && !Array.isArray(rawMetrics)) {
+   const limits: Record<string, [number,number]> = {level:[1,100000],money:[-1e15,1e15],performance:[0,100],flow:[0,100],unemployed:[0,1000000],net:[-1e15,1e15],gameDay:[1,10000000]};
+   const metrics: Record<string,number|null> = {};
+   for(const [key,[min,max]] of Object.entries(limits)) {
+     const value = (rawMetrics as Record<string, unknown>)[key];
+     metrics[key] = typeof value === 'number' && Number.isFinite(value) ? Math.max(min,Math.min(max,value)) : null;
+   }
+   Object.assign(row,{metrics});
+ }
  const { error } = await admin.from('smgame_visitor_sessions').upsert(row, { onConflict: 'session_id' });
  if (error) return reply(503, { message: 'Visit status unavailable' });
  if (row.is_visible) {

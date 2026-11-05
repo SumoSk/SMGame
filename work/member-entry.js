@@ -1,3 +1,4 @@
+import { installCreatorDashboard } from './creator-dashboard.js';
 import { createClient } from '@supabase/supabase-js';
 
 // This is a public, browser-safe publishable key. Never use a service-role key here.
@@ -54,10 +55,10 @@ if (gate) {
     setNotice('');
   }
 
-  function setUser(next) {
+  function setUser(next, creatorRefresh = true) {
     user = next || null;
     window.SMGameOnAuthChanged?.(!!user);
-    setTimeout(() => window.SMGameCreatorAuthRefresh?.(), 0);
+    if (creatorRefresh) setTimeout(() => window.SMGameCreatorAuthRefresh?.(), 0);
   }
   function closeMember() {
     memberView++;
@@ -112,6 +113,51 @@ if (gate) {
     tab.addEventListener('click', () => setMode(tab.dataset.memberMode)));
   $('memberClose').addEventListener('click', closeMember);
   $('memberBack').addEventListener('click', closeMember);
+  // The public ♙ icon only reopens a previously authenticated creator
+  // session. It cannot sign in by email alone or grant developer privileges.
+  $('memberDevQuick')?.addEventListener('click', async () => {
+    if (busy || savingPending) return;
+    busy = true;
+    const view = memberView, quick = $('memberDevQuick');
+    quick.disabled = true;
+    setNotice('กำลังเปิดบัญชีผู้สร้าง…');
+    try {
+      // getUser verifies the saved session with Supabase Auth; relying on
+      // user/email stored in browser state would let guests impersonate Dev.
+      const { data, error } = await auth.auth.getUser();
+      if (view !== memberView) return;
+      const verified = data?.user;
+      if (error || String(verified?.email || '').toLowerCase() !== 'sumoskb@hotmail.com') {
+        setMode('login');
+        $('memberEmail').value = 'sumoskb@hotmail.com';
+        setNotice('อุปกรณ์นี้ยังไม่มีเซสชัน Dev กรุณาเข้าสู่ระบบครั้งแรกค่ะ', true);
+        return;
+      }
+      // Developer rights are separately checked by the server-side
+      // smgame-creator-presence function, never awarded by the UI.
+      const permission = await creatorRequest('access');
+      if (view !== memberView) return;
+      if (permission.developer !== true) {
+        setNotice('บัญชีนี้ไม่ได้รับสิทธิ์ผู้สร้างค่ะ', true);
+        return;
+      }
+      setUser(verified, false);
+      if (pendingSave) {
+        await persistPendingSave();
+        return;
+      }
+      setLocked(false);
+      // Refresh the existing server-enforced creator UI permission before
+      // opening its dashboard, retaining all previous controls and records.
+      await window.SMGameCreatorAuthRefresh?.();
+      if (window.SMGameCreatorCanOpen) window.SMGameCreatorOpen?.();
+    } catch {
+      if (view === memberView) setNotice('เปิดบัญชี Dev อัตโนมัติไม่ได้ กรุณาเข้าสู่ระบบตามปกติค่ะ', true);
+    } finally {
+      busy = false;
+      quick.disabled = false;
+    }
+  });
   // The login overlay fills the viewport. Only a direct hit on that overlay,
   // not a click on the form card or its fields, may dismiss it.
   gate.addEventListener('click', event => { if (event.target === gate) closeMember(); });
@@ -183,9 +229,33 @@ if (gate) {
     else setUser(data.session?.user);
   }).catch(error => setNotice('เชื่อมต่อระบบสมาชิกไม่ได้: ' + error.message, true));
 
+  window.SMGameLegacyAccessToken=async()=>{const {data,error}=await auth.auth.getSession();if(error)throw error;return data.session?.access_token||null;};
+  window.SMGameCloudUploadSigned=async(path,token,blob)=>{const {error}=await auth.storage.from('smcity-city-saves').uploadToSignedUrl(path,token,blob,{contentType:blob.type,cacheControl:'0'});if(error)throw error;return true;};
   window.SMGameAccount = {
     get user() { return user; },
     get displayName() { return user?.user_metadata?.username || user?.email || 'ผู้เล่น'; },
+    async submitVehicleBugReport(report) {
+      if (report?.schemaVersion !== 1 || !report.vehicle?.id || !report.diagnosis) throw Error('รายงานรถบัคไม่ครบ');
+      const { error } = await auth.from('smgame_vehicle_bug_reports').insert({
+        reporter_user_id: user?.id || null,
+        city: String(report.city || 'unknown').slice(0, 60),
+        game_time: Number(report.gameTime) || 0,
+        vehicle_id: Number(report.vehicle.id),
+        stop_reason: String(report.vehicle.stopReason || '').slice(0, 300),
+        trace_code: String(report.diagnosis.code || '').slice(0, 100),
+        details: report,
+      });
+      if (error) throw error;
+      return true;
+    },
+    async listVehicleBugReports() {
+      if (!user || window.SMGameCreatorCanOpen !== true) throw Error('เฉพาะบัญชี Dev ที่ยืนยันสิทธิ์แล้วค่ะ');
+      const { data, error } = await auth.from('smgame_vehicle_bug_reports')
+        .select('id,created_at,city,game_time,vehicle_id,stop_reason,trace_code,details')
+        .order('created_at', { ascending: false }).limit(60);
+      if (error) throw error;
+      return data || [];
+    },
     closePanel: closeMember,
     openSignIn() { pendingSave = null; showMember('login'); },
     requestSaveLogin(serialized, name) {
@@ -224,21 +294,32 @@ if (gate) {
     async listSaves() {
       if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
       const { data, error } = await auth.from('smgame_saves')
-        .select('slot_id,name,data,updated_at').eq('user_id',user.id).order('updated_at', { ascending: false });
+        .select('slot_id,name,updated_at').eq('user_id',user.id).order('updated_at', { ascending: false })
+        .abortSignal(AbortSignal.timeout(20000));
       if (error) throw error;
       return (data || []).map(slot => ({
         id: slot.slot_id, name: slot.name, savedAt: Date.parse(slot.updated_at),
-        data: JSON.stringify(slot.data),
       }));
+    },
+    async getSave(slotId) {
+      if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
+      if (typeof slotId !== 'string' || !slotId) throw Error('ระบุเซฟที่ต้องการโหลดค่ะ');
+      const ownerId = user.id;
+      const { data, error } = await auth.from('smgame_saves')
+        .select('data').eq('user_id', ownerId).eq('slot_id', slotId).single()
+        .abortSignal(AbortSignal.timeout(45000));
+      if (error) throw error;
+      if (user?.id !== ownerId) throw Error('บัญชีผู้ใช้เปลี่ยนระหว่างโหลด กรุณาเปิดรายการเซฟอีกครั้งค่ะ');
+      if (!data?.data || typeof data.data !== 'object' || Array.isArray(data.data)) throw Error('ข้อมูลเซฟไม่ถูกต้องค่ะ');
+      return JSON.stringify(data.data);
     },
     async save(name, slotId, serialized) {
       if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
-      const { data, error } = await auth.from('smgame_saves').upsert({
-        user_id: user.id, slot_id: slotId, name, data: JSON.parse(serialized),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,slot_id' }).select('slot_id').single();
+      const { data, error } = await auth.rpc('smgame_save_city', {
+        p_slot_id: slotId, p_name: name, p_data: JSON.parse(serialized),
+      });
       if (error) throw error;
-      if (data?.slot_id !== slotId) throw Error('ตรวจสอบเซฟออนไลน์ไม่สำเร็จ');
+      if (data !== slotId) throw Error('ตรวจสอบเซฟออนไลน์ไม่สำเร็จ');
     },
     async deleteSave(slotId) {
       if (!user) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
@@ -250,7 +331,7 @@ if (gate) {
     },
     async changePassword(currentPassword, newPassword) {
       if (!user?.email) throw Error('กรุณาเข้าสู่ระบบก่อนค่ะ');
-      if (!currentPassword || newPassword?.length < 8) throw Error('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษรค่ะ');
+      if (!currentPassword || !newPassword) throw Error('กรุณากรอกรหัสผ่านปัจจุบันและรหัสผ่านใหม่ค่ะ');
       if (currentPassword === newPassword) throw Error('รหัสผ่านใหม่ต้องแตกต่างจากเดิมค่ะ');
       const { error: checkError } = await auth.auth.signInWithPassword({
         email: user.email, password: currentPassword,
@@ -271,6 +352,7 @@ if (gate) {
   if (typeof document.createElement === 'function' && typeof navigator !== 'undefined') {
   // Per-page visit telemetry is kept separate from saves and the simulation.
   const creatorEndpoint = SUPABASE_URL + '/functions/v1/smgame-creator-presence';
+  const creatorUser = () => user || window.SMGameAccount?.user || null;
   const creatorSession = crypto.randomUUID();
   let creatorVisitor;
   try {
@@ -298,6 +380,7 @@ if (gate) {
     const { data } = await auth.auth.getSession();
     const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
     if (data?.session?.access_token) headers.Authorization = 'Bearer ' + data.session.access_token;
+    else if (window.SMGameSimpleSessionToken?.()) headers.Authorization = 'Bearer ' + window.SMGameSimpleSessionToken();
     const res = await fetch(creatorEndpoint, { method: 'POST', headers, body: JSON.stringify({ action, ...values }) });
     const payload = await res.json();
     if (!res.ok) throw Error(payload.message || 'ระบบสถิติไม่พร้อม');
@@ -345,7 +428,7 @@ if (gate) {
         isPlaying: !document.hidden && city.isPlaying === true,
         city: city.city || 'unknown', population: city.population || 0,
         tourists: city.tourists || 0, vehicles: city.vehicles || 0,
-        buildings: city.buildings || 0,
+        buildings: city.buildings || 0, metrics: city.metrics || null,
       });
       if (response?.liveRequestId && !document.hidden) void creatorSendLiveSnapshot(response.liveRequestId);
     } catch (error) {
@@ -436,12 +519,12 @@ if (gate) {
   const creatorLiveStatus = () => cr('crLiveStatus');
   creatorDialog.addEventListener('close', () => { creatorLiveRevision++; });
   async function creatorRequestLiveCity(item, button) {
-    if (creatorLiveBusy || !creatorAllowed || !creatorDialog.open || !user) return;
+    if (creatorLiveBusy || !creatorAllowed || !creatorDialog.open || !creatorUser()) return;
     creatorLiveBusy = true;
     button.disabled = true;
-    const revision = ++creatorLiveRevision, expectedUserId = user.id;
+    const revision = ++creatorLiveRevision, expectedUserId = creatorUser().id;
     const active = () => revision === creatorLiveRevision && creatorAllowed &&
-      creatorDialog.open && user?.id === expectedUserId;
+      creatorDialog.open && creatorUser()?.id === expectedUserId;
     creatorLiveStatus().textContent = 'กำลังขอสำเนาเมืองจาก ' + item.display_name + '…';
     try {
       const ticket = await creatorRequest('request-live-snapshot', { sessionId: item.session_id });
@@ -472,6 +555,43 @@ if (gate) {
       button.disabled = false;
     }
   }
+function creatorHistoryDashboard(target,entries,render){
+ const section=target.closest('section');
+ let panel=section.querySelector('.cr-history-dashboard');
+ if(!panel){
+  panel=document.createElement('div');
+  panel.className='cr-history-dashboard';
+  panel.innerHTML='<div class="cr-toolbar" style="display:flex;flex-wrap:wrap;gap:8px"><label>วัน <select data-filter="day"></select></label><label>อุปกรณ์ <select data-filter="device"></select></label><label>เมือง <select data-filter="city"></select></label></div><p data-summary role="status"></p><details><summary>แยกตามวัน อุปกรณ์ และเมือง</summary><ul data-breakdown></ul></details>';
+  section.insertBefore(panel,section.querySelector('.cr-table-box'));
+ }
+ const fmt=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'});
+ const day=value=>{const date=new Date(value);return value&&!Number.isNaN(+date)?fmt.format(date):'ไม่ระบุ';};
+ const devices={desktop:'คอมพิวเตอร์',ipad:'iPad',iphone:'iPhone',android:'Android',tablet:'แท็บเล็ต',other:'อื่น ๆ'};
+ const fields={day:row=>day(row.started_at),device:row=>devices[row.device]||'อื่น ๆ',city:row=>row.city||'ไม่ระบุ'};
+ const filters=Object.entries(fields).map(([key,get])=>{
+  const select=panel.querySelector('[data-filter="'+key+'"]'),previous=select.value;
+  const values=[...new Set(entries.map(get))].sort((a,b)=>key==='day'?b.localeCompare(a):a.localeCompare(b,'th'));
+  select.replaceChildren(new Option('ทั้งหมด',''),...values.map(value=>new Option(value,value)));
+  if(values.includes(previous))select.value=previous;
+  return {select,get};
+ });
+ const update=()=>{
+  const rows=entries.filter(row=>filters.every(({select,get})=>!select.value||get(row)===select.value));
+  const minutes=Math.round(rows.reduce((total,row)=>total+Math.max(0,Number(row.active_seconds)||0),0)/60);
+  panel.querySelector('[data-summary]').textContent=rows.length.toLocaleString('th-TH')+' จาก '+entries.length.toLocaleString('th-TH')+' รายการล่าสุด · เวลาเล่นรวม '+minutes.toLocaleString('th-TH')+' นาที · เวลาไทย';
+  const breakdown=panel.querySelector('[data-breakdown]');
+  breakdown.replaceChildren(...filters.map(({get},i)=>{
+   const counts=new Map();
+   for(const row of rows){const key=get(row);counts.set(key,(counts.get(key)||0)+1);}
+   const li=document.createElement('li');
+   li.textContent=['รายวัน','อุปกรณ์','เมือง'][i]+' · '+([...counts].sort((a,b)=>i===0?b[0].localeCompare(a[0]):b[1]-a[1]).map(([label,count])=>label+' '+count).join(' / ')||'ไม่มีข้อมูล');
+   return li;
+  }));
+  render(target,rows,false);
+ };
+ for(const {select} of filters)select.onchange=update;
+ update();
+}
   async function creatorReload() {
     if (creatorLoading || !creatorAllowed || !creatorDialog.open) return;
     creatorLoading = true; cr('crStatus').textContent = 'กำลังโหลดข้อมูล…';
@@ -482,14 +602,15 @@ if (gate) {
       cr('crOnline').textContent = nfmt(result.onlineCount);
       cr('crPlaying').textContent = nfmt(result.playingCount);
       populateCreatorTable(cr('crLive'), result.online || [], true);
-      populateCreatorTable(cr('crHistory'), result.recent || [], false);
+      creatorHistoryDashboard(cr('crHistory'), result.recent || [], populateCreatorTable);
       cr('crStatus').textContent = 'อัปเดต ' + dfmt(result.checkedAt);
     } catch (error) { cr('crStatus').textContent = 'โหลดข้อมูลไม่ได้: ' + (error?.message || 'ไม่ทราบสาเหตุ'); }
     finally { creatorLoading = false; }
   }
+  installCreatorDashboard({dialog:creatorDialog,request:creatorRequest,allowed:()=>creatorAllowed&&!!creatorUser(),loadCity:creatorRequestLiveCity,loadLive:()=>void creatorReload()});
   window.SMGameCreatorRequest = creatorRequest;
   window.SMGameCreatorOpen = () => {
-    if (!creatorAllowed || !user) return;
+    if (!creatorAllowed || !creatorUser()) return;
     window.SMGameCloseDialog?.();
     creatorDialog.showModal();
     void creatorReload();
@@ -498,13 +619,13 @@ if (gate) {
   cr('crRefresh').addEventListener('click', () => void creatorReload());
   creatorDialog.addEventListener('click', event => { if (event.target === creatorDialog) creatorDialog.close(); });
   window.SMGameCreatorAuthRefresh = async () => {
-    const ticket = ++creatorAccessCounter, expected = user?.id;
+    const ticket = ++creatorAccessCounter, expected = creatorUser()?.id;
     creatorAllowed = false; window.SMGameCreatorCanOpen = false;
     if (creatorDialog.open) creatorDialog.close();
     if (!expected) return;
     try {
       const result = await creatorRequest('access');
-      if (ticket !== creatorAccessCounter || user?.id !== expected) return;
+      if (ticket !== creatorAccessCounter || creatorUser()?.id !== expected) return;
       creatorAllowed = result.developer === true;
       window.SMGameCreatorCanOpen = creatorAllowed;
     } catch { if (ticket === creatorAccessCounter) window.SMGameCreatorCanOpen = false; }
