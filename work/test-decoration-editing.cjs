@@ -11,8 +11,8 @@ for(let i=0;i<g.DECOR_KINDS.length;i++){
 assert.equal(g.state.money,cash);assert.equal(JSON.stringify(g.state.buildingQuota),quota);
 g.selectTool('hand');const item=g.state.plantedTrees[0];
 g.inspectAt(...g.screen(item.x,item.y,8));assert.equal(g.selected.kind,'landscape');
-assert(get('inspectContent').innerHTML.includes('ถังขยะ'));
-const action=a=>get('inspectContent').onclick({target:{closest:()=>({dataset:{action:a}})}});
+assert(get('inspector').classList.contains('hidden'));assert.equal(get('landscapeQuickActions').hidden,false);
+const action=a=>get('landscapeQuickActions').onclick({target:{closest:()=>({dataset:{landscapeAction:a.replace('-landscape','')}})},preventDefault(){},stopPropagation(){}});
 action('rotate-landscape');assert.equal(item.rotation,1);
 action('move-landscape');assert.equal(get('cancelMoveBuilding').hidden,false);
 g.finishCanvasInteraction({pan:false},...g.screen(150.5,150.5),'landscapeSelect');

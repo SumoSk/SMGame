@@ -19,7 +19,7 @@ assert.equal(g.state.plantedTrees.at(-1).y,motorbike.y);
 // Cycle overlapping items by tapping again or using the inspector's next-item control.
 const point=g.screen(10,10,22);
 assert(g.selectLandscapeAt(...point));const first=g.selected.record.item;
-assert(get('inspectContent').innerHTML.includes('next-landscape'),'stacked items must be cycleable');
+assert(g.landscapeChoicesAt(...point).length>=2,'stacked items remain cycleable without the old panel');
 assert(g.selectNextLandscape());assert.notEqual(g.selected.record.item,first);
 assert(g.selectLandscapeAt(...point));assert.equal(g.selected.record.item,first,'repeated tap cycles back');
 // Snap toggle is a proper editor control inside Manage (not a placeable item).
