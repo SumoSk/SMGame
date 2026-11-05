@@ -1,5 +1,12 @@
 # SMCITY 🏙️
 
+## 5.4.12
+
+- Prevent opposing buildings from admitting vehicles into the same narrow-street merge simultaneously.
+- Detect reciprocal physical locks between two cars leaving opposite driveways. After 6 continuous game minutes, return both to their respective parking bays and stagger their retries.
+- Preserve the active trips and extend deadlines for time lost to the simulation deadlock; do not count the recovery as a failed mission.
+- Enlarge the temporary "เว้นระยะจากบ้าน 1 ช่อง" warning without changing other game notifications.
+
 ## 5.4.11
 
 - Enforce one genuinely empty road-free tile beside each home using rendered carriageway widths for small, medium and large roads.
