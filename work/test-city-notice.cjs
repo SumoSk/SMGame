@@ -29,11 +29,12 @@ const window={SMGameDemandNotices:game,setTimeout:fn=>(start=fn,1),setInterval:f
 vm.runInNewContext(source,{window,document,Date:{now:()=>now},console});
 start();const pinned=message.textContent;
 assert(pinned.includes('สวน ขาด 20'),pinned);
-assert(close.hidden,'Dismiss hidden when a warning is pinned');
+assert(!close.hidden,'Players can dismiss pinned notices without deleting the saved reminder');
 needs=[{kind:'park',name:'สวน',amount:0},{kind:'shop',name:'ร้านค้า',amount:0}];
 elements.day.textContent='วันพฤหัสบดี · วันที่ 4';
 for(let k=0;k<30;k++){now+=13001;timer();assert.equal(message.textContent,pinned,'Warning must not rotate or expire across days');}
-click();assert(!box.hidden,'An outstanding warning cannot be dismissed');
+click();assert(box.hidden,'Player can dismiss an outstanding warning');
+now+=90001;timer();assert(!box.hidden,'The same pinned warning returns after snooze');
 needs=[{kind:'park',name:'สวน',amount:40},{kind:'shop',name:'ร้านค้า',amount:9}];
 for(let k=0;k<5;k++){now+=13001;timer();assert.equal(message.textContent,pinned,'Displayed warning does not change with current demand');}
 game.built('park');now+=3001;timer();

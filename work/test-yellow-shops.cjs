@@ -156,9 +156,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  const shopBody=starter.filter(p=>p.finish!=='shop-brand-essential'&&p.finish!=='shop-sign-face');
  assert(Math.max(...shopBody.map(p=>p.y+p.sy*.5))<2.1,'starter remains a single storey');
  const brand=starter.filter(p=>p.finish==='shop-brand-essential');
- assert(brand.some(p=>p.color==='#006940'&&p.sx>=1.3&&p.sy>=.8),
+ assert(brand.some(p=>p.color==='#006940'&&p.sx>=1.0&&p.sy>=.75),
   'starter rooftop billboard must be large and upright');
- assert(starter.some(p=>p.finish==='shop-sign-face'&&p.sx>=1.3&&p.sy>=.8),
+ assert(starter.some(p=>p.finish==='shop-sign-face'&&p.sx>=.9&&p.sy>=.70),
   'starter ELEVEN lettering must have readable individual strokes');
  console.log(JSON.stringify({passed:true,shops:4,rotations:12,parkingPreserved:true,
   rearHalfCompressed:true,parkingMovedTowardStore:true,

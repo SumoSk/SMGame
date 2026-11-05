@@ -8490,7 +8490,7 @@ function openGraphicsMenu(){
 function openMainMenu(){
  const developerId=bugReportDeveloperId();
  modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b></span><span class="menu-chevron">›</span></button><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b></span><span class="menu-chevron">›</span></button>'+(developerId?'<button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>รายงานรถบัค</b><small>บันทึกหลักฐาน: '+(bugCaptureEnabled?'เปิด':'ปิด')+'</small></span><span class="menu-chevron">›</span></button>':'')+'<button type="button" id="graphicsMenu"><span class="menu-symbol">◈</span><span><b>ตั้งค่ากราฟิก</b></span><span class="menu-chevron">›</span></button><button type="button" id="helpMenu"><span class="menu-symbol">?</span><span><b>คู่มือเล่นเกม</b></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
- const creatorAnchor=$('reportMenu');
+ const creatorAnchor=developerId?$('reportMenu'):null;
  if(creatorAnchor){
   creatorAnchor.dataset.developerId=developerId;
   const button=document.createElement('button');

@@ -18,12 +18,12 @@ function obstruct(a,b,mutual=true,stale=false){
 }
 {
  const [a,b]=makePair();obstruct(a,b);
+ // A detected pair is only recoverable after the live 120-game-minute threshold.
+ b.lastMovedAt=g.state.time-121;
  g.advanceVehicles(0,0);
- assert.equal(a.phase,'driving','the winner remains at the exact road location');
- assert.equal(b.phase,'gate_waiting','only the yielding car recovers through its existing trip');
- assert.equal(b.respawns,1,'exactly one recovery');
- assert.equal(b.toGate,a.path.at(-1),'destination remains intact');
- assert(![...g.state.occ.values()].includes(b.id),'old road ownership cleared');
+ assert.equal(a.phase,'driving','unblocked winner remains in place');
+ assert(!g.state.vehicles.has(b.id),'only the stopped yielding car is towed after 120 minutes');
+ assert(![...g.state.occ.values()].includes(b.id),'towed car no longer owns road space');
  assert(![...g.state.reservations.values()].some(r=>r.passes?r.passes.some(p=>p.id===b.id):r.id===b.id),'old reservations cleared');
 }
 for(const [mutual,stale] of [[false,false],[true,true]]){
@@ -32,4 +32,4 @@ for(const [mutual,stale] of [[false,false],[true,true]]){
  assert.equal(a.phase,'driving');
  assert.equal(b.phase,'driving','a one-way or stale block must not trigger recovery');
 }
-console.log('PASS: one-time O(1) mutual deadlock recovery, no ghost collision, no false recovery');
+console.log('PASS: 120-minute single-car deadlock removal, no ghost collision, no false recovery');
