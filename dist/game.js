@@ -1488,8 +1488,8 @@ function startNewCity(city='phuket'){
  const streets=[[[164,132],[176,132]],[[176,132],[176,144]],[[176,144],[164,144]],[[164,138],[176,138]]];
  for(const [a,b] of streets)if(!buildRoad(lineCells(id(a[0],villageY(a[1])),id(b[0],villageY(b[1]))),'small',true))throw Error('Starter village road could not be placed');
  const plots=[
-  ['home_starter',166,128,0],['home_starter',170,128,0],
-  ['home_starter',166,133,2],['park_starter',170,133,2],
+  ['home_starter',167,128,0],['home_starter',170,128,0],
+  ['home_starter',167,133,2],['park_starter',170,133,2],
   ['restaurant_starter',166,140,0],['shop_starter',170,140,0],
   ['mall_starter',166,145,2],['office_starter',170,145,2],
   ['factory_starter',160,134,3],['hotel_starter',160,140,3],
