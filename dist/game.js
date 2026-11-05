@@ -161,7 +161,7 @@ function buildingQuotaMarkup(key){
 }
 
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
-function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
+function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5,...(b.key==='home_mahanakhon'?{tightParking:true}:{})};}
 function lotSlots(b){
  const t=CATALOG[b.key];if(t.parkingLayout)return t.parkingLayout;
  const slots=[];
@@ -222,7 +222,12 @@ function parkingPathGeometry(points){
   if(i)shape.lengths[i-1]=Math.hypot(b.x-points[i-1].x,b.y-points[i-1].y);
   if(!i||i===points.length-1)continue;
   const a=points[i-1],c=points[i+1],x=b.x-a.x,y=b.y-a.y,p=c.x-b.x,q=c.y-b.y,la=Math.hypot(x,y),lb=Math.hypot(p,q);
-  shape.bends[i]=la<.12||lb<.12||Math.abs(x*q-y*p)<.08*la*lb?null:{r:Math.min(.14,la*.25,lb*.25),ux:x/la,uy:y/la,vx:p/lb,vy:q/lb};
+  // 80 bays in 8x6 have only .32 lateral pitch. A wide .14-unit
+  // turning arc physically catches the neighbouring parked car when it
+  // emerges from its stall. Tighten ONLY Mahanakhon's bay/court turns.
+  // All other buildings retain the original rounded parking geometry.
+  const turnRadius=b.tightParking||a.tightParking||c.tightParking?.035:.14;
+  shape.bends[i]=la<.12||lb<.12||Math.abs(x*q-y*p)<.08*la*lb?null:{r:Math.min(turnRadius,la*.25,lb*.25),ux:x/la,uy:y/la,vx:p/lb,vy:q/lb};
  }
  parkingPathGeometries.set(points,shape);return shape;
 }
