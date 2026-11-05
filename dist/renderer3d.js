@@ -2495,64 +2495,80 @@ export class TrafficRenderer{
   };
 
   if(b.key==='home_mahanakhon'){
-   // Entirely redesigned compact 8x6 landmark. Supports do not occupy
-   // parking bays, moving aisles or the pair of front-center gates.
-   const cx=4,cz=3;
-   // Short polished piers instead of four tall bare stilts.
-   for(const u of [1.30,6.70])for(const v of [.20,4.97]){
-    block('#849baa',u,.11,v,.45,.12,.38,'stone');
-    block('#4b6b80',u,.63,v,.30,.89,.28,'stone');
-    block('#8eb0bb',u,.69,v,.31,.72,.055,'metal');
-    block('#d7e2e2',u,1.16,v,.49,.12,.42,'stone');
+   // Mahanakhon slim edition: tower centered over a symmetric four-pier
+   // entrance canopy. Keep the same 8x6 parcel, true 80 single-level bays
+   // and 12-storey height; only the architectural mesh changes.
+   const cx=4,cz=3,topY=1.50;
+   // Short structural piers are inset under the narrower podium beam.
+   // Their x positions are now directly aligned under the slender tower.
+   // Keep the piers off real parked car bodies and central front gate lanes.
+   for(const u of [2.83,5.17])for(const v of [.17,4.95]){
+    block('#748c9b',u,.09,v,.35,.16,.27,'stone');
+    block('#344d62',u,.58,v,.23,.82,.22,'metal');
+    block('#adc1c5',u,.99,v,.31,.12,.29,'stone');
+    block('#4e7183',u,1.16,v,.34,.24,.31,'metal');
    }
-   // Suspended slim support beam, not a second parking floor.
-   block('#4f7189',cx,1.31,cz,5.93,.20,5.40,'metal');
-   block('#a4c5cc',cx,1.45,cz,5.99,.055,5.45,'glass');
-   for(const u of [1.38,3.05,4.95,6.62])for(const v of [.45,5.47])
-    block('#b8e1e6',u,1.15,v,.28,.024,.10,'glass',true);
-   // Original tower facade 44 x .72 = 31.68; this facade is 12 x .66
-   // = 7.92, exactly one quarter of the former upper-tower height.
-   const foot=1.50,levels=12,storey=.66,height=levels*storey;
-   block('#17374e',cx,foot+height/2,cz,4.35,height,4.35,'glass');
-   // Recessed and protruding pixel ribbon wraps four faces clockwise.
+   // Deliberately symmetrical deep-blue canopy that binds the 4 piers to
+   // the narrow facade; no decorative white ground or parking floor above.
+   block('#334e65',cx,1.28,cz,2.95,.23,5.40,'metal');
+   block('#7797a7',cx,1.41,cz,3.05,.045,5.48,'metal');
+   // Two subtle chamfer-like shoulders tie the roof visually to each pier.
+   for(const u of [2.83,5.17]){
+    block('#496a7d',u,1.20,cz,.18,.12,4.75,'metal');
+    block('#90b5c2',u,1.27,cz,.07,.025,4.70,'glass');
+   }
+   // Warm recessed lights beneath the cantilever, not an opaque lower floor.
+   for(const v of [.65,1.90,3.10,4.35,5.15])
+    block('#f4d4a4',cx,1.14,v,1.65,.025,.07,'glass',true);
+   // Keep previous height EXACTLY: 12 floors x .66 units = 7.92.
+   const foot=topY,levels=12,storey=.66,height=levels*storey;
+   const w=2.60,d=3.05;
+   block('#17394f',cx,foot+height/2,cz,w,height,d,'glass');
+   // Finer window modules. Six columns make a beautiful narrow crown while
+   // the alternating dark/light protrusions preserve the Mahanakhon ribbon.
    for(let floor=0;floor<levels;floor++){
-    const y=foot+(floor+.5)*storey;
-    const faceTurn=Math.floor(floor/3)%4;
-    const ribbonCol=Math.min(7,Math.floor((floor%3)*8/3));
-    for(let face=0;face<4;face++)for(let col=0;col<8;col++){
-     const offset=-2.24+col*.64;
-     const carved=(face===faceTurn&&Math.abs(col-ribbonCol)<=1)||
-      (face===(faceTurn+1)%4&&floor%3===2&&col<=1);
-     const reach=carved?1.97:2.56;
-     const pal=carved?['#527e99','#376c88','#6696ac']:
-      ['#2b6489','#316f93','#3c789c','#245a7f'];
-     const illuminated=!carved&&(floor*11+col*7+face*13)%47===0;
-     const color=illuminated?'#bedbd8':pal[(floor+col+face)%pal.length];
-     if(face===0)block(color,cx+offset,y,cz+reach,.61,.607,.095,'glass',illuminated);
-     if(face===1)block(color,cx+reach,y,cz+offset,.095,.607,.61,'glass',illuminated);
-     if(face===2)block(color,cx+offset,y,cz-reach,.61,.607,.095,'glass',illuminated);
-     if(face===3)block(color,cx-reach,y,cz+offset,.095,.607,.61,'glass',illuminated);
-     if(carved&&(floor%3===0||col===ribbonCol)){
-      if(face===0)block('#93b8c9',cx+offset,y-storey*.45,cz+2.28,.60,.040,.54,'metal');
-      if(face===1)block('#93b8c9',cx+2.28,y-storey*.45,cz+offset,.54,.040,.60,'metal');
-      if(face===2)block('#93b8c9',cx+offset,y-storey*.45,cz-2.28,.60,.040,.54,'metal');
-      if(face===3)block('#93b8c9',cx-2.28,y-storey*.45,cz+offset,.54,.040,.60,'metal');
+    const y=foot+(floor+.5)*storey,turnFace=Math.floor(floor/3)%4;
+    const ribbonCol=Math.min(5,Math.floor((floor%3)*6/3));
+    for(let face=0;face<4;face++){
+     const ns=face%2===0,cols=ns?6:6;
+     for(let col=0;col<cols;col++){
+      const off=(col-(cols-1)/2)*(ns?.455:.525);
+      const cut=face===turnFace&&Math.abs(col-ribbonCol)<=1 ||
+       face===(turnFace+1)%4&&floor%3===2&&col<=1;
+      const reach=ns?(cut?1.12:1.56):(cut?.95:1.34);
+      const glimmer=!cut&&(floor*17+col*11+face*7)%43===0;
+      const shade=cut?['#56839d','#39738f','#639bb6'][(floor+col)%3]:
+       ['#2a6385','#327594','#4386a5','#21577a'][(floor+col+face)%4];
+      const color=glimmer?'#e2d9b9':shade;
+      if(face===0)block(color,cx+off,y,cz+reach,.435,.615,.082,'glass',glimmer);
+      if(face===1)block(color,cx+reach,y,cz+off,.082,.615,.510,'glass',glimmer);
+      if(face===2)block(color,cx+off,y,cz-reach,.435,.615,.082,'glass',glimmer);
+      if(face===3)block(color,cx-reach,y,cz+off,.082,.615,.510,'glass',glimmer);
+      // Pixelated shadow ledges create real depth instead of painted squares.
+      if(cut&&(floor%2===0||col===ribbonCol)){
+       if(face===0)block('#84b3c5',cx+off,y-.29,cz+1.36,.42,.045,.42,'metal');
+       if(face===1)block('#84b3c5',cx+1.16,y-.29,cz+off,.42,.045,.49,'metal');
+       if(face===2)block('#84b3c5',cx+off,y-.29,cz-1.36,.42,.045,.42,'metal');
+       if(face===3)block('#84b3c5',cx-1.16,y-.29,cz+off,.42,.045,.49,'metal');
+      }
      }
     }
-    if(floor%3===0)for(const side of [-1,1]){
-     block('#25475d',cx,y-storey*.48,cz+side*2.59,5.16,.037,.044,'metal');
-     block('#25475d',cx+side*2.59,y-storey*.48,cz,.044,.037,5.16,'metal');
+    // Hairline horizontal trims, restrained at this narrow scale.
+    if(floor%3===0){
+     for(const side of [-1,1]){
+      block('#173b55',cx,y-.30,cz+side*1.58,2.86,.035,.035,'metal');
+      block('#173b55',cx+side*1.36,y-.30,cz,.035,.035,3.28,'metal');
+     }
     }
    }
    const top=foot+height;
-   // Crisp flat top: no tall antenna and no extra parking storey.
-   block('#25465b',cx,top+.07,cz,5.35,.17,5.35,'metal');
+   block('#23465a',cx,top+.085,cz,2.97,.17,3.32,'metal');
    for(const side of [-1,1]){
-    block('#7b9ba9',cx,top+.22,cz+side*2.59,5.18,.19,.07,'glass');
-    block('#7b9ba9',cx+side*2.59,top+.22,cz,.07,.19,5.18,'glass');
+    block('#93aebc',cx,top+.19,cz+side*1.64,2.88,.16,.06,'glass');
+    block('#93aebc',cx+side*1.46,top+.19,cz,.06,.16,3.23,'glass');
    }
-   block('#718894',cx-.75,top+.29,cz-.6,.92,.22,.65,'metal');
-   block('#475f6d',cx+.80,top+.25,cz+.65,.81,.16,.65,'metal');
+   block('#82949c',cx-.42,top+.24,cz-.36,.52,.18,.55,'metal');
+   block('#57717e',cx+.50,top+.22,cz+.39,.47,.14,.49,'metal');
    return;
   }
 

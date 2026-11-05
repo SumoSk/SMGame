@@ -161,7 +161,7 @@ function buildingQuotaMarkup(key){
 }
 
 function buildingBounds(b){const t=CATALOG[b.key];return (b.rotation||0)%2?{w:t.plotHeight,h:t.plotWidth}:{w:t.plotWidth,h:t.plotHeight};}
-function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5};}
+function lotPoint(b,u,v){const t=CATALOG[b.key];let x=u,y=v;switch(b.rotation||0){case 1:x=t.plotHeight-v;y=u;break;case 2:x=t.plotWidth-u;y=t.plotHeight-v;break;case 3:x=v;y=t.plotWidth-u;break;}return{x:b.x+x+.5,y:b.y+y+.5,...(b.key==='home_mahanakhon'?{tightParking:true}:{})};}
 function lotSlots(b){
  const t=CATALOG[b.key];if(t.parkingLayout)return t.parkingLayout;
  const slots=[];
@@ -222,7 +222,12 @@ function parkingPathGeometry(points){
   if(i)shape.lengths[i-1]=Math.hypot(b.x-points[i-1].x,b.y-points[i-1].y);
   if(!i||i===points.length-1)continue;
   const a=points[i-1],c=points[i+1],x=b.x-a.x,y=b.y-a.y,p=c.x-b.x,q=c.y-b.y,la=Math.hypot(x,y),lb=Math.hypot(p,q);
-  shape.bends[i]=la<.12||lb<.12||Math.abs(x*q-y*p)<.08*la*lb?null:{r:Math.min(.14,la*.25,lb*.25),ux:x/la,uy:y/la,vx:p/lb,vy:q/lb};
+  // 80 bays in 8x6 have only .32 lateral pitch. A wide .14-unit
+  // turning arc physically catches the neighbouring parked car when it
+  // emerges from its stall. Tighten ONLY Mahanakhon's bay/court turns.
+  // All other buildings retain the original rounded parking geometry.
+  const turnRadius=b.tightParking||a.tightParking||c.tightParking?.035:.14;
+  shape.bends[i]=la<.12||lb<.12||Math.abs(x*q-y*p)<.08*la*lb?null:{r:Math.min(turnRadius,la*.25,lb*.25),ux:x/la,uy:y/la,vx:p/lb,vy:q/lb};
  }
  parkingPathGeometries.set(points,shape);return shape;
 }
@@ -731,6 +736,24 @@ function parkingBankBusy(b,index,arriving,requester=null){
  // merges locally at the exact physical conflict, without cross-bank deadlocks.
  const target=lotSlots(b)[index];
  if(!target)return false;
+ if(b.key==='home_mahanakhon'){
+  // The compact court must not lock a whole row just because another car
+  // was ASSIGNED a neighbouring bay. Check its ACTUAL current position:
+  // departed cars may already be metres away on the exit connector.
+  // Continuous swept collisions remain enforced by lotClear and
+  // canLeaveParkingSpace, including against stationary parked residents.
+  const bay=parkingSlotPose(b,index);
+  for(const other of parkingLotCars(b.id)){
+   if(other.id===requester?.id||!other.lotPath)continue;
+   const moving=parkingPose(other);
+   if(moving&&lotCarsOverlap(bay,moving,.09)){
+   if(requester)noteParkingBlock(requester,arriving?'arrival_live_bay_busy':'departure_live_bay_busy',
+    {blockerVehicleId:other.id,requestedSlot:index,observedPhysical:true});
+   return true;
+  }
+  }
+  return false;
+ }
  for(const other of state.vehicles.values()){
   if(!other.lotPath||other.lotBuilding!==b.id)continue;
   const otherIndex=b.parkingSlots?.indexOf(other.citizenId)??-1;
@@ -750,6 +773,24 @@ function prepareLotDeparture(v,dt){
   const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){noteParkingBlock(v,'departure_missing_parking_slot',{requestedSlot:index});v.stopReason='ไม่พบช่องจอดของรถ';return false;}
   if(parkingBankBusy(b,index,false,v)){v.stopReason='รอรถเข้าจอดในแถวเดียวกัน';return false;}
   const t=CATALOG[b.key],exitU=t.dualParking?(slot.zone==='A'?t.parkingExitA:t.parkingExitB):(t.parkingExitU??t.plotWidth-.45);
+  if(b.key==='home_mahanakhon'){
+   // One vehicle may MERGE out of each tightly-spaced 40-bay court at
+   // a time. Without this local admission guard, two cars leave nearby
+   // bays into the same aisle, stop nose-to-side, and deadlock forever.
+   // Let the next car proceed once the previous one reaches the exit.
+   for(const other of state.vehicles.values()){
+    if(other.id===v.id||other.lotBuilding!==b.id||!other.lotPath)continue;
+    const incoming=other.phase==='parking_in';
+    const departing=other.phase==='departing'&&!other.lotReady;
+    if(!incoming&&!departing)continue;
+    const otherSlot=b.parkingSlots?.indexOf(other.citizenId)??-1;
+    const otherBank=otherSlot>=0?lotSlots(b)[otherSlot]?.zone:null;
+    if(other.parkingStage||otherBank===slot.zone){
+     v.stopReason=incoming?'รอรถเข้าจอดในแถวก่อน':'รอรถคันหน้าออกจากช่องจอด';
+     return false;
+    }
+   }
+  }
   v.lotPath=[parkingSlotPose(b,index),lotPoint(b,slot.u,slot.aisle),lotPoint(b,exitU,slot.aisle)];
   // Rear court must physically cross the front aisle before leaving.
   if(t.stackedParking&&t.parkingRows>1&&slot.zone==='rear')v.lotPath.push(lotPoint(b,exitU,t.parkingAisle));
@@ -763,7 +804,11 @@ function prepareLotDeparture(v,dt){
   if(t.stackedParking&&t.parkingRows>1){
    const junctionSegment=slot.zone==='rear'?4:3;
    const crossingAt=lotPathLength(v.lotPath.slice(0,junctionSegment));
-   v.grandCrossing={approach:slot.zone,crossingAt,stopAt:Math.max(0,crossingAt-1.12),clearAt:crossingAt+1.02,granted:false,cleared:false};
+   // Hold the compact tower's one shared exit token until the car has
+   // actually merged onto the city road, not just until it leaves the
+   // internal T-junction. Otherwise rear/front cars meet at the centre gate.
+   const clearAt=b.key==='home_mahanakhon'?Infinity:crossingAt+1.02;
+   v.grandCrossing={approach:slot.zone,crossingAt,stopAt:Math.max(0,crossingAt-1.12),clearAt,granted:false,cleared:false};
   }
   if(!canLeaveParkingSpace(v,v.lotPath)){grandSignalRelease(v);v.grandCrossing=null;v.lotPath=null;v.lotDistance=0;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
  }
@@ -7200,7 +7245,9 @@ function advanceVehicles(realDt,gameDt){
     // Clearance and a temporary driveway claim are checked before moving.
     const start=parkingPose(v),end=positionOnMotion(motionPlan(v),0);
     const t=CATALOG[from.key];
-    v.lotPath=t.stackedParking?[
+    // This building has ALREADY reached the centre-front exit.
+    // Never send it back to the far-right garage spine and turn around.
+    v.lotPath=t.stackedParking&&from.key!=='home_mahanakhon'?[
      start,lotPoint(from,t.plotWidth-.45,t.frontageV),
      lotPoint(from,t.frontageExitU,t.frontageV),end]:[start,end];
     v.lotDistance=0;v.lotReady=false;
