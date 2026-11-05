@@ -16,10 +16,10 @@ jobs:
         with:
           node-version: '22'
       - run: node --check dist/game.js
+      - run: node -r ./work/test-dom-compat.cjs work/test-load-new-day.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-building-quota.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-cloud-save-adapter.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-save-status.cjs
-      - run: node -r ./work/test-dom-compat.cjs work/test-load-new-day.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-free-decoration.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-decoration-editing.cjs
       - run: node -r ./work/test-dom-compat.cjs work/test-saves.cjs
