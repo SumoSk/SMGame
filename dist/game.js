@@ -8475,15 +8475,13 @@ function loadGame(silent=false,slotId=null,rawOverride=null){const previous={sta
   }
  }
  for(const v of state.vehicles.values())if(['driving','parking_out'].includes(v.phase)||v.phase==='parking_in'&&v.occKey)occupy(v,v.pos);for(const v of state.vehicles.values())if(v.phase==='driving')refreshMotionReservations(v,motionPlan(v),motionDistance(v));reconcile();
- // Discard the saved day's in-flight traffic and create clean 06:00 schedules.
- advanceLoadedCityToMorning();
  for(const c of state.citizens.values()){
   if(c.tourist)continue;
   if(!c.profile)c.profile=profile(c.id);
   ensureRoutine(c);
   if(!c.dailyPlan||!Number.isFinite(c.dailyPlan.day))c.dailyPlan=planForDay(c,Math.floor(state.time/1440));
  }
- syncCitizenVehicleTech();migratePerformance(s.performance);migrateTravelPlanning();state.speed=0;scanIncidents(true);renderTools();updateUI();if(!silent)toast('โหลดเซฟแล้ว · เริ่มวันใหม่ 06:00 กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+(state.city==='london'?'UNITED KINGDOM':'THAILAND')+' · สร้างเมืองในแบบคุณ</small>';renderTools();updateUI();if(!silent)toast(e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
+ syncCitizenVehicleTech();migratePerformance(s.performance);migrateTravelPlanning();advanceLoadedCityToMorning();state.speed=0;scanIncidents(true);renderTools();updateUI();if(!silent)toast('โหลดเซฟแล้ว · เริ่มวันใหม่ 06:00 กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+(state.city==='london'?'UNITED KINGDOM':'THAILAND')+' · สร้างเมืองในแบบคุณ</small>';renderTools();updateUI();if(!silent)toast(e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
 // A developer can load a copy into the current session; no other user's save is changed.
 window.SMGameLoadCreatorSave=(raw,name)=>{
  if(!window.SMGameCreatorCanOpen||!window.SMGameAccount?.user||typeof raw!=='string'||!raw)return false;

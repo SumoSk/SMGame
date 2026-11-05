@@ -98,11 +98,13 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  for(const u of [cx-.90,cx+.90])for(const slot of slots)
   assert(Math.abs(slot.u-u)>.35||Math.abs(slot.v-supportV)>.44,
    'new pier would collide with a full-size parked car');
- // The small road-side entrance is an optical detail, not an added wing.
+ // The protruding road-front door was removed at user request.
+ // No elevated mesh is allowed at its former position; the existing
+ // road/parking surface (about y=.1) is unchanged.
  const lobbyU=(t.frontageEntranceU+t.frontageExitU)/2+.10,lobbyV=t.plotHeight-.18;
- assert(pieces.some(p=>Math.abs(p.x-(home.x+lobbyU))<.02&&
-  Math.abs(p.z-(home.y+lobbyV))<.03&&p.y<1&&p.sx<.82),
-  'a narrow glass lobby must sit between the actual road gates');
+ assert(!pieces.some(p=>Math.abs(p.x-(home.x+lobbyU))<.47&&
+  Math.abs(p.z-(home.y+lobbyV))<.18&&p.y>.27&&p.y<1.26),
+  'no front-door geometry may remain at the road-facing parcel edge');
  const legacyBuilding={...home,key:'home_mahanakhon_compact',x:20,y:20,rotation:0};
  const compactBatch=new Batch();
  renderer.building(compactBatch,legacyBuilding,g.CATALOG,{});
