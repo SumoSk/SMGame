@@ -2495,32 +2495,45 @@ export class TrafficRenderer{
   };
 
   if(b.key==='home_mahanakhon'||b.key==='home_mahanakhon_compact'){
-   // Mahanakhon slim edition: tower centered over a symmetric four-pier
-   // entrance canopy. Keep the same 8x6 parcel, true 80 single-level bays
-   // and 12-storey height; only the architectural mesh changes.
+   // Mahanakhon slim edition: tower-only silhouette, no side wings.
+   // This renderer supports both the current 14x8 plot and legacy 8x6 saves;
+   // the 80-stall single-level layout and 12-storey height are unchanged.
    const legacy=b.key==='home_mahanakhon_compact',cx=t.plotWidth/2,cz=t.plotHeight/2,topY=1.50;
-   // Short structural piers are inset under the narrower podium beam.
-   // Their x positions are now directly aligned under the slender tower.
-   // Keep the piers off real parked car bodies and central front gate lanes.
-   for(const u of (legacy?[2.83,5.17]:[cx-2.05,cx+2.05]))
-    for(const v of (legacy?[.17,4.95]:[.50,7.05])){
-    block('#748c9b',u,.09,v,.35,.16,.27,'stone');
-    block('#344d62',u,.58,v,.23,.82,.22,'metal');
-    block('#adc1c5',u,.99,v,.31,.12,.29,'stone');
-    block('#4e7183',u,1.16,v,.34,.24,.31,'metal');
+   // No lateral wings, wide canopy, or raised platform: only a trim the
+   // exact width/depth of the glass tower. Asphalt below belongs to the
+   // unchanged 80-car parking court, not the architectural pedestal.
+   const supportV=legacy?2.61:3.43;
+   // The two piers and glazed lift core occupy the clear space BETWEEN
+   // stall banks (rear cars end below this line; front cars start above).
+   // That keeps all drive aisles, the 80 bays and centre-front gates clear.
+   for(const u of [cx-.90,cx+.90]){
+    block('#5c7988',u,.075,supportV,.29,.15,.26,'stone');
+    block('#304e62',u,.69,supportV,.21,1.16,.22,'metal');
+    block('#8eafbd',u,1.26,supportV,.32,.105,.30,'metal');
+    block('#9fc8d4',u,.78,supportV+.119,.045,.82,.022,'glass');
    }
-   // Deliberately symmetrical deep-blue canopy that binds the 4 piers to
-   // the narrow facade; no decorative white ground or parking floor above.
-   block('#334e65',cx,1.28,cz,legacy?2.95:4.55,.23,legacy?5.40:7.30,'metal');
-   block('#7797a7',cx,1.41,cz,legacy?3.05:4.64,.045,legacy?5.48:7.36,'metal');
-   // Two subtle chamfer-like shoulders tie the roof visually to each pier.
-   for(const u of (legacy?[2.83,5.17]:[cx-2.05,cx+2.05])){
-    block('#496a7d',u,1.20,cz,.18,.12,legacy?4.75:6.90,'metal');
-    block('#90b5c2',u,1.27,cz,.07,.025,legacy?4.70:6.85,'glass');
+   // A narrow vertical lobby/lift core makes the tower read as attached
+   // to the ground, rather than resting on four oversized table legs.
+   block('#233f54',cx,.74,supportV,.56,1.37,.20,'metal');
+   block('#558ba4',cx,.78,supportV+.113,.44,1.09,.030,'glass');
+   for(const u of [cx-.19,cx+.19])
+    block('#93b8c9',u,.78,supportV+.138,.022,1.08,.025,'metal');
+   block('#304f63',cx,1.43,cz,2.60,.12,3.05,'metal');
+   block('#698fa5',cx,1.494,cz,2.60,.027,3.05,'metal');
+   // Small visual lobby door at the ROAD FRONT BETWEEN the existing entry
+   // and exit lanes. It does not add a building wing, a driveway or a
+   // collision body, and the game gates remain untouched.
+   const lobbyU=(t.frontageEntranceU+t.frontageExitU)/2+.10;
+   const lobbyV=t.plotHeight-.18;
+   block('#203a4a',lobbyU,.53,lobbyV,.78,1.05,.10,'metal');
+   block('#c5d8d5',lobbyU,.49,lobbyV+.06,.62,.89,.03,'metal');
+   block('#407b94',lobbyU,.49,lobbyV+.087,.53,.80,.025,'glass');
+   for(const u of [lobbyU-.155,lobbyU+.155]){
+    block('#9ed0db',u,.48,lobbyV+.106,.020,.76,.02,'metal');
+    block('#e5c48f',u,.48,lobbyV+.126,.038,.038,.018,'glass',true);
    }
-   // Warm recessed lights beneath the cantilever, not an opaque lower floor.
-   for(const v of (legacy?[.65,1.90,3.10,4.35,5.15]:[.85,2.30,4.0,5.60,7.0]))
-    block('#f4d4a4',cx,1.14,v,1.65,.025,.07,'glass',true);
+   block('#263c51',lobbyU,1.115,lobbyV,.91,.14,.13,'metal');
+   block('#e4bf88',lobbyU,1.183,lobbyV+.072,.53,.034,.025,'glass',true);
    // Keep previous height EXACTLY: 12 floors x .66 units = 7.92.
    const foot=topY,levels=12,storey=.66,height=levels*storey;
    const w=2.60,d=3.05;

@@ -87,5 +87,29 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(pieces.length>360,'short pixel tower must stay detailed');
  assert(Math.max(...pieces.map(p=>p.y))<11,'quarter-height tower');
  assert(pieces.every(p=>[p.x,p.y,p.z].every(Number.isFinite)));
+ // Never rebuild the old side wings or wide parking-table canopy.
+ const cx=t.plotWidth/2,cz=t.plotHeight/2;
+ const basePieces=pieces.filter(p=>p.y>1.05&&p.y<1.54&&(p.sy||0)<.35);
+ assert(basePieces.length>=2,'tower needs its own slim supporting trim');
+ assert(basePieces.every(p=>(p.sx||0)<=3.10&&(p.sz||0)<=3.38),
+  'no structural wings wider or longer than the tower facade');
+ // Structural piers must not occupy any of the eighty actual parking bays.
+ const supportV=3.43;
+ for(const u of [cx-.90,cx+.90])for(const slot of slots)
+  assert(Math.abs(slot.u-u)>.35||Math.abs(slot.v-supportV)>.44,
+   'new pier would collide with a full-size parked car');
+ // The small road-side entrance is an optical detail, not an added wing.
+ const lobbyU=(t.frontageEntranceU+t.frontageExitU)/2+.10,lobbyV=t.plotHeight-.18;
+ assert(pieces.some(p=>Math.abs(p.x-(home.x+lobbyU))<.02&&
+  Math.abs(p.z-(home.y+lobbyV))<.03&&p.y<1&&p.sx<.82),
+  'a narrow glass lobby must sit between the actual road gates');
+ const legacyBuilding={...home,key:'home_mahanakhon_compact',x:20,y:20,rotation:0};
+ const compactBatch=new Batch();
+ renderer.building(compactBatch,legacyBuilding,g.CATALOG,{});
+ const compactPieces=[...compactBatch.data.values()].flatMap(x=>x.items);
+ const oldBase=compactPieces.filter(p=>p.y>1.05&&p.y<1.54&&(p.sy||0)<.35);
+ assert(oldBase.every(p=>(p.sx||0)<=3.10&&(p.sz||0)<=3.38),
+  'saved compact towers must not regain the side wings');
+
  console.log(JSON.stringify({passed:true,tower:'Mahanakhon',cost:t.cost,bays:80,plot:[14,8],rotation:4,save:true,driving:true,mesh:pieces.length}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
