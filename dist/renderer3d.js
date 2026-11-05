@@ -2520,20 +2520,6 @@ export class TrafficRenderer{
     block('#93b8c9',u,.78,supportV+.138,.022,1.08,.025,'metal');
    block('#304f63',cx,1.43,cz,2.60,.12,3.05,'metal');
    block('#698fa5',cx,1.494,cz,2.60,.027,3.05,'metal');
-   // Small visual lobby door at the ROAD FRONT BETWEEN the existing entry
-   // and exit lanes. It does not add a building wing, a driveway or a
-   // collision body, and the game gates remain untouched.
-   const lobbyU=(t.frontageEntranceU+t.frontageExitU)/2+.10;
-   const lobbyV=t.plotHeight-.18;
-   block('#203a4a',lobbyU,.53,lobbyV,.78,1.05,.10,'metal');
-   block('#c5d8d5',lobbyU,.49,lobbyV+.06,.62,.89,.03,'metal');
-   block('#407b94',lobbyU,.49,lobbyV+.087,.53,.80,.025,'glass');
-   for(const u of [lobbyU-.155,lobbyU+.155]){
-    block('#9ed0db',u,.48,lobbyV+.106,.020,.76,.02,'metal');
-    block('#e5c48f',u,.48,lobbyV+.126,.038,.038,.018,'glass',true);
-   }
-   block('#263c51',lobbyU,1.115,lobbyV,.91,.14,.13,'metal');
-   block('#e4bf88',lobbyU,1.183,lobbyV+.072,.53,.034,.025,'glass',true);
    // Keep previous height EXACTLY: 12 floors x .66 units = 7.92.
    const foot=topY,levels=12,storey=.66,height=levels*storey;
    const w=2.60,d=3.05;
