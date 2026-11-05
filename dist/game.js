@@ -8399,6 +8399,57 @@ function migrateJourneyRules(){
   }
  }
 }
+// Saved cities always restart at the following 06:00. Do NOT call daily()
+// here: an offline load is not a simulated day and cannot mint tax income.
+function advanceLoadedCityToMorning(){
+ const savedTime=state.time,next=(performanceDay(savedTime)+1)*1440+360;
+ const day=Math.floor(next/1440);
+ // Remove transient visitors, trips, lane claims and temporary traffic
+ // reservations. Permanent roads, buildings, citizens, money and upgrades
+ // are never changed by the clock conversion.
+ for(const c of [...state.citizens.values()])if(c.tourist)removeCitizen(c);
+ state.vehicles.clear();state.occ.clear();state.reservations.clear();
+ state.activeTraffic.clear();parkingMerges=[];
+ oppositeExitPairSince.clear();incidentCases.clear();incidentForVehicle.clear();
+ incidentScanAt=-Infinity;state.events=[];state.time=next;
+ state.lastMinute=next-1;state.lastDay=day;state.lastImmigration=next;
+ state.lastPass=next;state.morningPlanningDay=null;state.nextActivityCheck=next;
+ state.intercityHour=null;state.intercityRouteCache=null;state.deliveryRun=null;
+ state.nextTouristAt=next+3;state.incidentRewards={day,count:0};
+ for(const road of state.roads.values()){road.load=0;road.wait=0;}
+ for(const b of state.buildings.values()){
+  b.queue=[];b.grandSignal=null;b.reservedResidents=0;b.reservedService=0;
+  b.visitors.clear();b.guests.clear();b.parked.clear();
+  b.parkingSlots=Array(CATALOG[b.key].parkingCapacity).fill(null);
+  b.arrivals=0;
+  if(Array.isArray(b.moveOutCooldowns))b.moveOutCooldowns=b.moveOutCooldowns.filter(at=>at>next);
+ }
+ for(const c of state.citizens.values()){
+  if(c.removed||!c.resident)continue;
+  c.vehicleId=null;c.pending=null;c.queued=null;c.lifeRun=null;
+  c.activityUntil=null;c.sleepUntil=null;c.dailyPlan=null;
+  c.scheduled=new Set();c.lifePlans={};
+  c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';
+  c.lastTax=workTax(c,Math.floor(savedTime/1440));
+  c.pain=0;c.failKinds?.clear();
+  const home=state.buildings.get(c.homeId);
+  if(home){home.residents.add(c.id);home.parked.add(c.id);}
+  if(!c.profile)c.profile=profile(c.id);
+  ensureRoutine(c);
+ }
+ syncParkingSlots();
+ // Close old score snapshots, but explicitly skip tax/maintenance settlement:
+ // loading the same city repeatedly must never create money.
+ closePerformanceDay();
+ missionFinishDay(performanceDay(),{tax:0,business:0,maint:0},0);
+ for(const c of state.citizens.values()){
+  if(!c.resident||c.removed||c.tourist)continue;
+  if(c.movingOut){schedule(c,next+1,'moveOut');continue;}
+  scheduleDay(c,day);scheduleDay(c,day+1);
+ }
+ reconcile();syncCitizenVehicleTech();
+ addNews('โหลดเซฟ · เริ่มเช้าวันใหม่ 06:00');
+}
 function loadGame(silent=false,slotId=null,rawOverride=null){const previous={state,cam,news};try{const slots=rawOverride===null?readSaveSlots():[],slot=slotId?slots.find(s=>s.id===slotId):slots[0],raw=rawOverride??slot?.data;if(!raw){if(!silent)toast('ยังไม่มีเมืองที่บันทึกไว้ค่ะ');return false;}const s=JSON.parse(raw);validateSave(s);reset(s.city);state.intercityHour=s.intercityHour&&Number.isInteger(s.intercityHour.hour)&&Number.isInteger(s.intercityHour.total)&&s.intercityHour.total>=0&&Number.isInteger(s.intercityHour.next)&&s.intercityHour.next>=0&&s.intercityHour.next<=s.intercityHour.total?{hour:s.intercityHour.hour,total:s.intercityHour.total,next:s.intercityHour.next,offset:Math.floor(s.intercityHour.offset||0)%4}:null;state.deliveryRun=s.deliveryRun&&Number.isInteger(s.deliveryRun.night)&&Array.isArray(s.deliveryRun.plan)&&Number.isInteger(s.deliveryRun.next)&&s.deliveryRun.plan.length<=3000?{...s.deliveryRun,next:Math.max(0,Math.min(s.deliveryRun.plan.length,s.deliveryRun.next)),delivered:s.deliveryRun.delivered||{}}:null;state.money=s.money;state.vehicleTechLevels=normalizedVehicleTechLevels(s.vehicleTechLevels,s.vehicleTechUnit,s.citizens);state.time=s.time;state.morningPlanningDay=s.morningPlanningDay;const savedRewards=s.incidentRewards||{};state.incidentRewards={day:Math.floor(s.time/1440),count:savedRewards.day===Math.floor(s.time/1440)&&Number.isFinite(savedRewards.count)?Math.max(0,Math.min(INCIDENT_REWARD_DAILY_LIMIT,Math.floor(savedRewards.count))):0};state.nextId=s.nextId;state.profileSeq=s.profileSeq??s.citizens.length;state.lastImmigration=s.time;state.lastPass=s.time;state.tourism=s.tourism;state.plantedTrees=(s.plantedTrees||[]).filter(t=>!RETIRED_DECOR_KINDS.includes(t.kind));state.hiddenAutoTrees=s.hiddenAutoTrees||[];state.autoTreeRotations=s.autoTreeRotations||{};state.landscapeVersion=0;state.nextTouristAt=s.nextTouristAt||s.time+3;state.missionStats=restoreMissionStats(s.missionStats);missionAutoClose();state.roads=new Map(s.roads.map(([i,r])=>[i,{...r,links:new Set(r.links)}]));state.buildings=new Map(s.buildings.map(([i,b])=>[i,{...b,residents:new Set(b.residents),workers:new Set(b.workers),visitors:new Set(b.visitors),parked:new Set(b.parked),guests:new Set(b.guests||[]),moveOutCooldowns:Array.isArray(b.moveOutCooldowns)?b.moveOutCooldowns.filter(expiry=>Number.isFinite(expiry)&&expiry>s.time).slice(0,CATALOG[b.key]?.residents||0):[]}]));// Preserve old civic plots, parked cars and active trips without shrinking old saves.
  for(const b of state.buildings.values())if(b.key==='civic_starter'&&b.parkingSlots.length===60)b.key='civic_legacy';
  state.buildingQuota=restoreBuildingQuota(s.buildingQuota);state.demandNotices=restoreDemandNotices(s.demandNotices);state.citizens=new Map(s.citizens.map(([i,c])=>[i,{...c,scheduled:new Set(c.scheduled),failKinds:new Set(c.failKinds)}]));state.cityLevel=restoreCityLevel(s.cityLevel);state.vehicles=new Map(s.vehicles.map(([i,v])=>[i,{...v,trafficModel:v.trafficModel??1,pathSet:new Set(v.pathSet)}]));state.signals=new Map(s.signals||[]);nextAISignalPoll=-Infinity;state.signalDefaults=s.signalDefaults||state.signalDefaults;state.events=s.events;eventHeapify();cam=s.cam||cam;news=s.news||[];migrateCompactHomes();migrateMahanakhonSpaciousLots();migrateJourneyRules();migrateActivity251();rebuildFootprint();state.buildGrid.fill(-1);for(const b of state.buildings.values()){markBuildingPlot(b,b.id);b.access=accessFor(b);}// Previously saved grand homes share the exact same 11x13 footprint, so
@@ -8424,15 +8475,15 @@ function loadGame(silent=false,slotId=null,rawOverride=null){const previous={sta
   }
  }
  for(const v of state.vehicles.values())if(['driving','parking_out'].includes(v.phase)||v.phase==='parking_in'&&v.occKey)occupy(v,v.pos);for(const v of state.vehicles.values())if(v.phase==='driving')refreshMotionReservations(v,motionPlan(v),motionDistance(v));reconcile();
- // Existing saves still work: retain the current day's already-queued events,
- // then switch to dynamic routines when the next game day is scheduled.
+ // Discard the saved day's in-flight traffic and create clean 06:00 schedules.
+ advanceLoadedCityToMorning();
  for(const c of state.citizens.values()){
   if(c.tourist)continue;
   if(!c.profile)c.profile=profile(c.id);
   ensureRoutine(c);
   if(!c.dailyPlan||!Number.isFinite(c.dailyPlan.day))c.dailyPlan=planForDay(c,Math.floor(state.time/1440));
  }
- syncCitizenVehicleTech();migratePerformance(s.performance);migrateTravelPlanning();state.speed=0;scanIncidents(true);renderTools();updateUI();if(!silent)toast('โหลดเมืองพร้อมลานจอดแล้ว กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+(state.city==='london'?'UNITED KINGDOM':'THAILAND')+' · สร้างเมืองในแบบคุณ</small>';renderTools();updateUI();if(!silent)toast(e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
+ syncCitizenVehicleTech();migratePerformance(s.performance);migrateTravelPlanning();state.speed=0;scanIncidents(true);renderTools();updateUI();if(!silent)toast('โหลดเซฟแล้ว · เริ่มวันใหม่ 06:00 กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+(state.city==='london'?'UNITED KINGDOM':'THAILAND')+' · สร้างเมืองในแบบคุณ</small>';renderTools();updateUI();if(!silent)toast(e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
 // A developer can load a copy into the current session; no other user's save is changed.
 window.SMGameLoadCreatorSave=(raw,name)=>{
  if(!window.SMGameCreatorCanOpen||!window.SMGameAccount?.user||typeof raw!=='string'||!raw)return false;
