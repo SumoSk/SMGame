@@ -1960,8 +1960,18 @@ export class TrafficRenderer{
   }
   return true;
  }
- tree(batch,x,z,scale=1,kind='shade',detail='standard'){
-  if(this.decoration(batch,x,z,kind))return;
+ tree(batch,x,z,scale=1,kind='shade',detail='standard',rotation=0){
+  if(this.decoration(batch,x,z,kind,rotation,detail))return;
+  if(rotation%4){
+   const angle=-(rotation%4)*Math.PI/2,cos=Math.cos(angle),sin=Math.sin(angle);
+   const turn=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle),pose=new THREE.Quaternion(),euler=new THREE.Euler();
+   const rotated=Object.create(batch);
+   rotated.add=(geo,color,px,py,pz,sx,sy,sz,rx=0,ry=0,rz=0,...rest)=>{
+    pose.setFromEuler(euler.set(rx,ry,rz));pose.premultiply(turn);euler.setFromQuaternion(pose);
+    batch.add(geo,color,x+cos*(px-x)+sin*(pz-z),py,z-sin*(px-x)+cos*(pz-z),sx,sy,sz,euler.x,euler.y,euler.z,...rest);
+   };
+   this.tree(rotated,x,z,scale,kind,detail,0);return;
+  }
   // Render-only upgrade: preserves tree kinds, footprint coordinates and save schema.
   if(kind===true)kind='palm';else if(kind===false)kind='shade';
   // Landmark trees remain recognizable on LOW, using two shared primitives
@@ -2173,8 +2183,8 @@ export class TrafficRenderer{
   if(state.city==='phuket'&&tx<this.coast(tz)+13&&variety>.25)kind='palm';
   if(state.city==='bangkok'&&Math.abs(tx-(125+Math.sin(tz*.047)*5))<14&&variety>.38)kind='willow';
   const near=this.graphicQuality==='veryHigh'||Math.hypot(tx-cam.x,tz-cam.y)<27;
-  b.pickId=++pickId;this.landscapePicks.set(pickId,{auto:true,x:tx,y:tz,kind});
-  this.tree(b,tx,tz,(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),kind,near?'near':'far');
+  b.pickId=++pickId;this.landscapePicks.set(pickId,{auto:true,x:tx,y:tz,kind,rotation:state.autoTreeRotations?.[iz*300+ix]||0});
+  this.tree(b,tx,tz,(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),kind,near?'near':'far',state.autoTreeRotations?.[iz*300+ix]||0);
   // Selectable trees remain selectable, but their understory isn't a new
   // interactable game object or something that persists in saves.
   b.pickId=null;
@@ -2201,7 +2211,7 @@ export class TrafficRenderer{
   const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:['oak','rain','willow','cherry','maple','jacaranda'].includes(t.kind)?1.24:['cedar','cypress'].includes(t.kind)?1.20:t.kind==='palm'?1.12:1.04;
   b.pickId=++pickId;this.landscapePicks.set(pickId,{item:t});
   const nearby=this.graphicQuality==='veryHigh'||Math.hypot(t.x-cam.x,t.y-cam.y)<27;
-  if(!this.decoration(b,t.x,t.y,t.kind,t.rotation||0,nearby?'near':'far'))this.tree(b,t.x,t.y,scale,t.kind,nearby?'near':'far');
+  if(!this.decoration(b,t.x,t.y,t.kind,t.rotation||0,nearby?'near':'far'))this.tree(b,t.x,t.y,scale,t.kind,nearby?'near':'far',t.rotation||0);
  }
  this.treeGroup.add(b.build());
  }
@@ -8183,7 +8193,7 @@ export class TrafficRenderer{
   let selected=null,best=Infinity;for(const hit of this.carIndicatorHits||[]){const d=Math.hypot(x-hit.x,y-hit.y);if(d<=hit.radius&&d<best){best=d;selected=hit.selection;}}return selected;
  }
  createRoute(){this.routeLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:'#fff1a0',transparent:true,opacity:.95}));this.routeLine.renderOrder=4;this.scene.add(this.routeLine);}
- preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview=null,demolitionPreview=null){const key=[roadPreview?.key,demolitionPreview?.key,tool,hover?.x,hover?.y,hover?.rawX?.toFixed?.(2),hover?.rawY?.toFixed?.(2),hover?.snap,hover?.placement?.rotation,hover?.decorationRotation,hover?.landscape?.rotation,hover?.placement?.error,drag?.cells?.join(','),selected?.kind,selected?.id,selected?.record?.item?.x??selected?.record?.x,selected?.record?.item?.y??selected?.record?.y,state.landscapeVersion,state.version,state.buildings.size].join(':');if(key===this.previewKey)return;this.previewKey=key;this.disposeGroup(this.previewGroup);const boxes=[];const moving=drag?.landscape?.item||drag?.landscape||hover?.landscape?.item||hover?.landscape;if(moving&&hover){const b=new Batch(),px=hover.snap?hover.x+.5:Math.round((hover.rawX??hover.x+.5)*100)/100,pz=hover.snap?hover.y+.5:Math.round((hover.rawY??hover.y+.5)*100)/100;if(!this.decoration(b,px,pz,moving.kind,moving.rotation||0))this.tree(b,px,pz,1,moving.kind);const ghost=b.build(false);ghost.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.5;}});this.previewGroup.add(ghost);}if(hover&&CATALOG[tool]){const t=CATALOG[tool],check=hover.placement||checkBuilding(tool,hover.x,hover.y),ok=!check.error,ghost={key:tool,id:-1,x:hover.x,y:hover.y,rotation:check.rotation||0},bounds=this.parking.buildingBounds(ghost);boxes.push([hover.x+bounds.w/2,hover.y+bounds.h/2,bounds.w,bounds.h,ok?'#d9f788':'#ff947f']);const b=new Batch();this.building(b,ghost,CATALOG);const model=b.build(false);model.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.52;}});this.previewGroup.add(model);}else if(roadPreview){
+ preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview=null,demolitionPreview=null){const key=[roadPreview?.key,demolitionPreview?.key,tool,hover?.x,hover?.y,hover?.rawX?.toFixed?.(2),hover?.rawY?.toFixed?.(2),hover?.snap,hover?.placement?.rotation,hover?.decorationRotation,hover?.landscape?.rotation,hover?.placement?.error,drag?.cells?.join(','),selected?.kind,selected?.id,selected?.record?.item?.x??selected?.record?.x,selected?.record?.item?.y??selected?.record?.y,state.landscapeVersion,state.version,state.buildings.size].join(':');if(key===this.previewKey)return;this.previewKey=key;this.disposeGroup(this.previewGroup);const boxes=[];const moving=drag?.landscape?.item||drag?.landscape||hover?.landscape?.item||hover?.landscape;if(moving&&hover){const b=new Batch(),px=hover.snap?hover.x+.5:Math.round((hover.rawX??hover.x+.5)*100)/100,pz=hover.snap?hover.y+.5:Math.round((hover.rawY??hover.y+.5)*100)/100;if(!this.decoration(b,px,pz,moving.kind,moving.rotation||0))this.tree(b,px,pz,1,moving.kind,'standard',moving.rotation||0);const ghost=b.build(false);ghost.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.5;}});this.previewGroup.add(ghost);}if(hover&&CATALOG[tool]){const t=CATALOG[tool],check=hover.placement||checkBuilding(tool,hover.x,hover.y),ok=!check.error,ghost={key:tool,id:-1,x:hover.x,y:hover.y,rotation:check.rotation||0},bounds=this.parking.buildingBounds(ghost);boxes.push([hover.x+bounds.w/2,hover.y+bounds.h/2,bounds.w,bounds.h,ok?'#d9f788':'#ff947f']);const b=new Batch();this.building(b,ghost,CATALOG);const model=b.build(false);model.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.52;}});this.previewGroup.add(model);}else if(roadPreview){
   const receiver={roadGroup:new THREE.Group(),signalGroup:new THREE.Group(),disposeGroup:this.disposeGroup,parking:this.parking};
   TrafficRenderer.prototype.makeRoads.call(receiver,roadPreview.state,ROADS,roadPreview.junction,true);
   receiver.roadGroup.position.y=.035;receiver.signalGroup.position.y=.035;
@@ -8200,7 +8210,7 @@ export class TrafficRenderer{
   const x=hover.snap?hover.x+.5:Math.round((hover.rawX??hover.x+.5)*100)/100,z=hover.snap?hover.y+.5:Math.round((hover.rawY??hover.y+.5)*100)/100,i=hover.y*300+hover.x;
   if(hover.x>=0&&hover.y>=0&&hover.x<300&&hover.y<300){
    const batch=new Batch(),kind=tool.startsWith('tree:')?tool.slice(5):'shade';
-   if(!this.decoration(batch,x,z,kind,hover.decorationRotation||0))this.tree(batch,x,z,kind==='shrub'?.65:1,kind);
+   if(!this.decoration(batch,x,z,kind,hover.decorationRotation||0))this.tree(batch,x,z,kind==='shrub'?.65:1,kind,'standard',hover.decorationRotation||0);
    const ghost=batch.build(false);ghost.traverse(o=>{if(o.material){o.material.transparent=true;o.material.opacity=.50;}});this.previewGroup.add(ghost);
   }
  }

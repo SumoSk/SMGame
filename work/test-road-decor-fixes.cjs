@@ -35,12 +35,10 @@ g.selectTool('hand');g.inspectAt(...g.screen(prop.x,prop.y,8));assert.equal(g.se
 const action=name=>get('landscapeQuickActions').onclick({target:{closest:()=>({dataset:{landscapeAction:name}})},preventDefault(){},stopPropagation(){}});
 action('rotate');assert.equal(prop.rotation,2);assert.equal(g.state.money,beforeCash,'rotation is free');
 assert(g.loadGame(true,null,g.snapshot()));prop=g.state.plantedTrees.at(-1);assert.equal(prop.rotation,2,'rotated props survive save/load');
-g.selectTool('hand');g.inspectAt(...g.screen(prop.x,prop.y,8));action('delete');assert(g.landscapeDeletePending);assert(g.state.plantedTrees.includes(prop),'delete is not immediate');
-action('cancel');assert(!g.landscapeDeletePending);assert(g.state.plantedTrees.includes(prop));
-action('delete');action('confirm');assert(!g.state.plantedTrees.includes(prop));assert.equal(get('landscapeQuickActions').hidden,true);
+g.selectTool('hand');g.inspectAt(...g.screen(prop.x,prop.y,8));const countBeforeDelete=g.state.plantedTrees.length;action('delete');assert(!g.state.plantedTrees.includes(prop),'one click deletes immediately');assert.equal(g.state.plantedTrees.length,countBeforeDelete-1,'delete affects only one selected piece');assert.equal(get('landscapeQuickActions').hidden,true);
 assert(g.plantLandscape(190,190,'thai_motorbike',3));prop=g.state.plantedTrees.at(-1);g.beginMoveLandscape({item:prop});assert(g.rotateLandscape());assert.equal(prop.rotation,3,'preview rotation while moving does not mutate the original');
 g.cancelBuildingMove();assert.equal(prop.rotation,3,'canceling a move preserves the original orientation');
-g.selectTool('tree:shade');assert.equal(g.rotateLandscape(),false,'trees do not show a meaningless rotate action');
+g.selectTool('tree:shade');assert.equal(g.rotateLandscape(),true,'trees expose the same rotate action as decorations');
 
 (async()=>{
  const THREE=await import(pathToFileURL(path.resolve('dist/vendor/three.module.js')).href);
