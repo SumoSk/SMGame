@@ -100,6 +100,31 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(pieces.some(p=>Math.abs(p.x-(home.x+t.plotWidth/2))<.01&&
   Math.abs(p.z-(home.y+3.43-.035))<.01&&p.sx===2.60&&p.sy===1.46),
   'rear enclosure must drop continuously from the soffit');
+ assert(pieces.some(p=>contains(p,home.x+7,1.63,home.y+1.50)),
+  'rear canopy must cover the open rear court');
+ const frontCutX=home.x+7-1.30+2.5*(2.60/6);
+ const frontCutZ=home.y+4-1.525+4.5*(3.05/6);
+ assert(!pieces.some(p=>contains(p,frontCutX,1.50+6.5*.66,frontCutZ)),
+  'street-facing middle floors need a genuine open setback');
+ const roofY=1.50+14*.66;
+ assert(pieces.some(p=>Math.abs(p.y-(roofY+.198))<.001&&p.sx===1.07&&p.sz===.88),
+  'observation crown must include a projecting glass tray');
+ assert(pieces.some(p=>Math.abs(p.y-(roofY+.17+.55/2))<.001&&p.sy===.55),
+  'observation crown must have a stepped raised Peak');
+ // Keep both gates and the continuous cross-front arrival route free of
+ // the new fence, entrance lamps, trees and planting troughs.
+ const decorColors=new Set(['#bdc7bb','#527065','#4a635c','#3e5d59','#dfc8a1',
+  '#bac5b4','#516b4b','#7b644f','#638d67','#87a57a','#abbca1','#6f936e']);
+ const decorations=[...batch.data.values()].filter(g=>decorColors.has(g.color)).flatMap(g=>g.items);
+ assert(decorations.length>70,'court must have real perimeter landscaping');
+ for(const p of decorations){
+  assert(!(Math.abs(p.z-(home.y+t.frontageV))<p.sz/2+.20&&
+   p.x+p.sx/2>home.x+.25&&p.x-p.sx/2<home.x+6.20),
+   'landscaping must not cover the incoming cross-front driveway');
+  for(const u of [t.frontageEntranceU,t.frontageExitU])
+   assert(!(Math.abs(p.x-(home.x+u))<p.sx/2+.24&&
+    p.z+p.sz/2>home.y+7.15),'gate must remain open');
+ }
 
  // Never rebuild the old side wings or wide parking-table canopy.
  const cx=t.plotWidth/2,cz=t.plotHeight/2;
@@ -129,3 +154,4 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
 
  console.log(JSON.stringify({passed:true,tower:'Mahanakhon',cost:t.cost,bays:80,plot:[14,8],rotation:4,save:true,driving:true,mesh:pieces.length}));
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
