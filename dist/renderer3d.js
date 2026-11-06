@@ -2497,7 +2497,7 @@ export class TrafficRenderer{
   if(b.key==='home_mahanakhon'||b.key==='home_mahanakhon_compact'){
    // Mahanakhon slim edition: tower-only silhouette, no side wings.
    // This renderer supports both the current 14x8 plot and legacy 8x6 saves;
-   // the 80-stall single-level layout and 12-storey height are unchanged.
+   // the 80-stall single-level layout and all existing parking geometry and routes are unchanged.
    const legacy=b.key==='home_mahanakhon_compact',cx=t.plotWidth/2,cz=t.plotHeight/2,topY=1.50;
    // No lateral wings, wide canopy, or raised platform: only a trim the
    // exact width/depth of the glass tower. Asphalt below belongs to the
@@ -2520,8 +2520,8 @@ export class TrafficRenderer{
     block('#93b8c9',u,.78,supportV+.138,.022,1.08,.025,'metal');
    block('#304f63',cx,1.43,cz,2.60,.12,3.05,'metal');
    block('#698fa5',cx,1.494,cz,2.60,.027,3.05,'metal');
-   // Keep previous height EXACTLY: 12 floors x .66 units = 7.92.
-   const foot=topY,levels=12,storey=.66,height=levels*storey;
+   // Extend the original narrow silhouette by just two storeys.
+   const foot=topY,levels=14,storey=.66,height=levels*storey;
    const w=2.60,d=3.05;
    block('#17394f',cx,foot+height/2,cz,w,height,d,'glass');
    // Finer window modules. Six columns make a beautiful narrow crown while
@@ -2569,6 +2569,86 @@ export class TrafficRenderer{
    }
    block('#82949c',cx-.42,top+.24,cz-.36,.52,.18,.55,'metal');
    block('#57717e',cx+.50,top+.22,cz+.39,.47,.14,.49,'metal');
+   // Slender corner mullions sharpen the luxury glass facade while keeping
+   // every pixelated Mahanakhon setback and the original narrow tower footprint.
+   for(const side of [-1,1]){
+    block('#7294a8',cx+side*1.30,foot+height/2,cz+1.51,.035,height-.14,.036,'metal');
+    block('#7294a8',cx+side*1.30,foot+height/2,cz-1.51,.035,height-.14,.036,'metal');
+   }
+   block('#b4a182',cx,top+.30,cz+1.46,1.95,.035,.050,'metal');
+   block('#b4a182',cx,top+.30,cz-1.46,1.95,.035,.050,'metal');
+
+   // Full-width entrance pavilion connected directly to the tower by a
+   // suspended roof terrace. The new 14x8 plot has a safe front gap between
+   // the final parked row (ends at v=6.31) and the street course (v>=7.08).
+   const terraceBack=cz+1.41,terraceFront=cz+(legacy?1.94:2.72);
+   const terraceDepth=terraceFront-terraceBack,terraceMid=(terraceFront+terraceBack)/2;
+   const portalV=terraceFront-.075;
+   block('#465f71',cx,1.65,terraceMid,2.64,.16,terraceDepth,'metal');
+   block('#ddd7c9',cx,1.748,terraceMid,2.56,.045,terraceDepth-.065,'stone');
+   block('#bea47c',cx,1.585,portalV,2.60,.095,.095,'metal');
+   block('#ffe1b6',cx,1.537,portalV+.046,2.36,.024,.023,'glass',true);
+   for(const side of [-1,1])
+    block('#bea47c',cx+side*1.29,1.69,terraceMid,.035,.065,terraceDepth,'metal');
+
+   // Realistic full-width facade with double glazed doors, side lights,
+   // bronze framing and discrete warm lobby glow. Visual-only, not physics.
+   // Legacy compact plots retain a flush door to avoid blocking old bays.
+   if(!legacy){
+    for(const side of [-1,1]){
+     block('#395469',cx+side*1.18,.778,portalV,.16,1.53,.14,'metal');
+     block('#ceb48d',cx+side*1.18,.785,portalV+.079,.040,1.42,.023,'metal');
+     block('#ceb48d',cx+side*1.18,1.515,portalV,.26,.075,.20,'metal');
+    }
+    block('#243d4f',cx,.77,portalV+.018,2.12,1.38,.064,'metal');
+    block('#77b2c2',cx,.77,portalV+.063,2.02,1.26,.027,'glass');
+    for(const side of [-1,1]){
+     block('#c6ab82',cx+side*.57,.77,portalV+.088,.045,1.27,.027,'metal');
+     block('#b3dae3',cx+side*.82,.95,portalV+.101,.29,.46,.018,'glass');
+    }
+    for(const u of [cx-.255,cx+.255]){
+     block('#26485b',u,.72,portalV+.106,.476,1.06,.030,'glass');
+     block('#91cad6',u,.95,portalV+.125,.41,.40,.014,'glass');
+     block('#e6cc9e',u,.73,portalV+.133,.018,1.02,.018,'metal');
+    }
+    block('#d2b68b',cx,.77,portalV+.144,.023,1.03,.020,'metal');
+    for(const u of [cx-.117,cx+.117])
+     block('#f5deb0',u,.67,portalV+.161,.028,.095,.021,'metal');
+    block('#c9ae85',cx,1.45,portalV+.092,2.40,.074,.070,'metal');
+    block('#ffebcb',cx,1.36,portalV+.122,1.26,.040,.024,'glass',true);
+   }else{
+    block('#b79e79',cx,1.39,supportV+.22,1.03,.070,.065,'metal');
+    block('#6c9eaf',cx,1.03,supportV+.24,.75,.56,.030,'glass');
+   }
+
+   // Roof pool is carved visually into the canopy's top surface, not put
+   // on the ground. Two shallow water shades give a realistic low-poly depth.
+   const poolX=cx-.47,poolV=terraceMid-.025,poolW=legacy?1.10:1.30;
+   const poolD=legacy?.26:.61;
+   block('#f1eee6',poolX,1.796,poolV,poolW+.16,.088,poolD+.11,'stone');
+   block('#236983',poolX,1.839,poolV,poolW,.026,poolD,'glass');
+   block('#50c3d8',poolX,1.857,poolV,poolW-.092,.012,poolD-.09,'glass');
+   block('#b6eee9',poolX-.18,1.868,poolV-.11,poolW*.39,.008,.022,'glass');
+   for(const side of [-1,1])
+    block('#fcf9f1',poolX+side*(poolW/2+.07),1.866,poolV,.035,.060,poolD+.09,'stone');
+
+   // Rooftop garden with raised pots and genuine 3D low-polygon foliage.
+   // Shared primitives are instanced, avoiding new runtime geometries.
+   const roofPlant=(u,v,scale=1)=>{
+    block('#cbbda4',u,1.85,v,.26*scale,.17,.26*scale,'stone');
+    block('#527750',u,1.952,v,.215*scale,.035,.215*scale,'matte');
+    const pos=point(u,v);
+    batch.add(CYL,'#866e53',pos.x-.5,2.065,pos.y-.5,.032*scale,.22,.032*scale,0,0,0,id,false,'roof-garden-essential');
+    batch.add(LEAF,'#709b78',pos.x-.5,2.235,pos.y-.5,.19*scale,.205,.18*scale,0,0,0,id,false,'roof-garden-essential');
+    batch.add(LEAF,'#538e71',pos.x-.5-.077*scale,2.18,pos.y-.5+.045*scale,.125*scale,.145,.13*scale,0,0,0,id,false,'roof-garden-essential');
+    batch.add(LEAF,'#9bb88b',pos.x-.5+.07*scale,2.20,pos.y-.5-.04*scale,.12*scale,.145,.12*scale,0,0,0,id,false,'roof-garden-essential');
+   };
+   roofPlant(cx+.94,terraceMid-terraceDepth*.21,legacy?.73:1);
+   if(!legacy){
+    roofPlant(cx+.94,terraceMid+terraceDepth*.25,.88);
+    block('#e9dfc9',cx+.41,1.81,terraceMid-.18,.21,.045,.47,'wood');
+    block('#faf5e9',cx+.41,1.865,terraceMid-.30,.21,.07,.18,'stone');
+   }
    return;
   }
 
