@@ -87,6 +87,20 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  assert(pieces.length>360,'short pixel tower must stay detailed');
  assert(Math.max(...pieces.map(p=>p.y))<11.6,'14-floor slim Mahanakhon height');
  assert(pieces.every(p=>[p.x,p.y,p.z].every(Number.isFinite)));
+ // Test cavity volumes, not just darker panels: these two carved cells
+ // must remain empty through the centre of their respective storeys.
+ const contains=(p,x,y,z)=>Math.abs(p.x-x)<p.sx/2-.002&&
+  Math.abs(p.y-y)<p.sy/2-.002&&Math.abs(p.z-z)<p.sz/2-.002;
+ for(const [floor,col,row] of [[0,2,5],[1,4,4]]){
+  const x=home.x+t.plotWidth/2-1.30+(col+.5)*(2.60/6);
+  const z=home.y+t.plotHeight/2-1.525+(row+.5)*(3.05/6);
+  const y=1.50+(floor+.5)*.66;
+  assert(!pieces.some(p=>contains(p,x,y,z)),'pixel setback contains a hidden solid core');
+ }
+ assert(pieces.some(p=>Math.abs(p.x-(home.x+t.plotWidth/2))<.01&&
+  Math.abs(p.z-(home.y+3.43-.035))<.01&&p.sx===2.60&&p.sy===1.46),
+  'rear enclosure must drop continuously from the soffit');
+
  // Never rebuild the old side wings or wide parking-table canopy.
  const cx=t.plotWidth/2,cz=t.plotHeight/2;
  const basePieces=pieces.filter(p=>p.y>1.05&&p.y<1.54&&(p.sy||0)<.35);
