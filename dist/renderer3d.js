@@ -2638,10 +2638,10 @@ export class TrafficRenderer{
     block('#cbbda4',u,1.85,v,.26*scale,.17,.26*scale,'stone');
     block('#527750',u,1.952,v,.215*scale,.035,.215*scale,'matte');
     const pos=point(u,v);
-    batch.add(CYL,'#866e53',pos.x-.5,2.065,pos.y-.5,.032*scale,.22,.032*scale,0,0,0,id,false,'wood');
-    batch.add(LEAF,'#709b78',pos.x-.5,2.235,pos.y-.5,.19*scale,.205,.18*scale,0,0,0,id,false,'foliage');
-    batch.add(LEAF,'#538e71',pos.x-.5-.077*scale,2.18,pos.y-.5+.045*scale,.125*scale,.145,.13*scale,0,0,0,id,false,'foliage');
-    batch.add(LEAF,'#9bb88b',pos.x-.5+.07*scale,2.20,pos.y-.5-.04*scale,.12*scale,.145,.12*scale,0,0,0,id,false,'foliage');
+    batch.add(CYL,'#866e53',pos.x-.5,2.065,pos.y-.5,.032*scale,.22,.032*scale,0,0,0,id,false,'roof-garden-essential');
+    batch.add(LEAF,'#709b78',pos.x-.5,2.235,pos.y-.5,.19*scale,.205,.18*scale,0,0,0,id,false,'roof-garden-essential');
+    batch.add(LEAF,'#538e71',pos.x-.5-.077*scale,2.18,pos.y-.5+.045*scale,.125*scale,.145,.13*scale,0,0,0,id,false,'roof-garden-essential');
+    batch.add(LEAF,'#9bb88b',pos.x-.5+.07*scale,2.20,pos.y-.5-.04*scale,.12*scale,.145,.12*scale,0,0,0,id,false,'roof-garden-essential');
    };
    roofPlant(cx+.94,terraceMid-terraceDepth*.21,legacy?.73:1);
    if(!legacy){
