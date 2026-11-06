@@ -376,10 +376,10 @@ function parkingAccess(b){
  const z=choose(exit,a.node);if(!z||tangent(exit,z)>1.1)return [];
  return [{...a,entry:true,exit:false},{...z,entry:false,exit:true}];
 }
-// v5.4.10: one road-free grid cell beside both sides of each home parcel.
+// One road-free grid cell beside both sides of every building parcel.
 // Rotation changes which parcel edges are sides; the front stays unrestricted.
 const HOME_SIDE_CLEARANCE_BLOCKS=1;
-const HOME_SIDE_CLEARANCE_ERROR='เว้นระยะจากบ้าน 1 ช่อง';
+const HOME_SIDE_CLEARANCE_ERROR='เว้นระยะจากอาคาร 1 ช่อง';
 function homeSideClearanceCells(b){
  const {w,h}=buildingBounds(b),cells=[];
  for(let gap=1;gap<=HOME_SIDE_CLEARANCE_BLOCKS;gap++){
@@ -408,7 +408,7 @@ function checkParkingBuilding(key,x,y,ignoreId=null,preferredRotation=null){
   const b={key,x,y,rotation},bounds=buildingBounds(b);if(!valid(x,y)||!valid(x+bounds.w-1,y+bounds.h-1)){error='พื้นที่อาคารและลานจอดต้องอยู่ในแผนที่ค่ะ';continue;}
   let blocked=false;for(let yy=y;yy<y+bounds.h&&!blocked;yy++)for(let xx=x;xx<x+bounds.w;xx++){const i=id(xx,yy);if(state.footprint[i]>=0||(state.buildGrid[i]>=0&&state.buildGrid[i]!==ignoreId)){blocked=true;break;}}
   if(blocked){error='พื้นที่อาคารและลานจอดทับถนนหรือสิ่งปลูกสร้างค่ะ';continue;}
-  if(t.kind==='home'&&homeSideClearanceCells(b).some(i=>state.homeSideRoadFootprint?.[i])){error=HOME_SIDE_CLEARANCE_ERROR;continue;}
+  if(homeSideClearanceCells(b).some(i=>state.homeSideRoadFootprint?.[i])){error=HOME_SIDE_CLEARANCE_ERROR;continue;}
   const access=parkingAccess(b);if(access.length)return{access,rotation,bounds};
  }
  return{error};
@@ -1730,8 +1730,8 @@ function startNewCity(city='phuket'){
  const plots=[
   ['home_starter',167,128,0],['home_starter',170,128,0],
   ['home_starter',167,133,2],['park_starter',170,133,2],
-  ['restaurant_starter',166,140,0],['shop_starter',170,140,0],
-  ['mall_starter',166,145,2],['office_starter',170,145,2],
+  ['restaurant_starter',167,140,0],['shop_starter',170,140,0],
+  ['mall_starter',167,145,2],['office_starter',170,145,2],
   ['factory_starter',160,134,3],['hotel_starter',160,140,3],
   ['pub_starter',177,134,1],['casino_starter',177,140,1]
  ];
@@ -7422,7 +7422,7 @@ for(const i of cells){
 }
 // Newly occupied roadway is checked; legacy saves are not rewritten.
 if(newRoadSideTiles.size)for(const b of state.buildings.values()){
- if(CATALOG[b.key]?.kind!=='home')continue;
+ if(!CATALOG[b.key])continue;
  for(const tile of homeSideClearanceCells(b))if(newRoadSideTiles.has(tile))return{error:HOME_SIDE_CLEARANCE_ERROR};
 }
 const adds=new Map();for(let k=1;k<cells.length;k++){const a=cells[k-1],b=cells[k];if(a===b)continue;const pa=xy(a),pb=xy(b);if(pa[0]!==pb[0]&&pa[1]!==pb[1])return{error:'แนวถนนต้องตรงเข้าจุดเชื่อม ลองลากจากกลางถนนเดิมค่ะ'};for(const[p,q]of[[a,b],[b,a]]){if(!adds.has(p))adds.set(p,new Set(state.roads.get(p)?.links||[]));adds.get(p).add(q);if(adds.get(p).size>4)return{error:'จุดเชื่อมนี้มีถนนเกิน 4 แขนง ลองขยับแนวถนนค่ะ'};}}
