@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=7eb3bf714362';
+import { TrafficRenderer } from './renderer3d.js?v=phuket-island-sarasin-20261107';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
 await import('./game.js?v=selection-e02d3a61');
 await import('./member.js?v=4ed815769287');
