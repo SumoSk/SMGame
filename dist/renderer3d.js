@@ -2704,23 +2704,76 @@ export class TrafficRenderer{
    }
    const top=foot+height;
    block('#23465a',cx,top+.085,cz,2.97,.17,3.32,'metal');
-   for(const side of [-1,1]){
-    block('#93aebc',cx,top+.19,cz+side*1.64,2.88,.16,.06,'glass');
-    block('#93aebc',cx+side*1.46,top+.19,cz,.06,.16,3.23,'glass');
+   // A continuous roof promenade links the glazed lift, stair apron and
+   // glass tray. Timber, pale stone and bronze unify the completed crown.
+   for(let strip=0;strip<22;strip++)
+    block(strip%2?'#a78965':'#b69a76',cx,top+.185,cz-1.43+strip*.135,2.80,.025,.118,'wood');
+   block('#d8d4c5',cx-.47,top+.209,cz+.48,.51,.025,1.26,'stone');
+   block('#d8d4c5',cx+.12,top+.209,cz+.73,1.48,.025,.30,'stone');
+
+   // Guard the roof perimeter, leaving a real gap at the glass-tray
+   // entrance instead of running a railing straight through the walkway.
+   const roofRail=(u,v,w,d,y=top+.35)=>{
+    block('#8eafbc',u,y,v,w,.30,d,'glass');
+    block('#c9b99c',u,y+.16,v,w+.008,.020,d+.008,'metal');
+   };
+   roofRail(cx,cz-1.64,2.88,.025);
+   for(const side of [-1,1])roofRail(cx+side*1.46,cz,.025,3.23);
+   roofRail(cx-1.29,cz+1.64,.30,.025);
+   roofRail(cx+.75,cz+1.64,1.38,.025);
+
+   // The stairs now finish at a broad, supported observation landing.
+   // Its front rail is split around the actual stair opening.
+   const peakU=cx+.40,peakV=cz-1.025,peakTop=top+.60;
+   block('#66818a',peakU,top+.35,peakV,1.50,.30,.77,'stone');
+   block('#dbd6c5',peakU,top+.55,peakV,1.50,.10,.77,'stone');
+   block('#c3af8c',peakU,top+.61,cz-1.40,1.50,.025,.025,'metal');
+   roofRail(peakU,cz-1.40,1.50,.022,top+.75);
+   for(const side of [-1,1])roofRail(peakU+side*.75,peakV,.022,.77,top+.75);
+   roofRail(cx-.15,cz-.64,.40,.022,top+.75);
+   roofRail(cx+.98,cz-.64,.34,.022,top+.75);
+   block('#ffe2b4',peakU,top+.535,cz-.646,1.43,.025,.014,'night-tower-crown',true);
+   for(let step=0;step<6;step++){
+    const depth=1.20-step*.20,h=.07*(step+1),y=top+.18+h;
+    block('#aeb1a7',cx+.42,top+.18+h/2,cz-.64+depth/2,.74,h,depth,'stone');
+    block('#dfd7c2',cx+.42,y+.008,cz-.64+depth-.025,.74,.016,.035,'metal');
+    for(const side of [-1,1]){
+     block('#93b4bf',cx+.42+side*.405,y+.12,cz-.64+depth-.10,.016,.24,.19,'glass');
+     block('#c3af8c',cx+.42+side*.405,y+.245,cz-.64+depth-.10,.022,.018,.20,'metal');
+    }
+    if(step%2===0)
+     block('#ffe2b4',cx+.42,y-.025,cz-.64+depth+.004,.58,.016,.014,'night-tower-crown',true);
    }
-   // SkyWalk crown: stepped Peak, a glazed lift pavilion and a projecting
-   // glass tray give the rooftop its recognisable observation-deck outline.
-   for(let step=0;step<5;step++){
-    const depth=1.25-step*.22,h=.11*(step+1);
-    block('#adaca1',cx+.42,top+.17+h/2,cz-.91+depth/2,1.30,h,depth,'stone');
-    block('#d4cbb6',cx+.42,top+.17+h+.012,cz-.91+depth-.025,1.30,.024,.035,'metal');
-   }
-   block('#80aebd',cx+.42,top+.82,cz-.89,1.31,.20,.025,'glass');
+   // A viewing scope makes the landing read as a destination rather
+   // than an unfinished mechanical plinth. Use existing shared primitives.
+   const scope=point(cx+.67,cz-1.08);
+   batch.add(CYL,'#617a80',scope.x-.5,peakTop+.105,scope.y-.5,.023,.21,.023,0,0,0,id,false,'metal');
+   block('#344d5c',cx+.67,peakTop+.22,cz-1.10,.23,.10,.14,'metal');
    for(const side of [-1,1])
-    block('#8ea9b4',cx+.42+side*.65,top+.81,cz-.79,.025,.19,.24,'glass');
-   block('#34586c',cx-.65,top+.40,cz-.48,.53,.46,.68,'glass');
-   block('#93c4cf',cx-.65,top+.42,cz-.12,.46,.39,.025,'glass');
-   block('#c7b99c',cx-.65,top+.65,cz-.48,.60,.055,.74,'metal');
+    block('#a8c7d0',cx+.67+side*.065,peakTop+.22,cz-1.18,.065,.065,.020,'glass');
+
+   // Glazed arrival pavilion with an obvious front door and connected
+   // lower promenade. The roof remains slim within the original footprint.
+   block('#34586c',cx-.82,top+.40,cz-.72,.53,.46,.68,'glass');
+   block('#93c4cf',cx-.82,top+.42,cz-.36,.46,.39,.025,'glass');
+   block('#d4c3a3',cx-.82,top+.65,cz-.72,.62,.055,.75,'metal');
+   block('#d4c3a3',cx-.82,top+.40,cz-.337,.018,.34,.014,'metal');
+   block('#ffe3b7',cx-.82,top+.60,cz-.335,.38,.020,.012,'night-tower-crown',true);
+   block('#d8d4c5',cx-.67,top+.209,cz-.10,.82,.025,.30,'stone');
+
+   // A small lounge and contained rooftop planting occupy the side of
+   // the deck, leaving the lift-to-stairs and glass-tray paths unobstructed.
+   block('#9a7b56',cx+.90,top+.31,cz+1.26,.65,.18,.22,'wood');
+   block('#b69a76',cx+.90,top+.46,cz+1.35,.65,.25,.045,'wood');
+   const lounge=point(cx+1.00,cz+.92);
+   batch.add(CYL,'#d9d0b8',lounge.x-.5,top+.39,lounge.y-.5,.15,.035,.15,0,0,0,id,false,'stone');
+   batch.add(CYL,'#536d69',lounge.x-.5,top+.29,lounge.y-.5,.020,.18,.020,0,0,0,id,false,'metal');
+   for(const v of [cz+.18,cz+.86]){
+    block('#b9b7a4',cx-1.20,top+.30,v,.28,.19,.38,'stone');
+    block('#64866a',cx-1.20,top+.43,v,.24,.12,.34,'roof-garden-essential');
+    const shrub=point(cx-1.20,v);
+    batch.add(LEAF,'#86a27a',shrub.x-.5,top+.51,shrub.y-.5,.14,.16,.19,0,0,0,id,false,'roof-garden-essential');
+   }
    const trayU=cx-.55,trayV=cz+1.59;
    block('#294e60',trayU,top+.15,trayV,1.14,.07,.94,'metal');
    block('#76c6d3',trayU,top+.198,trayV,1.07,.025,.88,'glass');
@@ -2729,10 +2782,7 @@ export class TrafficRenderer{
    block('#a1c9d0',trayU,top+.34,trayV+.46,1.14,.26,.025,'glass');
    for(const side of [-1,1])
     block('#a1c9d0',trayU+side*.56,top+.34,trayV,.025,.26,.94,'glass');
-   // Crown details sit above the carved envelope; no vertical corner
-   // bars pass through the open pixel setbacks below.
-   block('#b4a182',cx,top+.30,cz+1.46,1.95,.035,.050,'metal');
-   block('#b4a182',cx,top+.30,cz-1.46,1.95,.035,.050,'metal');
+   block('#ffe2b4',trayU,top+.18,trayV+.47,1.10,.018,.012,'night-tower-crown',true);
 
    // Full-width entrance pavilion connected directly to the tower by a
    // suspended roof terrace. The new 14x8 plot has a safe front gap between
