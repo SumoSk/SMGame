@@ -2520,44 +2520,71 @@ export class TrafficRenderer{
     block('#93b8c9',u,.78,supportV+.138,.022,1.08,.025,'metal');
    block('#304f63',cx,1.43,cz,2.60,.12,3.05,'metal');
    block('#698fa5',cx,1.494,cz,2.60,.027,3.05,'metal');
-   // Extend the original narrow silhouette by just two storeys.
+   // A continuous rear enclosure drops from the structural soffit in the
+   // same clear strip as the existing lift core, away from the parked cars.
+   block('#2e4b5d',cx,.84,supportV-.035,2.60,1.46,.12,'metal');
+   block('#638e9f',cx,.85,supportV-.103,2.43,1.27,.023,'glass');
+   block('#b8ab92',cx,.15,supportV-.114,2.60,.10,.035,'stone');
+   block('#b8ab92',cx,1.52,supportV-.114,2.60,.08,.035,'metal');
+   for(let k=-2;k<=2;k++)
+    block('#88a9b6',cx+k*.48,.85,supportV-.121,.024,1.28,.024,'metal');
+   // Rear wall meets the underside of the tower, without a detached cap.
+   block('#38576a',cx,1.55,(supportV+cz)/2,2.60,.12,cz-supportV+.20,'metal');
+
    const foot=topY,levels=14,storey=.66,height=levels*storey;
-   const w=2.60,d=3.05;
-   block('#17394f',cx,foot+height/2,cz,w,height,d,'glass');
-   // Finer window modules. Six columns make a beautiful narrow crown while
-   // the alternating dark/light protrusions preserve the Mahanakhon ribbon.
+   const w=2.60,d=3.05,n=6,dx=w/n,dz=d/n;
+   // Remove actual perimeter volumes. No full-height box or unbroken
+   // facade strips remain behind the stepped ribbon to fill its cavities.
+   const floorCells=[];
    for(let floor=0;floor<levels;floor++){
-    const y=foot+(floor+.5)*storey,turnFace=Math.floor(floor/3)%4;
-    const ribbonCol=Math.min(5,Math.floor((floor%3)*6/3));
-    for(let face=0;face<4;face++){
-     const ns=face%2===0,cols=ns?6:6;
-     for(let col=0;col<cols;col++){
-      const off=(col-(cols-1)/2)*(ns?.455:.525);
-      const cut=face===turnFace&&Math.abs(col-ribbonCol)<=1 ||
-       face===(turnFace+1)%4&&floor%3===2&&col<=1;
-      const reach=ns?(cut?1.12:1.56):(cut?.95:1.34);
-      const glimmer=!cut&&(floor*17+col*11+face*7)%43===0;
-      const shade=cut?['#56839d','#39738f','#639bb6'][(floor+col)%3]:
-       ['#2a6385','#327594','#4386a5','#21577a'][(floor+col+face)%4];
-      const color=glimmer?'#e2d9b9':shade;
-      if(face===0)block(color,cx+off,y,cz+reach,.435,.615,.082,'glass',glimmer);
-      if(face===1)block(color,cx+reach,y,cz+off,.082,.615,.510,'glass',glimmer);
-      if(face===2)block(color,cx+off,y,cz-reach,.435,.615,.082,'glass',glimmer);
-      if(face===3)block(color,cx-reach,y,cz+off,.082,.615,.510,'glass',glimmer);
-      // Pixelated shadow ledges create real depth instead of painted squares.
-      if(cut&&(floor%2===0||col===ribbonCol)){
-       if(face===0)block('#84b3c5',cx+off,y-.29,cz+1.36,.42,.045,.42,'metal');
-       if(face===1)block('#84b3c5',cx+1.16,y-.29,cz+off,.42,.045,.49,'metal');
-       if(face===2)block('#84b3c5',cx+off,y-.29,cz-1.36,.42,.045,.42,'metal');
-       if(face===3)block('#84b3c5',cx-1.16,y-.29,cz+off,.42,.045,.49,'metal');
+    const cells=Array.from({length:n},()=>Array(n).fill(true));
+    // The notch climbs around all four corners, overlapping at each turn.
+    const phase=(floor+1)/3,face=Math.floor(phase)%4;
+    const column=Math.min(n-1,Math.floor((phase%1)*n));
+    const carve=(side,col,depth)=>{
+     for(let k=Math.max(0,col-1);k<=Math.min(n-1,col+1);k++)
+      for(let q=0;q<depth;q++){
+       const ix=side===0?k:side===1?n-1-q:side===2?n-1-k:q;
+       const iz=side===0?n-1-q:side===1?n-1-k:side===2?q:k;
+       cells[iz][ix]=false;
       }
+    };
+    carve(face,column,floor%3===1?2:1);
+    if(column>=4)carve((face+1)%4,0,1);
+    // The central structural spine remains continuous on every storey.
+    for(let z=2;z<=3;z++)for(let x=2;x<=3;x++)cells[z][x]=true;
+    floorCells.push(cells);
+   }
+   for(let floor=0;floor<levels;floor++){
+    const cells=floorCells[floor],y=foot+(floor+.5)*storey;
+    const occupied=(x,z)=>!!cells[z]?.[x];
+    for(let z=0;z<n;z++){
+     // Merge consecutive solid cells; the empty ribbon stays genuinely empty.
+     for(let x=0;x<n;){
+      if(!occupied(x,z)){x++;continue;}
+      const start=x;while(x<n&&occupied(x,z))x++;
+      const u=cx-w/2+(start+x)*dx/2,v=cz-d/2+(z+.5)*dz;
+      block('#254f68',u,y,v,(x-start)*dx,storey,dz,'glass');
+      block('#7494a3',u,y-storey/2+.023,v,(x-start)*dx,.046,dz,'metal');
      }
-    }
-    // Hairline horizontal trims, restrained at this narrow scale.
-    if(floor%3===0){
-     for(const side of [-1,1]){
-      block('#173b55',cx,y-.30,cz+side*1.58,2.86,.035,.035,'metal');
-      block('#173b55',cx+side*1.36,y-.30,cz,.035,.035,3.28,'metal');
+     for(let x=0;x<n;x++)if(occupied(x,z)){
+      const u=cx-w/2+(x+.5)*dx,v=cz-d/2+(z+.5)*dz;
+      for(const [sx,sz] of [[0,1],[1,0],[0,-1],[-1,0]]){
+       if(occupied(x+sx,z+sz))continue;
+       const exterior=sx?x+sx<0||x+sx>=n:z+sz<0||z+sz>=n;
+       const glimmer=exterior&&(floor*17+x*11+z*7)%47===0;
+       const color=glimmer?'#d9d6bd':exterior?
+        ['#34718f','#407f9c','#2d6385','#4b87a0'][(floor+x+z)%4]:
+        ['#183e57','#28566f','#346b83'][(floor+x+z)%3];
+       const pu=u+sx*(dx/2+.009),pv=v+sz*(dz/2+.009);
+       block(color,pu,y+.015,pv,sx?.018:dx-.026,storey-.09,sz?.018:dz-.026,'glass',glimmer);
+       // Thin mullions follow only surviving faces, including the returns.
+       block('#7195a7',pu+(sz?dx/2-.015:0),y,pv+(sx?dz/2-.015:0),
+        .018,storey-.035,.018,'metal');
+       if(!exterior){
+        block('#a6bac0',pu,y-storey/2+.057,pv,sx?.055:dx,.035,sz?.055:dz,'metal');
+       }
+      }
      }
     }
    }
@@ -2569,12 +2596,8 @@ export class TrafficRenderer{
    }
    block('#82949c',cx-.42,top+.24,cz-.36,.52,.18,.55,'metal');
    block('#57717e',cx+.50,top+.22,cz+.39,.47,.14,.49,'metal');
-   // Slender corner mullions sharpen the luxury glass facade while keeping
-   // every pixelated Mahanakhon setback and the original narrow tower footprint.
-   for(const side of [-1,1]){
-    block('#7294a8',cx+side*1.30,foot+height/2,cz+1.51,.035,height-.14,.036,'metal');
-    block('#7294a8',cx+side*1.30,foot+height/2,cz-1.51,.035,height-.14,.036,'metal');
-   }
+   // Crown details sit above the carved envelope; no vertical corner
+   // bars pass through the open pixel setbacks below.
    block('#b4a182',cx,top+.30,cz+1.46,1.95,.035,.050,'metal');
    block('#b4a182',cx,top+.30,cz-1.46,1.95,.035,.050,'metal');
 
