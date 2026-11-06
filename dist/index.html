@@ -1088,7 +1088,23 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
 #smcityFirstPlayTip strong{color:#ffe18a;font-size:clamp(23px,5vw,34px)}
 #smcityFirstPlayTip div{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:18px}
 #smcityFirstPlayTip button{min-height:44px;padding:8px 20px;border:1px solid #6ad7ef;border-radius:7px;background:#e1f7ff;color:#142b40;font:inherit;cursor:pointer}
-</style></head>
+</style>
+<style id="smcity-phone-circled-panels-80pct">
+/* Phone only: scale the three requested panels, leaving their neighbours alone. */
+@media (max-width:520px), (max-width:1000px) and (max-height:520px) and (pointer:coarse){
+ html body>.city-level-strip,
+ html body #cityLeftRail.city-left-rail{
+  transform:scale(.8)!important;transform-origin:top left!important;
+ }
+ /* This explanation overlay was outside the marked HUD area. */
+ html body>.city-level-strip #missionFailureSummary{
+  transform:scale(1.25)!important;transform-origin:top left!important;
+ }
+ /* Layout zoom also reclaims the height so the unchanged time bar stays adjacent. */
+ html body>.bottom>.control-deck{zoom:.8!important}
+}
+</style>
+</head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
 <aside id="cameraPitchRail" aria-label="ควบคุมมุมก้มเงยกล้อง" hidden>
