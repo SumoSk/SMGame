@@ -60,18 +60,22 @@ const fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('n
     assert(count('#9c8494')>=3,'viewing tables absent');
     assert(count('#7c5b8f')===0,'medium must have no second-floor VIP');
    }else{
-    assert(top>6&&top<6.5,'tall festival spires above two usable floors');
-    assert(count('#7c5b8f')>=2,'VIP second floor wings missing');
-    assert(count('#ae8ac1')>=1,'VIP rear connecting bridge missing');
-    assert(count('#c2a0ca')>=6,'second-floor VIP furnishings missing');
-    assert(count('#8439d2')>=1,'large DJ LED absent');
-    assert(count('#d7b583')>=20,'fantasy gold trims missing');
-    assert(count('#9edbdc')>=4,'festival crystal ornaments missing');
-    assert(count('#493a62')>=2,'paired grounded spires missing');
-    assert(count('#d29ad1')>=4,'low-poly flower petals missing');
-    assert(count('#232332')>=2,'large speaker tower missing');
-    assert(count('#b748ff')>=20,'large dance floor/neon detailing absent');
-    assert(local.some(p=>p.color==='#c2a0ca'&&p.y>2.7),'VIP furniture must be elevated, not on ground');
+    assert(top>5.6&&top<6.5,'mainstage must remain low-poly in 6.5 height');
+    assert(count('#8439d2')>=1,'stage LED missing');
+    assert(count('#d7b583')>=18,'sculpted stage gold trim missing');
+    assert(count('#9edbdc')>=2,'facet crystal ornaments missing');
+    assert(count('#d29ad1')>=4,'ornamental stone petals missing');
+    assert(count('#729caa')>=4,'real mini-pub windows missing');
+    assert(count('#715b89')>=1,'solid mini-pub roof missing');
+    assert(count('#68496c')>=1,'mini-pub interior bar missing');
+    assert(count('#bba19f')>=6,'three enclosed drinks booths missing');
+    assert(count('#d9c1a5')>=3,'drink sales counters missing');
+    assert(count('#a7837f')>=6,'bottle shelves missing');
+    assert(count('#7c5b8f')===0,'obsolete VIP open gallery remains');
+    assert(count('#ae8ac1')===0,'obsolete suspended VIP bridge remains');
+    assert(count('#232332')===0,'obsolete metal speaker towers remain');
+    assert(local.some(p=>p.color==='#715b89'&&p.y>3.3),'mini pub roof has no height');
+
    }
    const summary={instances:items.length,colors:colors.size,top:+top.toFixed(3),
     glows:local.filter(p=>p.glow).length};
