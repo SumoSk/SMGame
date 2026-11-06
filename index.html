@@ -1150,11 +1150,32 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
   min-height:0!important;max-height:none!important;
   grid-column:1!important;padding:0 3px!important;gap:2px!important;
  }
- html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money .metric-text{
-  min-width:0!important;gap:4px!important;
+ /* Keep the budget and its daily change stacked inside one metric row.
+    A horizontal flex layout squeezes the amount when the account icons occupy the header. */
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats{
+  grid-template-rows:minmax(0,1.5fr) minmax(0,.75fr) minmax(0,.75fr)!important;
  }
- html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money strong{
-  font-size:10px!important;white-space:nowrap!important;
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money{
+  min-width:0!important;overflow:hidden!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money .metric-text{
+  display:flex!important;flex-direction:column!important;
+  align-items:flex-start!important;justify-content:center!important;
+  flex:1 1 auto!important;width:100%!important;min-width:0!important;
+  max-width:100%!important;gap:1px!important;overflow:hidden!important;
+  text-align:left!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money #money{
+  display:block!important;max-width:100%!important;
+  margin:0!important;font-size:10px!important;line-height:1.1!important;
+  font-weight:800!important;white-space:nowrap!important;overflow:hidden!important;
+  text-overflow:ellipsis!important;font-variant-numeric:tabular-nums!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money #moneyDelta{
+  display:block!important;max-width:100%!important;
+  margin:0!important;font-size:8px!important;line-height:1.15!important;
+  font-weight:600!important;white-space:nowrap!important;overflow:hidden!important;
+  text-overflow:ellipsis!important;font-variant-numeric:tabular-nums!important;
  }
  html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) .metric-text>small{
   font-size:9px!important;max-width:55%!important;
