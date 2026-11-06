@@ -1255,6 +1255,35 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
   font-size:8px!important;line-height:1.15!important;
  }
 }
+
+/* Phone money row: center the figures vertically (not horizontally).
+   Override the older ID-specific container-query sizing that kept the amount oversized. */
+@media (max-width:520px) and (orientation:portrait){
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric.metric-money{
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  min-height:0!important;overflow:hidden!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric.metric-money .metric-text{
+  display:flex!important;flex-direction:row!important;
+  align-items:center!important;justify-content:flex-start!important;
+  align-self:center!important;flex-wrap:nowrap!important;
+  width:100%!important;max-width:100%!important;
+  height:100%!important;min-height:0!important;min-width:0!important;
+  gap:4px!important;overflow:hidden!important;text-align:left!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .metric-money #money{
+  flex:0 0 auto!important;display:block!important;
+  font-size:11px!important;line-height:1.2!important;
+  letter-spacing:-.2px!important;white-space:nowrap!important;
+  max-width:55%!important;overflow:hidden!important;text-overflow:ellipsis!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .metric-money #moneyDelta{
+  flex:0 1 auto!important;display:block!important;
+  font-size:8px!important;line-height:1.2!important;
+  min-width:0!important;max-width:100%!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+ }
+}
 </style>
 </head>
 <body>
