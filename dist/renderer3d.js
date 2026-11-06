@@ -227,16 +227,6 @@ const LANDSCAPE_GLSL=`
   return texture2D(landscapeNoiseMap,(i+f+0.5)/128.0).r;
  }
  float coastX(float z){return 125.0+sin(z*.032)*5.0+sin(z*.072)*2.0;}
- // The Phuket shoreline encloses the whole 300x300 playable grid.
- // Negative signed distance is sea; the outside is scenery, never buildable.
- float phuketCoastDistance(vec2 p){
-  float x=clamp(p.x,0.0,300.0),z=clamp(p.y,0.0,300.0);
-  float west=-13.0-9.0*pow(sin(3.14159265*z/300.0),2.0)-2.0*sin(z*.056);
-  float east=313.0+11.0*pow(sin(3.14159265*z/300.0),2.0)+1.8*sin(z*.063);
-  float north=-14.0-7.0*pow(sin(3.14159265*x/300.0),2.0)-1.5*sin(x*.065);
-  float south=313.0+10.0*pow(sin(3.14159265*x/300.0),2.0)+1.7*sin(x*.057);
-  return min(min(p.x-west,east-p.x),min(p.y-north,south-p.y));
- }
 `;
 function landscapeShader(material,noise,fragment,extra='',uniforms={}){
  material.onBeforeCompile=shader=>{
@@ -288,7 +278,7 @@ function landscapeMaterial(city,kind,noise){
     turf*=.89+speckle*.13+fine*.07+micro*.065+(grain-.5)*.06+blade*.045;
     turf=mix(turf,turf*1.13,clover);
   `;
-  if(city==='phuket')fragment+=`float shore=1.0-smoothstep(1.6,4.8,phuketCoastDistance(p));
+  if(city==='phuket')fragment+=`float shore=1.0-smoothstep(1.6,4.8,p.x-coastX(p.y));
    turf=mix(turf,${c('#b5aa7b')},shore*.72);`;
   if(city==='bangkok')fragment+=`float bank=abs(p.x-(125.0+sin(p.y*.047)*5.0))-4.0;
    turf=mix(turf,${c('#827c59')},(1.0-smoothstep(0.0,1.6,bank))*.68);`;
@@ -321,7 +311,7 @@ function landscapeWater(city,river,noise,clock){
    float current=pow(max(0.0,sin(p.y*8.0+p.x*1.8-drift*3.0)),18.0)*.035;
    water+=current;
   `:`
-   float offshore=${city==='phuket'?'max(0.0,-phuketCoastDistance(p))':'max(0.0,coastX(p.y)-2.2-p.x)'};
+   float offshore=max(0.0,coastX(p.y)-2.2-p.x);
    vec3 water=mix(${c('#7ac8bd')},${c('#2d8e9c')},smoothstep(0.0,13.0,offshore));
    water=mix(water,${c('#245d79')},smoothstep(12.0,48.0,offshore));
    float wave=sin(offshore*4.5-landscapeTime*1.25+sin(p.y*.8)*.65);
@@ -1080,7 +1070,7 @@ export class TrafficRenderer{
  screen(x,z,height=0){this.point.set(x,height/18,z).project(this.camera);return[(this.point.x+1)*this.w/2,(1-this.point.y)*this.h/2];}
  world(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const p=new THREE.Vector3();this.ray.ray.intersectPlane(this.ground,p);return[p.x,p.z];}
  pickBuilding(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const hits=this.ray.intersectObjects(this.buildingGroup.children,true);for(const h of hits){const id=h.object.userData.ids?.[h.instanceId];if(id!=null)return id;}return null;}
- coast(z){const a=Math.max(0,Math.min(300,z));return -13-9*Math.sin(Math.PI*a/300)**2-2*Math.sin(z*.056);}
+ coast(z){return 125+Math.sin(z*.032)*5+Math.sin(z*.072)*2;}
  groundShape(points,color,height){
   const shape=new THREE.Shape();points.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));shape.closePath();
   const geo=new THREE.ShapeGeometry(shape);geo.rotateX(-Math.PI/2);
@@ -1104,40 +1094,12 @@ export class TrafficRenderer{
   const water=new THREE.Mesh(new THREE.PlaneGeometry(900,900),landscapeWater(city,false,noise,clock));
   water.rotation.x=-Math.PI/2;water.position.set(150,-.26,150);water.receiveShadow=true;
   this.scene.add(water);this.terrainGroup.push(water);
+  const coast=[];for(let z=-50;z<=350;z+=.8)coast.push([this.coast(z),z]);
   const strip=(points,a,b,material,y)=>this.groundShape([...points.map(([x,z])=>[x+a,z]),...points.slice().reverse().map(([x,z])=>[x+b,z])],material,y);
   if(city==='phuket'){
-   // The game logic is still the exact same square. Only its unbuildable
-   // surroundings are changed to a genuine four-sided island coastline.
-   const sq=Math.sin,pi=Math.PI,cap=v=>Math.max(0,Math.min(300,v));
-   const west=z=>this.coast(z),east=z=>313+11*sq(pi*cap(z)/300)**2+1.8*sq(z*.063);
-   const north=x=>-14-7*sq(pi*cap(x)/300)**2-1.5*sq(x*.065);
-   const south=x=>313+10*sq(pi*cap(x)/300)**2+1.7*sq(x*.057);
-   const outline=(inset=0)=>{
-    const points=[];
-    for(let x=-13;x<=313;x+=5)points.push([x,north(x)+inset]);
-    points.push([313,north(313)+inset]);
-    for(let z=-14;z<=313;z+=5)points.push([east(z)-inset,z]);
-    points.push([east(313)-inset,313]);
-    for(let x=313;x>=-13;x-=5)points.push([x,south(x)-inset]);
-    points.push([-13,south(-13)-inset]);
-    for(let z=313;z>=-14;z-=5)points.push([west(z)+inset,z]);
-    return points;
-   };
-   const shoreline=outline(),sandline=outline(1.25),grassline=outline(3.2);
-   this.groundShape(shoreline,landscapeMaterial(city,'sand',noise),-.12);
-   this.groundShape([...shoreline,...sandline.slice().reverse()],landscapeMaterial(city,'wetSand',noise),-.105);
-   this.groundShape(grassline,grass,0);
-   // Phang Nga is a separate visual mainland beyond the northern strait.
-   // Keep it fully outside the playable tile range.
-   const phangNgaSouth=x=>-65-3.5*sq(x*.038)-2*sq(x*.091);
-   const mainland=[];
-   for(let x=35;x<=265;x+=5)mainland.push([x,phangNgaSouth(x)]);
-   mainland.push([270,phangNgaSouth(270)],[298,-185],[2,-185],[30,phangNgaSouth(30)]);
-   this.groundShape(mainland,landscapeMaterial(city,'sand',noise),-.115);
-   const innerMainland=[];
-   for(let x=35;x<=265;x+=5)innerMainland.push([x,phangNgaSouth(x)-2.8]);
-   innerMainland.push([270,phangNgaSouth(270)-2.8],[298,-185],[2,-185],[30,phangNgaSouth(30)-2.8]);
-   this.groundShape(innerMainland,grass,-.002);
+   this.groundShape([...coast.map(([x,z])=>[x-2.2,z]),[370,350],[370,-50]],landscapeMaterial(city,'sand',noise),-.12);
+   this.groundShape([...coast.map(([x,z])=>[x+1.6,z]),[370,350],[370,-50]],grass,0);
+   strip(coast,-2.2,-1.05,landscapeMaterial(city,'wetSand',noise),-.105);
   }else{
    this.groundShape([[-40,-40],[-40,340],[340,340],[340,-40]],grass,0);
    if(city==='bangkok'){
@@ -1208,44 +1170,6 @@ export class TrafficRenderer{
    }
   }
   if(city==='phuket'){
-   // Sarasin-area bridge: actual visible deck over water with two landfalls.
-   // Road and pillars below are strictly decoration: traffic graph, gates and
-   // saves retain their previous coordinates and behavior.
-   const b=(color,x,y,z,w,h,d)=>details.add(BOX,color,x,y,z,w,h,d);
-   const bx=150,from=-22,to=-66,mid=(from+to)/2,len=from-to;
-   b('#67777c',bx,.41,mid,4.55,.25,len);
-   b('#454f56',bx,.56,mid,3.92,.065,len);
-   b('#c2cdd0',bx-2.12,.73,mid,.16,.36,len);
-   b('#c2cdd0',bx+2.12,.73,mid,.16,.36,len);
-   // Short approach roads complete the north exit without introducing nodes.
-   b('#505c61',bx,.075,-11,3.72,.105,22);
-   b('#505c61',bx,.075,-79,3.72,.105,26);
-   for(let z=-7;z>=-92;z-=4.5){
-    const bridge=z<from&&z>to;
-    b('#edf0e6',bx,bridge?.602:.135,z,.085,.018,2.0);
-   }
-   for(let z=-27;z>=-62;z-=7){
-    b('#9da7a6',bx-1.55,.07,z,.54,.72,.65);
-    b('#9da7a6',bx+1.55,.07,z,.54,.72,.65);
-    b('#a5b7b4',bx-2.27,1.06,z,.075,.62,.075);
-    b('#a5b7b4',bx+2.27,1.06,z,.075,.62,.075);
-   }
-   // Low-poly trees decorate coastline and the Phang Nga road approach,
-   // always off the city grid and therefore never occupying building plots.
-   for(let n=0;n<92;n++){
-    const z=5+hash(n,11)*287;
-    const side=n%2;
-    const x=side?313+11*Math.sin(Math.PI*z/300)**2-2.5:
-      this.coast(z)+4.4;
-    if(Math.abs(z-150)<11)continue;
-    this.tree(details,x,z,.58+hash(n,17)*.35,n%5?'palm':'shade');
-   }
-   for(let n=0;n<75;n++){
-    const x=42+hash(n,49)*217,z=-82-hash(n,61)*90;
-    if(Math.abs(x-bx)<6)continue;
-    this.tree(details,x,z,.63+hash(n,43)*.35,n%3?'rain':'palm');
-   }
-   // Sparse seaside rocks, all beyond the playable perimeter.
    for(let n=0;n<95;n++){
     const z=55+hash(n,9)*225,x=this.coast(z)-1.1+hash(n,21)*1.8;
     const size=.08+hash(n,37)*.27;
