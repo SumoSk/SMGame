@@ -60,11 +60,15 @@ const fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('n
     assert(count('#9c8494')>=3,'viewing tables absent');
     assert(count('#7c5b8f')===0,'medium must have no second-floor VIP');
    }else{
-    assert(top>4&&top<5,'large nightclub must be TWO levels, no third floor');
+    assert(top>6&&top<6.5,'tall festival spires above two usable floors');
     assert(count('#7c5b8f')>=2,'VIP second floor wings missing');
     assert(count('#ae8ac1')>=1,'VIP rear connecting bridge missing');
     assert(count('#c2a0ca')>=6,'second-floor VIP furnishings missing');
     assert(count('#8439d2')>=1,'large DJ LED absent');
+    assert(count('#d7b583')>=20,'fantasy gold trims missing');
+    assert(count('#9edbdc')>=4,'festival crystal ornaments missing');
+    assert(count('#493a62')>=2,'paired grounded spires missing');
+    assert(count('#d29ad1')>=4,'low-poly flower petals missing');
     assert(count('#232332')>=2,'large speaker tower missing');
     assert(count('#b748ff')>=20,'large dance floor/neon detailing absent');
     assert(local.some(p=>p.color==='#c2a0ca'&&p.y>2.7),'VIP furniture must be elevated, not on ground');
