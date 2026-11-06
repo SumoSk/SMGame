@@ -7841,3 +7841,21 @@ html body #inspector .sm-inspector-heading .tag{opacity:1!important;color:#bce3c
     font-size:18px!important;
   }
 }
+
+/* A single context toolbar for selected buildings, moving cars and parked cars.
+   The existing move/demolish button appearance and safety flows are preserved. */
+#buildingQuickActions[hidden],#buildingQuickActions [hidden]{display:none!important}
+#buildingQuickActions.building-quick-actions{max-width:calc(100vw - 16px);box-sizing:border-box;gap:5px}
+#buildingQuickActions .selection-quick-name{display:block;min-width:0;max-width:138px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 7px 0 3px;font:700 12px/1.35 'Noto Sans Thai',Tahoma,Arial,sans-serif;color:#244538}
+#buildingQuickActions .selection-quick-info{background:#e4edf8;color:#254f77}
+#buildingQuickActions .selection-quick-tow{background:#fff0da;color:#8a5521}
+#buildingQuickActions .building-quick-action:disabled{opacity:.45;cursor:not-allowed}
+:root.smcity-gray-ui #buildingQuickActions .selection-quick-name{color:#f4faf6}
+:root.smcity-gray-ui #buildingQuickActions .selection-quick-info{background:#2b435a;color:#deefff}
+:root.smcity-gray-ui #buildingQuickActions .selection-quick-tow{background:#51402d;color:#ffe5c0}
+@media(max-width:600px){
+ #buildingQuickActions.building-quick-actions{gap:3px;padding:4px}
+ #buildingQuickActions .selection-quick-name{max-width:85px;padding:0 3px;font-size:10px}
+ #buildingQuickActions .building-quick-action{min-width:0;padding:7px 7px;gap:4px;font-size:10px}
+ #buildingQuickActions .building-quick-action svg{width:16px;height:16px}
+}
