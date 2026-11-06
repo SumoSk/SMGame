@@ -1815,11 +1815,43 @@ function drawTerrain(){
 ctx.fillStyle='#8bc8c5';ctx.fillRect(0,0,view.w,view.h);const terrain=CITIES[state.city].terrain;
 const topLeft=world(0,0),bottomRight=world(view.w,view.h),x0=Math.max(0,Math.floor(topLeft[0]-5)),x1=Math.min(300,Math.ceil(bottomRight[0]+5)),y0=Math.max(0,Math.floor(topLeft[1]-5)),y1=Math.min(300,Math.ceil(bottomRight[1]+8));
 if(terrain==='island'){
-const coast=[[-8,-12],[72,-12],[84,53],[105,91],[108,125],[96,153],[108,184],[88,225],[71,315],[315,315],[315,-12]].map(([x,y])=>screen(x+24,y));poly(coast,'#f1e0ad');poly(coast.map(([x,y])=>[x+15*cam.z,y]),'#9fbd82');
-ctx.strokeStyle='#d0e9d68a';ctx.lineWidth=1;for(let yy=y0;yy<y1;yy+=5){const p=screen(80,yy);ctx.beginPath();ctx.moveTo(p[0]-45*cam.z,p[1]);ctx.quadraticCurveTo(p[0]-30*cam.z,p[1]-3,p[0]-18*cam.z,p[1]);ctx.stroke();}
+ // 2D fallback mirrors the 3D island: keep the full 300x300 game
+ // grid intact, surround it with sea, and show the Phang Nga landfall.
+ const cap=n=>Math.max(0,Math.min(300,n)),pi=Math.PI,sq=Math.sin;
+ const west=z=>-13-9*sq(pi*cap(z)/300)**2-2*sq(z*.056);
+ const east=z=>313+11*sq(pi*cap(z)/300)**2+1.8*sq(z*.063);
+ const north=x=>-14-7*sq(pi*cap(x)/300)**2-1.5*sq(x*.065);
+ const south=x=>313+10*sq(pi*cap(x)/300)**2+1.7*sq(x*.057);
+ const perimeter=inset=>{
+  const points=[];
+  for(let x=-13;x<=313;x+=6)points.push([x,north(x)+inset]);
+  for(let y=-14;y<=313;y+=6)points.push([east(y)-inset,y]);
+  for(let x=313;x>=-13;x-=6)points.push([x,south(x)-inset]);
+  for(let y=313;y>=-14;y-=6)points.push([west(y)+inset,y]);
+  return points.map(([x,y])=>screen(x,y));
+ };
+ poly(perimeter(0),'#e0d3a4');
+ poly(perimeter(3.2),'#9fbd82');
+ const phangNgaSouth=x=>-65-3.5*sq(x*.038)-2*sq(x*.091);
+ const mainland=[];for(let x=35;x<=265;x+=6)mainland.push([x,phangNgaSouth(x)]);
+ mainland.push([270,phangNgaSouth(270)],[298,-185],[2,-185],[30,phangNgaSouth(30)]);
+ poly(mainland.map(([x,y])=>screen(x,y)),'#e4d8ac');
+ const innerMainland=mainland.map(([x,y],i)=>[x,i<39?y-2.8:y]);
+ poly(innerMainland.map(([x,y])=>screen(x,y)),'#a3bb8a');
+ // Render-only Sarasin bridge and northern mainland approach.
+ const rect=(x0,y0,x1,y1,color)=>poly([[x0,y0],[x1,y0],[x1,y1],[x0,y1]].map(([x,y])=>screen(x,y)),color);
+ rect(148.1,-91,151.9,-65,'#59666b');
+ rect(147.7,-66,152.3,-22,'#7b8d94');
+ rect(148.15,-66,151.85,-22,'#49585f');
+ rect(148.1,-22,151.9,0,'#59666b');
+ ctx.strokeStyle='#eef1e8';ctx.lineWidth=Math.max(.8,cam.z);
+ for(let z=-7;z>=-92;z-=4.5){
+  const a=screen(150,z),b=screen(150,z-2);
+  ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
+ }
 }else{ctx.fillStyle=terrain==='mountain'?'#adc194':'#b4c99d';ctx.fillRect(0,0,view.w,view.h);if(terrain==='river'){ctx.strokeStyle='#93c9c4';ctx.lineWidth=12*T*cam.z;ctx.beginPath();for(let y=-10;y<=310;y+=4){const p=screen(112+Math.sin(y/29)*8,y);if(y===-10)ctx.moveTo(...p);else ctx.lineTo(...p);}ctx.stroke();}}
 ctx.strokeStyle=debug||tool!=='hand'?'#4c743220':'#4c743207';ctx.lineWidth=.5;if(cam.z>.48)for(let y=y0;y<y1;y++){const a=screen(x0,y),b=screen(x1,y);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();}if(cam.z>.48)for(let x=x0;x<x1;x++){ctx.beginPath();ctx.moveTo(...screen(x,y0));ctx.lineTo(...screen(x,y1));ctx.stroke();}
-if(graphicQuality!=='low')for(let y=Math.floor(y0/3)*3;y<y1;y+=3)for(let x=Math.floor(x0/3)*3;x<x1;x+=3){const h=Math.abs(Math.sin(x*32.13+y*14.79)),tx=x+Math.sin(x*13+y)*1.1,ty=y+Math.cos(y*9+x)*.8,ix=Math.floor(tx),iy=Math.floor(ty);if(h<.67||!valid(ix,iy)||terrain==='island'&&tx<134||terrain==='river'&&Math.abs(tx-(112+Math.sin(ty/29)*8))<8)continue;if(state.footprint[id(ix,iy)]>=0||state.buildGrid[id(ix,iy)]>=0||(state.hiddenAutoTrees||[]).includes(id(ix,iy)))continue;tree(tx,ty,.6+h*.65);}
+if(graphicQuality!=='low')for(let y=Math.floor(y0/3)*3;y<y1;y+=3)for(let x=Math.floor(x0/3)*3;x<x1;x+=3){const h=Math.abs(Math.sin(x*32.13+y*14.79)),tx=x+Math.sin(x*13+y)*1.1,ty=y+Math.cos(y*9+x)*.8,ix=Math.floor(tx),iy=Math.floor(ty);if(h<.67||!valid(ix,iy)||terrain==='island'&&(tx<2||tx>298||ty<2||ty>298)||terrain==='river'&&Math.abs(tx-(112+Math.sin(ty/29)*8))<8)continue;if(state.footprint[id(ix,iy)]>=0||state.buildGrid[id(ix,iy)]>=0||(state.hiddenAutoTrees||[]).includes(id(ix,iy)))continue;tree(tx,ty,.6+h*.65);}
 }
 function dir(a,b){const [x,y]=xy(a),[u,v]=xy(b);return Math.abs(u-x)>=Math.abs(v-y)?u>x?0:2:v>y?1:3;}
 function junctionDetails(i){
