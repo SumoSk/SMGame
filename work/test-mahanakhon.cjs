@@ -85,7 +85,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const batch=new Batch();renderer.building(batch,home,g.CATALOG,{});
  const pieces=[...batch.data.values()].flatMap(x=>x.items);
  assert(pieces.length>360,'short pixel tower must stay detailed');
- assert(Math.max(...pieces.map(p=>p.y))<11.6,'14-floor slim Mahanakhon height');
+ assert(Math.max(...pieces.map(p=>p.y))<11.8,'14-floor tower with a compact finished observation crown');
  assert(pieces.every(p=>[p.x,p.y,p.z].every(Number.isFinite)));
  // Test cavity volumes, not just darker panels: these two carved cells
  // must remain empty through the centre of their respective storeys.
@@ -109,8 +109,17 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const roofY=1.50+14*.66;
  assert(pieces.some(p=>Math.abs(p.y-(roofY+.198))<.001&&p.sx===1.07&&p.sz===.88),
   'observation crown must include a projecting glass tray');
- assert(pieces.some(p=>Math.abs(p.y-(roofY+.17+.55/2))<.001&&p.sy===.55),
-  'observation crown must have a stepped raised Peak');
+ const landing=pieces.find(p=>Math.abs(p.y-(roofY+.55))<.001&&p.sx===1.50&&p.sy===.10&&p.sz===.77);
+ assert(landing,'stairs must finish on a broad raised observation landing');
+ assert(pieces.some(p=>p.sx===1.50&&p.sy===.30&&p.sz===.77&&
+  Math.abs(p.y+p.sy/2-(landing.y-landing.sy/2))<.001),
+  'observation landing must rest on a continuous supported base');
+ assert(pieces.some(p=>p.sx===.74&&Math.abs(p.sy-.42)<.001&&
+  Math.abs(p.y+p.sy/2-(landing.y+landing.sy/2))<.001&&
+  Math.abs(p.z-p.sz/2-(landing.z+landing.sz/2))<.001),
+  'top stair tread must meet the landing at the same height without a gap');
+ assert(!pieces.some(p=>contains(p,home.x+7-.55,roofY+.32,home.y+4+1.64)),
+  'no perimeter railing may block the glass-tray entry');
  // Keep both gates and the continuous cross-front arrival route free of
  // the new fence, entrance lamps, trees and planting troughs.
  const decorColors=new Set(['#bdc7bb','#527065','#4a635c','#3e5d59','#dfc8a1',
