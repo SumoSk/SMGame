@@ -85,7 +85,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('n
  const batch=new Batch();renderer.building(batch,home,g.CATALOG,{});
  const pieces=[...batch.data.values()].flatMap(x=>x.items);
  assert(pieces.length>360,'short pixel tower must stay detailed');
- assert(Math.max(...pieces.map(p=>p.y))<11,'quarter-height tower');
+ assert(Math.max(...pieces.map(p=>p.y))<11.6,'14-floor slim Mahanakhon height');
  assert(pieces.every(p=>[p.x,p.y,p.z].every(Number.isFinite)));
  // Never rebuild the old side wings or wide parking-table canopy.
  const cx=t.plotWidth/2,cz=t.plotHeight/2;
