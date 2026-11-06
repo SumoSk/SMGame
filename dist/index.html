@@ -1103,6 +1103,137 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
  /* Layout zoom also reclaims the height so the unchanged time bar stays adjacent. */
  html body>.bottom>.control-deck{zoom:.8!important}
 }
+
+/* Phone portrait finish: retain the previously shrunken top/left HUD,
+   but size the bottom dock in real layout pixels instead of scaling its width. */
+@media (max-width:520px) and (orientation:portrait){
+ html body>.bottom{
+  left:4px!important;right:4px!important;
+  bottom:max(4px,env(safe-area-inset-bottom,0px))!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed){
+  zoom:1!important;transform:none!important;
+  box-sizing:border-box!important;width:100%!important;max-width:100%!important;
+  margin:0!important;height:164px!important;min-height:0!important;
+  max-height:calc(100dvh - 105px - env(safe-area-inset-bottom,0px))!important;
+  grid-template-columns:minmax(0,.93fr) minmax(0,1.07fr)!important;
+  grid-template-rows:70px minmax(0,1fr)!important;
+  border-radius:11px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard,
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.city-control-mini{
+  box-sizing:border-box!important;height:70px!important;min-height:0!important;max-height:70px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+  grid-template-rows:18px minmax(0,1fr)!important;
+  padding:2px 4px!important;gap:1px 3px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .dashboard-heading,
+ html body>.bottom>.control-deck:not(.tools-collapsed) .dashboard-shortcuts{
+  height:18px!important;min-height:18px!important;max-height:18px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .dashboard-member-buttons>button{
+  width:19px!important;min-width:19px!important;max-width:19px!important;
+  height:18px!important;min-height:18px!important;max-height:18px!important;
+  padding:1px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .dashboard-member-buttons .map-rail-svg{
+  width:12px!important;height:12px!important;min-width:12px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats{
+  min-height:0!important;height:100%!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:repeat(3,minmax(0,1fr))!important;
+  gap:1px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .stats.dashboard-stats .city-metric{
+  min-height:0!important;max-height:none!important;
+  grid-column:1!important;padding:0 3px!important;gap:2px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money .metric-text{
+  min-width:0!important;gap:4px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .metric-money strong{
+  font-size:10px!important;white-space:nowrap!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) .metric-text>small{
+  font-size:9px!important;max-width:55%!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric:not(.metric-money) .metric-text>strong{
+  font-size:10px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-dashboard .city-metric .metric-delta{
+  font-size:8px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.city-control-mini{
+  padding:2px 3px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-control-heading{
+  height:17px!important;min-height:17px!important;max-height:17px!important;
+  flex-basis:17px!important;margin-bottom:1px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-control-heading :is(strong,.mini-demand-legend){
+  font-size:9px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need{
+  height:18px!important;min-height:18px!important;max-height:18px!important;
+  padding:1px 2px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need>span,
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need-values :is(b,strong){
+  font-size:9px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .demand-scroll-track{
+  top:19px!important;bottom:2px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.builder-zone{
+  box-sizing:border-box!important;min-height:0!important;height:100%!important;max-height:100%!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-body{
+  min-height:0!important;padding:0 2px 2px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #categories{
+  flex:0 0 28px!important;height:28px!important;min-height:28px!important;max-height:28px!important;
+  padding:1px 2px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #categories button{
+  height:26px!important;min-height:26px!important;max-height:26px!important;
+  margin:0 1px!important;padding:0!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-group-icon{
+  font-size:12px!important;line-height:13px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-group-name{
+  font-size:7px!important;line-height:10px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-context{
+  min-height:0!important;margin:0!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #subcategories{
+  flex:0 0 20px!important;height:20px!important;min-height:20px!important;max-height:20px!important;
+  padding:1px 3px!important;gap:3px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #subcategories button{
+  height:17px!important;min-height:17px!important;max-height:17px!important;
+  padding:1px 5px!important;font-size:8px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools{
+  flex:1 1 auto!important;min-height:0!important;padding:2px 3px!important;gap:3px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool{
+  flex:0 0 76px!important;width:76px!important;min-width:76px!important;max-width:76px!important;
+  min-height:0!important;height:100%!important;padding:2px 3px!important;gap:1px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool .tool-icon{
+  flex:0 0 12px!important;height:12px!important;font-size:13px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool .tool-name{
+  font-size:9px!important;line-height:1.15!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool .tool-price{
+  font-size:8px!important;line-height:1.15!important;
+ }
+}
 </style>
 </head>
 <body>
