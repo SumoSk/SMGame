@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="th" data-ui-version="5.4.16" class="building-labels-off"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#103b39"><title>SMCITY เมืองที่การเดินทางมีความหมาย</title><meta name="description" content="สร้างเมืองไทย วางถนน และแก้ปัญหาจราจรจากชีวิตประชาชนแต่ละคน"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23103b39'/%3E%3Cpath d='M13 3h6v26h-6z' fill='%23f9c75c'/%3E%3Cpath d='M16 5v4m0 4v4m0 4v4' stroke='%23103b39' stroke-width='2'/%3E%3C/svg%3E"><meta name="apple-mobile-web-app-title" content="SMCITY"><link rel="apple-touch-icon" sizes="180x180" href="./smcity-home-180.png"><link rel="manifest" href="./smcity.webmanifest"><script>(function(){try{if(localStorage.getItem('smcity-theme-light-default-v1')==='dark')document.documentElement.classList.add('smcity-gray-ui')}catch(_){}})();</script><link rel="stylesheet" href="dist/style.css?v=5.4.16-mobile-advisor"><style id="smcity-dark-mode-v242">
+<html lang="th" data-ui-version="5.4.17" class="building-labels-off"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#103b39"><title>SMCITY เมืองที่การเดินทางมีความหมาย</title><meta name="description" content="สร้างเมืองไทย วางถนน และแก้ปัญหาจราจรจากชีวิตประชาชนแต่ละคน"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23103b39'/%3E%3Cpath d='M13 3h6v26h-6z' fill='%23f9c75c'/%3E%3Cpath d='M16 5v4m0 4v4m0 4v4' stroke='%23103b39' stroke-width='2'/%3E%3C/svg%3E"><meta name="apple-mobile-web-app-title" content="SMCITY"><link rel="apple-touch-icon" sizes="180x180" href="./smcity-home-180.png"><link rel="manifest" href="./smcity.webmanifest"><script>(function(){try{if(localStorage.getItem('smcity-theme-light-default-v1')==='dark')document.documentElement.classList.add('smcity-gray-ui')}catch(_){}})();</script><link rel="stylesheet" href="dist/style.css?v=5.4.17-mobile-advisor"><style id="smcity-dark-mode-v242">
 /* SMCITY v4.2 — high-contrast BLACK interface mode.
    Keep the current theme class and localStorage key so existing choices survive.
    Only app panels, controls and dialogs are themed; never recolor the 3D world. */
@@ -1256,7 +1256,7 @@ html body #dialog .mission-scorecard #missionDetailPeriod{color:#f4f8fa!importan
  }
 }
 
-/* SMCITY 5.4.16: unified metric sizing and frameless KPIs; tested by viewport. */
+/* SMCITY 5.4.17: responsive layout corrections and frameless KPIs. */
 html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric:is(.metric-population,.metric-tourists),html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric:is(.metric-population,.metric-tourists):hover{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important}
 html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric:is(.metric-population,.metric-tourists):focus-visible{outline:2px solid var(--smg-icon,#008bca)!important;outline-offset:-2px!important}
 @media(max-width:520px) and (orientation:portrait){
@@ -1271,6 +1271,155 @@ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-me
 html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric:not(.metric-money) .metric-text>small{display:block!important;flex:0 0 auto!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;font-size:7px!important;line-height:1.15!important;font-weight:600!important;text-align:center!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
 html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric:not(.metric-money) .metric-text>strong{display:block!important;flex:0 0 auto!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;font-size:9px!important;line-height:1.15!important;font-weight:750!important;text-align:center!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
 html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric:not(.metric-money) .metric-delta{font-size:7px!important;line-height:1.15!important;font-weight:500!important}
+}
+
+/* Narrow tablets / split-view: 3 statistics, not the legacy 5-item grid. */
+@media(min-width:521px) and (max-width:720px) and (orientation:portrait){
+ html body>.bottom>.control-deck:not(.tools-collapsed){
+  display:grid!important;grid-template-columns:minmax(0,1.03fr) minmax(0,.97fr)!important;
+  grid-template-rows:78px minmax(0,1fr)!important;
+  height:184px!important;min-height:0!important;max-height:min(184px,calc(100dvh - 110px))!important;
+  transform:none!important;zoom:1!important;overflow:hidden!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+  grid-column:1!important;grid-row:1!important;
+  height:78px!important;min-height:0!important;max-height:78px!important;
+  grid-template-rows:22px minmax(0,1fr)!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.city-control-mini{
+  grid-column:2!important;grid-row:1!important;
+  height:78px!important;min-height:0!important;max-height:78px!important;
+  padding:2px 3px!important;border-bottom:1px solid var(--ui-v8-border,#d5e5d8)!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats.stats.dashboard-stats{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  grid-template-rows:minmax(0,1.05fr) minmax(0,.95fr)!important;gap:1px 3px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric.metric-money{
+  grid-column:1/-1!important;grid-row:1!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric.metric-population{
+  grid-column:1!important;grid-row:2!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric.metric-tourists{
+  grid-column:2!important;grid-row:2!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric:not(.metric-money) .metric-text{
+  display:flex!important;flex-direction:column!important;align-items:center!important;
+  justify-content:center!important;gap:0!important;width:100%!important;height:100%!important;
+  min-width:0!important;text-align:center!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric:not(.metric-money) .metric-text>small{
+  display:block!important;font-size:8px!important;line-height:1.15!important;
+  max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .city-metric:not(.metric-money) .metric-text>strong{
+  display:block!important;font-size:10px!important;line-height:1.15!important;
+  max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .metric-money .metric-text{
+  display:flex!important;flex-direction:row!important;align-items:center!important;
+  justify-content:center!important;height:100%!important;gap:4px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .metric-money #money{
+  font-size:11px!important;line-height:1.2!important;max-width:60%!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .metric-money #moneyDelta{
+  font-size:7px!important;line-height:1.2!important;max-width:40%!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .city-demand-panel{
+  display:flex!important;flex-direction:column!important;height:100%!important;
+  gap:1px!important;padding:2px 3px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-control-heading{
+  flex:0 0 18px!important;height:18px!important;min-height:18px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .panel-content{
+  display:block!important;flex:1 1 auto!important;height:auto!important;min-height:0!important;
+  overflow-x:hidden!important;overflow-y:auto!important;touch-action:pan-y!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-needs-list{
+  display:flex!important;flex-direction:column!important;align-items:stretch!important;
+  flex-wrap:nowrap!important;width:100%!important;min-width:0!important;height:auto!important;
+  gap:1px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need{
+  flex:0 0 20px!important;width:100%!important;min-width:0!important;max-width:100%!important;
+  height:20px!important;min-height:20px!important;max-height:20px!important;
+  padding:1px 2px!important;gap:2px!important;border:0!important;
+  border-bottom:1px solid var(--ui-v8-border,#d5e5d8)!important;border-radius:0!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need>span{
+  flex:1 1 auto!important;min-width:0!important;width:auto!important;
+  overflow:hidden!important;text-overflow:ellipsis!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need-values{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  flex:0 0 76px!important;width:76px!important;min-width:76px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.builder-zone{
+  grid-column:1/-1!important;grid-row:2!important;
+  width:100%!important;height:100%!important;max-height:100%!important;min-height:0!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .dock-head{
+  flex:0 0 30px!important;height:30px!important;min-height:30px!important;max-height:30px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #subcategories{
+  flex:0 0 23px!important;height:23px!important;min-height:23px!important;max-height:23px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool,
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools:not(:has(>.tool:nth-child(5)))>.tool{
+  flex:0 0 84px!important;width:84px!important;min-width:84px!important;max-width:84px!important;
+ }
+}
+/* Narrow landscape split view: prevent a 200px-tall, 3-row toolbar. */
+@media(min-width:521px) and (max-width:720px) and (orientation:landscape){
+ html body>.bottom>.control-deck:not(.tools-collapsed){
+  display:grid!important;grid-template-columns:minmax(0,.3fr) minmax(0,.23fr) minmax(0,.47fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  height:132px!important;min-height:0!important;max-height:132px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.city-dashboard{
+  grid-column:1!important;grid-row:1!important;height:100%!important;
+  min-height:0!important;max-height:100%!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.city-control-mini{
+  grid-column:2!important;grid-row:1!important;height:100%!important;
+  min-height:0!important;max-height:100%!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed)>.builder-zone{
+  grid-column:3!important;grid-row:1!important;height:100%!important;
+  min-height:0!important;max-height:100%!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats.stats.dashboard-stats{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  grid-template-rows:minmax(0,1.05fr) minmax(0,.95fr)!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .metric-money{
+  grid-column:1/-1!important;grid-row:1!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .metric-population{
+  grid-column:1!important;grid-row:2!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats .metric-tourists{
+  grid-column:2!important;grid-row:2!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .city-demand-panel{
+  flex-direction:column!important;align-items:stretch!important;height:100%!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .panel-content{
+  height:auto!important;min-height:0!important;overflow-x:hidden!important;overflow-y:auto!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-needs-list{
+  flex-direction:column!important;align-items:stretch!important;width:100%!important;height:auto!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .city-control-mini .mini-need{
+  width:100%!important;min-width:0!important;max-width:100%!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool,
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools:not(:has(>.tool:nth-child(5)))>.tool{
+  flex:0 0 76px!important;width:76px!important;min-width:76px!important;max-width:76px!important;
+ }
 }
 @media(min-width:721px){
 html body>.bottom>.control-deck:not(.tools-collapsed) #citySummaryStats.stats.dashboard-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:minmax(0,1.05fr) minmax(0,.95fr)!important;gap:1px 4px!important}
@@ -1295,8 +1444,28 @@ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #categories{
 html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone #subcategories{flex:0 0 23px!important;height:23px!important;min-height:23px!important;max-height:23px!important}
 html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool{flex:0 0 88px!important;width:88px!important;min-width:88px!important;max-width:88px!important}
 }
+/* Compact desktop tiles: never stretch 3 road cards across the entire palette. */
 @media(min-width:921px){
-html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min-height:0!important;max-height:116px!important}
+ html body>.bottom>.control-deck:not(.tools-collapsed){
+  height:132px!important;min-height:0!important;max-height:132px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool,
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools:not(:has(>.tool:nth-child(5)))>.tool{
+  flex:0 0 92px!important;width:92px!important;min-width:92px!important;max-width:92px!important;
+  box-sizing:border-box!important;min-height:0!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool .tool-icon{
+  font-size:16px!important;
+ }
+}
+@media(min-width:921px) and (max-width:1366px) and (orientation:landscape) and (pointer:coarse){
+ html body>.bottom>.control-deck:not(.tools-collapsed){
+  height:138px!important;min-height:0!important;max-height:138px!important;
+ }
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools>.tool,
+ html body>.bottom>.control-deck:not(.tools-collapsed) .builder-zone .tools:not(:has(>.tool:nth-child(5)))>.tool{
+  flex-basis:88px!important;width:88px!important;min-width:88px!important;max-width:88px!important;
+ }
 }
 </style>
 </head>
@@ -1355,7 +1524,7 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
 <div id="missionMoodFlights" aria-hidden="true"></div>
 <div class="bottom"><details id="cityAdvisor" class="city-advisor" open><summary><span class="advisor-avatar" aria-hidden="true">อ</span><span><small>ที่ปรึกษาเมือง</small><strong id="advisorHeadline">มาดูเมืองของเรากันค่ะ</strong></span><span class="advisor-chevron" aria-hidden="true">⌄</span></summary><div class="advisor-body"><p id="advisorOverview"></p><div class="advisor-columns"><section><h3>สิ่งที่ไปได้ดี</h3><ul id="advisorGood"></ul></section><section><h3>เรื่องที่ควรดูแล</h3><ul id="advisorProblems"></ul></section></div><div class="advisor-next"><h3>ทำอะไรก่อนดี</h3><ol id="advisorNext"></ol></div></div></details><div id="cityAdvisorTicker" class="city-advisor-mini is-visible" role="status" aria-live="polite" aria-atomic="true"><span class="city-advisor-action"><span class="city-advisor-spark" aria-hidden="true">✦</span><span id="cityAdvisorTickerMessage" class="city-advisor-text" tabindex="0">ผู้ช่วยเมือง: กำลังตรวจความต้องการ</span></span><button type="button" id="cityAdvisorTickerDismiss" class="city-advisor-dismiss" aria-label="ปิดคำแนะนำชั่วคราว" title="ซ่อนคำแนะนำชั่วคราว">×</button></div><span id="hint" class="ui-legacy-hidden" hidden aria-hidden="true"></span><section id="cityCommandBar" class="city-command-bar" aria-label="เวลา ความเร็ว และการแสดงผลเมือง"><div class="dock-head"><div class="dock-timebar"><div class="dock-clock" aria-label="วัน วันที่ และเวลาในเกม"><span id="day">วันจันทร์ · วันที่ 1</span><strong id="clock">06:00</strong></div><div class="dock-speed"><div class="playback"><button id="pause" title="หยุดหรือเล่นต่อ">Ⅱ</button><button data-speed="1" class="active">1×</button><button data-speed="2">2×</button><button data-speed="5">5×</button><button data-speed="10">10×</button><button data-speed="20">20×</button><button id="skip" type="button" aria-label="ข้ามไปเช้าวันใหม่" title="ข้ามไปเช้าวันใหม่"><span class="skip-day-label">ข้ามวัน</span> <span aria-hidden="true">↠</span></button></div><span id="status">ทุกการเดินทาง เริ่มจากเมืองที่คุณสร้าง</span><span class="edition">THAILAND / SANDBOX</span></div></div><span class="dock-display-actions" role="group" aria-label="ตัวเลือกการแสดงผล"><button id="toggleBuildingLabels" type="button" class="is-hidden toggle-building-labels" aria-pressed="true" aria-label="เปิดป้ายอาคารบนแผนที่" title="ซ่อนหรือแสดงชื่อและตัวเลขบนป้ายอาคาร"><span class="toggle-building-labels-icon" aria-hidden="true">▣</span> <span id="toggleBuildingLabelsText">เปิดป้าย</span></button><button id="toggleCarDiamonds" type="button" class="toggle-car-diamonds" aria-pressed="true" aria-label="ซ่อนสถานะรถใกล้สายหรือสายแล้ว" title="ซ่อนสถานะรถ · 😥 ใกล้สาย · 😡 สายแล้ว"><span class="toggle-car-diamonds-icon" aria-hidden="true">😥</span> <span id="toggleCarDiamondsText">ซ่อนสถานะ</span></button><button id="toggleAIPins" type="button" class="toggle-ai-pins" aria-pressed="false" aria-label="ซ่อนปุ่ม AI ที่ทางแยก" title="ซ่อนหรือแสดงปุ่ม AI ที่ทางแยก"><span class="toggle-ai-pins-icon" aria-hidden="true">✦</span> <span id="toggleAIPinsText">ปิด AI</span></button><button id="toggleEyeComfort" type="button" class="toggle-eye-comfort" aria-pressed="false" aria-label="เปิดธีมดำตัวหนังสือขาว" title="สลับธีมดำ / ธีมปกติ"><span aria-hidden="true">◐</span> <span class="command-theme-label">ขาว/ดำ</span></button></span><button id="toggleDock" type="button" class="toggle-dock" aria-controls="dockBody" aria-expanded="true" aria-label="หุบแถบเครื่องมือ"><span id="toggleDockIcon" aria-hidden="true">⌄</span> <span id="toggleDockText">หุบเครื่องมือ</span></button></div></section><div class="control-deck" aria-label="แผงควบคุมเมือง">
  <section class="city-dashboard" aria-label="ภาพรวมเมือง">
-  <div class="dashboard-heading"><div class="dashboard-title" aria-label="SMCITY เวอร์ชัน 5.4.16"><strong>SMCITY</strong><small>v5.4.16</small></div><div class="dashboard-actions"><button type="button" id="help" aria-label="วิธีเล่น" title="วิธีเล่น" hidden>?</button></div></div>
+  <div class="dashboard-heading"><div class="dashboard-title" aria-label="SMCITY เวอร์ชัน 5.4.17"><strong>SMCITY</strong><small>v5.4.17</small></div><div class="dashboard-actions"><button type="button" id="help" aria-label="วิธีเล่น" title="วิธีเล่น" hidden>?</button></div></div>
   <div id="citySummaryStats" class="stats dashboard-stats" aria-label="ตัวชี้วัดของเมือง"><button type="button" class="city-metric metric-money" data-inspect="money" aria-label="งบประมาณ — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 9h20M17 14h.01"/></svg></span><span class="metric-text"><small>เงิน</small><strong id="money">฿500,000</strong><span id="moneyDelta" class="metric-delta" data-change="flat" title="เทียบยอดก่อน 06:00 น.">วันนี้ ฿0</span></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-population" data-inspect="population" aria-label="ประชาชน — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M2.5 20v-2a6.5 6.5 0 0 1 13 0v2M17 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 2.5 4.5V20"/></svg></span><span class="metric-text"><small>ประชาชน</small><strong id="population">0 <span class="metric-delta" data-change="flat" title="เปลี่ยนแปลงสุทธิตั้งแต่เริ่มวัน">(0)</span></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button><button type="button" class="city-metric metric-tourists" data-inspect="tourists" aria-label="นักท่องเที่ยว — ดูรายละเอียด"><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="14" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2M4 12h16M9 11v3m6-3v3"/></svg></span><span class="metric-text"><small>นักท่องเที่ยว</small><strong id="tourists">0 <span class="metric-delta" data-change="flat" title="เปลี่ยนแปลงสุทธิตั้งแต่เริ่มวัน">(0)</span></strong></span><span class="metric-arrow" aria-hidden="true">›</span></button></div>
   <span hidden aria-hidden="true"><span id="happy"></span><span id="flow"></span></span>
   <div class="dashboard-shortcuts" aria-label="บัญชีและเซฟเกม">
