@@ -2543,6 +2543,96 @@ export class TrafficRenderer{
    for(const side of [-1,1])
     block('#bda583',cx+side*1.24,.86,rearEdge+.02,.10,1.50,.12,'metal');
 
+   // Enclose the existing parking volume, with real open drive-through
+   // portals aligned to BOTH unchanged aisles. Side walls sit precisely
+   // between bay columns rather than through parked vehicle bodies.
+   const pitch=t.parkingPitch,startU=t.parkingStartU;
+   const shellSides=[cx-1.30,cx+1.30].map(u=>startU+Math.round((u-startU)/pitch)*pitch);
+   const shellFront=cz+(legacy?1.94:2.72)-.075,shellBack=rearEdge;
+   const shellThickness=legacy?.020:.055,portalHalf=legacy?.38:.47;
+   const driveAisles=[t.parkingRearAisle,t.parkingAisle].sort((a,b)=>a-b);
+   for(let side=0;side<2;side++){
+    const u=shellSides[side],out=side===0?-1:1;
+    let from=shellBack;
+    const wall=(a,z)=>{
+     if(z-a<.03)return;
+     const mid=(a+z)/2,len=z-a;
+     block('#354f5c',u,.78,mid,shellThickness,1.38,len,'tower-garage-shell');
+     block('#9a8770',u+out*(shellThickness/2+.008),.24,mid,.012,.22,len,'metal');
+     // Slim vertical bronze ribs visually close the base without fake
+     // geometry extending across a driving lane or a parking bay.
+     for(let v=a+.10;v<z-.04;v+=.23)
+      block('#7d8f91',u+out*(legacy?.012:shellThickness/2+.015),.86,v,legacy?.010:.018,1.13,.022,'metal');
+    };
+    for(const aisle of driveAisles){
+     wall(from,aisle-portalHalf);
+     block('#263f50',u,1.33,aisle,shellThickness+.035,.28,portalHalf*2,'tower-garage-shell');
+     const face=u+out*(shellThickness/2+.026);
+     block('#c1a57c',face,1.18,aisle,.026,.045,portalHalf*2,'metal');
+     block('#ffe4ba',face+out*.015,1.15,aisle,.015,.025,portalHalf*1.75,'night-tower-entry',true);
+     for(const edge of [-1,1])
+      block('#c1a57c',legacy?u:face,.67,aisle+edge*(portalHalf+.025),legacy?.020:.026,1.03,.035,'metal');
+     // A restrained blue parking plaque and a geometric P identify the
+     // opening; its entire lower centre is empty for cars to pass through.
+     block('#1b465c',face,1.34,aisle,.024,.19,.21,'metal');
+     const glyph=face+out*.016;
+     block('#dce6df',glyph,1.34,aisle-.045,.012,.13,.018,'metal');
+     block('#dce6df',glyph,1.397,aisle,.012,.016,.105,'metal');
+     block('#dce6df',glyph,1.35,aisle+.046,.012,.086,.016,'metal');
+     block('#dce6df',glyph,1.32,aisle,.012,.016,.105,'metal');
+     from=aisle+portalHalf;
+    }
+    wall(from,shellFront);
+    block('#bda583',u,1.47,(shellBack+shellFront)/2,.07,.055,shellFront-shellBack,'metal');
+   }
+
+   // Small roof cafe on the ALREADY existing rear canopy. All furniture
+   // stays above the parking ceiling; nothing consumes a ground-level bay.
+   const cafeY=1.752,cafeBack=rearEdge+.075,cafeFront=rearJoin-.08;
+   for(let v=cafeBack;v<cafeFront-.02;v+=.13){
+    const len=Math.min(.112,cafeFront-v);
+    block(Math.round((v-cafeBack)/.13)%2?'#a47b53':'#b58c62',cx,cafeY,v+len/2,2.46,.038,len,'wood');
+   }
+   for(const side of [-1,1]){
+    block('#55717a',cx+side*1.24,1.94,(cafeBack+cafeFront)/2,.028,.34,cafeFront-cafeBack,'glass');
+    block('#cab18a',cx+side*1.24,2.12,(cafeBack+cafeFront)/2,.035,.025,cafeFront-cafeBack,'metal');
+   }
+   block('#55717a',cx,1.94,cafeBack,2.48,.34,.025,'glass');
+   block('#cab18a',cx,2.12,cafeBack,2.48,.025,.035,'metal');
+   const shopU=cx+.42,shopV=cafeFront-.34;
+   block('#304f57',shopU,2.06,shopV,1.28,.59,.48,'stone');
+   block('#729aa0',shopU,2.16,shopV-.248,1.15,.32,.022,'glass');
+   block('#b38d65',shopU,1.92,shopV-.27,1.22,.25,.035,'wood');
+   for(let j=0;j<8;j++)
+    block('#745a42',shopU-.54+j*.155,1.92,shopV-.293,.018,.23,.012,'wood');
+   block('#ded2b6',shopU,2.065,shopV-.31,1.34,.045,.20,'stone');
+   block('#e5d8bb',shopU,2.385,shopV-.065,1.43,.075,.68,'stone');
+   block('#a28662',shopU,2.34,shopV-.405,1.43,.055,.035,'wood');
+   block('#ffe7ba',shopU,2.29,shopV-.39,1.15,.035,.018,'night-tower-cafe',true);
+   // Espresso machine, cups and a small menu board behind the counter.
+   block('#a3aaa5',shopU+.35,2.16,shopV-.265,.23,.16,.16,'metal');
+   block('#283b40',shopU-.38,2.22,shopV-.27,.24,.23,.018,'metal');
+   for(let line=0;line<3;line++)
+    block('#c6c3ae',shopU-.38,2.28-line*.055,shopV-.284,.16,.012,.010,'stone');
+   for(const cupU of [shopU-.06,shopU+.07]){
+    const p=point(cupU,shopV-.35);
+    batch.add(CYL,'#f3ebdc',p.x-.5,2.105,p.y-.5,.025,.046,.025,0,0,0,id,false,'stone');
+   }
+   const cafeTable=(u,v)=>{
+    const p=point(u,v);
+    batch.add(CYL,'#a8794d',p.x-.5,2.055,p.y-.5,.19,.045,.19,0,0,0,id,false,'wood');
+    batch.add(CYL,'#425754',p.x-.5,1.92,p.y-.5,.025,.24,.025,0,0,0,id,false,'metal');
+    for(const side of [-1,1]){
+     const chairV=v+side*.33;
+     block('#c5ad89',u,1.92,chairV,.21,.045,.20,'wood');
+     block('#c5ad89',u,2.035,chairV+side*.09,.21,.20,.025,'wood');
+     for(const dx of [-.075,.075])for(const dz of [-.07,.07])
+      block('#415954',u+dx,1.83,chairV+dz,.018,.15,.018,'metal');
+    }
+   };
+   cafeTable(cx-.67,rearEdge+(legacy?.58:.72));
+   if(!legacy)cafeTable(cx+.61,rearEdge+.72);
+
    const foot=topY,levels=14,storey=.66,height=levels*storey;
    const w=2.60,d=3.05,n=6,dx=w/n,dz=d/n;
    // Remove actual perimeter volumes. No full-height box or unbroken
@@ -2590,12 +2680,18 @@ export class TrafficRenderer{
       for(const [sx,sz] of [[0,1],[1,0],[0,-1],[-1,0]]){
        if(occupied(x+sx,z+sz))continue;
        const exterior=sx?x+sx<0||x+sx>=n:z+sz<0||z+sz>=n;
-       const glimmer=exterior&&(floor*17+x*11+z*7)%47===0;
-       const color=glimmer?'#d9d6bd':exterior?
+       const lit=exterior&&(floor*17+x*11+z*7+(sx+1)*3+(sz+1)*5)%11<4;
+       const color=exterior?
         ['#34718f','#407f9c','#2d6385','#4b87a0'][(floor+x+z)%4]:
         ['#183e57','#28566f','#346b83'][(floor+x+z)%3];
        const pu=u+sx*(dx/2+.009),pv=v+sz*(dz/2+.009);
-       block(color,pu,y+.015,pv,sx?.018:dx-.026,storey-.09,sz?.018:dz-.026,'glass',glimmer);
+       block(color,pu,y+.015,pv,sx?.018:dx-.026,storey-.09,sz?.018:dz-.026,'glass');
+       if(lit){
+        const warm=['#ffdda6','#ffe9c6','#edc58e'][(floor+x+z)%3];
+        block(warm,pu+sx*.015,y+.012,pv+sz*.015,
+         sx?.010:(dx-.026)*.83,(storey-.09)*.76,sz?.010:(dz-.026)*.83,
+         'night-tower-window',true);
+       }
        // Thin mullions follow only surviving faces, including the returns.
        block('#7195a7',pu+(sz?dx/2-.015:0),y,pv+(sx?dz/2-.015:0),
         .018,storey-.035,.018,'metal');
