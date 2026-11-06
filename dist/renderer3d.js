@@ -5630,8 +5630,109 @@ export class TrafficRenderer{
      for(const dx of[-.49,0,.49])
       block('#a563d4',x+dx,upperY+1.28,terraceZ-.26,.06,.055,.32,'glass',true);
     }
+
+    // SMCITY DREAMSTAGE — two-level fantasy festival landmark with a
+    // sculpted stage portal, crystal halo and paired spires. Visual-only.
+    // No parking, trips, entrances, point lights or frame-loop allocations.
+    const dreamGold='#d7b583',dreamIvory='#f0d9b0',dreamStone='#806786';
+    const dreamSky='#9edbdc',dreamBloom='#d29ad1',dreamPink='#edb0d5';
+    const gem=(geo,color,x,y,z,w,h,d,glowing=false,finish='stone')=>{
+     const p=point(x,z);
+     batch.add(geo,color,p.x-.5,y,p.y-.5,w,h,d,0,turn,0,id,glowing,finish);
+    };
+    // Symmetrical fairy-tale gate towers; every tier joins its support.
+    const spire=(x,z,side)=>{
+     block('#493a62',x,.72,z,.72,1.14,.65,'stone');
+     block('#a784a0',x,1.30,z,.77,.13,.70,'stone');
+     block(dreamStone,x,2.35,z,.52,2.00,.49,'stone');
+     for(const xx of [x-.18,x+.18]){
+      block(dreamGold,xx,2.28,z+.258,.046,1.77,.035,'metal');
+      block(dreamIvory,xx,3.17,z+.29,.10,.10,.055,'metal');
+     }
+     for(const yy of [1.40,3.37]){
+      block('#54446d',x,yy,z,.70,.13,.68,'stone');
+      block(dreamGold,x,yy+.075,z+.02,.73,.045,.71,'metal');
+     }
+     block('#6d537c',x,4.10,z,.43,1.38,.45,'stone');
+     block(dreamBloom,x,4.74,z+.225,.30,.30,.025,'glass');
+     block(dreamGold,x,4.91,z,.59,.13,.58,'metal');
+     gem(CONE,'#aa86b7',x,5.49,z,.43,1.02,.45);
+     gem(CONE,dreamGold,x,5.92,z,.19,.40,.20,false,'metal');
+     gem(LEAF,dreamIvory,x,6.18,z,.12,.16,.12,false,'metal');
+     for(const dz of [-.23,.23]){
+      block(dreamPink,x,3.91,z+dz,.11,.26,.08,'glass');
+      block('#c6a2ce',x+side*.23,1.91,z+dz,.10,.52,.10,'stone');
+     }
+     block('#b47dde',x,2.95,z+.272,.29,.09,.037,'glass',true);
+    };
+    for(const side of [-1,1])spire(center+side*2.86,front-1.27,side);
+    // Castle-like rear portal sits behind the actual DJ console and LED
+    // wall, preserving the central dance floor and two VIP decks.
+    const portalZ=back+.30;
+    for(const side of [-1,1]){
+     const px=center+side*1.79;
+     block('#66516f',px,1.98,portalZ,.34,2.98,.31,'stone');
+     block(dreamGold,px-side*.14,2.01,portalZ+.168,.055,2.67,.045,'metal');
+     block('#ad82a8',px,3.52,portalZ,.54,.22,.37,'stone');
+     gem(CONE,dreamIvory,px,3.99,portalZ,.31,.74,.33);
+     // Faceted petals fan inward around the stage emblem.
+     for(let petal=0;petal<4;petal++){
+      const x=center+side*(1.50-petal*.35);
+      const yy=3.26+Math.sin((petal+1)*Math.PI/5)*.68;
+      const zz=portalZ+.06+petal*.025;
+      gem(LEAF,[dreamBloom,'#b8a2d2','#b0d1d5',dreamPink][petal],
+       x,yy,zz,.38,.62+petal*.13,.17);
+      block(dreamGold,x,yy-.35,zz+.12,.058,.10,.045,'metal');
+     }
+    }
+    block('#6b537b',center,3.52,portalZ,3.80,.22,.35,'stone');
+    block(dreamGold,center,3.66,portalZ+.18,3.89,.075,.055,'metal');
+    for(const xx of [center-1.28,center-.91,center+.91,center+1.28])
+     block('#b58da8',xx,3.80,portalZ+.08,.22,.43,.25,'stone');
+    // Instanced 16-piece halo and faceted luminous centre crystal.
+    for(let i=0;i<16;i++){
+     const a=i*Math.PI/8;
+     gem(LEAF,i%4===0?dreamIvory:dreamGold,
+      center+Math.cos(a)*.72,4.47+Math.sin(a)*.72,portalZ+.20,
+      .115,.145,.09,false,'metal');
+    }
+    gem(LEAF,dreamSky,center,4.47,portalZ+.26,.62,.92,.28,false,'glass');
+    gem(LEAF,'#dfb6ea',center,4.47,portalZ+.43,.25,.53,.15,false,'glass');
+    gem(LEAF,'#b8f1ed',center,4.47,portalZ+.54,.105,.27,.075,true,'glass');
+    gem(CONE,dreamGold,center,5.38,portalZ+.18,.31,.64,.29,false,'metal');
+    // Lower theatre wing finials and flower beds add depth on all four faces.
+    for(const side of [-1,1]){
+     const wx=center+side*2.34;
+     for(let k=0;k<3;k++){
+      const z=back+.81+k*.73;
+      block('#5e476f',wx,.91,z,.46,1.10,.43,'stone');
+      block(dreamGold,wx,1.53,z,.48,.10,.49,'metal');
+      gem(CONE,k%2?dreamBloom:'#a2b5ce',wx,1.90,z,.31,.68,.34);
+      gem(LEAF,k%2?dreamPink:dreamSky,wx-side*.11,2.10,z+.12,.22,.37,.13);
+     }
+     for(let k=0;k<3;k++){
+      const fx=center+side*(2.29+k*.20),fz=front-.45-k*.30;
+      block('#79617d',fx,.31,fz,.23,.23,.23,'stone');
+      gem(LEAF,'#69977f',fx,.57,fz,.32,.27,.31);
+      for(const dx of [-.13,.13])
+       gem(LEAF,dx<0?dreamBloom:dreamPink,fx+dx,.75,fz,.18,.22,.16);
+     }
+     // Glow is drawn using the game's existing batched night material.
+     for(let k=0;k<4;k++){
+      const zz=back+1.18+k*.86;
+      block(k%2?laser:dreamSky,center+side*2.74,2.67,zz,
+       .075,.17,.10,'glass',true);
+     }
+    }
+    // Street-facing crown, with a fully open walkway beneath.
+    block('#6e527d',center,4.38,front-.37,3.89,.18,.22,'stone');
+    block(dreamGold,center,4.50,front-.27,3.89,.068,.12,'metal');
+    for(const xx of [center-1.59,center+1.59]){
+     gem(CONE,dreamIvory,xx,4.79,front-.36,.23,.55,.25);
+     block('#dfacd9',xx,4.53,front-.24,.18,.12,.06,'glass',true);
+    }
     // Lit front facade is merely an OPEN doorway, not a blank nightclub box.
-    neonSign('PURPLE CLUB',center,3.97,front-.25,3.28);
+    neonSign('DREAMSTAGE',center,3.97,front-.25,3.28);
     for(const sign of[-1,1]){
      const x=center+sign*1.55;
      post(x,front-.38,3.72,.24,plum);
