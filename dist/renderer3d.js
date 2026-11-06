@@ -2531,6 +2531,18 @@ export class TrafficRenderer{
    // Rear wall meets the underside of the tower, without a detached cap.
    block('#38576a',cx,1.55,(supportV+cz)/2,2.60,.12,cz-supportV+.20,'metal');
 
+   // A real rear canopy reaches the back of the court, continuously joined
+   // to the tower soffit. Its posts sit behind the rear-most parked cars.
+   const rearEdge=legacy?.10:.28,rearJoin=cz-1.38,rearDepth=rearJoin-rearEdge;
+   block('#38576a',cx,1.63,(rearEdge+rearJoin)/2,2.60,.16,rearDepth,'metal');
+   block('#c3ccca',cx,1.718,(rearEdge+rearJoin)/2,2.54,.025,rearDepth-.05,'stone');
+   block('#c9ae85',cx,1.57,rearEdge,2.60,.08,.055,'metal');
+   block('#ffdcb0',cx,1.535,rearEdge+.08,2.32,.025,.025,'glass',true);
+   block('#38576a',cx,.82,rearEdge,2.60,1.48,.10,'metal');
+   block('#548294',cx,.86,rearEdge-.056,2.43,1.24,.018,'glass');
+   for(const side of [-1,1])
+    block('#bda583',cx+side*1.24,.86,rearEdge+.02,.10,1.50,.12,'metal');
+
    const foot=topY,levels=14,storey=.66,height=levels*storey;
    const w=2.60,d=3.05,n=6,dx=w/n,dz=d/n;
    // Remove actual perimeter volumes. No full-height box or unbroken
@@ -2551,6 +2563,12 @@ export class TrafficRenderer{
     };
     carve(face,column,floor%3===1?2:1);
     if(column>=4)carve((face+1)%4,0,1);
+    // A second continuous stepped cut stays visible from the street/front.
+    // Its two-cell depth removes solid volume rather than painting shadows.
+    if(floor>=3&&floor<=10){
+     const frontColumn=[0,0,1,2,3,4,5,5][floor-3];
+     carve(0,frontColumn,2);
+    }
     // The central structural spine remains continuous on every storey.
     for(let z=2;z<=3;z++)for(let x=2;x<=3;x++)cells[z][x]=true;
     floorCells.push(cells);
@@ -2594,8 +2612,27 @@ export class TrafficRenderer{
     block('#93aebc',cx,top+.19,cz+side*1.64,2.88,.16,.06,'glass');
     block('#93aebc',cx+side*1.46,top+.19,cz,.06,.16,3.23,'glass');
    }
-   block('#82949c',cx-.42,top+.24,cz-.36,.52,.18,.55,'metal');
-   block('#57717e',cx+.50,top+.22,cz+.39,.47,.14,.49,'metal');
+   // SkyWalk crown: stepped Peak, a glazed lift pavilion and a projecting
+   // glass tray give the rooftop its recognisable observation-deck outline.
+   for(let step=0;step<5;step++){
+    const depth=1.25-step*.22,h=.11*(step+1);
+    block('#adaca1',cx+.42,top+.17+h/2,cz-.91+depth/2,1.30,h,depth,'stone');
+    block('#d4cbb6',cx+.42,top+.17+h+.012,cz-.91+depth-.025,1.30,.024,.035,'metal');
+   }
+   block('#80aebd',cx+.42,top+.82,cz-.89,1.31,.20,.025,'glass');
+   for(const side of [-1,1])
+    block('#8ea9b4',cx+.42+side*.65,top+.81,cz-.79,.025,.19,.24,'glass');
+   block('#34586c',cx-.65,top+.40,cz-.48,.53,.46,.68,'glass');
+   block('#93c4cf',cx-.65,top+.42,cz-.12,.46,.39,.025,'glass');
+   block('#c7b99c',cx-.65,top+.65,cz-.48,.60,.055,.74,'metal');
+   const trayU=cx-.55,trayV=cz+1.59;
+   block('#294e60',trayU,top+.15,trayV,1.14,.07,.94,'metal');
+   block('#76c6d3',trayU,top+.198,trayV,1.07,.025,.88,'glass');
+   for(let pane=-1;pane<=1;pane++)
+    block('#c8e7e4',trayU+pane*.35,top+.215,trayV,.016,.012,.88,'metal');
+   block('#a1c9d0',trayU,top+.34,trayV+.46,1.14,.26,.025,'glass');
+   for(const side of [-1,1])
+    block('#a1c9d0',trayU+side*.56,top+.34,trayV,.025,.26,.94,'glass');
    // Crown details sit above the carved envelope; no vertical corner
    // bars pass through the open pixel setbacks below.
    block('#b4a182',cx,top+.30,cz+1.46,1.95,.035,.050,'metal');
@@ -2671,6 +2708,49 @@ export class TrafficRenderer{
     roofPlant(cx+.94,terraceMid+terraceDepth*.25,.88);
     block('#e9dfc9',cx+.41,1.81,terraceMid-.18,.21,.045,.47,'wood');
     block('#faf5e9',cx+.41,1.865,terraceMid-.30,.21,.07,.18,'stone');
+   }
+
+   // Perimeter landscaping stays in the unused outer strip. The full
+   // central frontage remains open for both authentic road gates.
+   const courtW=t.plotWidth,courtD=t.plotHeight;
+   const fence=(u,v,w,d)=>{
+    block('#bdc7bb',u,.16,v,w,.16,d,'stone');
+    block('#527065',u,.40,v,w,.055,d,'metal');
+    block('#527065',u,.65,v,w,.04,d,'metal');
+    const count=Math.ceil(Math.max(w,d)/.40);
+    for(let j=0;j<=count;j++){
+     const q=j/count-.5;
+     block('#4a635c',u+(w>d?q*w:0),.43,v+(d>w?q*d:0),.035,.46,.035,'metal');
+    }
+   };
+   fence(courtW/2,.16,courtW-.32,.06);
+   for(const side of [-1,1])
+    fence(side<0?.16:courtW-.16,courtD/2,.06,courtD-.32);
+   const gateHalf=legacy?1.58:2.30,wing=(courtW/2-gateHalf-.28);
+   for(const side of [-1,1]){
+    fence(cx+side*(gateHalf+wing/2),courtD-.25,wing,.06);
+    if(legacy)continue;
+    const u=cx+side*(gateHalf+.12),v=courtD-1.15;
+    block('#3e5d59',u,.47,v,.20,.84,.20,'stone');
+    block('#dfc8a1',u,.91,v,.23,.055,.23,'metal');
+    block('#ffe1ae',u,.74,v+.105,.10,.19,.015,'glass',true);
+   }
+   const groundPlant=(u,v,scale)=>{
+    block('#bac5b4',u,.19,v,.35*scale,.21,.35*scale,'stone');
+    block('#516b4b',u,.30,v,.30*scale,.025,.30*scale);
+    const p=point(u,v);
+    batch.add(CYL,'#7b644f',p.x-.5,.58,p.y-.5,.043*scale,.54,.043*scale,0,0,0,id,false,'roof-garden-essential');
+    batch.add(LEAF,'#638d67',p.x-.5,.99,p.y-.5,.26*scale,.36*scale,.26*scale,0,0,0,id,false,'roof-garden-essential');
+    batch.add(LEAF,'#87a57a',p.x-.5,.85,p.y-.5,.31*scale,.24*scale,.30*scale,0,0,0,id,false,'roof-garden-essential');
+   };
+   // Trees occupy the rear margin and front corners, outside the stall banks.
+   for(const u of legacy?[]:[1.05,courtW-1.05]){
+    groundPlant(u,.43,.85);
+    groundPlant(u,courtD-1.30,1.05);
+   }
+   for(const side of legacy?[]:[-1,1]){
+    block('#abbca1',cx+side*(gateHalf+1.00),.25,courtD-1.35,1.20,.22,.28,'stone');
+    block('#6f936e',cx+side*(gateHalf+1.00),.40,courtD-1.35,1.12,.18,.24);
    }
    return;
   }
@@ -8419,4 +8499,5 @@ export class TrafficRenderer{
  this.renderer.render(this.scene,this.camera);
  }
 }
+
 

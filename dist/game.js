@@ -688,8 +688,11 @@ function grandSignalMayCross(v){
   car.grandCrossing&&!car.grandCrossing.cleared&&!car.grandCrossing.granted&&
   (car.lotDistance||0)>=car.grandCrossing.stopAt-.10;
  const waiting=[...state.vehicles.values()].filter(car=>ready(car));
- const front=waiting.filter(car=>car.grandCrossing.approach==='front').sort((a,b)=>a.id-b.id);
- const rear=waiting.filter(car=>car.grandCrossing.approach==='rear').sort((a,b)=>a.id-b.id);
+ const towerQueue=['home_mahanakhon','home_mahanakhon_compact'].includes(b.key);
+ const queueOrder=(a,b)=>(towerQueue?(a.grandCrossing.crossingAt-(a.lotDistance||0))-
+  (b.grandCrossing.crossingAt-(b.lotDistance||0)):0)||a.id-b.id;
+ const front=waiting.filter(car=>car.grandCrossing.approach==='front').sort(queueOrder);
+ const rear=waiting.filter(car=>car.grandCrossing.approach==='rear').sort(queueOrder);
  // Only the first waiting vehicle from a direction may enter the crossing.
  const own=crossing.approach==='rear'?rear:front;
  if(own[0]&&own[0].id!==v.id)return noteParkingBlock(v,'internal_crossing_queue_priority',{blockerVehicleId:own[0].id,approach:crossing.approach});
@@ -790,24 +793,9 @@ function prepareLotDeparture(v,dt){
   const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){noteParkingBlock(v,'departure_missing_parking_slot',{requestedSlot:index});v.stopReason='ไม่พบช่องจอดของรถ';return false;}
   if(parkingBankBusy(b,index,false,v)){v.stopReason='รอรถเข้าจอดในแถวเดียวกัน';return false;}
   const t=CATALOG[b.key],exitU=t.dualParking?(slot.zone==='A'?t.parkingExitA:t.parkingExitB):(t.parkingExitU??t.plotWidth-.45);
-  if(b.key==='home_mahanakhon'||b.key==='home_mahanakhon_compact'){
-   // One vehicle may MERGE out of each tightly-spaced 40-bay court at
-   // a time. Without this local admission guard, two cars leave nearby
-   // bays into the same aisle, stop nose-to-side, and deadlock forever.
-   // Let the next car proceed once the previous one reaches the exit.
-   for(const other of state.vehicles.values()){
-    if(other.id===v.id||other.lotBuilding!==b.id||!other.lotPath)continue;
-    const incoming=other.phase==='parking_in';
-    const departing=other.phase==='departing'&&!other.lotReady;
-    if(!incoming&&!departing)continue;
-    const otherSlot=b.parkingSlots?.indexOf(other.citizenId)??-1;
-    const otherBank=otherSlot>=0?lotSlots(b)[otherSlot]?.zone:null;
-    if(other.parkingStage||otherBank===slot.zone){
-     v.stopReason=incoming?'รอรถเข้าจอดในแถวก่อน':'รอรถคันหน้าออกจากช่องจอด';
-     return false;
-    }
-   }
-  }
+  // Admit independent bay merges into a moving queue. The swept merge
+  // reservation below protects adjacent bays and arriving cars locally;
+  // another car elsewhere in the same bank no longer locks all forty bays.
   v.lotPath=[parkingSlotPose(b,index),lotPoint(b,slot.u,slot.aisle),lotPoint(b,exitU,slot.aisle)];
   // Rear court must physically cross the front aisle before leaving.
   if(t.stackedParking&&t.parkingRows>1&&slot.zone==='rear')v.lotPath.push(lotPoint(b,exitU,t.parkingAisle));
@@ -821,10 +809,10 @@ function prepareLotDeparture(v,dt){
   if(t.stackedParking&&t.parkingRows>1){
    const junctionSegment=slot.zone==='rear'?4:3;
    const crossingAt=lotPathLength(v.lotPath.slice(0,junctionSegment));
-   // Hold the compact tower's one shared exit token until the car has
-   // actually merged onto the city road, not just until it leaves the
-   // internal T-junction. Otherwise rear/front cars meet at the centre gate.
-   const clearAt=(b.key==='home_mahanakhon'||b.key==='home_mahanakhon_compact')?Infinity:crossingAt+1.02;
+   // Release the junction after the vehicle body has cleared it. Followers
+   // may join the downstream queue while the lead car awaits the road;
+   // lotClear still enforces separation throughout the shared exit spine.
+   const clearAt=crossingAt+1.02;
    v.grandCrossing={approach:slot.zone,crossingAt,stopAt:Math.max(0,crossingAt-1.12),clearAt,granted:false,cleared:false};
   }
   if(!canLeaveParkingSpace(v,v.lotPath)){grandSignalRelease(v);v.grandCrossing=null;v.lotPath=null;v.lotDistance=0;v.stopReason='รอทางว่างเพื่อออกจากช่องจอด';return false;}
@@ -8912,4 +8900,5 @@ if(missionFailureToggle)missionFailureToggle.onclick=()=>{
 };
 resize();startNewCity();requestAnimationFrame(frame);
 })();
+
 
