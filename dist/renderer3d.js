@@ -5529,223 +5529,180 @@ export class TrafficRenderer{
     for(const [x,z] of[[1.18,back+.62],[6.80,front-.44],[1.14,front-.48]])
      flower(x,z,.18);
    }else{
-    // LARGE: night club occupying a large HALF-PLOT; upper VIP is an open U
-    // around a true void and a terrace ON the second level (not a 3rd floor).
-    const boothZ=back+.86,danceZ=back+3.03,upperY=2.37;
-    const stageZ=boothZ,stageW=3.16;
-    slab(center,.43,stageZ,stageW,1.15,'#3f294f');
-    block('#cd69ff',center,.54,stageZ+.58,stageW,.06,.09,'glass',true);
-    // Elevated DJ desk, turntables, controller and lighting strips.
-    block('#33303e',center,.97,stageZ+.08,1.75,.74,.57,'wood');
-    block('#a64eee',center,1.32,stageZ+.39,1.77,.10,.61,'glass',true);
-    for(const xx of[center-.48,center+.48]){
-     circle('#222b36',xx,1.40,stageZ+.06,.20,.054);
-     circle('#9374d2',xx,1.435,stageZ+.06,.115,.016);
-     pole('#f1ceea',xx,1.66,stageZ-.10,.029,.19,'glass',true);
+    // DREAMSTAGE v2: a complete festival complex, not an iron truss stage.
+    // Left: an ENCLOSED two-storey Mini Pub. Middle: a sculpted mainstage.
+    // Right: THREE separate permanent drink-sale booths. Centre plaza open.
+    // Strictly contained in original 8x13 plot's front half (40 rear bays).
+    const gold='#d7b583',cream='#f0d9b0',rose='#d29ad1',aqua='#9edbdc';
+    const rock='#9b83a6',night='#4c365f',green='#648876';
+    const shape=(geometry,color,x,y,z,w,h,d,lit=false,finish='stone')=>{
+     const p=point(x,z);
+     batch.add(geometry,color,p.x-.5,y,p.y-.5,w,h,d,0,turn,0,id,lit,finish);
+    };
+    const roof=(color,x,y,z,w,h,d)=>shape(PITCHED_ROOF,color,x,y,z,w,h,d);
+    const glow=(color,x,y,z,w,h,d)=>block(color,x,y,z,w,h,d,'glass',true);
+    const lantern=(x,z,y=1.45)=>{
+     block('#654e6d',x,y-.29,z,.07,.58,.07,'stone');
+     glow(ember,x,y+.07,z,.14,.16,.13);
+     block(gold,x,y+.18,z,.19,.06,.17,'metal');
+    };
+
+    // MAIN STAGE: grounded stone architecture and faceted lotus crown.
+    const stageZ=back+.77,wallZ=back+.23;
+    slab(center,.39,stageZ,2.60,1.11,'#4b3a60');
+    block(gold,center,.49,stageZ+.53,2.66,.08,.10,'metal');
+    for(let k=0;k<9;k++){
+     const xx=center-.99+k*.245;
+     glow(k%2?laser:aqua,xx,.54,stageZ+.586,.13,.048,.055);
     }
-    for(let i=0;i<9;i++){
-     const xx=center-.35+i*.087;
-     block(i%2?'#c785db':'#8d7ab2',xx,1.38,stageZ+.17,.046,.050,.090,'metal');
+    block('#4c385f',center,1.63,wallZ,2.46,2.38,.14,'stone');
+    block('#775b86',center,1.59,wallZ+.08,2.14,2.00,.055,'stone');
+    block('#8439d2',center,1.50,wallZ+.12,1.83,1.42,.025,'glass',true);
+    for(let k=0;k<9;k++){
+     const x=center-.78+k*.195;
+     glow(k%2?laser:amethyst,x,1.12+(k%4)*.17,wallZ+.147,.085,.10,.025);
     }
-    for(const sx of[1.42,6.58])speaker(sx,stageZ,.19);
-    block(plum,center,1.37,stageZ-.63,3.52,1.42,.12,'metal');
-    block('#8439d2',center,1.37,stageZ-.557,3.25,1.21,.038,'glass',true);
-    for(let j=0;j<11;j++){
-     const xx=center-1.49+j*.30;
-     block((j%3===0?laser:j%3===1?amethyst:royal),
-      xx,.99+(j%3)*.27,stageZ-.526,.19,.17,.019,'glass',true);
-    }
-    // Overhead rig with separately illuminated moving-head silhouettes.
-    for(const x of[2.23,5.77]){
-     post(x,stageZ-.42,3.77,.16,'#302839');
-     for(const zz of[stageZ-.27,stageZ+.46])
-      light(x,zz,2.82,0,lilac);
-    }
-    lightBar(center,stageZ+.30,4.53,3.58,14);
-    // A patterned dance floor glows in front of DJ, totally open to camera.
-    dance(center,danceZ,2.52,1.36,0);
+    // Stone buttresses and tall castellated turrets replace metal trusses.
     for(const side of[-1,1]){
-     const sx=center+side*1.50;
-     for(const z of[danceZ-.56,danceZ+.52]){
-      light(sx,z,1.73,0,side<0?laser:amethyst);
+     const sx=center+side*1.16;
+     block('#6d4d77',sx,1.58,stageZ-.25,.46,2.65,.57,'stone');
+     block('#b098b2',sx,1.58,stageZ+.047,.45,2.37,.072,'stone');
+     block('#574063',sx,.38,stageZ,.60,.44,.65,'stone');
+     block(gold,sx,2.96,stageZ-.25,.56,.14,.65,'metal');
+     block(rock,sx,3.41,stageZ-.24,.43,.77,.44,'stone');
+     block(gold,sx,3.83,stageZ-.24,.53,.13,.53,'metal');
+     shape(CONE,'#a787af',sx,4.32,stageZ-.24,.38,.88,.40);
+     shape(CONE,gold,sx,4.77,stageZ-.24,.18,.28,.17);
+     for(let i=0;i<4;i++){
+      const xx=center+side*(1.0-i*.258);
+      shape(LEAF,i%2?rose:'#cfacd5',xx,3.35+.17*Math.sin(i*.9),stageZ+.035,
+       .31,.51+(3-i)*.052,.155);
+      block(gold,xx,3.07,stageZ+.15,.08,.07,.045,'metal');
      }
     }
-    // Ground bars are asymmetrical to keep all 4 faces visually distinct:
-    // left straight drinks counter, right sofa alcoves + back storage.
-    const leftBarX=1.47,leftBarZ=back+2.76;
-    block('#60317c',leftBarX,.67,leftBarZ,.54,.73,2.13,'wood');
-    block(lilac,leftBarX,.99,leftBarZ,.72,.09,2.24,'stone');
-    block(laser,leftBarX+.38,.78,leftBarZ,.052,.30,1.91,'glass',true);
-    for(const z of[leftBarZ-.74,leftBarZ-.25,leftBarZ+.24,leftBarZ+.73])
-     stool(2.05,z);
-    for(const z of[leftBarZ-.66,leftBarZ+.11,leftBarZ+.66])
-     bottles(leftBarX,z,1.09,4);
-    for(const z of[back+2.04,back+3.59,front-.56])
-     clubTable(6.26,z,0,true,.78);
-    // Upstairs gallery comprises TWO side wings and a REAR bridge;
-    // central 2.5-unit opening remains genuinely hollow.
-    const galleryLeft=1.86,galleryRight=6.14,sideW=1.52;
-    const galleryD=Math.min(depth-.72,4.18);
-    const galleryZ=back+galleryD/2+.10;
-    for(const xx of[galleryLeft,galleryRight]){
-     slab(xx,upperY,galleryZ,sideW,galleryD,'#7c5b8f');
-     block('#ab7cc0',xx,upperY+.085,galleryZ,sideW-.09,.035,galleryD-.11,'stone');
-     const inward=xx<center?xx+sideW*.50:xx-sideW*.50;
-     railV(inward,galleryZ,upperY+.19,galleryD-.12);
-     for(const zz of[galleryZ-galleryD*.43,galleryZ+galleryD*.43])
-      post(xx+((xx<center)?-.56:.56),zz,upperY-.24,.15,'#4c3c59');
-     for(const zz of[galleryZ-.72,galleryZ+.77])
-      clubTable(xx,zz,upperY+.13,true,.70);
-     // Upholstered booths at the terrace edge, glass and night lamps.
-     for(const zz of[galleryZ-1.18,galleryZ+1.08]){
-      block('#755285',xx,upperY+.58,zz,.87,.39,.37,'wood');
-      block('#be82d2',xx,upperY+.80,zz,.86,.12,.34,'stone');
-      light(xx,zz,1.34,upperY,lilac);
-     }
-    }
-    const bridgeZ=back+.47,bridgeWidth=2.80;
-    slab(center,upperY,bridgeZ,bridgeWidth,.76,'#ae8ac1');
-    railU(center,bridgeZ+.40,upperY+.19,bridgeWidth-.14);
-    railU(center,bridgeZ-.40,upperY+.19,bridgeWidth-.14);
-    // Two side stairs, actual tiered meshes from 1st to 2nd floor.
+    block('#6e517c',center,3.09,stageZ-.16,2.72,.28,.69,'stone');
+    block(gold,center,3.27,stageZ+.20,2.68,.10,.11,'metal');
     for(const side of[-1,1]){
-     const x=center+side*2.12;
-     for(let i=0;i<12;i++){
-      const p=(i+.5)/12,zz=front-.64-p*1.92,yy=.27+p*(upperY-.28);
-      block(i%2?'#8e789f':'#c2afc9',x,yy,zz,.54,.10,.20,'stone');
-      for(const offset of[-.32,.32]){
-       block('#7b6d86',x+offset,yy+.18,zz,.035,.38,.18,'metal');
-       block('#ddbef0',x+offset,yy+.35,zz,.025,.09,.19,'glass');
-      }
+     shape(LEAF,rose,center+side*.64,4.13,stageZ-.20,.47,.83,.28);
+     shape(LEAF,'#9ccbc6',center+side*.32,4.40,stageZ-.18,.36,.98,.24);
+    }
+    shape(LEAF,aqua,center,4.81,stageZ-.19,.45,1.25,.33,false,'glass');
+    shape(LEAF,'#b7f0e5',center,4.81,stageZ+.01,.20,.65,.12,true,'glass');
+    shape(CONE,gold,center,5.57,stageZ-.17,.25,.42,.25,false,'metal');
+    for(let k=-3;k<=3;k++)
+     block(k%2?cream:gold,center+k*.30,3.32-Math.abs(k)*.075,
+      stageZ+.20,.19,.18,.11,'stone');
+    // DJ console built into the stage itself, never dangling from a rig.
+    block('#382d44',center,.91,stageZ+.18,1.41,.62,.44,'wood');
+    block('#c59ac2',center,1.26,stageZ+.19,1.46,.08,.46,'stone');
+    glow(laser,center,1.03,stageZ+.433,1.20,.09,.045);
+    for(const dx of[-.40,.40]){
+     circle('#272735',center+dx,1.35,stageZ+.13,.15,.037);
+     circle('#9480bf',center+dx,1.37,stageZ+.13,.08,.02);
+    }
+    for(let k=0;k<5;k++)
+     block(gold,center-.24+k*.12,1.39,stageZ+.13,.045,.038,.08,'metal');
+    // Flush bass-speaker niches are part of the stage wall.
+    for(const x of[center-1.04,center+1.04]){
+     block('#382d48',x,1.11,stageZ+.27,.27,.98,.22,'stone');
+     for(const y of[.91,1.32]){
+      shape(CYL_SMOOTH,'#292332',x,y,stageZ+.40,.10,.034,.10);
+      glow(amethyst,x,y,stageZ+.43,.052,.06,.027);
      }
     }
-    // The VIP terrace occupies the FRONT section of the SECOND level;
-    // it is open-air and not a rooftop "third storey".
-    for(const x of[galleryLeft,galleryRight]){
-     const terraceZ=galleryZ+galleryD*.32;
-     railU(x,terraceZ+.60,upperY+.19,sideW-.11);
-     for(const dx of[-.45,.45])
-      flower(x+dx,terraceZ-.14,.17,upperY);
-     block('#4a365a',x,upperY+1.22,terraceZ-.26,sideW-.18,.10,.33,'metal');
-     for(const dx of[-.49,0,.49])
-      block('#a563d4',x+dx,upperY+1.28,terraceZ-.26,.06,.055,.32,'glass',true);
+    neonSign('DREAMSTAGE',center,2.51,stageZ+.40,2.38);
+
+    // LEFT: actual enclosed two-storey mini pub with opaque walls.
+    const px=1.85,pz=9.52,pw=1.74,pd=2.92;
+    slab(px,.25,pz,pw,pd,'#53435a');
+    for(const x of[px-pw*.50,px+pw*.50])
+     block('#a088a3',x,1.73,pz,.12,2.78,pd,'stone');
+    block('#b29bb1',px,1.64,pz-pd*.50,pw,2.55,.13,'stone');
+    block('#74577d',px,2.05,pz,pw,.16,pd,'stone');
+    // Front is a real glazed elevation, with a door and paired windows.
+    for(const yy of[1.21,2.62]){
+     for(const xx of[px-.55,px+.55]){
+      block('#e3d0c8',xx,yy,pz+pd*.50,.45,.87,.13,'stone');
+      block('#729caa',xx,yy,pz+pd*.50+.073,.37,.73,.032,'glass');
+      block('#d3e2dc',xx,yy+.18,pz+pd*.50+.095,.29,.11,.028,'glass');
+      block(gold,xx,yy,pz+pd*.50+.11,.026,.75,.025,'metal');
+     }
+    }
+    block('#654669',px,.85,pz+pd*.50+.11,.43,1.16,.10,'wood');
+    block('#91bbc0',px,.89,pz+pd*.50+.17,.34,1.01,.032,'glass');
+    block(gold,px+.11,.85,pz+pd*.50+.194,.033,.09,.025,'metal');
+    for(const zz of[pz-.65,pz+.56]){
+     block('#648da0',px+pw*.5+.072,1.27,zz,.032,.73,.45,'glass');
+     block(gold,px+pw*.5+.098,1.27,zz,.03,.76,.033,'metal');
+     glow(ember,px+pw*.5+.115,1.48,zz,.041,.11,.11);
+    }
+    // Complete pitched roof; no open gallery or steel pergola remains.
+    block(gold,px,3.19,pz,1.89,.16,3.08,'metal');
+    roof('#715b89',px,3.29,pz,1.94,.60,3.12);
+    block('#d4b9ba',px,3.70,pz,.07,.16,2.45,'stone');
+    neonSign('PUB',px,3.05,pz+pd*.50+.19,1.26);
+    // Interior room contents are visible through glass from each direction.
+    block('#68496c',px-.40,.78,pz-.62,.62,.61,.26,'wood');
+    block(gold,px-.40,1.13,pz-.62,.66,.08,.29,'metal');
+    for(const zz of[pz-.63,pz-.29,pz+.11])bottles(px-.36,zz,1.09,3);
+    clubTable(px+.40,pz+.51,0,true,.55);
+    clubTable(px-.30,pz+.20,2.13,true,.45);
+    for(const zz of[pz-.93,pz+.78])lantern(px+.66,zz,1.73);
+    for(const zz of[pz-.89,pz+.82]){
+     shape(LEAF,green,px-.61,3.55,zz,.18,.20,.18);
+     shape(LEAF,rose,px-.61,3.69,zz,.14,.17,.14);
     }
 
-    // SMCITY DREAMSTAGE — two-level fantasy festival landmark with a
-    // sculpted stage portal, crystal halo and paired spires. Visual-only.
-    // No parking, trips, entrances, point lights or frame-loop allocations.
-    const dreamGold='#d7b583',dreamIvory='#f0d9b0',dreamStone='#806786';
-    const dreamSky='#9edbdc',dreamBloom='#d29ad1',dreamPink='#edb0d5';
-    const gem=(geo,color,x,y,z,w,h,d,glowing=false,finish='stone')=>{
-     const p=point(x,z);
-     batch.add(geo,color,p.x-.5,y,p.y-.5,w,h,d,0,turn,0,id,glowing,finish);
-    };
-    // Symmetrical fairy-tale gate towers; every tier joins its support.
-    const spire=(x,z,side)=>{
-     block('#493a62',x,.72,z,.72,1.14,.65,'stone');
-     block('#a784a0',x,1.30,z,.77,.13,.70,'stone');
-     block(dreamStone,x,2.35,z,.52,2.00,.49,'stone');
-     for(const xx of [x-.18,x+.18]){
-      block(dreamGold,xx,2.28,z+.258,.046,1.77,.035,'metal');
-      block(dreamIvory,xx,3.17,z+.29,.10,.10,.055,'metal');
+    // RIGHT: three real drink booths, with walls, counters and roofs.
+    const bx=6.22;
+    for(let i=0;i<3;i++){
+     const bz=back+1.42+i*1.22;
+     const wood=['#896361','#76546e','#686281'][i];
+     slab(bx,.25,bz,1.54,1.02,'#655568');
+     block(wood,bx,.92,bz-.40,1.44,1.31,.13,'wood');
+     for(const x of[bx-.68,bx+.68])
+      block('#bba19f',x,.93,bz,.10,1.32,.87,'stone');
+     block(wood,bx,.39,bz+.32,1.42,.36,.19,'wood');
+     block('#d9c1a5',bx,.60,bz+.33,1.47,.16,.28,'wood');
+     block(gold,bx,.73,bz+.35,1.50,.055,.31,'metal');
+     for(let row=0;row<2;row++){
+      block('#a7837f',bx,1.09+row*.39,bz-.29,1.18,.06,.14,'wood');
+      for(let k=0;k<6;k++){
+       const x=bx-.51+k*.205;
+       shape(CYL,['#86bbc2','#c391b4','#d6bf80'][(i+k)%3],
+        x,1.23+row*.39,bz-.28,.063,.21,.064,false,'glass');
+       block(cream,x,1.36+row*.39,bz-.28,.041,.04,.04,'metal');
+      }
      }
-     for(const yy of [1.40,3.37]){
-      block('#54446d',x,yy,z,.70,.13,.68,'stone');
-      block(dreamGold,x,yy+.075,z+.02,.73,.045,.71,'metal');
-     }
-     block('#6d537c',x,4.10,z,.43,1.38,.45,'stone');
-     block(dreamBloom,x,4.74,z+.225,.30,.30,.025,'glass');
-     block(dreamGold,x,4.91,z,.59,.13,.58,'metal');
-     gem(CONE,'#aa86b7',x,5.49,z,.43,1.02,.45);
-     gem(CONE,dreamGold,x,5.92,z,.19,.40,.20,false,'metal');
-     gem(LEAF,dreamIvory,x,6.18,z,.12,.16,.12,false,'metal');
-     for(const dz of [-.23,.23]){
-      block(dreamPink,x,3.91,z+dz,.11,.26,.08,'glass');
-      block('#c6a2ce',x+side*.23,1.91,z+dz,.10,.52,.10,'stone');
-     }
-     block('#b47dde',x,2.95,z+.272,.29,.09,.037,'glass',true);
-    };
-    for(const side of [-1,1])spire(center+side*2.86,front-1.27,side);
-    // Castle-like rear portal sits behind the actual DJ console and LED
-    // wall, preserving the central dance floor and two VIP decks.
-    const portalZ=back+.30;
-    for(const side of [-1,1]){
-     const px=center+side*1.79;
-     block('#66516f',px,1.98,portalZ,.34,2.98,.31,'stone');
-     block(dreamGold,px-side*.14,2.01,portalZ+.168,.055,2.67,.045,'metal');
-     block('#ad82a8',px,3.52,portalZ,.54,.22,.37,'stone');
-     gem(CONE,dreamIvory,px,3.99,portalZ,.31,.74,.33);
-     // Faceted petals fan inward around the stage emblem.
-     for(let petal=0;petal<4;petal++){
-      const x=center+side*(1.50-petal*.35);
-      const yy=3.26+Math.sin((petal+1)*Math.PI/5)*.68;
-      const zz=portalZ+.06+petal*.025;
-      gem(LEAF,[dreamBloom,'#b8a2d2','#b0d1d5',dreamPink][petal],
-       x,yy,zz,.38,.62+petal*.13,.17);
-      block(dreamGold,x,yy-.35,zz+.12,.058,.10,.045,'metal');
+     // Three distinct permanent pitched kiosks, not a big tent/truss.
+     block('#a08ba0',bx,1.90,bz,1.61,.12,1.10,'stone');
+     roof(['#856fb3','#b07b9a','#799d9d'][i],bx,1.96,bz,1.65,.41,1.13);
+     block(gold,bx,2.02,bz+.55,1.62,.08,.07,'metal');
+     glow(i===0?amethyst:i===1?ember:aqua,bx,1.70,bz+.49,1.01,.11,.05);
+     neonSign(i===1?'DRINK':'BAR',bx,1.73,bz+.54,1.13);
+     for(const x of[bx-.56,bx+.56])
+      glow(ember,x,1.48,bz+.54,.11,.15,.11);
+    }
+
+    // Open-air dance plaza, connected to the existing street entrance.
+    dance(center,back+2.82,2.23,1.90,0);
+    for(const side of[-1,1]){
+     for(const zz of[back+2.20,back+3.51]){
+      const x=center+side*1.30;
+      block('#75637b',x,.33,zz,.21,.28,.19,'stone');
+      shape(LEAF,rose,x,.65,zz,.24,.33,.22);
+      glow(ember,x,.88,zz,.11,.12,.11);
      }
     }
-    block('#6b537b',center,3.52,portalZ,3.80,.22,.35,'stone');
-    block(dreamGold,center,3.66,portalZ+.18,3.89,.075,.055,'metal');
-    for(const xx of [center-1.28,center-.91,center+.91,center+1.28])
-     block('#b58da8',xx,3.80,portalZ+.08,.22,.43,.25,'stone');
-    // Instanced 16-piece halo and faceted luminous centre crystal.
-    for(let i=0;i<16;i++){
-     const a=i*Math.PI/8;
-     gem(LEAF,i%4===0?dreamIvory:dreamGold,
-      center+Math.cos(a)*.72,4.47+Math.sin(a)*.72,portalZ+.20,
-      .115,.145,.09,false,'metal');
+    slab(center,.23,front-.47,2.29,.46,'#89768d');
+    for(let k=0;k<9;k++)
+     block(k%2?cream:'#ab92a8',center-1.04+k*.26,.29,
+      front-.48,.21,.025,.29,'stone');
+    for(const x of[1.12,6.90]){
+     flower(x,front-.49,.14);
+     lantern(x,front-.54,1.13);
     }
-    gem(LEAF,dreamSky,center,4.47,portalZ+.26,.62,.92,.28,false,'glass');
-    gem(LEAF,'#dfb6ea',center,4.47,portalZ+.43,.25,.53,.15,false,'glass');
-    gem(LEAF,'#b8f1ed',center,4.47,portalZ+.54,.105,.27,.075,true,'glass');
-    gem(CONE,dreamGold,center,5.38,portalZ+.18,.31,.64,.29,false,'metal');
-    // Lower theatre wing finials and flower beds add depth on all four faces.
-    for(const side of [-1,1]){
-     const wx=center+side*2.34;
-     for(let k=0;k<3;k++){
-      const z=back+.81+k*.73;
-      block('#5e476f',wx,.91,z,.46,1.10,.43,'stone');
-      block(dreamGold,wx,1.53,z,.48,.10,.49,'metal');
-      gem(CONE,k%2?dreamBloom:'#a2b5ce',wx,1.90,z,.31,.68,.34);
-      gem(LEAF,k%2?dreamPink:dreamSky,wx-side*.11,2.10,z+.12,.22,.37,.13);
-     }
-     for(let k=0;k<3;k++){
-      const fx=center+side*(2.29+k*.20),fz=front-.45-k*.30;
-      block('#79617d',fx,.31,fz,.23,.23,.23,'stone');
-      gem(LEAF,'#69977f',fx,.57,fz,.32,.27,.31);
-      for(const dx of [-.13,.13])
-       gem(LEAF,dx<0?dreamBloom:dreamPink,fx+dx,.75,fz,.18,.22,.16);
-     }
-     // Glow is drawn using the game's existing batched night material.
-     for(let k=0;k<4;k++){
-      const zz=back+1.18+k*.86;
-      block(k%2?laser:dreamSky,center+side*2.74,2.67,zz,
-       .075,.17,.10,'glass',true);
-     }
-    }
-    // Street-facing crown, with a fully open walkway beneath.
-    block('#6e527d',center,4.38,front-.37,3.89,.18,.22,'stone');
-    block(dreamGold,center,4.50,front-.27,3.89,.068,.12,'metal');
-    for(const xx of [center-1.59,center+1.59]){
-     gem(CONE,dreamIvory,xx,4.79,front-.36,.23,.55,.25);
-     block('#dfacd9',xx,4.53,front-.24,.18,.12,.06,'glass',true);
-    }
-    // Lit front facade is merely an OPEN doorway, not a blank nightclub box.
-    neonSign('DREAMSTAGE',center,3.97,front-.25,3.28);
-    for(const sign of[-1,1]){
-     const x=center+sign*1.55;
-     post(x,front-.38,3.72,.24,plum);
-     block('#b56cdb',x,3.79,front-.28,.16,.12,.16,'glass',true);
-    }
-    block('#7a4e9a',center,3.82,front-.36,3.40,.14,.20,'metal');
-    for(let i=0;i<13;i++){
-     const xx=center-1.43+i*.24;
-     block(i%2?lilac:laser,xx,3.90,front-.25,.087,.060,.12,'glass',true);
-    }
-    for(const x of[1.02,6.96]){
-     flower(x,front-.49,.18);flower(x,back+.41,.17);
-    }
+
    }
    // No solid building box, visible 3D details from all directions.
    return;
