@@ -5991,7 +5991,20 @@ function straightIntercityPath(fromGate,toGate){
 // Two percent of residents per game hour IN TOTAL (across all four gates).
 // Trucks depart evenly within their hour without a simultaneous car limit.
 const INTERCITY_RATE=.02,INTERCITY_QUOTA_VERSION=2;
+// Temporarily suspend only through-city freight. Keep its routes and models
+// available for a later return, without changing resident or delivery trips.
+const INTERCITY_FREIGHT_ENABLED=false,intercityFreightStopped=new WeakSet();
 function updateIntercityFreight(){
+ if(!INTERCITY_FREIGHT_ENABLED){
+  // Run cleanup once per city, not a full vehicle scan on every frame.
+  // cancelVehicle releases each old truck's actual lane/junction claims.
+  if(!intercityFreightStopped.has(state)){
+   for(const v of [...state.vehicles.values()])if(v.kind==='intercity')cancelVehicle(v);
+   state.intercityHour=null;state.intercityRouteCache=null;
+   intercityFreightStopped.add(state);
+  }
+  return;
+ }
  const hour=Math.floor(state.time/60);
  if(state.intercityHour?.hour!==hour||state.intercityHour?.quotaVersion!==INTERCITY_QUOTA_VERSION){
   const population=computeStats().pop;
@@ -6081,7 +6094,7 @@ function startDeliveryReturn(v){
  motionPlans.delete(v);
 }
 
-function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(c?.vehicleId)return false;const destination=state.buildings.get(toId);if(destination&&kind!=='delivery'&&parkingFree(destination)<=0)return false;if(kind==='pass'&&state.vehicles.size>=8000)return false;const fromBuilding=state.buildings.get(fromId);if(c&&fromBuilding&&CATALOG[fromBuilding.key].dualParking)parkingSpace(fromBuilding,c.id,true);
+function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(kind==='intercity'&&!INTERCITY_FREIGHT_ENABLED)return false;if(c?.vehicleId)return false;const destination=state.buildings.get(toId);if(destination&&kind!=='delivery'&&parkingFree(destination)<=0)return false;if(kind==='pass'&&state.vehicles.size>=8000)return false;const fromBuilding=state.buildings.get(fromId);if(c&&fromBuilding&&CATALOG[fromBuilding.key].dualParking)parkingSpace(fromBuilding,c.id,true);
  const to=state.buildings.get(toId),from=state.buildings.get(fromId);
  const vehicleTech=c?.resident&&!c.tourist?(c.vehicleTech||'normal'):'normal';
  const skyTrip=!!from&&!!to&&vehicleTech==='warp';
