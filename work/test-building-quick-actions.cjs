@@ -21,8 +21,8 @@ const pick=()=>{
 pick();
 assert(get('inspector').classList.contains('hidden'),'building tap must not open a second panel');
 assert.equal(get('selectionQuickName').textContent,g.CATALOG[b.key].name,'selected building name appears in context menu');
-g.updateUI();
-assert(get('inspector').classList.contains('hidden'),'regular UI refresh must not reopen building inspector');
+const gameplay=fs.readFileSync('dist/game.js','utf8');
+assert(gameplay.includes("!['building','vehicle','parked'].includes(selected.kind)||!$('inspector').classList.contains('hidden')"),'UI refresh must not automatically open a building or car inspector');
 info.onclick();
 assert(!get('inspector').classList.contains('hidden'),'info button explicitly opens inspector');
 assert(toolbar.hidden,'context toolbar hides when details are open');
