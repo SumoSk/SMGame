@@ -9062,7 +9062,68 @@ export class TrafficRenderer{
  if(selected?.kind==='road'&&junction(selected.id)>=3)boxes.push([selected.id%300,Math.floor(selected.id/300),2.4,2.4,'#fff1a1']);
  for(const [x,z,w,d,color,opacity=.22,overlay=false]of boxes){const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthWrite:false,depthTest:!overlay}));plane.renderOrder=overlay?20:0;plane.rotation.x=-Math.PI/2;plane.position.set(x,.14,z);this.previewGroup.add(plane);const points=[new THREE.Vector3(x-w/2,.17,z-d/2),new THREE.Vector3(x+w/2,.17,z-d/2),new THREE.Vector3(x+w/2,.17,z+d/2),new THREE.Vector3(x-w/2,.17,z+d/2),new THREE.Vector3(x-w/2,.17,z-d/2)];this.previewGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color})));}
  }
- render({state,cam,hover,drag,roadPreview,demolitionPreview=null,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}
+ // A translucent, world-anchored Map Sheet preview. Uses one draw call for
+ // the ground tint and at most two line calls; the terrain mesh is unchanged.
+ // Existing roads/buildings remain above this thin layer. Visual-only patch:
+ // no purchasing, no build restriction, no save schema changes.
+ updateMapCover(mapCover,state){
+  if(!mapCover)return;
+  const key=state.city+':'+mapCover.key;
+  if(this.mapCoverKey===key&&this.mapCoverSource===state)return;
+  this.mapCoverSource=state;this.mapCoverKey=key;
+  if(!this.mapCoverGroup){this.mapCoverGroup=new THREE.Group();this.scene.add(this.mapCoverGroup);}
+  else this.disposeGroup(this.mapCoverGroup);
+  const size=mapCover.size,opened=mapCover.opened,n=300/size;
+  const fillPoints=[],edgePoints=[],freeEdges=[];
+  const land=(x,z)=>state.city!=='phuket'||
+   this.islandOutward(x,z)<-1.6||
+   (z>=120&&z<=180&&x>=this.phangNgaWestX(z)&&x<=this.phangNgaShoreX(z));
+  const segment=(out,x0,z0,x1,z1,y)=>out.push(x0,y,z0,x1,y,z1);
+  const rect=(x,z,w,d)=>fillPoints.push(
+    x,.034,z, x+w,.034,z, x,.034,z+d,
+    x+w,.034,z, x+w,.034,z+d, x,.034,z+d);
+  const edge=(out,x0,z0,x1,z1,y)=>{
+   if(state.city!=='phuket')return segment(out,x0,z0,x1,z1,y);
+   const length=Math.hypot(x1-x0,z1-z0),steps=Math.ceil(length/2.5);
+   for(let i=0;i<steps;i++){
+    const a=i/steps,b=(i+1)/steps,m=(a+b)/2;
+    if(land(x0+(x1-x0)*m,z0+(z1-z0)*m))
+     segment(out,x0+(x1-x0)*a,z0+(z1-z0)*a,x0+(x1-x0)*b,z0+(z1-z0)*b,y);
+   }
+  };
+  for(let ty=0;ty<n;ty++)for(let tx=0;tx<n;tx++){
+   const id=tx+':'+ty,x=tx*size,z=ty*size;
+   if(opened.has(id))continue;
+   if(state.city==='phuket'){
+    // Only cover existing terrain: no square fog tiles over Phuket sea.
+    const step=2.5;
+    for(let dz=0;dz<size;dz+=step)for(let dx=0;dx<size;dx+=step)
+     if(land(x+dx+step/2,z+dz+step/2))rect(x+dx,z+dz,step,step);
+   }else rect(x,z,size,size);
+   // Only thin sheet boundaries, not a dense grid inside each sheet.
+   if(ty===0||!opened.has(tx+':'+(ty-1)))edge(edgePoints,x,z,x+size,z,.060);
+   else edge(freeEdges,x,z,x+size,z,.063);
+   if(tx===0||!opened.has((tx-1)+':'+ty))edge(edgePoints,x,z,x,z+size,.060);
+   else edge(freeEdges,x,z,x,z+size,.063);
+   if(ty===n-1)edge(edgePoints,x,z+size,x+size,z+size,.060);
+   else if(opened.has(tx+':'+(ty+1)))edge(freeEdges,x,z+size,x+size,z+size,.063);
+   if(tx===n-1)edge(edgePoints,x+size,z,x+size,z+size,.060);
+   else if(opened.has((tx+1)+':'+ty))edge(freeEdges,x+size,z,x+size,z+size,.063);
+  }
+  if(fillPoints.length){
+   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(fillPoints,3));
+   const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:'#5f7882',transparent:true,opacity:.23,depthWrite:false,side:THREE.DoubleSide,toneMapped:false}));
+   mesh.frustumCulled=false;this.mapCoverGroup.add(mesh);
+  }
+  const lines=(points,color,opacity)=>{
+   if(!points.length)return;
+   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));
+   this.mapCoverGroup.add(new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color,transparent:true,opacity,depthWrite:false,toneMapped:false})));
+  };
+  lines(edgePoints,'#ecf4e9',.21);
+  lines(freeEdges,'#c2f4d1',.42);
+ }
+ render({state,cam,mapCover,hover,drag,roadPreview,demolitionPreview=null,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}this.updateMapCover(mapCover,state);
  const buildKey=state.buildings.size+':'+(state.buildingVisualVersion||0);
  const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}if(this.graphicQuality==='low'){this.treeGroup.visible=false;}
  else{this.treeGroup.visible=true;this.trees(state,cam);}
