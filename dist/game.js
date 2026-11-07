@@ -406,7 +406,7 @@ function checkParkingBuilding(key,x,y,ignoreId=null,preferredRotation=null){
  let error='วางด้านทางเข้าออกของลานจอดให้ชิดถนนที่ยาวพอค่ะ';
  for(const rotation of preferredRotation==null?[0,1,2,3]:[preferredRotation]){
   const b={key,x,y,rotation},bounds=buildingBounds(b);if(!valid(x,y)||!valid(x+bounds.w-1,y+bounds.h-1)){error='พื้นที่อาคารและลานจอดต้องอยู่ในแผนที่ค่ะ';continue;}
-  let blocked=false;for(let yy=y;yy<y+bounds.h&&!blocked;yy++)for(let xx=x;xx<x+bounds.w;xx++){const i=id(xx,yy);if(state.footprint[i]>=0||(state.buildGrid[i]>=0&&state.buildGrid[i]!==ignoreId)){blocked=true;break;}}
+  let inSea=false;for(let yy=y;yy<y+bounds.h&&!inSea;yy++)for(let xx=x;xx<x+bounds.w;xx++)if(isPhuketWaterTile(xx,yy)){inSea=true;break;}if(inSea){error='พื้นที่ในทะเลสร้างไม่ได้ค่ะ · สร้างเฉพาะบนเกาะภูเก็ตนะคะ';continue;}let blocked=false;for(let yy=y;yy<y+bounds.h&&!blocked;yy++)for(let xx=x;xx<x+bounds.w;xx++){const i=id(xx,yy);if(state.footprint[i]>=0||(state.buildGrid[i]>=0&&state.buildGrid[i]!==ignoreId)){blocked=true;break;}}
   if(blocked){error='พื้นที่อาคารและลานจอดทับถนนหรือสิ่งปลูกสร้างค่ะ';continue;}
   if(homeSideClearanceCells(b).some(i=>state.homeSideRoadFootprint?.[i])){error=HOME_SIDE_CLEARANCE_ERROR;continue;}
   const access=parkingAccess(b);if(access.length)return{access,rotation,bounds};
@@ -1166,6 +1166,46 @@ try{bugCaptureEnabled=localStorage.getItem(BUG_CAPTURE_STORAGE_KEY)==='on';}catc
 const runtimeErrors=[];for(const type of ['error','unhandledrejection'])window.addEventListener(type,e=>{if(!bugCaptureEnabled)return;runtimeErrors.push({at:new Date().toISOString(),message:String(e.message||e.reason?.stack||e.reason||type).slice(0,4000)});if(runtimeErrors.length>20)runtimeErrors.shift();});
 let state,cam={x:150,y:150,z:1.25,angle:Math.PI/4,elevation:Math.PI*50/180},view={w:innerWidth,h:innerHeight,dpr:1},tool='hand',category='roads',selected=null,hover=null,drag=null,pendingRoadPreview=null,pendingDemolitionPreview=null,roadPreviewCache=null,movingBuildingId=null,constructionAnchor=null,heat=false,debug=false,last=0,uiTick=0,news=[],toastTimer,follow=null;
 const id=(x,y)=>y*W+x,xy=i=>[i%W,Math.floor(i/W)],valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
+function phuketCoastX(y){
+ const zn=(y-150)/165,taper=10*zn*zn;
+ const bays=6.8*Math.sin(y*.046+.4)+4.2*Math.cos(y*.092-.7)+2.6*Math.sin(y*.15+1.1);
+ const bridgeCape=-13.5*Math.exp(-(((y-150)/20)**2));
+ const nMargin=-12*Math.exp(-((y/28)**2)),sMargin=-12*Math.exp(-(((y-300)/28)**2));
+ return 123+taper+bays+bridgeCape+nMargin+sMargin;
+}
+function phuketCoastEastX(y){
+ const zn=(y-150)/155,zn2=zn*zn,taper=-56*zn2-38*zn2*zn2;
+ const chalong=-22*Math.exp(-(((y-258)/24)**2));
+ const panwa=22*Math.exp(-(((y-216)/22)**2));
+ const yamu=16*Math.exp(-(((y-95)/22)**2));
+ const eastGate=14*Math.exp(-(((y-150)/20)**2));
+ const waves=4.8*Math.sin(y*.039+1.1)+2.6*Math.cos(y*.082);
+ return 295+taper+chalong+panwa+yamu+eastGate+waves;
+}
+function phuketCoastNorthY(x){
+ const xn=(x-168)/115,xn2=xn*xn,arch=38*xn2+20*xn2*xn2;
+ const northGate=-14*Math.exp(-(((x-150)/24)**2));
+ const waves=3.2*Math.sin(x*.042+.7)+1.8*Math.cos(x*.088);
+ return 4+arch+northGate+waves;
+}
+function phuketCoastSouthY(x){
+ const xn=(x-168)/115,xn2=xn*xn,arch=-36*xn2-20*xn2*xn2;
+ const phromthep=15*Math.exp(-(((x-150)/24)**2));
+ const chalong=-15*Math.exp(-(((x-192)/20)**2));
+ const panwa=18*Math.exp(-(((x-232)/20)**2));
+ const waves=3.2*Math.sin(x*.038+2.1)+1.8*Math.cos(x*.081);
+ return 296+arch+phromthep+chalong+panwa+waves;
+}
+function phuketIslandOutward(x,y){
+ const r=18;
+ const dx=Math.max(phuketCoastX(y)-x,x-phuketCoastEastX(y));
+ const dz=Math.max(phuketCoastNorthY(x)-y,y-phuketCoastSouthY(x));
+ const qx=dx+r,qz=dz+r;
+ return Math.hypot(Math.max(qx,0),Math.max(qz,0))+Math.min(Math.max(qx,qz),0)-r;
+}
+function phangNgaShoreX(y){const t=Math.max(0,1-((y-150)/30)**2);return 22*Math.pow(t,1.25);}
+function phangNgaWestX(y){const t=Math.max(0,1-((y-150)/30)**2);return -12*Math.pow(t,.72);}
+function isPhuketWaterTile(x,y){return state?.city==='phuket'&&phuketIslandOutward(x,y)>-1.2;}
 // SMCITY 5.1.1 — level up as soon as the highest-ever resident population
 // meets the next milestone AND the live mission score is at least 80%.
 // Use finished trips from the active game day, without waiting for 06:00.
@@ -1815,8 +1855,28 @@ function drawTerrain(){
 ctx.fillStyle='#8bc8c5';ctx.fillRect(0,0,view.w,view.h);const terrain=CITIES[state.city].terrain;
 const topLeft=world(0,0),bottomRight=world(view.w,view.h),x0=Math.max(0,Math.floor(topLeft[0]-5)),x1=Math.min(300,Math.ceil(bottomRight[0]+5)),y0=Math.max(0,Math.floor(topLeft[1]-5)),y1=Math.min(300,Math.ceil(bottomRight[1]+8));
 if(terrain==='island'){
-const coast=[[-8,-12],[72,-12],[84,53],[105,91],[108,125],[96,153],[108,184],[88,225],[71,315],[315,315],[315,-12]].map(([x,y])=>screen(x+24,y));poly(coast,'#f1e0ad');poly(coast.map(([x,y])=>[x+15*cam.z,y]),'#9fbd82');
-ctx.strokeStyle='#d0e9d68a';ctx.lineWidth=1;for(let yy=y0;yy<y1;yy+=5){const p=screen(80,yy);ctx.beginPath();ctx.moveTo(p[0]-45*cam.z,p[1]);ctx.quadraticCurveTo(p[0]-30*cam.z,p[1]-3,p[0]-18*cam.z,p[1]);ctx.stroke();}
+const contour=target=>{const pts=[];for(let i=0;i<180;i++){const a=i/180*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a);let lo=0,hi=240;for(let it=0;it<12;it++){const mid=(lo+hi)*.5;if(phuketIslandOutward(198+ca*mid,150+sa*mid)<target)lo=mid;else hi=mid;}const r=(lo+hi)*.5;pts.push(screen(198+ca*r,150+sa*r));}return pts;};
+poly(contour(2.2),'#f1e0ad');
+poly(contour(-1.6),'#9fbd82');
+// A compact Phang Nga headland extends slightly beyond x=0 (the car gate).
+const phangNgaCoast=[];for(let y=120;y<=180;y+=1)phangNgaCoast.push([phangNgaShoreX(y),y]);
+const landfall=offset=>[
+ ...phangNgaCoast.map(([x,y])=>screen(x+offset*Math.max(0,1-((y-150)/30)**2),y)),
+ ...phangNgaCoast.slice().reverse().map(([,y])=>screen(phangNgaWestX(y)-offset*Math.max(0,1-((y-150)/30)**2),y))
+];
+poly(landfall(2.2),'#f1e0ad');
+poly(landfall(-1.6),'#9fbd82');
+poly([[phangNgaShoreX(150)-1.4,147.6],[phuketCoastX(150)+1.5,147.6],[phuketCoastX(150)+1.5,152.4],[phangNgaShoreX(150)-1.4,152.4]].map(([x,y])=>screen(x,y)),'#d8dfd8','#516870');
+// Matching map plaque, offset north of the roadway. Visual only: no collider.
+if(cam.z>.65){
+ const [sx,sy]=screen(-4.2,163.5),w=100*Math.min(1.6,cam.z),h=28*Math.min(1.6,cam.z);
+ ctx.fillStyle='#163e47';ctx.fillRect(sx-w/2,sy-h/2,w,h);
+ ctx.strokeStyle='#d9b565';ctx.lineWidth=2;ctx.strokeRect(sx-w/2,sy-h/2,w,h);
+ ctx.fillStyle='#ffe1ac';ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.font=`700 ${Math.max(10,13*Math.min(1.6,cam.z))}px Tahoma,sans-serif`;
+ ctx.fillText('จังหวัดพังงา',sx,sy,w-8);
+}
+ctx.strokeStyle='#d0e9d68a';ctx.lineWidth=1;for(let yy=Math.max(0,y0);yy<Math.min(300,y1);yy+=5){const p=screen(phuketCoastX(yy)-6,yy);ctx.beginPath();ctx.moveTo(p[0]-32*cam.z,p[1]);ctx.quadraticCurveTo(p[0]-20*cam.z,p[1]-3,p[0]-8*cam.z,p[1]);ctx.stroke();}
 }else{ctx.fillStyle=terrain==='mountain'?'#adc194':'#b4c99d';ctx.fillRect(0,0,view.w,view.h);if(terrain==='river'){ctx.strokeStyle='#93c9c4';ctx.lineWidth=12*T*cam.z;ctx.beginPath();for(let y=-10;y<=310;y+=4){const p=screen(112+Math.sin(y/29)*8,y);if(y===-10)ctx.moveTo(...p);else ctx.lineTo(...p);}ctx.stroke();}}
 ctx.strokeStyle=debug||tool!=='hand'?'#4c743220':'#4c743207';ctx.lineWidth=.5;if(cam.z>.48)for(let y=y0;y<y1;y++){const a=screen(x0,y),b=screen(x1,y);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();}if(cam.z>.48)for(let x=x0;x<x1;x++){ctx.beginPath();ctx.moveTo(...screen(x,y0));ctx.lineTo(...screen(x,y1));ctx.stroke();}
 if(graphicQuality!=='low')for(let y=Math.floor(y0/3)*3;y<y1;y+=3)for(let x=Math.floor(x0/3)*3;x<x1;x+=3){const h=Math.abs(Math.sin(x*32.13+y*14.79)),tx=x+Math.sin(x*13+y)*1.1,ty=y+Math.cos(y*9+x)*.8,ix=Math.floor(tx),iy=Math.floor(ty);if(h<.67||!valid(ix,iy)||terrain==='island'&&tx<134||terrain==='river'&&Math.abs(tx-(112+Math.sin(ty/29)*8))<8)continue;if(state.footprint[id(ix,iy)]>=0||state.buildGrid[id(ix,iy)]>=0||(state.hiddenAutoTrees||[]).includes(id(ix,iy)))continue;tree(tx,ty,.6+h*.65);}
@@ -4093,9 +4153,7 @@ function renderLandscapeInspector(){
 }
 let currentTreeKind='shade';
 function landscapeClear(x,y){
- // Player decorations can occupy any map cell, independently of buildings,
- // roads and terrain. Automatic scenery keeps its separate clearance rules.
- return Number.isFinite(x)&&Number.isFinite(y)&&valid(Math.floor(x),Math.floor(y));
+ return Number.isFinite(x)&&Number.isFinite(y)&&valid(Math.floor(x),Math.floor(y))&&!isPhuketWaterTile(x,y);
 }
 function plantLandscape(x,y,kind=currentTreeKind,rotation=landscapeRotation){
  if(!LANDSCAPE_KIND_MAP.has(kind)||!landscapeClear(x,y)||state.plantedTrees.length>=4000)return false;
@@ -7476,6 +7534,7 @@ function lineCells(a,b){let [x,y]=xy(a),[u,v]=xy(b),dx=u-x,dy=v-y;const horizont
 function checkRoad(cells,type){let cost=0;const t=ROADS[type];if(!cells.length)return{error:'เลือกตำแหน่งถนนบนแผนที่'};const centerline=new Set(cells);for(const i of cells)if(!state.roads.has(i)&&state.footprint[i]>=0&&!centerline.has(state.footprint[i]))return{error:'แนวถนนซ้อนขอบถนนเดิม ลากให้เชื่อมตรงกลางหรือขยับแนวถนนค่ะ'};const newRoadSideTiles=new Set();
 for(const i of cells){
  const [x,y]=xy(i),r=state.roads.get(i),w=Math.max(roadClearanceWidth(t),r?roadClearanceWidth(ROADS[r.type]):0),lo=Math.floor(w/2);
+ if(!r&&isPhuketWaterTile(x,y))return{error:'พื้นที่ในทะเลสร้างถนนเพิ่มไม่ได้ค่ะ · เชื่อมจากถนนบนเกาะหรือสะพานหลักนะคะ'};
  const oldWidth=r?roadClearanceWidth(ROADS[r.type]):0,oldLo=Math.floor(oldWidth/2),expanding=!r||ROADS[type].lanes>ROADS[r.type].lanes;
  for(let yy=y-lo;yy<y+w-lo;yy++)for(let xx=x-lo;xx<x+w-lo;xx++){
   if(!valid(xx,yy))continue;
@@ -8102,7 +8161,7 @@ function moveTouchOrbit(){
  }
  if(pinch.mode==='zoom'){
   // Lock the pinch: spreading fingers never affects yaw or pitch.
-  const next=Math.max(.22,Math.min(5.2,pinch.z*distance/pinch.distance));
+  const next=Math.max(.15,Math.min(5.2,pinch.z*distance/pinch.distance));
   if(Math.abs(cam.z-next)<1e-7)return;
   cam.z=next;
  }else if(pinch.orbitKind==='twist'){
@@ -8202,7 +8261,7 @@ for(const id of ['tools','subcategories','buildVariantPopup'])$(id).addEventList
  if(tool==='hand'||$('dialog').open)return;
  e.preventDefault();cancelInteraction();
 });canvas.addEventListener('pointerleave',event=>{if(!event.relatedTarget?.closest?.('#landscapeQuickActions'))hover=null;});
-canvas.addEventListener('wheel',e=>{e.preventDefault();const before=world(e.clientX,e.clientY);cam.z=Math.max(.22,Math.min(5.2,cam.z*(e.deltaY<0?1.12:.89)));if(renderer3d)renderer3d.updateCamera(cam);const after=world(e.clientX,e.clientY);cam.x+=before[0]-after[0];cam.y+=before[1]-after[1];},{passive:false});
+canvas.addEventListener('wheel',e=>{e.preventDefault();const before=world(e.clientX,e.clientY);cam.z=Math.max(.15,Math.min(5.2,cam.z*(e.deltaY<0?1.12:.89)));if(renderer3d)renderer3d.updateCamera(cam);const after=world(e.clientX,e.clientY);cam.x+=before[0]-after[0];cam.y+=before[1]-after[1];},{passive:false});
 // Close nonmodal city panels when the user touches anywhere else.
 // Do not consume the pointer event: map and toolbar remain immediately usable.
 // Main dialogs and the login gate handle their own backdrops instead.
