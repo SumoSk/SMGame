@@ -1300,30 +1300,6 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
 }
 </style>
 
-<style id="smcity-traffic-taunt-style">
-/* Traffic-only satire banner; it never changes vehicle simulation or saved data. */
-#smcityTrafficTaunt[hidden]{display:none!important}
-#smcityTrafficTaunt{
- position:fixed;top:calc(env(safe-area-inset-top,0px) + 78px);left:50%;
- transform:translateX(-50%);z-index:36;
- display:flex;align-items:center;gap:9px;
- width:max-content;max-width:min(580px,calc(100vw - 24px));
- padding:10px 12px;border:1px solid #e6a54c;border-radius:12px;
- background:rgba(255,248,227,.97);color:#5d3510;
- box-shadow:0 7px 22px rgba(72,48,13,.20);
- font:700 12px/1.5 "Noto Sans Thai",Tahoma,sans-serif;
- text-align:center;pointer-events:auto;
-}
-#smcityTrafficTaunt .smcity-traffic-text{flex:1;min-width:0;overflow-wrap:anywhere}
-#smcityTrafficTaunt .smcity-traffic-close{
- flex:none;width:26px;height:26px;border:0;border-radius:7px;
- background:rgba(105,65,14,.10);color:inherit;font:700 18px/1 Tahoma,sans-serif;cursor:pointer;
-}
-@media(max-width:600px){
- #smcityTrafficTaunt{top:calc(env(safe-area-inset-top,0px) + 92px);font-size:10px;padding:8px 9px;gap:6px;max-width:calc(100vw - 18px)}
- #smcityTrafficTaunt .smcity-traffic-close{width:24px;height:24px}
-}
-</style>
 </head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
@@ -1533,36 +1509,6 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
  const digits=value=>{const n=Number(String(value||'').replace(/[−–]/g,'-').replace(/[^\d-]/g,''));return Number.isFinite(n)?n:0;};
  const text=id=>document.getElementById(id)?.textContent||'';
 
- // This banter is separate from sticky building-shortage notices.
- // Only render when the UI's actual traffic metrics confirm congestion.
- const trafficTaunt=document.createElement('aside');
- trafficTaunt.id='smcityTrafficTaunt';
- trafficTaunt.hidden=true;
- trafficTaunt.setAttribute('role','status');
- trafficTaunt.setAttribute('aria-live','polite');
- trafficTaunt.innerHTML='<span class="smcity-traffic-text"></span><button type="button" class="smcity-traffic-close" aria-label="ปิดป้ายแซวรถติด" title="ปิดป้ายแซวรถติด">×</button>';
- document.body.appendChild(trafficTaunt);
- const trafficTauntText=trafficTaunt.querySelector('.smcity-traffic-text');
- const trafficTaunts=[
-  '🚨 ถ้าเมืองคุณบัค แสดงว่าเมืองคุณกาก โปรดจัดการจราจรใหม่จ้า 555555',
-  '😤 ไม่เล่นก็ไม่ต้องเล่น รำคาญ! ให้กูแก้บัคอยู่ได้ ทั้ง ๆ ที่มึงสร้างเมืองกากเอง 555555'
- ];
- let trafficTauntStarted=0,trafficTauntMutedUntil=0;
- trafficTaunt.querySelector('.smcity-traffic-close').addEventListener('click',()=>{
-  trafficTaunt.hidden=true;trafficTauntMutedUntil=Date.now()+120000;
- });
- function updateTrafficTaunt(now){
-  const flow=digits(text('flow'));
-  const queue=text('status').match(/รอคิว\s*([\d,]+)/);
-  const waiting=queue?digits(queue[1]):0;
-  const congested=flow<65&&waiting>=10;
-  if(!congested){trafficTaunt.hidden=true;trafficTauntStarted=0;trafficTauntMutedUntil=0;return;}
-  if(now<trafficTauntMutedUntil){trafficTaunt.hidden=true;return;}
-  if(!trafficTauntStarted)trafficTauntStarted=now;
-  const value=trafficTaunts[Math.floor((now-trafficTauntStarted)/18000)%trafficTaunts.length];
-  if(trafficTauntText.textContent!==value)trafficTauntText.textContent=value;
-  trafficTaunt.hidden=false;
- }
  const show=value=>{
   if(message.textContent!==value)message.textContent=value;
    message.title=value; panel.title=value;
@@ -1607,7 +1553,6 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
  function check(){
   if(broken||document.hidden)return;
   const now=Date.now(),data=collect();
-  updateTrafficTaunt(now);
   if(now<snoozeUntil)return;
   if(!data.ready){show('ผู้ช่วยเมือง: กำลังตรวจความต้องการ');return;}
   if(data.pending.length){
