@@ -1830,7 +1830,7 @@ export class TrafficRenderer{
   if(!/^(thai_|industrial_|temple_|landmark_)/.test(kind))return false;
   // All 24 Thai decorations are 35% of authored size (30% smaller than the prior 50%),
   // grounded at the same point; saved positions, collisions and simulation are untouched.
-  const scale=.35,angle=(rotation||0)*Math.PI/2,c=Math.cos(angle),s=Math.sin(angle);
+  const scale=kind==='landmark_parliament'?0.78:0.35,angle=(rotation||0)*Math.PI/2,c=Math.cos(angle),s=Math.sin(angle);
   const point=(u,v)=>[x+scale*(u*c+v*s),z+scale*(-u*s+v*c)];
   const box=(col,u,y,v,w,h,d,ry=0,rx=0,rz=0)=>{
    const p=point(u,v);batch.add(BOX,col,p[0],y*scale,p[1],w*scale,h*scale,d*scale,rx,angle+ry,rz);
@@ -1999,6 +1999,74 @@ export class TrafficRenderer{
     }
     for(const a of[-.58,.58])box('#9c7755',a,.20,.05,.13,.35,.12,0,0,a*.45);
     box('#d9bc7d',0,.09,0,1.55,.18,1.60);break;
+   }
+
+   case 'landmark_parliament':{
+    // Monumental Thai Parliament: a white modern U-wing campus, gold tiered
+    // ceremonial roof and needle spire, twin flags, water and gardens.
+    // All parts use shared instanced primitives; entirely decorative.
+    const ivory='#eee8dc',white='#faf5ea',edge='#c9d1cd',blue='#354c59';
+    box('#48b6d3',0,.025,0,12.4,.055,10.2); // surrounding water
+    box('#cbd6d1',0,.11,-.18,11.6,.20,8.9);
+    box('#9ec65f',0,.235,-.30,11.08,.085,8.32);
+    box('#ece9df',0,.28,2.91,9.2,.09,2.10);
+    box('#e5e3db',0,.26,4.22,2.10,.16,2.00); // approach bridge
+    box('#fff8e7',0,.35,4.22,1.85,.08,1.96);
+    // Broad symmetrical white offices leave two real open-air courtyards.
+    box('#c5c9c6',0,.37,-2.68,9.35,.29,1.99);
+    box(ivory,0,1.63,-2.68,9.04,2.35,1.73);
+    box(white,0,2.96,-2.68,9.28,.24,2.02);
+    box(edge,0,2.81,-2.68,9.36,.09,2.07);
+    for(const s of[-1,1]){
+     box('#c5c9c6',s*3.47,.37,-.63,2.21,.29,5.34);
+     box(ivory,s*3.47,1.49,-.63,2.07,2.08,5.26);
+     box(white,s*3.47,2.66,-.63,2.33,.25,5.51);
+     box(edge,s*3.47,2.51,-.63,2.37,.09,5.56);
+     box('#e5e4dd',s*2.78,1.31,1.13,2.96,1.70,1.54);
+     box(white,s*2.78,2.29,1.13,3.02,.22,1.68);
+     box(edge,s*2.78,2.17,1.13,3.11,.08,1.74);
+     box(blue,s*3.5,1.10,2.28,1.33,1.05,.055);
+     box('#f6efe0',s*3.5,1.70,2.31,1.40,.095,.065);
+    }
+    // Interior gardens visible between the modern wings.
+    box('#78b365',0,.45,-.51,3.72,.045,2.48);
+    box('#e1e0cf',0,.47,-.50,.58,.060,2.20);
+    // The central Thai ceremonial gable is the principal focal point.
+    box('#e4d8bf',0,1.49,.82,2.78,2.08,2.03);
+    for(const u of[-1.04,-.52,.52,1.04])column(u,1.89,2.45,white);
+    box(blue,0,1.18,1.88,.97,1.55,.065);
+    box('#d4a448',0,2.36,1.95,1.70,.15,.085);
+    thaiRoof(0,.54,4.05,3.13,2.77,1.05,'#d99f2d');
+    thaiRoof(0,.28,3.10,2.52,3.54,.74,'#f0c54a');
+    box('#d89926',0,4.20,.23,1.62,.21,1.59);
+    cyl('#d79e2d',0,4.49,.23,.73,.35);
+    cone('#ffce50',0,5.09,.23,.82,1.01);
+    cyl('#e1a32d',0,5.67,.23,.54,.21);
+    cone('#e0a52c',0,6.26,.23,.57,1.18);
+    cyl('#ffd05b',0,6.92,.23,.29,.17);
+    cone('#efbd3a',0,7.48,.23,.32,.99);
+    cone('#fff2a1',0,8.09,.23,.10,.38);
+    // Stairs and two Thai tricolour flags in the public forecourt.
+    for(let i=0;i<4;i++)box(i%2?'#dfddd3':'#f8f3e8',0,.39-i*.05,2.06+i*.23,1.88+i*.22,.10,.35);
+    for(const u of[-2.25,2.25]){
+     cyl('#bec8c9',u,1.66,3.32,.039,2.72);
+     ball('#e9bc48',u,3.09,3.32,.09);
+     for(const [dy,h,col]of[[0,.075,'#bc3844'],[-.083,.075,'#f8f6eb'],[-.20,.15,'#244885'],[-.316,.075,'#f8f6eb'],[-.40,.075,'#bc3844']])
+      box(col,u+.39,2.71+dy,3.35,.78,h,.028);
+    }
+    // Boats and polygonal greenery preserve the reference's island silhouette.
+    for(const u of[-4.35,4.35]){
+     box('#91623e',u,.16,4.22,.91,.15,.37);
+     box('#d8a351',u,.22,4.21,.70,.06,.24);
+     cone('#c58c41',u+.50,.17,4.21,.17,.32);
+    }
+    for(const u of[-5.00,-3.94,3.94,5.00])for(const v of[-3.20,1.37]){
+     cyl('#967d55',u,.66,v,.09,.77);
+     ball('#64a347',u,1.18,v,.43);
+     ball('#94c84e',u+.13,1.36,v-.10,.28);
+    }
+    for(const u of[-4.0,-3.38,3.38,4.0])ball('#6baa49',u,.44,2.94,.24);
+    break;
    }
    case 'landmark_city_gate':{
     for(const u of[-2.05,2.05]){box('#d7c4a0',u,1.40,0,.76,2.8,1.08);box('#9a5945',u,2.8,0,.88,.17,1.15);}
@@ -2221,6 +2289,33 @@ export class TrafficRenderer{
     for(const v of[-.55,.55])ball('#b5d188',.22,2.48,v,.24);
     for(const u of[-.61,.63])cyl('#d9bb79',u,.17,.45,.045,.34);
     break;
+
+   case 'landmark_parliament':{
+    // Near-only facade ornaments. Distant cities retain a light silhouette.
+    const glazing='#304c5d',trim='#d2d9d4',gold='#e7b33f';
+    for(const v of[-3.57,-1.79])for(let i=0;i<13;i++){
+     const u=(i-6)*.63;
+     box(glazing,u,1.51,v,.34,.96,.04);
+     box(trim,u,2.04,v,.40,.065,.07);
+    }
+    for(const s of[-1,1]){
+     for(let i=0;i<8;i++){
+      const v=-2.85+i*.58;
+      box(glazing,s*4.53,1.44,v,.045,.94,.32);
+      box(trim,s*4.57,1.97,v,.055,.065,.39);
+     }
+     for(let i=0;i<4;i++){
+      const u=s*(2.15+i*.48);
+      box(glazing,u,1.27,2.04,.31,.86,.05);
+     }
+     for(const v of[-3.42,-2.40,-1.36,-.32,.70])box(trim,s*3.47,2.82,v,2.25,.06,.06);
+     for(const v of[-3.38,-2.30,-1.20,-.10,.90,1.93])ball('#78b255',s*4.87,.43,v,.22);
+     for(let i=0;i<4;i++)ball('#ffe184',s*(.58+i*.27),4.02,.24,.055);
+    }
+    for(const u of[-1.02,-.52,.52,1.02])box(gold,u,2.47,2.04,.13,.24,.065);
+    for(const u of[-.65,0,.65])box('#e9e5d9',u,.43,3.87,.08,.055,1.24);
+    break;
+   }
    case 'landmark_city_gate':
     for(const u of[-2.05,2.05]){
      for(const y of[.55,1.30,2.13])motif(u,y,.57);
@@ -9050,7 +9145,7 @@ export class TrafficRenderer{
   const b=demolitionPreview.building;if(b)boxes.push([b.x+b.w/2,b.y+b.h/2,b.w,b.h,'#281919',.60,true]);
  }
  if(selected?.kind==='building'){const b=state.buildings.get(selected.id);if(b){const {w,h}=this.parking.buildingBounds(b);boxes.push([b.x+w/2,b.y+h/2,w,h,'#fff1a1']);}}
- if(selected?.kind==='landscape'){const item=selected.record?.item||selected.record;if(item){const small=COMPACT_DECORATION_KEYS.has(item.kind)||EXTRA_DECORATION_KEYS.has(item.kind)||/^(thai_|industrial_|temple_|landmark_)/.test(item.kind);boxes.push([item.x,item.y,small?.75:1.8,small?.75:1.8,'#fff1a1']);}}
+ if(selected?.kind==='landscape'){const item=selected.record?.item||selected.record;if(item){const small=COMPACT_DECORATION_KEYS.has(item.kind)||EXTRA_DECORATION_KEYS.has(item.kind)||/^(thai_|industrial_|temple_|landmark_)/.test(item.kind);const footprint=item.kind==='landmark_parliament'?9.8:(small?.75:1.8);boxes.push([item.x,item.y,footprint,item.kind==='landmark_parliament'?7.9:footprint,'#fff1a1']);}}
  if(hover&&(tool.startsWith('tree:')||tool==='treeRow'||tool==='treeBrush')){
   const x=hover.snap?hover.x+.5:Math.round((hover.rawX??hover.x+.5)*100)/100,z=hover.snap?hover.y+.5:Math.round((hover.rawY??hover.y+.5)*100)/100,i=hover.y*300+hover.x;
   if(hover.x>=0&&hover.y>=0&&hover.x<300&&hover.y<300){
