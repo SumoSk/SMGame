@@ -4150,7 +4150,7 @@ const DECOR_KINDS=[
  ['temple_sala','ศาลาวัด','🏯'],['temple_bell_tower','หอระฆัง','🔔'],['temple_guardians','สิงห์เฝ้าประตู','🦁'],
  ['temple_bodhi','ต้นโพธิ์','🌳'],
  ['landmark_city_gate','ประตูเมืองไทย','🏯'],['landmark_clocktower','หอนาฬิกาไทย','🕰️'],['landmark_monument','อนุสาวรีย์','🗿'],
- ['landmark_spirit_house','ศาลพระภูมิ','🏡'],['landmark_welcome_sign','ป้ายยินดีต้อนรับ','🪧'],
+ ['landmark_spirit_house','ศาลพระภูมิ','🏡'],['landmark_welcome_sign','ป้ายยินดีต้อนรับ','🪧'],['landmark_parliament','รัฐสภาไทย','🏛️'],
 
  // New themed decoration set: all are static, collision-free scene props.
  ['thai_canvas_awning','ผ้าใบบังแดดร้าน','⛱️'],['thai_cold_display','ตู้แช่เครื่องดื่ม','🧊'],['thai_icebox','ลังน้ำแข็ง','🧊'],
@@ -4184,7 +4184,7 @@ const LANDSCAPE_GROUPS=[
  {key:'thai_street',name:'ร้านค้าไทย',icon:'🏪',keys:['thai_grocery','thai_food_cart','thai_noodle_shop','thai_coffee_shop','thai_fruit_stall','thai_market_tables','thai_canvas_awning','thai_cold_display','thai_icebox','thai_vegetable_baskets','thai_drink_crates','thai_motorbike','thai_metal_table','thai_plastic_chair']},
  {key:'thai_factory',name:'เขตโรงงาน',icon:'🏭',keys:['industrial_container','industrial_pallets','industrial_drums','industrial_guardhouse','industrial_loading_dock','industrial_fence','industrial_forklift','industrial_cone','industrial_barrier','industrial_zone_sign','industrial_floodlight','industrial_wrapped_pallet','industrial_crates','industrial_generator']},
  {key:'thai_temple',name:'วัดไทย',icon:'🛕',keys:['temple_gate','temple_ubosot','temple_chedi','temple_sala','temple_bell_tower','temple_guardians','temple_bodhi','temple_incense','temple_candles','temple_donation_box','temple_hanging_bell','temple_wall','temple_lantern','temple_naga','temple_shrine']},
- {key:'thai_landmark',name:'แลนด์มาร์กไทย',icon:'🏯',keys:['landmark_city_gate','landmark_clocktower','landmark_monument','landmark_spirit_house','landmark_welcome_sign']},
+ {key:'thai_landmark',name:'แลนด์มาร์กไทย',icon:'🏯',keys:['landmark_city_gate','landmark_clocktower','landmark_monument','landmark_spirit_house','landmark_welcome_sign','landmark_parliament']},
  {key:'nature_sets',name:'สวนและธรรมชาติ',icon:'🌱',keys:['nature_bush_pine','nature_bush_banyan','nature_thai_flower','nature_lotus_bowl','nature_square_fountain','nature_zen_rocks','nature_park_cluster','nature_short_hedge']},
  {key:'manage',name:'จัดวางและลบ',icon:'✋',keys:['landscapeSelect','treeRow','treeBrush','eraseTree','snapDecor']}
 ];
