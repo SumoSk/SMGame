@@ -1555,7 +1555,7 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
   const flow=digits(text('flow'));
   const queue=text('status').match(/รอคิว\s*([\d,]+)/);
   const waiting=queue?digits(queue[1]):0;
-  const congested=flow>0&&flow<65&&waiting>=10;
+  const congested=flow<65&&waiting>=10;
   if(!congested){trafficTaunt.hidden=true;trafficTauntStarted=0;trafficTauntMutedUntil=0;return;}
   if(now<trafficTauntMutedUntil){trafficTaunt.hidden=true;return;}
   if(!trafficTauntStarted)trafficTauntStarted=now;
