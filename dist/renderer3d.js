@@ -307,7 +307,7 @@ function landscapeShader(material,noise,fragment,extra='',uniforms={}){
  material.customProgramCacheKey=()=>fragment+extra;
  return material;
 }
-function landscapeMaterial(city,kind,noise){
+function landscapeMaterial(city,kind,noise,detailUniform={value:1}){
  const palette=TERRAIN_PALETTES[city]||TERRAIN_PALETTES.korat;
  const c=hex=>{const a=new THREE.Color(hex);return `vec3(${a.r.toFixed(5)},${a.g.toFixed(5)},${a.b.toFixed(5)})`;};
  const material=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:kind==='wetSand'?.75:.97});
@@ -333,13 +333,13 @@ function landscapeMaterial(city,kind,noise){
    // Occasional soft lawn clearings, with restrained mowing bands.
    float lawn=smoothstep(.70,.88,broad)*(1.0-dry);
    float mowing=.5+.5*sin((p.x*.71+p.y*.34)*3.14159);
-   turf=mix(turf,mix(${c(palette[0])},${c(palette[1])},.66+mowing*.08),lawn*.58);
+   turf=mix(turf,mix(${c(palette[0])},${c(palette[1])},.70+(mowing-.5)*.08*landscapeDetail),lawn*.58);
    // Fractal soil, clover and slender close-up blades without extra meshes.
     float micro=landNoise(p/.16+vec2(19.0,71.0));
     vec2 bladeUV=fract(p*9.0+vec2(landNoise(floor(p*9.0)),grain));
     float blade=(1.0-smoothstep(.04,.12,abs(bladeUV.x-.5)))*(1.0-smoothstep(.55,.95,bladeUV.y));
     float clover=smoothstep(.79,.90,landNoise(p/.85+vec2(3.0,31.0)))*.10;
-    turf*=.89+speckle*.13+fine*.07+micro*.065+(grain-.5)*.06+blade*.045;
+    turf*=.89+speckle*.13+mix(.035,fine*.07,landscapeDetail)+mix(.0325,micro*.065,landscapeDetail)+(grain-.5)*.06*landscapeDetail+mix(.0225,blade*.045,landscapeDetail);
     turf=mix(turf,turf*1.13,clover);
   `;
   if(city==='phuket')fragment+=`float shore=1.0-smoothstep(1.6,5.8,-phuketIslandOutward(p));
@@ -349,17 +349,17 @@ function landscapeMaterial(city,kind,noise){
   if(city==='korat')fragment+=`// Fine cultivated-field texture for the drier Northeast biome.
    float farm=smoothstep(.57,.84,landNoise(p/25.0+vec2(34.0,16.0)));
    float rows=.5+.5*sin(p.x*2.75+sin(p.y*.19)*.75);
-   turf*=1.0-farm*rows*.045;`;
+   turf*=1.0-farm*rows*.045*landscapeDetail;`;
   fragment+='diffuseColor.rgb*=turf;';
  }else if(kind==='sand'||kind==='wetSand'){
   const wet=kind==='wetSand';
   fragment+=`vec3 sand=mix(${c(wet?'#a29670':'#c8b58a')},${c(wet?'#c2b48b':'#eddfb2')},.32+broad*.48+speckle*.16);
    float ripple=sin(p.y*17.0+sin(p.x*1.7)*2.4+speckle*3.0);
    float pebbles=smoothstep(.82,.96,landNoise(p/.13+vec2(13.0,8.0)));
-    sand*=.955+fine*.052+(grain-.5)*.052+ripple*.012+pebbles*.019;
+    sand*=.955+mix(.026,fine*.052,landscapeDetail)+(grain-.5)*.052*landscapeDetail+ripple*.012*landscapeDetail+pebbles*.019*landscapeDetail;
    diffuseColor.rgb*=sand;`;
  }else fragment+=`diffuseColor.rgb*=.88+speckle*.16+fine*.08;`;
- return landscapeShader(material,noise,fragment);
+ return landscapeShader(material,noise,fragment,'uniform float landscapeDetail;', {landscapeDetail:detailUniform});
 }
 function landscapeWater(city,river,noise,clock){
  const material=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:river?.36:.27,metalness:.08});
@@ -1134,6 +1134,12 @@ export class TrafficRenderer{
    this.camera.top=half;this.camera.bottom=-half;
    radius=Math.hypot(90,86);
   }
+  // Camera-scale near clipping restores depth precision for nearly coplanar terrain,
+  // beach, and map-sheet surfaces at far zoom while preserving street-level detail.
+  const near=Math.max(.1,Math.min(12,radius*.012));
+  if(Math.abs(this.camera.near-near)>.0001)this.camera.near=near;
+  // Distant pixels cannot resolve blade/ripple micro-patterns; fade their contrast.
+  if(this.landscapeDetailUniform)this.landscapeDetailUniform.value=Math.max(0,Math.min(1,(zoom-.38)/.5));
   const horizontal=radius*Math.cos(elevation);
   this.camera.position.set(cam.x+Math.sin(angle)*horizontal,radius*Math.sin(elevation),cam.y+Math.cos(angle)*horizontal);
   this.camera.lookAt(cam.x,0,cam.y);
@@ -1450,16 +1456,16 @@ export class TrafficRenderer{
     if(o.material)for(const material of Array.isArray(o.material)?o.material:[o.material])material.dispose();
    });
   }
-  this.landscapeNoiseMap??=landscapeNoise();this.landscapeClock??={value:0};
+  this.landscapeNoiseMap??=landscapeNoise();this.landscapeClock??={value:0};this.landscapeDetailUniform??={value:1};
   this.terrainGroup=[];this.city=city;this.phuketLighthouseBeacon=null;
   const noise=this.landscapeNoiseMap,clock=this.landscapeClock;
-  const grass=landscapeMaterial(city,'grass',noise);
+  const grass=landscapeMaterial(city,'grass',noise,this.landscapeDetailUniform);
   const water=new THREE.Mesh(new THREE.PlaneGeometry(3200,3200),landscapeWater(city,false,noise,clock));
   water.rotation.x=-Math.PI/2;water.position.set(150,-.26,150);water.receiveShadow=true;
   this.scene.add(water);this.terrainGroup.push(water);
   const strip=(points,a,b,material,y)=>this.groundShape([...points.map(([x,z])=>[x+a,z]),...points.slice().reverse().map(([x,z])=>[x+b,z])],material,y);
   if(city==='phuket'){
-   const sandMat=landscapeMaterial(city,'sand',noise),wetSandMat=landscapeMaterial(city,'wetSand',noise);
+   const sandMat=landscapeMaterial(city,'sand',noise,this.landscapeDetailUniform),wetSandMat=landscapeMaterial(city,'wetSand',noise,this.landscapeDetailUniform);
    const islandFn=(x,z)=>this.islandOutward(x,z);
    this.groundShape(this.contourPolygon(198,150,2.2,islandFn,420,260),wetSandMat,-.12);
    this.groundShape(this.contourPolygon(198,150,1.05,islandFn,420,260),sandMat,-.105);
@@ -9291,18 +9297,21 @@ export class TrafficRenderer{
   }
   if(fillPoints.length){
    const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(fillPoints,3));
-   const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:'#5f7882',transparent:true,opacity:.23,depthWrite:false,side:THREE.DoubleSide,toneMapped:false}));
+   const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:'#5f7882',transparent:true,opacity:.23,depthWrite:false,side:THREE.DoubleSide,toneMapped:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1}));
    mesh.frustumCulled=false;this.mapCoverGroup.add(mesh);
   }
   const lines=(points,color,opacity)=>{
    if(!points.length)return;
    const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));
-   this.mapCoverGroup.add(new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color,transparent:true,opacity,depthWrite:false,toneMapped:false})));
+   const line=new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color,transparent:true,opacity,depthWrite:false,toneMapped:false}));
+   line.userData.mapCoverBaseOpacity=opacity;this.mapCoverGroup.add(line);
   };
   lines(edgePoints,'#ecf4e9',.21);
   lines(freeEdges,'#c2f4d1',.42);
  }
  render({state,cam,mapCover,hover,drag,roadPreview,demolitionPreview=null,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}this.updateMapCover(mapCover,state);
+ // Fade distant one-pixel sheet boundaries to prevent subpixel crawling.
+ if(this.mapCoverGroup){const fade=.25+.75*Math.max(0,Math.min(1,(cam.z-.23)/.45));for(const line of this.mapCoverGroup.children)if(line.userData.mapCoverBaseOpacity!=null)line.material.opacity=line.userData.mapCoverBaseOpacity*fade;}
  const buildKey=state.buildings.size+':'+(state.buildingVisualVersion||0);
  // A purchased AI upgrade does not increment the road layout version: refresh its poles immediately.
  const smartSignalKey=[...state.signals].filter(([node,setting])=>setting.mode==='smart'&&state.roads.has(node)).map(([node])=>node).sort((a,b)=>a-b).join(',');
