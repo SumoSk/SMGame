@@ -1168,37 +1168,40 @@ const runtimeErrors=[];for(const type of ['error','unhandledrejection'])window.a
 let state,cam={x:150,y:150,z:1.25,angle:Math.PI/4,elevation:Math.PI*50/180},view={w:innerWidth,h:innerHeight,dpr:1},tool='hand',category='roads',selected=null,hover=null,drag=null,pendingRoadPreview=null,pendingDemolitionPreview=null,roadPreviewCache=null,movingBuildingId=null,constructionAnchor=null,heat=false,debug=false,last=0,uiTick=0,news=[],toastTimer,follow=null;
 const id=(x,y)=>y*W+x,xy=i=>[i%W,Math.floor(i/W)],valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function phuketCoastX(y){
- const zn=(y-150)/165,taper=10*zn*zn;
- const bays=6.8*Math.sin(y*.046+.4)+4.2*Math.cos(y*.092-.7)+2.6*Math.sin(y*.15+1.1);
- const bridgeCape=-13.5*Math.exp(-(((y-150)/20)**2));
- const nMargin=-12*Math.exp(-((y/28)**2)),sMargin=-12*Math.exp(-(((y-300)/28)**2));
- return 123+taper+bays+bridgeCape+nMargin+sMargin;
+ const zn=(y-150)/175,taper=4.5*zn*zn;
+ const patong=5.5*Math.exp(-(((y-182)/16)**2));
+ const karon=4.2*Math.exp(-(((y-222)/15)**2));
+ const bangtao=4.8*Math.exp(-(((y-96)/18)**2));
+ const bays=4.2*Math.sin(y*.046+.4)+2.8*Math.cos(y*.092-.7)+1.6*Math.sin(y*.15+1.1);
+ const bridgeCape=-14.5*Math.exp(-(((y-150)/22)**2));
+ const nMargin=-6*Math.exp(-((y/24)**2)),sMargin=-6*Math.exp(-(((y-300)/24)**2));
+ return 84+taper+bays+patong+karon+bangtao+bridgeCape+nMargin+sMargin;
 }
 function phuketCoastEastX(y){
- const zn=(y-150)/155,zn2=zn*zn,taper=-56*zn2-38*zn2*zn2;
- const chalong=-22*Math.exp(-(((y-258)/24)**2));
- const panwa=22*Math.exp(-(((y-216)/22)**2));
- const yamu=16*Math.exp(-(((y-95)/22)**2));
- const eastGate=14*Math.exp(-(((y-150)/20)**2));
- const waves=4.8*Math.sin(y*.039+1.1)+2.6*Math.cos(y*.082);
- return 295+taper+chalong+panwa+yamu+eastGate+waves;
+ const zn=(y-150)/170,zn2=zn*zn,taper=-22*zn2-12*zn2*zn2;
+ const chalong=-16*Math.exp(-(((y-258)/22)**2));
+ const panwa=14*Math.exp(-(((y-216)/20)**2));
+ const yamu=12*Math.exp(-(((y-95)/22)**2));
+ const eastGate=8*Math.exp(-(((y-150)/22)**2));
+ const waves=3.2*Math.sin(y*.039+1.1)+1.8*Math.cos(y*.082);
+ return 296+taper+chalong+panwa+yamu+eastGate+waves;
 }
 function phuketCoastNorthY(x){
- const xn=(x-168)/115,xn2=xn*xn,arch=38*xn2+20*xn2*xn2;
- const northGate=-14*Math.exp(-(((x-150)/24)**2));
- const waves=3.2*Math.sin(x*.042+.7)+1.8*Math.cos(x*.088);
- return 4+arch+northGate+waves;
+ const xn=(x-190)/135,xn2=xn*xn,arch=14*xn2+8*xn2*xn2;
+ const northGate=-8*Math.exp(-(((x-150)/28)**2));
+ const waves=2.4*Math.sin(x*.042+.7)+1.4*Math.cos(x*.088);
+ return 3+arch+northGate+waves;
 }
 function phuketCoastSouthY(x){
- const xn=(x-168)/115,xn2=xn*xn,arch=-36*xn2-20*xn2*xn2;
- const phromthep=15*Math.exp(-(((x-150)/24)**2));
- const chalong=-15*Math.exp(-(((x-192)/20)**2));
- const panwa=18*Math.exp(-(((x-232)/20)**2));
- const waves=3.2*Math.sin(x*.038+2.1)+1.8*Math.cos(x*.081);
- return 296+arch+phromthep+chalong+panwa+waves;
+ const xn=(x-190)/135,xn2=xn*xn,arch=-14*xn2-8*xn2*xn2;
+ const phromthep=12*Math.exp(-(((x-150)/26)**2));
+ const chalong=-11*Math.exp(-(((x-192)/20)**2));
+ const panwa=13*Math.exp(-(((x-232)/20)**2));
+ const waves=2.4*Math.sin(x*.038+2.1)+1.4*Math.cos(x*.081);
+ return 297+arch+phromthep+chalong+panwa+waves;
 }
 function phuketIslandOutward(x,y){
- const r=18;
+ const r=22;
  const dx=Math.max(phuketCoastX(y)-x,x-phuketCoastEastX(y));
  const dz=Math.max(phuketCoastNorthY(x)-y,y-phuketCoastSouthY(x));
  const qx=dx+r,qz=dz+r;
@@ -1869,10 +1872,11 @@ function sheetAt(x,y){
 function sheetHasLand(tx,ty){
  if(tx<0||ty<0||tx>=MAP_SHEET_COLUMNS||ty>=MAP_SHEET_COLUMNS)return false;
  if(state.city!=='phuket')return true;
- // Coastal sheets are purchasable when any useful part is on land. Sampling
- // matches the island-shaped visual cover and avoids purchasing pure ocean.
- for(let y=ty*MAP_SHEET_SIZE+2;y<(ty+1)*MAP_SHEET_SIZE;y+=5)
-  for(let x=tx*MAP_SHEET_SIZE+2;x<(tx+1)*MAP_SHEET_SIZE;x+=5)
+ // Check the same integer grid cells used by isPhuketWaterTile when building.
+ // Avoid 5-cell sampling gaps on slender coastal sheets offered for purchase.
+ const sx=tx*MAP_SHEET_SIZE,sy=ty*MAP_SHEET_SIZE;
+ for(let y=sy;y<sy+MAP_SHEET_SIZE;y++)
+  for(let x=sx;x<sx+MAP_SHEET_SIZE;x++)
    if(!isPhuketWaterTile(x,y))return true;
  return false;
 }
