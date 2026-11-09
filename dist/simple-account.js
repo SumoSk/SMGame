@@ -9,7 +9,6 @@
   const endpoint='https://jeqbyhzbpivscsduwkcj.supabase.co/functions/v1/smgame-simple-account';
   const key='sb_publishable_yEaGo1wDqb4qehdi702eMQ_ZqyVcHuf',storageKey='smcity-simple-session-v1';
   const legacyUser=Object.getOwnPropertyDescriptor(api,'user').get.bind(api);
-  const legacyName=Object.getOwnPropertyDescriptor(api,'displayName').get.bind(api);
   const old={};
   for(const name of ['openSignIn','requestSaveLogin','listSaves','getSave','save','deleteSave','saveIncidentLog','listIncidentLogs','submitVehicleBugReport','listVehicleBugReports','changePassword','signOut','closePanel'])
     old[name]=api[name].bind(api);
@@ -19,7 +18,7 @@
   function setAccount(user,session){
     account=user||null;token=session||null;
     try{if(user&&session)localStorage.setItem(storageKey,session);else localStorage.removeItem(storageKey);}catch{}
-    window.SMGameOnAuthChanged?.(!!(user||legacyUser()));
+    window.SMGameOnAuthChanged?.(!!user);
     setTimeout(()=>window.SMGameCreatorAuthRefresh?.(),0);
   }
   async function call(action,fields={},session=token){
@@ -55,8 +54,8 @@
     notice('');
   }
   function show(){old.openSignIn();labels();}
-  Object.defineProperty(api,'user',{configurable:true,get:()=>account?{id:account.id,user_metadata:{username:account.username},simpleAccount:true}:legacyUser()});
-  Object.defineProperty(api,'displayName',{configurable:true,get:()=>account?.username||(legacyUser()?legacyName():'ผู้เล่น')});
+  Object.defineProperty(api,'user',{configurable:true,get:()=>account?{id:account.id,user_metadata:{username:account.username},simpleAccount:true}:null});
+  Object.defineProperty(api,'displayName',{configurable:true,get:()=>account?.username||'ผู้เล่น'});
   api.openSignIn=()=>{pending=null;show();};
   api.requestSaveLogin=(serialized,name)=>{
     if(api.user||working||typeof serialized!=='string'||!serialized)return false;
@@ -64,30 +63,33 @@
     show();return true;
   };
   api.listSaves=async()=>{
-    if(!active())return old.listSaves();
+    if(!active())throw Error('กรุณาเข้าสู่ระบบบัญชีเกมแบบง่ายก่อนโหลดเซฟค่ะ');
     const result=await call('list-saves');
     return (result.saves||[]).map(s=>({id:s.slot_id,name:s.name,savedAt:Date.parse(s.updated_at)}));
   };
   api.getSave=async slotId=>{
-    if(!active()){
-      const raw=await old.getSave(slotId);
-      return window.SMGameSaveCodec?.decode?window.SMGameSaveCodec.decode(raw):raw;
-    }
+    if(!active())throw Error('กรุณาเข้าสู่ระบบบัญชีเกมแบบง่ายก่อนโหลดเซฟค่ะ');
     const result=await call('get-save',{slotId});
     if(!result.data||typeof result.data!=='object'||Array.isArray(result.data))throw Error('เซฟไม่ถูกต้อง');
     const raw=JSON.stringify(result.data);
     return window.SMGameSaveCodec?.decode?window.SMGameSaveCodec.decode(raw):raw;
   };
   api.save=async(name,slotId,serialized)=>{
-    // Covers new accounts, legacy accounts, and quick saves after login.
+    // Simple game-account saves only. Email Auth is no longer a save owner.
     const packed=window.SMGameSaveCodec?.encode?await window.SMGameSaveCodec.encode(serialized):serialized;
-    if(!active())return old.save(name,slotId,packed);
+    if(!active())throw Error('ระบบเซฟอีเมลเก่าปิดแล้ว กรุณาเข้าสู่ระบบบัญชีเกมแบบง่ายค่ะ');
     const result=await call('put-save',{name,slotId,data:JSON.parse(packed)});
     if(result.slotId!==slotId)throw Error('ตรวจสอบการบันทึกเกมไม่สำเร็จ');
   };
-  api.deleteSave=async slotId=>active()?call('delete-save',{slotId}):old.deleteSave(slotId);
-  api.saveIncidentLog=async entry=>active()?call('incident-add',{entry}):old.saveIncidentLog(entry);
-  api.listIncidentLogs=async()=>active()?(await call('incidents-list')).items||[]:old.listIncidentLogs();
+  api.deleteSave=async slotId=>{
+    if(!active())throw Error('กรุณาเข้าบัญชีเกมแบบง่ายก่อนค่ะ');
+    return call('delete-save',{slotId});
+  };
+  api.saveIncidentLog=async entry=>{
+    if(!active())throw Error('กรุณาเข้าบัญชีเกมแบบง่ายก่อนค่ะ');
+    return call('incident-add',{entry});
+  };
+  api.listIncidentLogs=async()=>active()?(await call('incidents-list')).items||[]:[];
   api.submitVehicleBugReport=async report=>active()?call('bug-report',{report}):old.submitVehicleBugReport(report);
   api.listVehicleBugReports=async()=>{
     if(!active())return old.listVehicleBugReports();
@@ -96,9 +98,10 @@
     const result=await window.SMGameCreatorRequest('list-vehicle-bug-reports');
     return result.reports||[];
   };
-  api.changePassword=async(currentPassword,newPassword)=>active()
-    ? call('change-password',{oldPassword:currentPassword,newPassword})
-    : old.changePassword(currentPassword,newPassword);
+  api.changePassword=async(currentPassword,newPassword)=>{
+    if(!active())throw Error('กรุณาเข้าบัญชีเกมแบบง่ายก่อนค่ะ');
+    return call('change-password',{oldPassword:currentPassword,newPassword});
+  };
   api.signOut=async()=>{
     if(!active())return old.signOut();
     const prior=token;setAccount(null,null);
