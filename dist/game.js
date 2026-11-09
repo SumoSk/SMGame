@@ -6178,8 +6178,32 @@ function cellAvailable(i,d,l,vid){
  return l>=0&&l<cap&&same<cap&&(junction(i)>=3||total<cap*2);
 }
 // Road traffic may pass a road tile held by another vehicle; a physical same-lane leader still governs spacing.
-// Keep signalised intersections on the original exclusive admission rules.
-function roadTraversalAvailable(v,pos){const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);return state.roads.has(i)&&lane>=0&&lane<laneCapacity(i,d)&&(junction(i)<3||ownsJunctionPass(v,pos)||cellAvailable(i,d,lane,v.id));}
+// Keep signalised intersections and reserved exit/merge cells on exclusive admission rules.
+function aheadOnReservedExit(v,holder,target){
+ if(v.phase!=='driving'||holder?.phase!=='driving'||!holder.junctionPasses?.length)return false;
+ const next=v.pos+1,current=v.path[v.pos];
+ if(v.path[next]!==target||junction(current)>=3||junction(target)>=3)return false;
+ for(const pass of holder.junctionPasses){
+  const last=Math.min(holder.path.length-2,pass.pos+TRAFFIC_RULES.maxIntersectionReservation-1);
+  for(let k=pass.pos+1;k<=last;k++){
+   if(signalRequired(holder.path[k]))break;
+   if(holder.path[k]!==current||holder.path[k+1]!==target)continue;
+   const ahead=k>holder.pos||k===holder.pos&&v.progress>holder.progress;
+   if(ahead&&plannedLane(v,v.pos)===plannedLane(holder,k)&&plannedLane(v,next)===plannedLane(holder,k+1))return true;
+  }
+ }
+ return false;
+}
+function cellReservedByOther(v,i,d,l){
+ const air=isAirTraffic(v),key=trafficCellKey(v,i,d,l),res=state.reservations.get(key);
+ const conflicts=id=>id!=null&&id!==v?.id&&(!air&&!parkingEscapePair(v||{},id)||air);
+ if(!air&&parkingClaimed(key,v?.id))return true;
+ if(!res)return false;
+ if(res.passes)return res.passes.some(p=>p.until>=state.time&&state.vehicles.has(p.id)&&conflicts(p.id));
+ const holder=state.vehicles.get(res.id);
+ return res.until>=state.time&&!!holder&&conflicts(res.id)&&!aheadOnReservedExit(v,holder,i);
+}
+function roadTraversalAvailable(v,pos){const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);return state.roads.has(i)&&lane>=0&&lane<laneCapacity(i,d)&&(junction(i)<3?!cellReservedByOther(v,i,d,lane):(ownsJunctionPass(v,pos)||cellAvailable(i,d,lane,v.id)));}
 function occupy(v,pos){
  const i=v.path[pos],d=dir(i,v.path[Math.min(pos+1,v.path.length-1)]),l=plannedLane(v,pos),key=trafficCellKey(v,i,d,l);
  if(v.occKey&&v.occKey!==key&&state.occ.get(v.occKey)===v.id)state.occ.delete(v.occKey);
@@ -6544,7 +6568,8 @@ function explainRoadTraversal(v,pos){
  if(same>=capacity&&road)blockers.push({code:'directional_capacity_full',count:same,capacity,vehicleIds:directional.slice(0,8)});
  const junctionType=road?junction(node):0;
  if(junctionType<3&&total>=capacity*2&&road)blockers.push({code:'tile_capacity_full',count:total,capacity:capacity*2});
- const bypass=!!road&&junctionType<3?'non_signalized_tile':v.junctionPasses?.some(p=>p.pos===pos&&p.node===node)?'existing_junction_pass':null;
+ const reservedConflict=!!road&&junctionType<3&&cellReservedByOther(v,node,d,lane);
+ const bypass=!!road&&junctionType<3&&!reservedConflict?'non_signalized_tile':v.junctionPasses?.some(p=>p.pos===pos&&p.node===node)?'existing_junction_pass':null;
  const allowed=!!road&&lane>=0&&lane<capacity&&(bypass!=null||blockers.length===0);
  return{node,pos,direction:d,lane,key,roadType:road?.type||null,capacity,junctionArms:junctionType,bypass,
   occupant:o??null,reservationId:res?.id??null,occupants,capacityCounts:{sameDirection:same,total},
@@ -6648,7 +6673,7 @@ function setBugCaptureEnabled(enabled){
   delete v.lastStoppedBarrier;delete v.lastRoadTraversalBlock;
   delete v.lastJunctionDenial;delete v.lastQueueDenial;delete v.lastJunctionExitCheck;
   // Keep the owner ID for live deadlock recovery, but discard detailed evidence on OFF.
-  if(!enabled&&v.lastPhysicalBlock){delete v.lastPhysicalBlock.ownerPose;delete v.lastPhysicalBlock.distance;}
+  // Always preserve ownerPose and distance on lastPhysicalBlock so bugCaptureEnabled never alters deadlock/tow conditions.
   // lastPhysicalBlock is a live traffic-safety signal for paired-deadlock recovery.
  }
  try{localStorage.setItem(BUG_CAPTURE_STORAGE_KEY,enabled?'on':'off');}catch(_){}
@@ -6859,18 +6884,35 @@ function connectorsConflict(a,b){
 function clearVehicleReservations(v){
  for(const [key,r]of state.reservations){if(r.passes){r.passes=r.passes.filter(p=>p.id!==v.id);if(!r.passes.length)state.reservations.delete(key);else r.id=r.passes[0].id;}else if(r.id===v.id)state.reservations.delete(key);}
 }
+const checkedJunctionPlans=new WeakMap();
+function restoreOccupiedConnector(v,plan,s){
+ if(checkedJunctionPlans.get(v)===plan)return;
+ checkedJunctionPlans.set(v,plan);
+ for(const g of plan.junctions){
+  if(s+TRAFFIC_RULES.vehicleHalfLength<=g.entry||s>=g.clear||ownsJunctionPass(v,g.pos))continue;
+  const lock=state.reservations.get(trafficJunctionKey(v,g.node));
+  const connector=junctionConnector(v,g.pos);
+  const conflicting=(lock?.passes||[]).some(pass=>{
+   const other=state.vehicles.get(pass.id);
+   if(v.pos>g.pos&&aheadOnReservedExit(v,other,v.path[v.pos+1]))return false;
+   return other&&other!==v&&connectorsConflict(connector,junctionConnector(other,pass.pos));
+  });
+  if(!conflicting)reserveIntersection(v,g.pos);
+ }
+}
 function prepareJunctionQueues(){
  state.junctionQueues=new Map();
  for(const v of state.vehicles.values()){
   if(v.phase!=='driving'||!v.path?.length)continue;
   const plan=motionPlan(v),s=motionDistance(v,plan);if(!v.junctionQueueSince)v.junctionQueueSince={};
+  restoreOccupiedConnector(v,plan,s);
   const activeKeys=new Set();
-  for(const g of plan.junctions){if(ownsJunctionPass(v,g.pos)||s>=g.entry||g.stop-s>2.5)continue;const key=g.pos+':'+g.node;activeKeys.add(key);if(v.junctionQueueSince[key]==null)v.junctionQueueSince[key]=state.time;
+  for(const g of plan.junctions){if(ownsJunctionPass(v,g.pos)||s>=g.entry||g.stop-s>2.5)continue;const key=g.pos+':'+g.node,nodeKey='node:'+g.node;activeKeys.add(key);activeKeys.add(nodeKey);const since=v.junctionQueueSince[key]??v.junctionQueueSince[nodeKey]??state.time;v.junctionQueueSince[key]=since;v.junctionQueueSince[nodeKey]=since;
    // Red approaches retain their original queue arrival time, but cannot
    // compete for entry. Defer expensive connector sampling and intersection
    // competition until the approach turns green; all its lanes turn green together.
    if(!isAirTraffic(v)&&!signalAllows(g.node,motionDirection(v.path,g.pos-1)))continue;
-   const connector=junctionConnector(v,g.pos),request={id:v.id,pos:g.pos,at:v.junctionQueueSince[key],distance:g.stop-s,connector};const queueKey=trafficQueueKey(v,g.node);let queue=state.junctionQueues.get(queueKey);if(!queue)state.junctionQueues.set(queueKey,queue=[]);queue.push(request);
+   const connector=junctionConnector(v,g.pos),request={id:v.id,pos:g.pos,at:since,distance:g.stop-s,connector};const queueKey=trafficQueueKey(v,g.node);let queue=state.junctionQueues.get(queueKey);if(!queue)state.junctionQueues.set(queueKey,queue=[]);queue.push(request);
   }
   for(const key of Object.keys(v.junctionQueueSince))if(!activeKeys.has(key))delete v.junctionQueueSince[key];
  }
@@ -7036,19 +7078,11 @@ function processJunctionTows(simDt){
 }
 function intersectionAllowed(v,pos,ignoreSignal=false){
  if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
+ 
+
  const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(!isAirTraffic(v)&&signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return noteVehicleJunctionDenial(v,i,'red_signal',{incoming:entering,lane,signal:signalColor(i,entering,lane)});
  const connector=junctionConnector(v,pos),lock=state.reservations.get(trafficJunctionKey(v,i));
  for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos))){if(!ignoreSignal)watchJunctionTow(v,other,pass.pos??other.pos,i,pos);return noteVehicleJunctionDenial(v,i,'conflicting_junction_lease',{ownerId:pass.id,ownerPhase:other.phase,ownerPos:pass.pos??other.pos,ownerStopReason:other.stopReason||''});}}}
- // Exit clearance is dynamic: check on EVERY admission attempt, never cache
- // across simulation steps. Reuse this read-only result within this attempt.
- // A queued follower cannot pass the head of its lane. Avoid the expensive
- // downstream exit scan until its turn without weakening collision checks.
- // v4.4.5: a car that has already waited through red gets a green-light
- // departure attempt without being trapped behind stale queue arbitration.
- // Actual intersection leases, live exit clearance and physical spacing
- // remain mandatory, so an occupied intersection cannot be crossed.
- // Keep the normal 1,000-car path cheap: only long-waiting green
- // approaches do the extra stop-line lookup.
  let urgentGreen=false;
  if(!isAirTraffic(v)&&!ignoreSignal&&v.phase==='driving'&&(v.wait||0)>=.8&&signalAllows(i,entering,lane)){
   const plan=motionPlan(v),guard=plan.junctions.find(g=>g.pos===pos);
@@ -7068,10 +7102,12 @@ function reserveIntersection(v,pos){
  if(!ownsJunctionPass(v,pos))v.junctionPasses.push({pos,node:i});
  const key=trafficJunctionKey(v,i),lock=state.reservations.get(key)||{passes:[]};if(!lock.passes)lock.passes=[];const pass=lock.passes.find(p=>p.id===v.id);if(pass){pass.until=state.time+30;pass.pos=pos;}else lock.passes.push({id:v.id,pos,until:state.time+30});lock.id=lock.passes[0].id;lock.until=state.time+30;state.reservations.set(key,lock);
  for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionReservation);k++){
-  // Reserve this connector only, never an independent downstream junction.
+  // Reserve this connector only, never an independent downstream junction, and never overwrite an active owner's reservation.
   if(k>pos&&signalRequired(v.path[k]))break;
   const next=k+1<v.path.length?v.path[k+1]:v.path[Math.max(0,k-1)],d=k+1<v.path.length?dir(v.path[k],next):dir(next,v.path[k]);
-  state.reservations.set(trafficCellKey(v,v.path[k],d,plannedLane(v,k)),{id:v.id,until:state.time+30});
+  const cellKey=trafficCellKey(v,v.path[k],d,plannedLane(v,k)),existing=state.reservations.get(cellKey);
+  const activeOther=existing&&(existing.passes?existing.passes.some(p=>p.id!==v.id&&p.until>=state.time&&state.vehicles.has(p.id)):(existing.id!==v.id&&existing.until>=state.time&&state.vehicles.has(existing.id)));
+  if(!activeOther)state.reservations.set(cellKey,{id:v.id,until:state.time+30});
  }
  v.committedJunction=i;
 }
@@ -7082,7 +7118,9 @@ function refreshMotionReservations(v,plan,s){
    if(!g||s>=g.clear)return false;
    // A waiting approach must not retain a lease that blocks the car ahead.
    // Keep every lease once the owner has physically entered the junction.
-   if(s<g.entry-1e-6&&trafficSpatial&&
+   const crossingEarlier=plan.junctions.some(earlier=>earlier.pos<g.pos&&s>earlier.stop&&
+    s<earlier.clear&&ownsJunctionPass(v,earlier.pos));
+   if(!crossingEarlier&&s<=g.stop+1e-6&&trafficSpatial&&
      physicalTrafficLimit(v,plan,s,Math.max(.1,g.entry-s+.1))<g.entry-1e-6)return false;
    return true;
   });
@@ -7275,8 +7313,35 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
   near.push(p);nearIds.push(id);
  }
  if(!near.length)return mergeLimit;let safe=s;
- for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(let j=0;j<near.length;j++)if(capsulesOverlap(p,near[j])){v.lastPhysicalBlock=bugCaptureEnabled?{gameTime:state.time,ownerId:nearIds[j],ownerPose:near[j],distance:along,reason:'physical_capsule_overlap'}:{gameTime:state.time,ownerId:nearIds[j],reason:'physical_capsule_overlap'};return Math.min(mergeLimit,Math.max(s,safe-.025));}safe=along;if(along===end)break;}
+ for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(let j=0;j<near.length;j++)if(capsulesOverlap(p,near[j])){v.lastPhysicalBlock={gameTime:state.time,ownerId:nearIds[j],ownerPose:near[j],distance:along,reason:'physical_capsule_overlap'};return Math.min(mergeLimit,Math.max(s,safe-.025));}safe=along;if(along===end)break;}
  return mergeLimit;
+}
+// If two stop lines are too close to store this vehicle, acquire both
+// movements before leaving the first line. All checks precede any grant.
+function claimClearCrossing(v,plan,s,first){
+ const guards=[first];
+ let end=first.clear;
+ for(let i=plan.junctions.indexOf(first)+1;i<plan.junctions.length;i++){
+  const next=plan.junctions[i];
+  if(next.stop>=end-1e-6)break;
+  if(!intersectionAllowed(v,next.pos))return false;
+  guards.push(next);end=Math.max(end,next.clear);
+ }
+ end=Math.min(plan.total,end);
+ // Short sections keep the physical search centred on the part being
+ // traversed, including the far side of a wide junction or a turn.
+ const previousBlock=v.lastPhysicalBlock;
+ try{
+  for(let at=s;at<end-1e-7;at+=1){
+   const until=Math.min(at+1,end);
+   if(physicalTrafficLimit(v,plan,at,until-at)<until-1e-7)return false;
+  }
+ }finally{
+  // A future obstruction is not a current collision for deadlock recovery.
+  v.lastPhysicalBlock=previousBlock;
+ }
+ for(const guard of guards)reserveIntersection(v,guard.pos);
+ return true;
 }
 function motionBarrier(v,plan,s,budget=-1){
  const scan=Math.min(3,Math.max(.8,(v.speed||0)*(v.speed||0)/9.6+.3,budget>=0?budget+.1:0));
@@ -7294,14 +7359,19 @@ function motionBarrier(v,plan,s,budget=-1){
   if(s>=g.clear||g.stop>s+lookahead||ownsJunctionPass(v,g.pos))continue;
   // Cars from an older save can already be beyond the entry line. They may
   // clear a free junction, but are never rewound when the signal changes.
-  const inside=s>g.entry+1e-6;
+  const inside=s+TRAFFIC_RULES.vehicleHalfLength>g.entry+1e-6;
   const allowed=intersectionAllowed(v,g.pos,inside);
   if(!allowed){
    const stop=Math.max(s,g.stop);
    if(stop<limit){limit=stop;reason=!isAirTraffic(v)&&signalRequired(g.node)&&!signalAllows(g.node,dir(v.path[g.pos-1],g.node),plannedLane(v,g.pos-1))?'ไฟแดง':'คิวแยก';}
-  // Commit only when this step can reach the entry, not merely the stop line.
-  // Otherwise a follower can lock out its leader while waiting behind it.
-  }else if(inside||(budget>=0&&g.entry<=s+budget+1e-8&&g.entry<=limit))reserveIntersection(v,g.pos);
+  // Before leaving the stop line, acquire the connector while admission
+  // is valid. A later signal change must not stop this car in the crossing.
+  }else if(inside)reserveIntersection(v,g.pos);
+  else if(budget>=0&&s+budget>g.stop){
+   if((limit<g.entry||!claimClearCrossing(v,plan,s,g))&&limit>g.stop){
+    limit=Math.max(s,g.stop);reason='รอทางพ้นแยก';
+   }
+  }
  }
  return{limit,reason};
 }
@@ -7345,10 +7415,14 @@ function commitSafeLaneChange(v,newLane,reason,newRoute=null){
  for(const node of path.slice(0,3))
   if(!state.roads.has(node)||junction(node)>=3||laneCapacity(node,direction)<=newLane)return false;
  if(!cellAvailable(path[0],direction,newLane,v.id)||!cellAvailable(path[1],direction,newLane,v.id))return false;
- const actual=vehiclePosition(v);
+ const actual=vehiclePosition(v),preservedQueueSince={};
+ if(v.junctionQueueSince)for(const [qk,at]of Object.entries(v.junctionQueueSince)){
+  if(qk.startsWith('node:'))preservedQueueSince[qk]=at;
+  else{const [qPos,qNode]=qk.split(':').map(Number),newPos=qPos-v.pos;if(newPos>=0&&path[newPos]===qNode)preservedQueueSince[newPos+':'+qNode]=at;}
+ }
  const proposal={...v,path:[...path],pathSet:new Set(path),pos:0,progress:0,
   motionStartPose:{...actual},motionSeedLane:newLane,emergencyInitialLane:newLane,
-  turnLanes:{},junctionPasses:[],junctionQueueSince:{},committedJunction:null};
+  turnLanes:{},junctionPasses:[],junctionQueueSince:preservedQueueSince,committedJunction:null};
  const plan=motionPlan(proposal);
  if(plan.lanes[0]!==newLane||plan.lanes[1]!==newLane||plan.total<1)return false;
  const forward=DIR[direction],ahead=positionOnMotion(plan,Math.min(1,plan.total));
@@ -7358,6 +7432,7 @@ function commitSafeLaneChange(v,newLane,reason,newRoute=null){
  v.adaptiveLaneUntil=state.time+ADAPTIVE_LANE_RULES.cooldown;
  v.stopReason=reason;v.routeCheckedVersion=state.version;
  occupy(v,0);updateTrafficSpatial(v);
+ if(state.junctionQueues)prepareJunctionQueues();
  return true;
 }
 function attemptAdaptiveLaneChange(v){
@@ -7517,6 +7592,13 @@ function advanceVehicles(realDt,gameDt){
    if(v.mergeEscapeId){noteParkingBlock(v,'merge_escape_yield',{blockerVehicleId:v.mergeEscapeId});v.stopReason='ให้รถบนถนนที่ขวางกันผ่านก่อน';updateTrafficSpatial(v);continue;}
    if(!v.mergeCommitted&&!canCommitParkingMerge(v)){traceDeparture(v,'parking_merge_commit_waiting');v.stopReason='รอช่องว่างตลอดทางออก';updateTrafficSpatial(v);continue;}
    if(advanceLot(v,simDt)){
+    const node=v.path[0],d=motionDirection(v.path,0),lane=plannedLane(v,0);
+    if(!cellAvailable(node,d,lane,v.id)){
+     noteParkingBlock(v,'merge_handover_road_cell_unavailable',{roadNode:node,roadDirection:d,roadLane:lane,roadAdmission:bugCaptureEnabled?explainRoadTraversal(v,0):null});
+     v.stopReason='รอครองช่องถนนก่อนออกจากลาน';
+     updateTrafficSpatial(v);continue;
+    }
+    occupy(v,0);
     traceDeparture(v,'parking_merge_completed',{},'transition');
     const b=state.buildings.get(v.fromId);
     if(b){b.queue=b.queue.filter(id=>id!==v.id);b.parked.delete(v.citizenId);b.visitors.delete(v.citizenId);freeParkingSpace(b,v.citizenId);}
@@ -7524,8 +7606,6 @@ function advanceVehicles(realDt,gameDt){
     if(c){c.location='travel';c.state=TRIPS[v.kind].name;}
     grandSignalRelease(v);v.grandCrossing=null;v.lotPath=null;v.lotReady=false;v.mergeExitActive=true;v.mergeGhostUntil=null;
     v.phase='driving';v.speed=0;v.wait=0;v.stopReason='';v.lastMovedAt=state.time;
-    const key=trafficCellKey(v,v.path[0],motionDirection(v.path,0),plannedLane(v,0));
-    if(!state.occ.has(key)&&!state.reservations.has(key))occupy(v,0);
    }
    updateTrafficSpatial(v);continue;
   }
@@ -7585,7 +7665,7 @@ function advanceVehicles(realDt,gameDt){
   // Claim only a free lane; a pair-specific recovery cannot steal occupancy.
   if(!v.occKey&&state.roads.has(v.path[v.pos])){
    const d=motionDirection(v.path,v.pos),lane=plannedLane(v,v.pos),key=trafficCellKey(v,v.path[v.pos],d,lane);
-   if(!state.occ.has(key)&&!state.reservations.has(key))occupy(v,v.pos);
+   if((!state.occ.has(key)||state.occ.get(key)===v.id)&&!cellReservedByOther(v,v.path[v.pos],d,lane))occupy(v,v.pos);
   }
   const plan=motionPlan(v),initial=motionDistance(v,plan),type=ROADS[state.roads.get(v.path[v.pos]).type];
   let s=initial;refreshMotionReservations(v,plan,s);
@@ -7608,10 +7688,11 @@ function advanceVehicles(realDt,gameDt){
    if(s>=end-1e-9){
     const nextPos=v.pos+1,d=motionDirection(v.path,nextPos),lane=plannedLane(v,nextPos);
     if(!roadTraversalAvailable(v,nextPos)){blocked=gate.reason||'รถคันหน้าขวาง';v.speed=0;break;}
-    // Pair-specific recovery never steals the parking car's logical lane.
+    // Confirm next cell ownership (when not yielding to a parking escape pair) before releasing previous cell.
+    const roadKey=trafficCellKey(v,v.path[nextPos],d,lane),occOwner=state.occ.get(roadKey);
+    const canClaim=(occOwner==null||occOwner===v.id)&&!cellReservedByOther(v,v.path[nextPos],d,lane);
     release(v,true);v.pos=nextPos;v.progress=0;
-    const roadKey=trafficCellKey(v,v.path[nextPos],d,lane);
-    if(!state.occ.has(roadKey)&&!state.reservations.has(roadKey))occupy(v,v.pos);
+    if(canClaim)occupy(v,v.pos);
     transitions++;
     state.roads.get(v.path[v.pos]).load=Math.min(1.2,state.roads.get(v.path[v.pos]).load+.15);
     refreshMotionReservations(v,plan,s);
