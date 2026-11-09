@@ -2652,9 +2652,19 @@ function motionPlan(v){
   let radius=Math.max(.75,width*.33),cutIn,cutOut;
   if(!legacy&&c.turn===1)radius+=(Math.hypot(incoming.x,incoming.y)+Math.hypot(outgoing.x,outgoing.y))*.5;
   if(c.turn===3){
-   const inHalf=roadVisualWidth(state.roads.get(path[i-1])?.type)*.5,outHalf=roadVisualWidth(state.roads.get(path[i+1])?.type)*.5;
-   const inMargin=Math.max(.04,inHalf-Math.hypot(incoming.x,incoming.y)-.13),outMargin=Math.max(.04,outHalf-Math.hypot(outgoing.x,outgoing.y)-.13);
-   radius=Math.min(radius,.98*(inMargin+outMargin+Math.sqrt(2*inMargin*outMargin)));
+   const bendLayout=!legacy&&isLargeRoadBend(path[i])?junctionDetails(path[i]):null;
+   if(bendLayout){
+    // The old edge-margin clamp narrowed the outer turn too quickly,
+    // making adjacent lane trajectories cross. Keep one common tangent
+    // boundary and offset each radius by precisely its lane-center offset.
+    const boundary=Math.min(bendLayout.halfX,bendLayout.halfY);
+    radius=Math.max(.28,boundary-Math.max(
+     Math.hypot(incoming.x,incoming.y),Math.hypot(outgoing.x,outgoing.y)));
+   }else{
+    const inHalf=roadVisualWidth(state.roads.get(path[i-1])?.type)*.5,outHalf=roadVisualWidth(state.roads.get(path[i+1])?.type)*.5;
+    const inMargin=Math.max(.04,inHalf-Math.hypot(incoming.x,incoming.y)-.13),outMargin=Math.max(.04,outHalf-Math.hypot(outgoing.x,outgoing.y)-.13);
+    radius=Math.min(radius,.98*(inMargin+outMargin+Math.sqrt(2*inMargin*outMargin)));
+   }
   }
   if(c.turn===2){cutIn=cutOut=radius;}else{cutIn=radius-dot(outgoing,c.incoming);cutOut=radius+dot(incoming,c.outgoing);}
   // Closely spaced junctions share their available corridor. Scale the lane
