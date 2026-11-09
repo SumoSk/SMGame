@@ -307,7 +307,7 @@ function landscapeShader(material,noise,fragment,extra='',uniforms={}){
  material.customProgramCacheKey=()=>fragment+extra;
  return material;
 }
-function landscapeMaterial(city,kind,noise,detailUniform={value:1}){
+function landscapeMaterial(city,kind,noise,detailUniform={value:1},mapSheetMaskUniform=null){
  const palette=TERRAIN_PALETTES[city]||TERRAIN_PALETTES.korat;
  const c=hex=>{const a=new THREE.Color(hex);return `vec3(${a.r.toFixed(5)},${a.g.toFixed(5)},${a.b.toFixed(5)})`;};
  const material=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:kind==='wetSand'?.75:.97});
@@ -359,7 +359,18 @@ function landscapeMaterial(city,kind,noise,detailUniform={value:1}){
     sand*=.955+mix(.026,fine*.052,landscapeDetail)+(grain-.5)*.052*landscapeDetail+ripple*.012*landscapeDetail+pebbles*.019*landscapeDetail;
    diffuseColor.rgb*=sand;`;
  }else fragment+=`diffuseColor.rgb*=.88+speckle*.16+fine*.08;`;
- return landscapeShader(material,noise,fragment,'uniform float landscapeDetail;', {landscapeDetail:detailUniform});
+ // Sample map-purchase tint on the actual terrain material: no extra coplanar plane.
+ const extra='uniform float landscapeDetail;'+(mapSheetMaskUniform?'\nuniform sampler2D mapSheetMask;':'');
+ const uniforms={landscapeDetail:detailUniform};
+ if(mapSheetMaskUniform){
+  uniforms.mapSheetMask=mapSheetMaskUniform;
+  fragment+=`if(p.x>=0.0&&p.x<300.0&&p.y>=0.0&&p.y<300.0){
+   vec2 sheetUV=(floor(p/25.0)+vec2(0.5))/12.0;
+   float sheetLocked=texture2D(mapSheetMask,sheetUV).r;
+   diffuseColor.rgb=mix(diffuseColor.rgb,${c('#5f7882')},sheetLocked*0.23);
+  }`;
+ }
+ return landscapeShader(material,noise,fragment,extra,uniforms);
 }
 function landscapeWater(city,river,noise,clock){
  const material=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:river?.36:.27,metalness:.08});
@@ -1447,6 +1458,9 @@ export class TrafficRenderer{
   const geo=new THREE.ShapeGeometry(shape);geo.rotateX(-Math.PI/2);
   const material=color?.isMaterial?color:new THREE.MeshStandardMaterial({color,roughness:1});
   const mesh=new THREE.Mesh(geo,material);mesh.position.y=height;mesh.receiveShadow=true;
+  // Stable top-down layer order even where mobile depth values coincide.
+  const kind=material.userData?.landscapeKind;
+  mesh.renderOrder=kind==='wetSand'?-3:kind==='sand'?-2:kind==='grass'?-1:0;
   this.scene.add(mesh);this.terrainGroup.push(mesh);return mesh;
  }
  terrain(city){
@@ -1457,15 +1471,23 @@ export class TrafficRenderer{
    });
   }
   this.landscapeNoiseMap??=landscapeNoise();this.landscapeClock??={value:0};this.landscapeDetailUniform??={value:1};
+  if(!this.mapSheetMaskTexture){
+   const pixels=new Uint8Array(12*12*4);
+   const texture=new THREE.DataTexture(pixels,12,12,THREE.RGBAFormat);
+   texture.wrapS=texture.wrapT=THREE.ClampToEdgeWrapping;
+   texture.magFilter=texture.minFilter=THREE.NearestFilter;
+   texture.generateMipmaps=false;texture.flipY=false;texture.needsUpdate=true;
+   this.mapSheetMaskTexture=texture;this.mapSheetMaskUniform={value:texture};
+  }
   this.terrainGroup=[];this.city=city;this.phuketLighthouseBeacon=null;
   const noise=this.landscapeNoiseMap,clock=this.landscapeClock;
-  const grass=landscapeMaterial(city,'grass',noise,this.landscapeDetailUniform);
+  const grass=landscapeMaterial(city,'grass',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform);
   const water=new THREE.Mesh(new THREE.PlaneGeometry(3200,3200),landscapeWater(city,false,noise,clock));
-  water.rotation.x=-Math.PI/2;water.position.set(150,-.26,150);water.receiveShadow=true;
+  water.rotation.x=-Math.PI/2;water.position.set(150,-.26,150);water.receiveShadow=true;water.renderOrder=-4;
   this.scene.add(water);this.terrainGroup.push(water);
   const strip=(points,a,b,material,y)=>this.groundShape([...points.map(([x,z])=>[x+a,z]),...points.slice().reverse().map(([x,z])=>[x+b,z])],material,y);
   if(city==='phuket'){
-   const sandMat=landscapeMaterial(city,'sand',noise,this.landscapeDetailUniform),wetSandMat=landscapeMaterial(city,'wetSand',noise,this.landscapeDetailUniform);
+   const sandMat=landscapeMaterial(city,'sand',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform),wetSandMat=landscapeMaterial(city,'wetSand',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform);
    const islandFn=(x,z)=>this.islandOutward(x,z);
    this.groundShape(this.contourPolygon(198,150,2.2,islandFn,420,260),wetSandMat,-.12);
    this.groundShape(this.contourPolygon(198,150,1.05,islandFn,420,260),sandMat,-.105);
@@ -9254,13 +9276,18 @@ export class TrafficRenderer{
   if(!this.mapCoverGroup){this.mapCoverGroup=new THREE.Group();this.scene.add(this.mapCoverGroup);}
   else this.disposeGroup(this.mapCoverGroup);
   const size=mapCover.size,opened=mapCover.opened,n=300/size;
-  const fillPoints=[],edgePoints=[],freeEdges=[];
+  const edgePoints=[],freeEdges=[];
+  // Uniform-sized mask texels represent 25x25 sheet unlocks; no extra depth layers.
+  const pixels=this.mapSheetMaskTexture.image.data;
+  for(let ty=0;ty<n;ty++)for(let tx=0;tx<n;tx++){
+   const k=(ty*n+tx)*4;
+   pixels[k]=opened.has(tx+':'+ty)?0:255;
+   pixels[k+1]=0;pixels[k+2]=0;pixels[k+3]=255;
+  }
+  this.mapSheetMaskTexture.needsUpdate=true;
   // Mirrors game.js isPhuketWaterTile: Phang Nga scenery and sea cannot be sold.
   const land=(x,z)=>state.city!=='phuket'||this.islandOutward(x,z)<=-1.2;
   const segment=(out,x0,z0,x1,z1,y)=>out.push(x0,y,z0,x1,y,z1);
-  const rect=(x,z,w,d)=>fillPoints.push(
-    x,.034,z, x+w,.034,z, x,.034,z+d,
-    x+w,.034,z, x+w,.034,z+d, x,.034,z+d);
   const edge=(out,x0,z0,x1,z1,y)=>{
    if(state.city!=='phuket')return segment(out,x0,z0,x1,z1,y);
    const length=Math.hypot(x1-x0,z1-z0),steps=Math.ceil(length);
@@ -9273,18 +9300,6 @@ export class TrafficRenderer{
   for(let ty=0;ty<n;ty++)for(let tx=0;tx<n;tx++){
    const id=tx+':'+ty,x=tx*size,z=ty*size;
    if(opened.has(id))continue;
-   if(state.city==='phuket'){
-    // Merge contiguous one-cell land runs; precise grid edges with few draw vertices.
-    // Every land test matches the purchasable/buildable tile at integer (x,z).
-    for(let dz=0;dz<size;dz++){
-     let run=-1;
-     for(let dx=0;dx<=size;dx++){
-      const isLand=dx<size&&land(x+dx,z+dz);
-      if(isLand&&run<0)run=dx;
-      if(!isLand&&run>=0){rect(x+run,z+dz,dx-run,1);run=-1;}
-     }
-    }
-   }else rect(x,z,size,size);
    // Only thin sheet boundaries, not a dense grid inside each sheet.
    if(ty===0||!opened.has(tx+':'+(ty-1)))edge(edgePoints,x,z,x+size,z,.060);
    else edge(freeEdges,x,z,x+size,z,.063);
@@ -9294,11 +9309,6 @@ export class TrafficRenderer{
    else if(opened.has(tx+':'+(ty+1)))edge(freeEdges,x,z+size,x+size,z+size,.063);
    if(tx===n-1)edge(edgePoints,x+size,z,x+size,z+size,.060);
    else if(opened.has((tx+1)+':'+ty))edge(freeEdges,x+size,z,x+size,z+size,.063);
-  }
-  if(fillPoints.length){
-   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(fillPoints,3));
-   const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:'#5f7882',transparent:true,opacity:.23,depthWrite:false,side:THREE.DoubleSide,toneMapped:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1}));
-   mesh.frustumCulled=false;this.mapCoverGroup.add(mesh);
   }
   const lines=(points,color,opacity)=>{
    if(!points.length)return;
