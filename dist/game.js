@@ -2066,6 +2066,16 @@ function junctionDetails(i){
  if(!state.junctionLayoutCache)state.junctionLayoutCache=new Map();state.junctionLayoutCache.set(i,result);state.junctionCache.set(i,arms.length);return result;
 }
 function junction(i){return state.junctionCache.has(i)?state.junctionCache.get(i):junctionDetails(i).arms.length;}
+// An eight-lane 90-degree two-arm bend has crossing physical trajectories
+// even though it is not a signalized intersection. Narrow roads keep their rules.
+function isLargeRoadBend(i){
+ const road=state.roads.get(i);
+ if(road?.type!=='large')return false;
+ const layout=junctionDetails(i);
+ return layout.bend===true&&layout.arms.length===2&&
+  layout.arms.every(arm=>arm.width>=ROADS.large.visualWidth-.01);
+}
+function trafficConflictNode(i){return junction(i)>=3||isLargeRoadBend(i);}
 junction.details=junctionDetails;
 // Shared visual-only streetscape: no road graph, lanes, plots or prices change.
 const roadsideVisualCache=new WeakMap();
@@ -2732,7 +2742,7 @@ function motionPlan(v){
  const nodes=new Float64Array(n);for(let i=0;i<n;i++)nodes[i]=distanceAt(route[i]);
  for(const c of corners){c.startDistance=distanceAt(c.startU);c.endDistance=distanceAt(c.endU);}
  const junctions=[];
- for(let i=1;i<n-1;i++)if(junction(path[i])>=3){
+ for(let i=1;i<n-1;i++)if(trafficConflictNode(path[i])){
   const road=state.roads.get(path[i]),turn=corners.find(c=>c.pos===i);
   const layout=junctionDetails(path[i]),halfIn=motionDirection(path,i-1)%2===0?layout.halfX:layout.halfY,halfOut=motionDirection(path,i)%2===0?layout.halfX:layout.halfY;
   const boundaryIn=distanceAt(Math.max(0,route[i]-halfIn)),boundaryOut=distanceAt(Math.min(route[n-1],route[i]+halfOut));
@@ -6175,7 +6185,7 @@ function cellAvailable(i,d,l,vid){
 }
 // Road traffic may pass a road tile held by another vehicle; a physical same-lane leader still governs spacing.
 // Keep signalised intersections on the original exclusive admission rules.
-function roadTraversalAvailable(v,pos){const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);return state.roads.has(i)&&lane>=0&&lane<laneCapacity(i,d)&&(junction(i)<3||ownsJunctionPass(v,pos)||cellAvailable(i,d,lane,v.id));}
+function roadTraversalAvailable(v,pos){const i=v.path[pos],d=motionDirection(v.path,pos),lane=plannedLane(v,pos);return state.roads.has(i)&&lane>=0&&lane<laneCapacity(i,d)&&(!trafficConflictNode(i)||ownsJunctionPass(v,pos)||cellAvailable(i,d,lane,v.id));}
 function occupy(v,pos){
  const i=v.path[pos],d=dir(i,v.path[Math.min(pos+1,v.path.length-1)]),l=plannedLane(v,pos),key=trafficCellKey(v,i,d,l);
  if(v.occKey&&v.occKey!==key&&state.occ.get(v.occKey)===v.id)state.occ.delete(v.occKey);
@@ -6865,13 +6875,14 @@ function prepareJunctionQueues(){
    // Red approaches retain their original queue arrival time, but cannot
    // compete for entry. Defer expensive connector sampling and intersection
    // competition until the approach turns green; all its lanes turn green together.
-   if(!isAirTraffic(v)&&!signalAllows(g.node,motionDirection(v.path,g.pos-1)))continue;
+   if(!isAirTraffic(v)&&signalRequired(g.node)&&!signalAllows(g.node,motionDirection(v.path,g.pos-1)))continue;
    const connector=junctionConnector(v,g.pos),request={id:v.id,pos:g.pos,at:v.junctionQueueSince[key],distance:g.stop-s,connector};const queueKey=trafficQueueKey(v,g.node);let queue=state.junctionQueues.get(queueKey);if(!queue)state.junctionQueues.set(queueKey,queue=[]);queue.push(request);
   }
   for(const key of Object.keys(v.junctionQueueSince))if(!activeKeys.has(key))delete v.junctionQueueSince[key];
  }
 }
 function junctionPriority(request,node){
+ if(isLargeRoadBend(node))return -1; // First-arrived receives priority at an unsigned bend.
  const c=request.connector;let priority=c.turn===2?2:c.turn===1?1:0;
  // A movement that has waited a full signal cycle joins the oldest-first tier.
  // Long waits become first-come-first-served, but never override a red light.
@@ -6935,7 +6946,7 @@ function junctionExitAvailable(v,pos){
  for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionLookahead);k++){
   // The next signalized junction controls its own red light and exit queue.
   // Do not make entry into this junction depend on a downstream green light.
-  if(k>pos&&signalRequired(v.path[k]))break;
+  if(k>pos&&trafficConflictNode(v.path[k]))break;
   if(!roadTraversalAvailable(v,k)){if(bugCaptureEnabled){const node=v.path[k],d=motionDirection(v.path,k),lane=plannedLane(v,k);v.lastJunctionExitCheck={gameTime:state.time,code:'road_space_unavailable',node,direction:d,lane,space:ownedRoadSpace(node,d,lane,v.id),admission:explainRoadTraversal(v,k)};}return false;}
  }
  // A free logical lane is not enough: protect the vehicle's rear until
@@ -7031,7 +7042,7 @@ function processJunctionTows(simDt){
  }
 }
 function intersectionAllowed(v,pos,ignoreSignal=false){
- if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(junction(i)<3)return true;
+ if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(!trafficConflictNode(i))return true;
  const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(!isAirTraffic(v)&&signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return noteVehicleJunctionDenial(v,i,'red_signal',{incoming:entering,lane,signal:signalColor(i,entering,lane)});
  const connector=junctionConnector(v,pos),lock=state.reservations.get(trafficJunctionKey(v,i));
  for(const pass of lock?.passes|| (lock?[lock]:[])){if(pass.id!==v.id){const other=state.vehicles.get(pass.id);if(other&&connectorsConflict(connector,junctionConnector(other,pass.pos??other.pos))){if(!ignoreSignal)watchJunctionTow(v,other,pass.pos??other.pos,i,pos);return noteVehicleJunctionDenial(v,i,'conflicting_junction_lease',{ownerId:pass.id,ownerPhase:other.phase,ownerPos:pass.pos??other.pos,ownerStopReason:other.stopReason||''});}}}
@@ -7059,13 +7070,13 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
 }
 function ownsJunctionPass(v,pos){return v.junctionPasses?.some(p=>p.pos===pos&&p.node===v.path[pos]);}
 function reserveIntersection(v,pos){
- const i=v.path[pos];if(junction(i)<3)return;
+ const i=v.path[pos];if(!trafficConflictNode(i))return;
  if(!v.junctionPasses)v.junctionPasses=[];
  if(!ownsJunctionPass(v,pos))v.junctionPasses.push({pos,node:i});
  const key=trafficJunctionKey(v,i),lock=state.reservations.get(key)||{passes:[]};if(!lock.passes)lock.passes=[];const pass=lock.passes.find(p=>p.id===v.id);if(pass){pass.until=state.time+30;pass.pos=pos;}else lock.passes.push({id:v.id,pos,until:state.time+30});lock.id=lock.passes[0].id;lock.until=state.time+30;state.reservations.set(key,lock);
  for(let k=pos;k<=Math.min(v.path.length-1,pos+TRAFFIC_RULES.maxIntersectionReservation);k++){
   // Reserve this connector only, never an independent downstream junction.
-  if(k>pos&&signalRequired(v.path[k]))break;
+  if(k>pos&&trafficConflictNode(v.path[k]))break;
   const next=k+1<v.path.length?v.path[k+1]:v.path[Math.max(0,k-1)],d=k+1<v.path.length?dir(v.path[k],next):dir(next,v.path[k]);
   state.reservations.set(trafficCellKey(v,v.path[k],d,plannedLane(v,k)),{id:v.id,until:state.time+30});
  }
@@ -7339,8 +7350,8 @@ function commitSafeLaneChange(v,newLane,reason,newRoute=null){
  const path=newRoute||v.path.slice(v.pos);
  if(path.length<3||path[0]!==v.path[v.pos]||path[1]!==v.path[v.pos+1])return false;
  for(const node of path.slice(0,3))
-  if(!state.roads.has(node)||junction(node)>=3||laneCapacity(node,direction)<=newLane)return false;
- if(!cellAvailable(path[0],direction,newLane,v.id)||!cellAvailable(path[1],direction,newLane,v.id))return false;
+  if(!state.roads.has(node)||trafficConflictNode(node)||laneCapacity(node,direction)<=newLane)return false;
+ if(trafficConflictNode(path[0])||trafficConflictNode(path[1])||!cellAvailable(path[0],direction,newLane,v.id)||!cellAvailable(path[1],direction,newLane,v.id))return false;
  const actual=vehiclePosition(v);
  const proposal={...v,path:[...path],pathSet:new Set(path),pos:0,progress:0,
   motionStartPose:{...actual},motionSeedLane:newLane,emergencyInitialLane:newLane,
@@ -7368,7 +7379,7 @@ function attemptAdaptiveLaneChange(v){
  if(plan.turns.some(t=>t.endDistance>s&&t.startDistance<s+ADAPTIVE_LANE_RULES.turnBuffer))return false;
  if(plan.junctions.some(g=>g.clear>s&&g.entry<s+ADAPTIVE_LANE_RULES.junctionBuffer))return false;
  for(let i=v.pos;i<Math.min(v.path.length,v.pos+5);i++)
-  if(junction(v.path[i])>=3||laneCapacity(v.path[i],d)!==cap||motionDirection(v.path,i)!==d)return false;
+  if(trafficConflictNode(v.path[i])||laneCapacity(v.path[i],d)!==cap||motionDirection(v.path,i)!==d)return false;
  const limit=physicalTrafficLimit(v,plan,s,ADAPTIVE_LANE_RULES.obstacleAhead);
  if(!Number.isFinite(limit)||limit>s+ADAPTIVE_LANE_RULES.obstacleAhead-.05)return false;
  for(const lane of [current+1,current-1])if(lane>=0&&lane<cap&&commitSafeLaneChange(v,lane,'เปลี่ยนเลนหลบคิวอย่างปลอดภัย'))return true;
