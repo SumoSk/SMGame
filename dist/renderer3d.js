@@ -229,39 +229,42 @@ const LANDSCAPE_GLSL=`
   return texture2D(landscapeNoiseMap,(i+f+0.5)/128.0).r;
  }
  float coastX(float z){
-  float zn=(z-150.0)/165.0;
-  float taper=10.0*zn*zn;
-  float bays=6.8*sin(z*.046+.4)+4.2*cos(z*.092-.7)+2.6*sin(z*.15+1.1);
-  float bridgeCape=-13.5*exp(-pow((z-150.0)/20.0,2.0));
-  float nMargin=-12.0*exp(-pow(z/28.0,2.0));
-  float sMargin=-12.0*exp(-pow((z-300.0)/28.0,2.0));
-  return 123.0+taper+bays+bridgeCape+nMargin+sMargin;
+  float zn=(z-150.0)/175.0;
+  float taper=4.5*zn*zn;
+  float patong=5.5*exp(-pow((z-182.0)/16.0,2.0));
+  float karon=4.2*exp(-pow((z-222.0)/15.0,2.0));
+  float bangtao=4.8*exp(-pow((z-96.0)/18.0,2.0));
+  float bays=4.2*sin(z*.046+.4)+2.8*cos(z*.092-.7)+1.6*sin(z*.15+1.1);
+  float bridgeCape=-14.5*exp(-pow((z-150.0)/22.0,2.0));
+  float nMargin=-6.0*exp(-pow(z/24.0,2.0));
+  float sMargin=-6.0*exp(-pow((z-300.0)/24.0,2.0));
+  return 84.0+taper+bays+patong+karon+bangtao+bridgeCape+nMargin+sMargin;
  }
  float coastEastX(float z){
-  float zn=(z-150.0)/155.0,zn2=zn*zn;
-  float taper=-56.0*zn2-38.0*zn2*zn2;
-  float chalong=-22.0*exp(-pow((z-258.0)/24.0,2.0));
-  float panwa=22.0*exp(-pow((z-216.0)/22.0,2.0));
-  float yamu=16.0*exp(-pow((z-95.0)/22.0,2.0));
-  float eastGate=14.0*exp(-pow((z-150.0)/20.0,2.0));
-  float waves=4.8*sin(z*.039+1.1)+2.6*cos(z*.082);
-  return 295.0+taper+chalong+panwa+yamu+eastGate+waves;
+  float zn=(z-150.0)/170.0,zn2=zn*zn;
+  float taper=-22.0*zn2-12.0*zn2*zn2;
+  float chalong=-16.0*exp(-pow((z-258.0)/22.0,2.0));
+  float panwa=14.0*exp(-pow((z-216.0)/20.0,2.0));
+  float yamu=12.0*exp(-pow((z-95.0)/22.0,2.0));
+  float eastGate=8.0*exp(-pow((z-150.0)/22.0,2.0));
+  float waves=3.2*sin(z*.039+1.1)+1.8*cos(z*.082);
+  return 296.0+taper+chalong+panwa+yamu+eastGate+waves;
  }
  float coastNorthZ(float x){
-  float xn=(x-168.0)/115.0,xn2=xn*xn;
-  float arch=38.0*xn2+20.0*xn2*xn2;
-  float northGate=-14.0*exp(-pow((x-150.0)/24.0,2.0));
-  float waves=3.2*sin(x*.042+.7)+1.8*cos(x*.088);
-  return 4.0+arch+northGate+waves;
+  float xn=(x-190.0)/135.0,xn2=xn*xn;
+  float arch=14.0*xn2+8.0*xn2*xn2;
+  float northGate=-8.0*exp(-pow((x-150.0)/28.0,2.0));
+  float waves=2.4*sin(x*.042+.7)+1.4*cos(x*.088);
+  return 3.0+arch+northGate+waves;
  }
  float coastSouthZ(float x){
-  float xn=(x-168.0)/115.0,xn2=xn*xn;
-  float arch=-36.0*xn2-20.0*xn2*xn2;
-  float phromthep=15.0*exp(-pow((x-150.0)/24.0,2.0));
-  float chalong=-15.0*exp(-pow((x-192.0)/20.0,2.0));
-  float panwa=18.0*exp(-pow((x-232.0)/20.0,2.0));
-  float waves=3.2*sin(x*.038+2.1)+1.8*cos(x*.081);
-  return 296.0+arch+phromthep+chalong+panwa+waves;
+  float xn=(x-190.0)/135.0,xn2=xn*xn;
+  float arch=-14.0*xn2-8.0*xn2*xn2;
+  float phromthep=12.0*exp(-pow((x-150.0)/26.0,2.0));
+  float chalong=-11.0*exp(-pow((x-192.0)/20.0,2.0));
+  float panwa=13.0*exp(-pow((x-232.0)/20.0,2.0));
+  float waves=2.4*sin(x*.038+2.1)+1.4*cos(x*.081);
+  return 297.0+arch+phromthep+chalong+panwa+waves;
  }
  // Phang Nga roadside headland reaches a little beyond the west car spawn,
  // but the peninsula remains compact and never touches the Phuket buildable area.
@@ -277,15 +280,16 @@ const LANDSCAPE_GLSL=`
   return max(max(p.x-phangNgaShoreX(p.y),phangNgaWestX(p.y)-p.x),abs(p.y-150.0)-30.0);
  }
  float phuketIslandOutward(vec2 p){
-  float r=18.0;
+  float r=22.0;
   float dx=max(coastX(p.y)-p.x,p.x-coastEastX(p.y));
   float dz=max(coastNorthZ(p.x)-p.y,p.y-coastSouthZ(p.x));
   vec2 q=vec2(dx+r,dz+r);
   float island=length(max(q,0.0))+min(max(q.x,q.y),0.0)-r;
   float phangNga=phangNgaOutward(p);
-  float kohHe=length((p-vec2(214.0,322.0))*vec2(1.0,1.25))-13.5+1.8*sin(p.x*.25+p.y*.2);
-  float kohMaprao=length((p-vec2(318.0,202.0))*vec2(1.15,1.0))-12.0+1.5*cos(p.y*.25-p.x*.2);
-  return min(min(island,phangNga),min(kohHe,kohMaprao));
+  float kohHe=length((p-vec2(214.0,326.0))*vec2(0.9,1.15))-16.5+1.8*sin(p.x*.25+p.y*.2);
+  float kohMaprao=length((p-vec2(322.0,202.0))*vec2(1.05,0.95))-15.0+1.5*cos(p.y*.25-p.x*.2);
+  float kohPu=length((p-vec2(58.0,225.0))*vec2(1.1,0.9))-9.5+1.2*sin(p.x*.3-p.y*.25);
+  return min(min(island,phangNga),min(min(kohHe,kohMaprao),kohPu));
  }
 `;
 function landscapeShader(material,noise,fragment,extra='',uniforms={}){
@@ -1072,6 +1076,10 @@ export class TrafficRenderer{
   this.light.position.set(this.cam.x+Math.cos(az)*65,27+solar*68,this.cam.y+Math.sin(az)*65);
   this.light.castShadow=this.graphicQuality!=='low'&&sun.strength>.58;
   const glow=smooth(sun.lamps)*(1-air.rain*.12);
+  if(this.phuketLighthouseBeacon){
+   this.phuketLighthouseBeacon.visible=glow>.06;
+   this.phuketLighthouseBeacon.material.opacity=Math.min(.92,glow*.92);
+  }
   this.updateNightVisibility(glow,visibility);
   if(Math.abs(glow-this.lastGlow)>.008){
    for(const group of [this.lampGroup,this.buildingGroup])group.traverse(mesh=>{
@@ -1142,34 +1150,37 @@ export class TrafficRenderer{
  world(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const p=new THREE.Vector3();this.ray.ray.intersectPlane(this.ground,p);return[p.x,p.z];}
  pickBuilding(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const hits=this.ray.intersectObjects(this.buildingGroup.children,true);for(const h of hits){const id=h.object.userData.ids?.[h.instanceId];if(id!=null)return id;}return null;}
  coast(z){
-  const zn=(z-150)/165,taper=10*zn*zn;
-  const bays=6.8*Math.sin(z*.046+.4)+4.2*Math.cos(z*.092-.7)+2.6*Math.sin(z*.15+1.1);
-  const bridgeCape=-13.5*Math.exp(-(((z-150)/20)**2));
-  const nMargin=-12*Math.exp(-((z/28)**2)),sMargin=-12*Math.exp(-(((z-300)/28)**2));
-  return 123+taper+bays+bridgeCape+nMargin+sMargin;
+  const zn=(z-150)/175,taper=4.5*zn*zn;
+  const patong=5.5*Math.exp(-(((z-182)/16)**2));
+  const karon=4.2*Math.exp(-(((z-222)/15)**2));
+  const bangtao=4.8*Math.exp(-(((z-96)/18)**2));
+  const bays=4.2*Math.sin(z*.046+.4)+2.8*Math.cos(z*.092-.7)+1.6*Math.sin(z*.15+1.1);
+  const bridgeCape=-14.5*Math.exp(-(((z-150)/22)**2));
+  const nMargin=-6*Math.exp(-((z/24)**2)),sMargin=-6*Math.exp(-(((z-300)/24)**2));
+  return 84+taper+bays+patong+karon+bangtao+bridgeCape+nMargin+sMargin;
  }
  coastEast(z){
-  const zn=(z-150)/155,zn2=zn*zn,taper=-56*zn2-38*zn2*zn2;
-  const chalong=-22*Math.exp(-(((z-258)/24)**2));
-  const panwa=22*Math.exp(-(((z-216)/22)**2));
-  const yamu=16*Math.exp(-(((z-95)/22)**2));
-  const eastGate=14*Math.exp(-(((z-150)/20)**2));
-  const waves=4.8*Math.sin(z*.039+1.1)+2.6*Math.cos(z*.082);
-  return 295+taper+chalong+panwa+yamu+eastGate+waves;
+  const zn=(z-150)/170,zn2=zn*zn,taper=-22*zn2-12*zn2*zn2;
+  const chalong=-16*Math.exp(-(((z-258)/22)**2));
+  const panwa=14*Math.exp(-(((z-216)/20)**2));
+  const yamu=12*Math.exp(-(((z-95)/22)**2));
+  const eastGate=8*Math.exp(-(((z-150)/22)**2));
+  const waves=3.2*Math.sin(z*.039+1.1)+1.8*Math.cos(z*.082);
+  return 296+taper+chalong+panwa+yamu+eastGate+waves;
  }
  coastNorth(x){
-  const xn=(x-168)/115,xn2=xn*xn,arch=38*xn2+20*xn2*xn2;
-  const northGate=-14*Math.exp(-(((x-150)/24)**2));
-  const waves=3.2*Math.sin(x*.042+.7)+1.8*Math.cos(x*.088);
-  return 4+arch+northGate+waves;
+  const xn=(x-190)/135,xn2=xn*xn,arch=14*xn2+8*xn2*xn2;
+  const northGate=-8*Math.exp(-(((x-150)/28)**2));
+  const waves=2.4*Math.sin(x*.042+.7)+1.4*Math.cos(x*.088);
+  return 3+arch+northGate+waves;
  }
  coastSouth(x){
-  const xn=(x-168)/115,xn2=xn*xn,arch=-36*xn2-20*xn2*xn2;
-  const phromthep=15*Math.exp(-(((x-150)/24)**2));
-  const chalong=-15*Math.exp(-(((x-192)/20)**2));
-  const panwa=18*Math.exp(-(((x-232)/20)**2));
-  const waves=3.2*Math.sin(x*.038+2.1)+1.8*Math.cos(x*.081);
-  return 296+arch+phromthep+chalong+panwa+waves;
+  const xn=(x-190)/135,xn2=xn*xn,arch=-14*xn2-8*xn2*xn2;
+  const phromthep=12*Math.exp(-(((x-150)/26)**2));
+  const chalong=-11*Math.exp(-(((x-192)/20)**2));
+  const panwa=13*Math.exp(-(((x-232)/20)**2));
+  const waves=2.4*Math.sin(x*.038+2.1)+1.4*Math.cos(x*.081);
+  return 297+arch+phromthep+chalong+panwa+waves;
  }
  phangNgaShoreX(z){
   const t=Math.max(0,1-((z-150)/30)**2);
@@ -1180,7 +1191,7 @@ export class TrafficRenderer{
   return -12*Math.pow(t,.72);
  }
  islandOutward(x,z){
-  const r=18;
+  const r=22;
   const dx=Math.max(this.coast(z)-x,x-this.coastEast(z));
   const dz=Math.max(this.coastNorth(x)-z,z-this.coastSouth(x));
   const qx=dx+r,qz=dz+r;
@@ -1308,7 +1319,7 @@ export class TrafficRenderer{
    }
   }
   // 5. Three Signature Sarasin Bridge Chino-Portuguese Viewing Towers & Pedestrian Skybridge Pavilions
-  for(const [idx,tx] of [[0,35.5],[1,61.6],[2,87.7]]){
+  for(const [idx,tx] of [[0,xStart+spanLen*.24],[1,xStart+spanLen*.50],[2,xStart+spanLen*.76]]){
    const isCenter=idx===1;
    const tw=isCenter?4.65:3.85,td=isCenter?7.60:6.95,th=isCenter?4.15:3.55;
    details.box('#e6f4f1',tx,-.246,z,tw+.45,.028,td+.45);
@@ -1415,6 +1426,15 @@ export class TrafficRenderer{
     details.add(CYL,'#d8dfe0',bx+.15,.72,bz,.028,1.15,.028);
    }
   }
+  // 4. Kanchanaphisek Lighthouse at Promthep Cape (Southern tip of Phuket) & Chalong Pier Marina
+  const px=136,pz=this.coastSouth(136)-2.2;
+  details.box('#d8cfc0',px,.22,pz,3.2,.44,3.2);
+  details.box('#eee8dc',px,.58,pz,2.4,.32,2.4);
+  details.add(CYL,'#f7f5ee',px,2.15,pz,.62,2.85,.82);
+  details.add(CYL,'#d8a448',px,3.68,pz,.78,.28,.78);
+  details.add(CYL,'#6ab7c9',px,4.05,pz,.56,.52,.56);
+  details.add(CONE,'#c97b3d',px,4.58,pz,.74,.62,.74);
+  details.add(BALL,'#fff3bd',px,4.05,pz,.42,.38,.42);
  }
  groundShape(points,color,height){
   const shape=new THREE.Shape();points.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));shape.closePath();
@@ -1431,7 +1451,7 @@ export class TrafficRenderer{
    });
   }
   this.landscapeNoiseMap??=landscapeNoise();this.landscapeClock??={value:0};
-  this.terrainGroup=[];this.city=city;
+  this.terrainGroup=[];this.city=city;this.phuketLighthouseBeacon=null;
   const noise=this.landscapeNoiseMap,clock=this.landscapeClock;
   const grass=landscapeMaterial(city,'grass',noise);
   const water=new THREE.Mesh(new THREE.PlaneGeometry(3200,3200),landscapeWater(city,false,noise,clock));
@@ -1455,15 +1475,19 @@ export class TrafficRenderer{
    this.groundShape(phangNgaLand(2.2),wetSandMat,-.12);
    this.groundShape(phangNgaLand(1.05),sandMat,-.105);
    this.groundShape(phangNgaLand(-1.6),grass,0);
-   // Scenic Satellite Islands off Phuket (Koh He off Chalong Bay & Koh Maprao off the East Coast)
-   const kohHeFn=(x,z)=>Math.hypot(x-214,(z-322)*1.25)-13.5+1.8*Math.sin(x*.25+z*.2);
-   this.groundShape(this.contourPolygon(214,322,2.2,kohHeFn,90,30),wetSandMat,-.12);
-   this.groundShape(this.contourPolygon(214,322,1.05,kohHeFn,90,30),sandMat,-.105);
-   this.groundShape(this.contourPolygon(214,322,-1.6,kohHeFn,90,30),grass,0);
-   const kohMapraoFn=(x,z)=>Math.hypot((x-318)*1.15,z-202)-12+1.5*Math.cos(z*.25-x*.2);
-   this.groundShape(this.contourPolygon(318,202,2.2,kohMapraoFn,90,30),wetSandMat,-.12);
-   this.groundShape(this.contourPolygon(318,202,1.05,kohMapraoFn,90,30),sandMat,-.105);
-   this.groundShape(this.contourPolygon(318,202,-1.6,kohMapraoFn,90,30),grass,0);
+   // Scenic Satellite Islands off Phuket (Koh He off Chalong Bay, Koh Maprao off East Coast & Koh Pu off Kata Beach)
+   const kohHeFn=(x,z)=>Math.hypot((x-214)*.9,(z-326)*1.15)-16.5+1.8*Math.sin(x*.25+z*.2);
+   this.groundShape(this.contourPolygon(214,326,2.2,kohHeFn,90,34),wetSandMat,-.12);
+   this.groundShape(this.contourPolygon(214,326,1.05,kohHeFn,90,34),sandMat,-.105);
+   this.groundShape(this.contourPolygon(214,326,-1.6,kohHeFn,90,34),grass,0);
+   const kohMapraoFn=(x,z)=>Math.hypot((x-322)*1.05,(z-202)*.95)-15+1.5*Math.cos(z*.25-x*.2);
+   this.groundShape(this.contourPolygon(322,202,2.2,kohMapraoFn,90,34),wetSandMat,-.12);
+   this.groundShape(this.contourPolygon(322,202,1.05,kohMapraoFn,90,34),sandMat,-.105);
+   this.groundShape(this.contourPolygon(322,202,-1.6,kohMapraoFn,90,34),grass,0);
+   const kohPuFn=(x,z)=>Math.hypot((x-58)*1.1,(z-225)*.9)-9.5+1.2*Math.sin(x*.3-z*.25);
+   this.groundShape(this.contourPolygon(58,225,2.2,kohPuFn,80,24),wetSandMat,-.12);
+   this.groundShape(this.contourPolygon(58,225,1.05,kohPuFn,80,24),sandMat,-.105);
+   this.groundShape(this.contourPolygon(58,225,-1.6,kohPuFn,80,24),grass,0);
   }else{
    this.groundShape([[-1100,-1100],[-1100,1400],[1400,1400],[1400,-1100]],grass,0);
    if(city==='bangkok'){
@@ -1536,6 +1560,15 @@ export class TrafficRenderer{
    this.addPhangNgaWelcomeSign(details);
    const beachContour=this.contourPolygon(198,150,.3,((x,z)=>this.islandOutward(x,z)),300,260);
    this.decoratePhuketBeaches(details,beachContour);
+   // Lighthouse beam appears only after dark; it does not affect pathfinding or collisions.
+   const lighthouseZ=this.coastSouth(136)-2.2;
+   const beacon=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({
+    color:'#fff4bc',transparent:true,opacity:0,depthWrite:false,
+    blending:THREE.AdditiveBlending,toneMapped:false
+   }));
+   beacon.scale.set(.53,.46,.53);beacon.position.set(136,4.05,lighthouseZ);
+   beacon.visible=false;this.phuketLighthouseBeacon=beacon;
+   this.scene.add(beacon);this.terrainGroup.push(beacon);
    for(let n=0;n<180;n++){
     const idx=Math.floor(hash(n,9)*beachContour.length),pt=beachContour[idx];
     const jitter=(hash(n,21)-.5)*1.6,ang=idx/beachContour.length*TAU;
@@ -1559,10 +1592,11 @@ export class TrafficRenderer{
     }
    }
    // Coconut palms & tropical trees on satellite islands and the Phang Nga checkpoint.
-   for(let n=0;n<24;n++){
-    const a=hash(n,11)*TAU,r=hash(n,29)*8.5;
-    this.tree(details,214+Math.cos(a)*r,322+Math.sin(a)*r*.8,.72+hash(n,51)*.4,n%3?'palm':'rain','far',n%4);
-    this.tree(details,318+Math.cos(a)*r*.85,202+Math.sin(a)*r,.72+hash(n,67)*.4,n%3?'palm':'shade','far',n%4);
+   for(let n=0;n<28;n++){
+    const a=hash(n,11)*TAU,r=hash(n,29)*10.5;
+    this.tree(details,214+Math.cos(a)*r,326+Math.sin(a)*r*.8,.72+hash(n,51)*.4,n%3?'palm':'rain','far',n%4);
+    this.tree(details,322+Math.cos(a)*r*.85,202+Math.sin(a)*r,.72+hash(n,67)*.4,n%3?'palm':'shade','far',n%4);
+    if(n<14)this.tree(details,58+Math.cos(a)*r*.52,225+Math.sin(a)*r*.58,.68+hash(n,73)*.35,n%2?'palm':'rain','far',n%4);
    }
    // Keep a few trees on the returned land; none blocks the west access road (z=150).
    for(let n=0;n<12;n++){
@@ -9215,16 +9249,15 @@ export class TrafficRenderer{
   else this.disposeGroup(this.mapCoverGroup);
   const size=mapCover.size,opened=mapCover.opened,n=300/size;
   const fillPoints=[],edgePoints=[],freeEdges=[];
-  const land=(x,z)=>state.city!=='phuket'||
-   this.islandOutward(x,z)<-1.6||
-   (z>=120&&z<=180&&x>=this.phangNgaWestX(z)&&x<=this.phangNgaShoreX(z));
+  // Mirrors game.js isPhuketWaterTile: Phang Nga scenery and sea cannot be sold.
+  const land=(x,z)=>state.city!=='phuket'||this.islandOutward(x,z)<=-1.2;
   const segment=(out,x0,z0,x1,z1,y)=>out.push(x0,y,z0,x1,y,z1);
   const rect=(x,z,w,d)=>fillPoints.push(
     x,.034,z, x+w,.034,z, x,.034,z+d,
     x+w,.034,z, x+w,.034,z+d, x,.034,z+d);
   const edge=(out,x0,z0,x1,z1,y)=>{
    if(state.city!=='phuket')return segment(out,x0,z0,x1,z1,y);
-   const length=Math.hypot(x1-x0,z1-z0),steps=Math.ceil(length/2.5);
+   const length=Math.hypot(x1-x0,z1-z0),steps=Math.ceil(length);
    for(let i=0;i<steps;i++){
     const a=i/steps,b=(i+1)/steps,m=(a+b)/2;
     if(land(x0+(x1-x0)*m,z0+(z1-z0)*m))
@@ -9235,10 +9268,16 @@ export class TrafficRenderer{
    const id=tx+':'+ty,x=tx*size,z=ty*size;
    if(opened.has(id))continue;
    if(state.city==='phuket'){
-    // Only cover existing terrain: no square fog tiles over Phuket sea.
-    const step=2.5;
-    for(let dz=0;dz<size;dz+=step)for(let dx=0;dx<size;dx+=step)
-     if(land(x+dx+step/2,z+dz+step/2))rect(x+dx,z+dz,step,step);
+    // Merge contiguous one-cell land runs; precise grid edges with few draw vertices.
+    // Every land test matches the purchasable/buildable tile at integer (x,z).
+    for(let dz=0;dz<size;dz++){
+     let run=-1;
+     for(let dx=0;dx<=size;dx++){
+      const isLand=dx<size&&land(x+dx,z+dz);
+      if(isLand&&run<0)run=dx;
+      if(!isLand&&run>=0){rect(x+run,z+dz,dx-run,1);run=-1;}
+     }
+    }
    }else rect(x,z,size,size);
    // Only thin sheet boundaries, not a dense grid inside each sheet.
    if(ty===0||!opened.has(tx+':'+(ty-1)))edge(edgePoints,x,z,x+size,z,.060);
