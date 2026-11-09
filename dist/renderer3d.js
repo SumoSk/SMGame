@@ -2761,7 +2761,7 @@ export class TrafficRenderer{
  if(isSmart){
   // Graphite smart-city pedestal, with cyan lines visible from all four sides.
   batch.add(CYL,'#263841',sx,.15,sz,.145,.20,.145);
-  batch.add(CYL,'#28c9ec',sx,.205,sz,.148,.034,.148);
+  batch.add(CYL,'#28c9ec',sx,.257,sz,.155,.03,.155);
   batch.box('#253740',sx,.84,sz,.18,1.30,.18);
   for(const side of [-1,1]){
    batch.box('#36d9f4',sx+side*.098,.87,sz,.018,.72,.052);
