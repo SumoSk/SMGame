@@ -963,7 +963,8 @@ export class TrafficRenderer{
  this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new URLSearchParams(typeof window==='undefined'?'':(window.location?.search??'')).get('camera')==='ortho'?new THREE.OrthographicCamera(-30,30,20,-20,.1,3800):new THREE.PerspectiveCamera(35,innerWidth/Math.max(1,innerHeight),.1,3800);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#e8f7ff','#698057',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
  this.ray=new THREE.Raycaster();this.ground=new THREE.Plane(UP,0);this.ndc=new THREE.Vector2();this.point=new THREE.Vector3();this.lastKey='';this.roadKey='';this.buildKey='';this.treeKey='';this.previewKey='';this.buildingMeshes=null;this.cameraKey='';this.cam=null;this.w=innerWidth;this.h=innerHeight;this.materials=[];
  this.graphicQuality='medium';this.lastBuildingDetailLevel=null;
- this.roadGroup=new THREE.Group();this.buildingGroup=new THREE.Group();this.treeGroup=new THREE.Group();this.previewGroup=new THREE.Group();this.signalGroup=new THREE.Group();this.lampGroup=new THREE.Group();this.scene.add(this.roadGroup,this.buildingGroup,this.treeGroup,this.previewGroup,this.signalGroup,this.lampGroup);this.createCars();this.createRoute();this.createAtmosphere();this.resize();
+ this.aiSignalGroup=new THREE.Group();this.aiSignalKey='';this.aiSignalGlows=[];
+ this.roadGroup=new THREE.Group();this.buildingGroup=new THREE.Group();this.treeGroup=new THREE.Group();this.previewGroup=new THREE.Group();this.signalGroup=new THREE.Group();this.lampGroup=new THREE.Group();this.scene.add(this.roadGroup,this.buildingGroup,this.treeGroup,this.previewGroup,this.signalGroup,this.lampGroup,this.aiSignalGroup);this.createCars();this.createRoute();this.createAtmosphere();this.resize();
  }
  disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.geometry&&!SHARED_RENDER_GEOMETRIES.includes(x.geometry))x.geometry.dispose();});}}
  setGraphicQuality(value){
@@ -2926,6 +2927,39 @@ export class TrafficRenderer{
   }
   this.roadGroup.add(model.build(false));
   this.lampGroup.add(lights.build(false));
+ }
+
+ updateAISignalGlow(state){
+  if(!this.aiSignalGroup)return;
+  const nodes=[];
+  for(const [i,setting]of state.signals)if(setting.mode==='smart'&&state.roads.has(i))nodes.push(i);
+  nodes.sort((a,b)=>a-b);
+  const key=state.city+':'+nodes.join(',');
+  if(key!==this.aiSignalKey){
+   this.aiSignalKey=key;
+   this.disposeGroup(this.aiSignalGroup);
+   this.aiSignalGlows=[];
+   for(const node of nodes){
+    const x=node%300,z=Math.floor(node/300);
+    // Restored original circular AI marker on the intersection ground.
+    const halo=new THREE.Mesh(new THREE.CircleGeometry(1.05,32),
+     new THREE.MeshBasicMaterial({color:'#38bdff',transparent:true,opacity:.24,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+    halo.rotation.x=-Math.PI/2;halo.position.set(x,.164,z);halo.renderOrder=3;
+    const ring=new THREE.Mesh(new THREE.RingGeometry(.48,.77,32),
+     new THREE.MeshBasicMaterial({color:'#56eaff',transparent:true,opacity:.83,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+    ring.rotation.x=-Math.PI/2;ring.position.set(x,.168,z);ring.renderOrder=4;
+    this.aiSignalGroup.add(halo,ring);
+    for(const [dx,dz]of [[-.91,-.91],[.91,-.91],[-.91,.91],[.91,.91]]){
+     const sparkle=new THREE.Mesh(new THREE.CircleGeometry(.085,12),
+      new THREE.MeshBasicMaterial({color:'#9ffaff',transparent:true,opacity:.87,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+     sparkle.rotation.x=-Math.PI/2;sparkle.position.set(x+dx,.17,z+dz);sparkle.renderOrder=4;
+     this.aiSignalGroup.add(sparkle);
+    }
+    this.aiSignalGlows.push(halo);
+   }
+  }
+  const pulse=.78+.18*Math.sin(performance.now()*.0024);
+  for(const halo of this.aiSignalGlows)halo.material.opacity=.24*pulse;
  }
 
  updateSignals(signalColor){
@@ -9209,7 +9243,7 @@ export class TrafficRenderer{
  if(heat)this.hideCars();
  else this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);
   this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview,demolitionPreview);
- this.updateSignals(signalColor);this.updateGrandSignals();this.updateWeatherLight(state);
+ this.updateSignals(signalColor);this.updateAISignalGlow(state);this.updateGrandSignals();this.updateWeatherLight(state);
  this.updateBuildingDetailLOD(cam);
  const visualNow=performance.now()*.001;
  if(this.landscapeClock)this.landscapeClock.value=visualNow;
