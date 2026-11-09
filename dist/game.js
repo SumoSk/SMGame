@@ -2212,7 +2212,7 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
  roadsideVisualCache.set(roadState,{stamp,details:roadDetails,faces});return faces;
 }
 function drawRoads(roadState=state,roadDetails=junctionDetails){
- const state=roadState;
+ const state=roadState,PREMIUM_CONCRETE='#94969a',CONCRETE_JOINT='#85878b';
  const layouts=new Map(),nearby=new Map(),hidden=new Set(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
  for(const [node]of state.roads){const layout=roadDetails(node);for(const [a,b]of layout.hiddenEdges)hidden.add(edgeKey(a,b));if(layout.arms.length>=3||layout.bend)layouts.set(node,layout);}
  for(const l of layouts.values())for(let yy=Math.floor(l.y-l.halfY-2);yy<=Math.ceil(l.y+l.halfY+2);yy++)for(let xx=Math.floor(l.x-l.halfX-2);xx<=Math.ceil(l.x+l.halfX+2);xx++){const key=id(xx,yy);if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(l);}
@@ -2220,8 +2220,8 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
  for(const [i,r]of state.roads)for(const n of r.links){if(n<i||hidden.has(edgeKey(i,n)))continue;const [x,y]=xy(i),[nx,ny]=xy(n),dx=nx-x,dy=ny-y,length=Math.hypot(dx,dy),other=state.roads.get(n);let wa=roadVisualWidth(r.type),wb=roadVisualWidth(other?.type),intervals=[[0,1]];
  for(const l of new Set([...(nearby.get(i)||[]),...(nearby.get(n)||[])])){const horizontal=Math.abs(dx)>Math.abs(dy),d=horizontal?((x+nx)/2>=l.x?0:2):((y+ny)/2>=l.y?1:3),arm=l.arms.find(a=>a.dir===d);if(!arm||(horizontal?Math.abs(y-l.y):Math.abs(x-l.x))>.01)continue;wa=wb=arm.width;let lo=0,hi=1;for(const [start,delta,min,max]of [[x,dx,l.x-l.halfX,l.x+l.halfX],[y,dy,l.y-l.halfY,l.y+l.halfY]]){if(Math.abs(delta)<1e-9){if(start<min||start>max)hi=-1;}else{const a=(min-start)/delta,b=(max-start)/delta;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}}if(hi>lo){const next=[];for(const [a,b]of intervals){if(hi<=a||lo>=b)next.push([a,b]);else{if(lo>a)next.push([a,lo]);if(hi<b)next.push([hi,b]);}}intervals=next;}}
  const px=-dy/length,py=dx/length,point=(t,off)=>[x+dx*t+px*off,y+dy*t+py*off];segments.push({r,other,x,y,dx,dy,length,wa,wb,intervals,point});
- for(const [lo,hi]of intervals)for(const border of [.14,0]){const a=wa+(wb-wa)*lo,b=wa+(wb-wa)*hi;poly([point(lo,-a/2-border),point(hi,-b/2-border),point(hi,b/2+border),point(lo,a/2+border)].map(([x,y])=>screen(x+.5,y+.5)),border?'#c9c8b5':heat?roadColor(r):'#47565c');}}
- for(const l of layouts.values())poly(l.polygon.map(([x,y])=>screen(l.x+.5+x,l.y+.5+y)),'#47565c');
+ for(const [lo,hi]of intervals)for(const border of [.14,0]){const a=wa+(wb-wa)*lo,b=wa+(wb-wa)*hi;poly([point(lo,-a/2-border),point(hi,-b/2-border),point(hi,b/2+border),point(lo,a/2+border)].map(([x,y])=>screen(x+.5,y+.5)),border?'#c9c8b5':heat?roadColor(r):r.type==='large'&&other?.type==='large'?PREMIUM_CONCRETE:'#47565c');}}
+ for(const l of layouts.values())poly(l.polygon.map(([x,y])=>screen(l.x+.5+x,l.y+.5+y)),!heat&&l.arms.length>=2&&l.arms.every(a=>Math.abs(a.width-ROADS.large.visualWidth)<.02)?PREMIUM_CONCRETE:'#47565c');
  // Purchased AI: illuminate only that intersection's center in 2D fallback.
  for(const [node,l]of layouts)if(state.signals.get(node)?.mode==='smart'){
   const [x,y]=screen(l.x+.5,l.y+.5);
@@ -2240,6 +2240,15 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
   }
  }
  const stroke=(points,color,width=.025,dashed=false)=>{if(points.length<2)return;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(...screen(x+.5,y+.5)):ctx.moveTo(...screen(x+.5,y+.5)));ctx.strokeStyle=color;ctx.lineWidth=Math.max(.55,width*T*cam.z);ctx.lineJoin='round';ctx.lineCap='butt';ctx.setLineDash(dashed?[.45*T*cam.z,.55*T*cam.z]:[]);ctx.stroke();ctx.setLineDash([]);};
+ // Match 3D concrete joints without a texture or an extra road tile.
+ if(!heat)for(const s of segments){
+  if(s.r.type!=='large'||s.other?.type!=='large'||s.intervals.length!==1||
+    Math.abs(s.intervals[0][0])>1e-8||Math.abs(s.intervals[0][1]-1)>1e-8||
+    nearby.has(id(s.x,s.y))||nearby.has(id(s.x+s.dx,s.y+s.dy))||
+    (Math.abs(s.dx)>.5?s.x:s.y)%3!==0)continue;
+  const half=Math.min(s.wa,s.wb)*.5-.045;
+  stroke([s.point(.5,-half),s.point(.5,half)],CONCRETE_JOINT,.010);
+ }
  const capacity=width=>Math.max(1,(Object.values(ROADS).find(t=>Math.abs(t.visualWidth-width)<.01)?.lanes||2)/2);
  for(const s of segments){const ca=capacity(s.wa),cb=capacity(s.wb);for(const [lo,hi]of s.intervals){const guide=(oa,ob,color,dashed=false)=>stroke([s.point(lo,oa+(ob-oa)*lo),s.point(hi,oa+(ob-oa)*hi)],color,color==='#ead78c'?.018:.025,dashed);for(const sign of [-1,1]){guide(.035*sign,.035*sign,'#ead78c');guide(s.wa/2*sign,s.wb/2*sign,'#dce3d8');for(let k=1;k<Math.max(ca,cb);k++)guide(Math.min(s.wa/2-.1,k*s.wa/(ca*2))*sign,Math.min(s.wb/2-.1,k*s.wb/(cb*2))*sign,'#dce3d8',true);}}}
  for(const l of layouts.values()){
