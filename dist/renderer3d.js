@@ -963,8 +963,7 @@ export class TrafficRenderer{
  this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new URLSearchParams(typeof window==='undefined'?'':(window.location?.search??'')).get('camera')==='ortho'?new THREE.OrthographicCamera(-30,30,20,-20,.1,3800):new THREE.PerspectiveCamera(35,innerWidth/Math.max(1,innerHeight),.1,3800);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#e8f7ff','#698057',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
  this.ray=new THREE.Raycaster();this.ground=new THREE.Plane(UP,0);this.ndc=new THREE.Vector2();this.point=new THREE.Vector3();this.lastKey='';this.roadKey='';this.buildKey='';this.treeKey='';this.previewKey='';this.buildingMeshes=null;this.cameraKey='';this.cam=null;this.w=innerWidth;this.h=innerHeight;this.materials=[];
  this.graphicQuality='medium';this.lastBuildingDetailLevel=null;
- this.aiSignalGroup=new THREE.Group();this.aiSignalKey='';this.aiSignalGlows=[];
- this.roadGroup=new THREE.Group();this.buildingGroup=new THREE.Group();this.treeGroup=new THREE.Group();this.previewGroup=new THREE.Group();this.signalGroup=new THREE.Group();this.lampGroup=new THREE.Group();this.scene.add(this.roadGroup,this.buildingGroup,this.treeGroup,this.previewGroup,this.signalGroup,this.lampGroup,this.aiSignalGroup);this.createCars();this.createRoute();this.createAtmosphere();this.resize();
+ this.roadGroup=new THREE.Group();this.buildingGroup=new THREE.Group();this.treeGroup=new THREE.Group();this.previewGroup=new THREE.Group();this.signalGroup=new THREE.Group();this.lampGroup=new THREE.Group();this.scene.add(this.roadGroup,this.buildingGroup,this.treeGroup,this.previewGroup,this.signalGroup,this.lampGroup);this.createCars();this.createRoute();this.createAtmosphere();this.resize();
  }
  disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.geometry&&!SHARED_RENDER_GEOMETRIES.includes(x.geometry))x.geometry.dispose();});}}
  setGraphicQuality(value){
@@ -2755,23 +2754,32 @@ export class TrafficRenderer{
  for(let stripe=-across+.09;stripe<across;stripe+=.23){
   line.box('#f1eddb',x+vx*crossAt+px*stripe,.12,z+vz*crossAt+pz*stripe,.38,.01,.12,-Math.atan2(vz,vx));
  }
- // One shared signal head for every lane from this incoming approach.
- const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3),yaw=Math.atan2(vx,vz);
- batch.box('#c9c8b5',sx,.115,sz,.26,.12,.26);
- batch.add(CYL,'#3e5356',sx,.85,sz,.038,1.5,.038);
- batch.add(CYL,'#a8b8ae',sx,.23,sz,.053,.16,.053);
- batch.add(CYL,'#e5dfc9',sx,.49,sz,.042,.085,.042);
- batch.box('#d0ae64',sx,1.57,sz,.29,.69,.105,yaw);
- batch.box('#203337',sx+vx*.018,1.57,sz+vz*.018,.245,.64,.14,yaw);
- const lenses={};
- for(const [name,yy]of [['red',1.76],['yellow',1.57],['green',1.38]]){
-  // Hoods and lens wells face their own approach, rather than all facing south.
-  batch.box('#17292e',sx+vx*.1,yy+.067,sz+vz*.1,.16,.035,.14,yaw);
-  const bulb=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({color:'#33413c'}));
-  bulb.scale.set(.057,.057,.026);bulb.rotation.y=yaw;
-  bulb.position.set(sx+vx*.099,yy,sz+vz*.099);this.signalGroup.add(bulb);lenses[name]=bulb;
+ // One 360-degree lamp per incoming approach, without any signal box or overhanging cap.
+ // A smart junction gets a larger cyan-accented pole; its traffic logic stays unchanged.
+ const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3);
+ const isSmart=state.signals.get(i)?.mode==='smart';
+ if(isSmart){
+  // Graphite smart-city pedestal, with cyan lines visible from all four sides.
+  batch.add(CYL,'#263841',sx,.15,sz,.145,.20,.145);
+  batch.add(CYL,'#28c9ec',sx,.205,sz,.148,.034,.148);
+  batch.box('#253740',sx,.84,sz,.18,1.30,.18);
+  for(const side of [-1,1]){
+   batch.box('#36d9f4',sx+side*.098,.87,sz,.018,.72,.052);
+   batch.box('#36d9f4',sx,.87,sz+side*.098,.052,.72,.018);
+  }
+  batch.add(CYL,'#38515b',sx,1.48,sz,.125,.10,.125);
+ }else{
+  // Conventional matte-metal pole, with no cyan lights.
+  batch.add(CYL,'#576168',sx,.15,sz,.095,.20,.095);
+  batch.add(CYL,'#515e65',sx,.79,sz,.046,1.26,.046);
+  batch.add(CYL,'#839097',sx,1.425,sz,.073,.07,.073);
  }
- this.signals.push({lenses,node:i,incoming:(port.dir+2)%4});
+ // A single large cylinder shows the current signal color through 360 degrees.
+ const lamp=new THREE.Mesh(CYL_SMOOTH,new THREE.MeshBasicMaterial({color:'#ff655e',toneMapped:false}));
+ lamp.scale.set(isSmart?.19:.135,isSmart?.50:.40,isSmart?.19:.135);
+ lamp.position.set(sx,isSmart?1.79:1.66,sz);
+ this.signalGroup.add(lamp);
+ this.signals.push({lamp,node:i,incoming:(port.dir+2)%4});
  }
  }else{const junctionWidth=Math.max(w,...[...r.links].map(n=>roadWidths[state.roads.get(n)?.type]||w));batch.box('#47565c',x,.081,z,junctionWidth,.055,junctionWidth);}}
 
@@ -2920,40 +2928,13 @@ export class TrafficRenderer{
   this.lampGroup.add(lights.build(false));
  }
 
- updateAISignalGlow(state){
-  if(!this.aiSignalGroup)return;
-  const nodes=[];
-  for(const [i,setting]of state.signals)if(setting.mode==='smart'&&state.roads.has(i))nodes.push(i);
-  nodes.sort((a,b)=>a-b);
-  const key=state.city+':'+nodes.join(',');
-  if(key!==this.aiSignalKey){
-   this.aiSignalKey=key;
-   this.disposeGroup(this.aiSignalGroup);
-   this.aiSignalGlows=[];
-   for(const node of nodes){
-    const x=node%300,z=Math.floor(node/300);
-    // A cyan-lit center island without a real GPU point light for each intersection.
-    const halo=new THREE.Mesh(new THREE.CircleGeometry(1.05,32),
-     new THREE.MeshBasicMaterial({color:'#38bdff',transparent:true,opacity:.24,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
-    halo.rotation.x=-Math.PI/2;halo.position.set(x,.164,z);halo.renderOrder=3;
-    const ring=new THREE.Mesh(new THREE.RingGeometry(.48,.77,32),
-     new THREE.MeshBasicMaterial({color:'#56eaff',transparent:true,opacity:.83,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
-    ring.rotation.x=-Math.PI/2;ring.position.set(x,.168,z);ring.renderOrder=4;
-    this.aiSignalGroup.add(halo,ring);
-    for(const [dx,dz]of [[-.91,-.91],[.91,-.91],[-.91,.91],[.91,.91]]){
-     const sparkle=new THREE.Mesh(new THREE.CircleGeometry(.085,12),
-      new THREE.MeshBasicMaterial({color:'#9ffaff',transparent:true,opacity:.87,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
-     sparkle.rotation.x=-Math.PI/2;sparkle.position.set(x+dx,.17,z+dz);sparkle.renderOrder=4;
-     this.aiSignalGroup.add(sparkle);
-    }
-    this.aiSignalGlows.push(halo);
-   }
+ updateSignals(signalColor){
+  const colors={red:'#ff5755',yellow:'#ffd04d',green:'#4fe987'};
+  for(const s of this.signals||[]){
+   const color=colors[signalColor(s.node,s.incoming)]||'#303b40';
+   s.lamp.material.color.set(color);
   }
-  const pulse=.78+.18*Math.sin(performance.now()*.0024);
-  for(const halo of this.aiSignalGlows)halo.material.opacity=.24*pulse;
  }
-
- updateSignals(signalColor){const lit={red:'#ff6855',yellow:'#ffd56b',green:'#9eeb96'},dim={red:'#4d302e',yellow:'#494230',green:'#2b473f'};for(const s of this.signals||[]){const active=signalColor(s.node,s.incoming);for(const [name,lens]of Object.entries(s.lenses))lens.material.color.set(name===active?lit[name]:dim[name]);}}
  roof(batch,x,z,w,d,base,color,id){const angle=Math.atan2(.55,d/2),length=Math.hypot(d/2,.55);for(const sign of[-1,1])batch.add(BOX,color,x,base+.275,z+sign*d/4,w+.18,.10,length+.11,sign*angle,0,0,id);for(let k=-w/2+.12;k<w/2;k+=.22){for(const sign of[-1,1])batch.add(BOX,'#b86d48',x+k,base+.3,z+sign*d/4,.023,.035,length+.12,sign*angle,0,0,id);}batch.box('#ce8054',x,base+.57,z,w+.19,.07,.08,0,id);}
  window(batch,x,y,z,w,h,side,id){if(side==='front'){batch.box('#385d69',x,y,z,w,h,.025,0,id);if(hash(x+id,y+z)>.36)batch.box('#ffdf9d',x,y,z+.034,w*.76,h*.78,.012,0,id,true);batch.box('#dddac4',x,y,z+.02,.026,h+.04,.022,0,id);batch.box('#e9e6d4',x,y-h/2-.035,z+.04,w+.1,.06,.075,0,id);}else{batch.box('#456d75',x,y,z,.025,h,w,0,id);if(hash(z+id,x+y)>.40)batch.box('#ffe2ad',x+.035,y,z,.012,h*.77,w*.73,0,id,true);batch.box('#ede7d3',x+.02,y-h/2-.035,z,.075,.06,w+.08,0,id);}}
  parkingLot(batch,b){for(const rect of this.parking.parkingVisuals(b)){const p=this.parking.lotPoint(b,rect.u,rect.v),asphalt=['#515f62','#58666a','#465e65'].includes(rect.color),marking=['#e9e6cc','#c5d2c2','#bbc9b9','#94d9aa','#f3ca88','#e5e6d0','#f1ca85','#86d1dc'].includes(rect.color),ground=['#bdc6ae','#9baaa0','#96af8f'].includes(rect.color);const y=ground?.025:asphalt?.065:marking?.102:.085;batch.box(rect.color,p.x-.5,y,p.y-.5,rect.w,.012,rect.h,-(b.rotation||0)*Math.PI/2,b.id,false,asphalt?'night-asphalt':marking?'night-marking':'night-lot-base');}}
@@ -9220,13 +9201,15 @@ export class TrafficRenderer{
  }
  render({state,cam,mapCover,hover,drag,roadPreview,demolitionPreview=null,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}this.updateMapCover(mapCover,state);
  const buildKey=state.buildings.size+':'+(state.buildingVisualVersion||0);
- const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}if(this.graphicQuality==='low'){this.treeGroup.visible=false;}
+ // A purchased AI upgrade does not increment the road layout version: refresh its poles immediately.
+ const smartSignalKey=[...state.signals].filter(([node,setting])=>setting.mode==='smart'&&state.roads.has(node)).map(([node])=>node).sort((a,b)=>a-b).join(',');
+ const roadKey=[state.version,state.roads.size,heat,buildKey,smartSignalKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}if(this.graphicQuality==='low'){this.treeGroup.visible=false;}
  else{this.treeGroup.visible=true;this.trees(state,cam);}
  // Skip all vehicle pose, instance and effect preparation in map-only mode.
  if(heat)this.hideCars();
  else this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);
   this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview,demolitionPreview);
- this.updateSignals(signalColor);this.updateAISignalGlow(state);this.updateGrandSignals();this.updateWeatherLight(state);
+ this.updateSignals(signalColor);this.updateGrandSignals();this.updateWeatherLight(state);
  this.updateBuildingDetailLOD(cam);
  const visualNow=performance.now()*.001;
  if(this.landscapeClock)this.landscapeClock.value=visualNow;
