@@ -1,6 +1,14 @@
 import * as THREE from './vendor/three.module.js';
 
 const BOX=new THREE.BoxGeometry(1,1,1),CYL=new THREE.CylinderGeometry(1,1,1,10),CYL_SMOOTH=new THREE.CylinderGeometry(1,1,1,32),CONE=new THREE.ConeGeometry(1,1,6),LEAF=new THREE.IcosahedronGeometry(1,1),BALL=new THREE.SphereGeometry(1,12,8);
+// Shared rounded opal lens: a single 360-degree light with soft shoulders and no top cap.
+const SIGNAL_LENS_GEO=new THREE.LatheGeometry([
+ new THREE.Vector2(0,-.275),new THREE.Vector2(.070,-.265),
+ new THREE.Vector2(.127,-.222),new THREE.Vector2(.157,-.160),
+ new THREE.Vector2(.165,-.075),new THREE.Vector2(.165,.092),
+ new THREE.Vector2(.146,.173),new THREE.Vector2(.108,.226),
+ new THREE.Vector2(.056,.260),new THREE.Vector2(0,.270)
+],16);
 // A closed roof prism avoids intersecting roof planes at rotated plots.
 const PITCHED_ROOF=(()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([-.5,0,-.5,-.5,0,.5,-.5,1,0,.5,0,-.5,.5,0,.5,.5,1,0],3));g.setIndex([0,1,2,3,5,4,0,2,5,0,5,3,2,1,4,2,4,5,0,3,4,0,4,1]);const flat=g.toNonIndexed();flat.computeVertexNormals();g.dispose();return flat;})();
 // Shared landscape primitives are GPU-instanced, never created for individual trees.
@@ -137,7 +145,7 @@ const RETAIL_WINDOW_TEXTURES=['shop','mall'].map(kind=>{
  texture.colorSpace=THREE.SRGBColorSpace;
  return texture;
 });
-const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry];
+const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,SIGNAL_LENS_GEO,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry];
 
 // One tapered GPU-instanced light streak per beam; no floating glow spheres.
 const CAR_TECH_STREAK=(()=>{const g=new THREE.ConeGeometry(.044,.60,4,1,true);g.rotateZ(-Math.PI/2);return g;})();
@@ -2755,30 +2763,37 @@ export class TrafficRenderer{
  for(let stripe=-across+.09;stripe<across;stripe+=.23){
   line.box('#f1eddb',x+vx*crossAt+px*stripe,.12,z+vz*crossAt+pz*stripe,.38,.01,.12,-Math.atan2(vz,vx));
  }
- // One 360-degree lamp per incoming approach, without any signal box or overhanging cap.
- // A smart junction gets a larger cyan-accented pole; its traffic logic stays unchanged.
+ // One carefully shaped 360-degree signal per incoming approach, on its own roadside.
+ // Normal poles are restrained satin steel; upgraded AI poles are wider graphite with cyan inlays.
  const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3);
  const isSmart=state.signals.get(i)?.mode==='smart';
  if(isSmart){
-  // Graphite smart-city pedestal, with cyan lines visible from all four sides.
-  batch.add(CYL,'#263841',sx,.15,sz,.145,.20,.145);
-  batch.add(CYL,'#28c9ec',sx,.257,sz,.155,.03,.155);
-  batch.box('#253740',sx,.84,sz,.18,1.30,.18);
+  // AI: stepped gunmetal foundation, tapered structural spine and four small recessed LED lines.
+  batch.add(CYL,'#26333a',sx,.145,sz,.167,.185,.167);
+  batch.add(CYL,'#697b83',sx,.253,sz,.137,.040,.137);
+  batch.add(CYL,'#24bdd7',sx,.288,sz,.135,.024,.135);
+  batch.add(TWIG,'#283944',sx,.892,sz,.116,1.180,.116);
+  batch.add(CYL,'#394d57',sx,.410,sz,.112,.068,.112);
   for(const side of [-1,1]){
-   batch.box('#36d9f4',sx+side*.098,.87,sz,.018,.72,.052);
-   batch.box('#36d9f4',sx,.87,sz+side*.098,.052,.72,.018);
+   batch.box('#33d0e2',sx+side*.109,.845,sz,.014,.610,.031);
+   batch.box('#33d0e2',sx,.845,sz+side*.109,.031,.610,.014);
   }
-  batch.add(CYL,'#38515b',sx,1.48,sz,.125,.10,.125);
+  // Small fittings only *below* the lens; nothing covers its top or its 360-degree sides.
+  batch.add(CYL,'#9caeb6',sx,1.470,sz,.111,.075,.111);
+  batch.add(CYL,'#2fbed6',sx,1.517,sz,.116,.022,.116);
  }else{
-  // Conventional matte-metal pole, with no cyan lights.
-  batch.add(CYL,'#576168',sx,.15,sz,.095,.20,.095);
-  batch.add(CYL,'#515e65',sx,.79,sz,.046,1.26,.046);
-  batch.add(CYL,'#839097',sx,1.425,sz,.073,.07,.073);
+  // Classic: tapered brushed-metal support and one uninterrupted rounded bulb. No cyan.
+  batch.add(CYL,'#404f55',sx,.145,sz,.118,.177,.118);
+  batch.add(CYL,'#909da1',sx,.259,sz,.083,.044,.083);
+  batch.add(TWIG,'#596a70',sx,.842,sz,.073,1.167,.073);
+  batch.add(CYL,'#9aadb1',sx,1.419,sz,.088,.075,.088);
  }
- // A single large cylinder shows the current signal color through 360 degrees.
- const lamp=new THREE.Mesh(CYL_SMOOTH,new THREE.MeshBasicMaterial({color:'#ff655e',toneMapped:false}));
- lamp.scale.set(isSmart?.19:.135,isSmart?.50:.40,isSmart?.19:.135);
- lamp.position.set(sx,isSmart?1.79:1.66,sz);
+ const lamp=new THREE.Mesh(SIGNAL_LENS_GEO,new THREE.MeshStandardMaterial({
+  color:'#ff655e',emissive:'#ff655e',emissiveIntensity:.60,
+  roughness:.29,metalness:.02
+ }));
+ lamp.scale.setScalar(isSmart?1.24:1);
+ lamp.position.set(sx,isSmart?1.795:1.666,sz);
  this.signalGroup.add(lamp);
  this.signals.push({lamp,node:i,incoming:(port.dir+2)%4});
  }
@@ -2967,6 +2982,7 @@ export class TrafficRenderer{
   for(const s of this.signals||[]){
    const color=colors[signalColor(s.node,s.incoming)]||'#303b40';
    s.lamp.material.color.set(color);
+   s.lamp.material.emissive.set(color);
   }
  }
  roof(batch,x,z,w,d,base,color,id){const angle=Math.atan2(.55,d/2),length=Math.hypot(d/2,.55);for(const sign of[-1,1])batch.add(BOX,color,x,base+.275,z+sign*d/4,w+.18,.10,length+.11,sign*angle,0,0,id);for(let k=-w/2+.12;k<w/2;k+=.22){for(const sign of[-1,1])batch.add(BOX,'#b86d48',x+k,base+.3,z+sign*d/4,.023,.035,length+.12,sign*angle,0,0,id);}batch.box('#ce8054',x,base+.57,z,w+.19,.07,.08,0,id);}
