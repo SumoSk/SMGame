@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=octagon-signals-20261109e';
+import { TrafficRenderer } from './renderer3d.js?v=octagon-classic-70pct-20261109f';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
 await import('./game.js?v=parliament-20261108a');
 await import('./member.js?v=4ed815769287');
