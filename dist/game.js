@@ -6510,7 +6510,7 @@ function respawnVehicle(v,reason='stalled'){
  v.retryAt=0;v.departureRouteVersion=path?state.version:-1;v.nextDepartureRouteRetry=state.time;
  v.departureNoRoute=!path;v.routeCheckedVersion=state.version;v.noUTurnPolicy=1;v.trafficModel=2;
  setRouteMissing(v,!path);v.stopReason=path?'กลับมาเริ่มเข้าที่ประตูเมืองใหม่':'กลับมาประตูเมืองแล้ว · ยังไม่มีเส้นทางถึงจุดหมาย';
- if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+(reason==='demolition'?' ถนนถูกรื้อ · กลับเข้าประตูเมืองใหม่':reason==='paired_deadlock'?' รถขวางกันเป็นคู่ · เปิดทางด้วยการกลับเข้าประตูเมืองใหม่':' รถติดครบ 150 นาที · กลับเข้าประตูเมืองใหม่'));c.history=c.history.slice(-12);}
+ if(c){c.location='travel';c.state='รอเข้าเมืองใหม่';c.history.push(timeText(state.time)+(reason==='demolition'?' ถนนถูกรื้อ · กลับเข้าประตูเมืองใหม่':reason==='paired_deadlock'?' รถขวางกันเป็นคู่ · เปิดทางด้วยการกลับเข้าประตูเมืองใหม่':reason==='large_bend_deadlock'?' รถติดทับกันบนทางโค้งใหญ่ · ให้รถคันหนึ่งเข้าถนนใหม่':' รถติดครบ 150 นาที · กลับเข้าประตูเมืองใหม่'));c.history=c.history.slice(-12);}
  updateTrafficSpatial(v);return true;
 }
 // Constant-time deadlock detection: read the two blocking IDs already recorded by
@@ -6525,6 +6525,23 @@ function mutualPhysicalDeadlock(v){
  if(motionDirection(v.path,v.pos)!==motionDirection(other.path,other.pos))return false;
  const peer=other.lastPhysicalBlock,peerAge=state.time-(peer?.gameTime??-Infinity);
  return peer?.reason==='physical_capsule_overlap'&&peer.ownerId===v.id&&peerAge>=0&&peerAge<=1;
+}
+// Older saves can contain a pre-existing reciprocal collision in an
+// unsignalized large bend. Relocate only ONE car after six game minutes.
+// Unlike a tow, respawnVehicle keeps its destination and citizen trip.
+function mutualLargeBendDeadlock(v){
+ if(v.phase!=='driving'||(v.wait||0)<6||v.stopReason!=='เว้นระยะรถ')return false;
+ const block=v.lastPhysicalBlock;
+ if(block?.reason!=='physical_capsule_overlap'||state.time-(block.gameTime??-Infinity)>1)return false;
+ const other=state.vehicles.get(block.ownerId);
+ if(!other||v.id<=other.id||other.phase!=='driving'||(other.wait||0)<6||
+   other.stopReason!=='เว้นระยะรถ')return false;
+ const peer=other.lastPhysicalBlock;
+ if(peer?.reason!=='physical_capsule_overlap'||peer.ownerId!==v.id||
+   state.time-(peer.gameTime??-Infinity)>1)return false;
+ const a=motionPlan(v),b=motionPlan(other),as=motionDistance(v,a),bs=motionDistance(other,b);
+ return a.junctions.some(g=>isLargeRoadBend(g.node)&&as>=g.entry-.5&&as<g.clear+.5&&
+   b.junctions.some(h=>h.node===g.node&&bs>=h.entry-.5&&bs<h.clear+.5));
 }
 // Diagnostics are read-only: mirror every admission test without changing the traffic rules.
 function explainRoadTraversal(v,pos){
@@ -7482,6 +7499,9 @@ function advanceVehicles(realDt,gameDt){
    // Restore one car from an observed two-car physical deadlock without collision bypass.
    // Remove only one vehicle to break the deadlock.
    if(respawnBudget>0&&pairedDeadlocks?.has(v.id)&&incidentStoppedFor(v)>=IMMOBILE_RESPAWN_TIMEOUT&&towVehicle(v.id,true)){respawnBudget--;continue;}
+  // Resolve only verified reciprocal overlap in an older large-bend save.
+   if(respawnBudget>0&&mutualLargeBendDeadlock(v)&&
+      respawnVehicle(v,'large_bend_deadlock')){respawnBudget--;continue;}
   // Apply the same 120-game-minute recovery to every moving/stalled trip,
   // INCLUDING parking_in, parking_out and departing without an active lotPath.
   // This check must precede the early continue branches for parking motion.
