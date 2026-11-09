@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=signal360-restore-ai-circle-20261109c';
+import { TrafficRenderer } from './renderer3d.js?v=signal360-sculpted-20261109d';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
 await import('./game.js?v=parliament-20261108a');
 await import('./member.js?v=4ed815769287');
