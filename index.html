@@ -1408,15 +1408,10 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
 <aside id="buildVariantPopup" class="build-variant-popup" hidden role="region" aria-label="เลือกขนาดอาคาร"></aside><button type="button" id="cancelMoveBuilding" class="cancel-building-move" hidden>✕ ยกเลิกย้ายอาคาร</button><div id="toast" role="status"></div><div id="cityLevelCelebration" class="city-level-celebration" role="status" aria-live="polite" aria-atomic="true" hidden></div><dialog id="dialog"><button type="button" id="dialogCloseTop" class="dialog-close-top" aria-label="ปิดหน้าต่าง" title="ปิดหน้าต่าง">×</button><div id="dialogContent"></div></dialog>
 <dialog id="memberGate" class="member-gate" role="dialog" hidden aria-modal="true" aria-label="เข้าสู่ระบบ SMGame">
  <section class="member-card" style="position:relative"><button id="memberClose" type="button" aria-label="กลับไปเล่นโดยไม่บันทึก" title="กลับไปเล่นโดยไม่บันทึก" style="position:absolute;top:10px;right:10px;font-size:22px;width:32px;height:32px;border-radius:8px">×</button>
-  <button id="memberDevQuick" type="button" class="member-mark" title="เข้าโหมดผู้สร้างด้วยบัญชีที่ล็อกอินไว้" aria-label="เปิดบัญชีผู้สร้างด้วยเซสชันเดิม" style="border:0;padding:0;cursor:pointer;font-family:inherit">♙</button>
   <h2 id="memberTitle">บัญชีผู้ใช้</h2>
   <p id="memberIntro" class="member-intro">เข้าสู่ระบบเพื่อบันทึกเมืองและเล่นต่อบนอุปกรณ์อื่น</p>
-  <div class="member-tabs" role="tablist" aria-label="สมาชิก SMGame">
-   <button type="button" class="active" data-member-mode="login" role="tab" aria-selected="true">เข้าสู่ระบบ</button>
-   <button type="button" data-member-mode="signup" role="tab" aria-selected="false">สมัครสมาชิก</button>
-  </div>
   <form id="memberForm" class="member-form">
-   <label>ชื่อผู้ใช้ หรืออีเมลเดิม<input id="memberEmail" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="80" required placeholder="เช่น ซูโม่ หรือ Sumo"></label>
+   <label>ชื่อผู้เล่น หรืออีเมลเดิม<input id="memberEmail" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="80" required placeholder="เช่น ซูโม่ หรือ Sumo"></label>
    <label>รหัสผ่าน<input id="memberPassword" type="password" autocomplete="current-password" required placeholder="รหัสผ่านตามต้องการ"></label>
    <p id="memberNotice" class="member-notice" role="status" aria-live="polite"></p>
    <button id="memberSubmit" class="member-submit" type="submit">เข้าสู่ระบบและบันทึกเกม</button><button id="memberRetrySave" type="button" hidden style="width:100%;margin-top:9px;padding:10px;border-radius:10px;background:#e5eee6">ลองบันทึกอีกครั้ง</button>
@@ -1698,7 +1693,7 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
  <button id="landscapeQuickMove" type="button" data-landscape-action="move" aria-label="ย้ายของตกแต่งชิ้นนี้" title="ย้ายชิ้นที่เลือก">✥</button>
  <button id="landscapeQuickDelete" type="button" data-landscape-action="delete" class="decor-delete" aria-label="ลบของตกแต่งชิ้นนี้" title="ลบชิ้นที่เลือก">⌫</button>
 </div>
-<script type="module" src="dist/bootstrap.js?v=smcity-5.5-terrain-mask-b"></script></body></html>
+<script type="module" src="dist/bootstrap.js?v=smcity-5.5-single-account-20261110"></script></body></html>
 
 
 
