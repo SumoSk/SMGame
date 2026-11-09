@@ -2757,33 +2757,35 @@ export class TrafficRenderer{
  for(let stripe=-across+.09;stripe<across;stripe+=.23){
   line.box('#f1eddb',x+vx*crossAt+px*stripe,.12,z+vz*crossAt+pz*stripe,.38,.01,.12,-Math.atan2(vz,vx));
  }
- // Octagonal three-zone signal inspired by the approved SMCITY reference.
- // One pole per incoming direction, on the existing road verge (never in the junction center).
- // Only the zone matching the real traffic phase illuminates; other lenses remain dark.
+ // Octagonal three-zone signal, one pole on the verge for each incoming direction.
+ // Scale the standard model uniformly to 70%; AI keeps its full size and position.
  const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3);
  const isSmart=state.signals.get(i)?.mode==='smart';
+ const poleScale=isSmart?1:.70;
+ const poleY=y=>.05+(y-.05)*poleScale;
+ const poleSize=v=>v*poleScale;
  const accent=isSmart?'#4bdcf3':'#bb9968';
  const darkMetal=isSmart?'#253945':'#394348';
- const headRadius=isSmart?.183:.153,headBottom=isSmart?1.56:1.47;
+ const headRadius=poleSize(isSmart?.183:.153),headBottom=poleY(isSmart?1.56:1.47);
  // Faceted low-poly pedestal and sculpted, gently tapered roadside post.
- batch.add(SIGNAL_OCT_GEO,darkMetal,sx,.143,sz,isSmart?.176:.143,.186,isSmart?.176:.143);
- batch.add(SIGNAL_OCT_GEO,accent,sx,.247,sz,isSmart?.159:.126,.018,isSmart?.159:.126);
- batch.add(TWIG,isSmart?'#304852':'#526066',sx,.866,sz,isSmart?.117:.091,1.213,isSmart?.117:.091);
- batch.add(SIGNAL_OCT_GEO,'#77858b',sx,1.444,sz,isSmart?.115:.092,.078,isSmart?.115:.092);
- // Fine vertical inlays: classic bronze, upgraded AI cyan; never recolor the plain poles blue.
+ batch.add(SIGNAL_OCT_GEO,darkMetal,sx,poleY(.143),sz,poleSize(isSmart?.176:.143),poleSize(.186),poleSize(isSmart?.176:.143));
+ batch.add(SIGNAL_OCT_GEO,accent,sx,poleY(.247),sz,poleSize(isSmart?.159:.126),poleSize(.018),poleSize(isSmart?.159:.126));
+ batch.add(TWIG,isSmart?'#304852':'#526066',sx,poleY(.866),sz,poleSize(isSmart?.117:.091),poleSize(1.213),poleSize(isSmart?.117:.091));
+ batch.add(SIGNAL_OCT_GEO,'#77858b',sx,poleY(1.444),sz,poleSize(isSmart?.115:.092),poleSize(.078),poleSize(isSmart?.115:.092));
+ // Fine vertical inlays: standard bronze; AI cyan. Only scale the standard version.
  for(const side of [-1,1]){
-  batch.box(accent,sx+side*(isSmart?.106:.081),.87,sz,.014,.53,.026);
-  batch.box(accent,sx,.87,sz+side*(isSmart?.106:.081),.026,.53,.014);
+  batch.box(accent,sx+side*poleSize(isSmart?.106:.081),poleY(.87),sz,poleSize(.014),poleSize(.53),poleSize(.026));
+  batch.box(accent,sx,poleY(.87),sz+side*poleSize(isSmart?.106:.081),poleSize(.026),poleSize(.53),poleSize(.014));
  }
  if(isSmart){
-  // Additional luminous AI signature, integrated into the mast rather than the signal lens.
+  // AI identity remains unchanged at full size.
   batch.add(SIGNAL_OCT_GEO,'#23c4df',sx,.286,sz,.154,.022,.154);
   batch.add(SIGNAL_OCT_GEO,'#4fd8f0',sx,1.38,sz,.116,.025,.116);
  }
- // One contiguous octagonal lantern with three tinted glass zones and tiny separators.
+ // Three 360-degree lenses, each retaining its real incoming approach traffic phase.
  const segments={};
  const levels=[['green',0],['yellow',1],['red',2]];
- const lensHeight=.230,step=.252;
+ const lensHeight=poleSize(.230),step=poleSize(.252);
  for(const [name,index]of levels){
   const lens=new THREE.Mesh(SIGNAL_OCT_GEO,new THREE.MeshStandardMaterial({
    color:'#323a39',emissive:'#101416',emissiveIntensity:.025,
@@ -2794,15 +2796,14 @@ export class TrafficRenderer{
   this.signalGroup.add(lens);
   segments[name]=lens;
  }
- // Flush-mounted faceted collars with a restrained chamfer-like crown, not a traffic hood.
  for(const index of [0,1,2,3]){
-  const yy=headBottom-.016+index*step;
-  batch.add(SIGNAL_OCT_GEO,'#24333a',sx,yy,sz,headRadius*1.14,.028,headRadius*1.14);
-  batch.add(SIGNAL_OCT_GEO,accent,sx,yy+.018,sz,headRadius*1.11,.012,headRadius*1.11);
+  const yy=headBottom-poleSize(.016)+index*step;
+  batch.add(SIGNAL_OCT_GEO,'#24333a',sx,yy,sz,headRadius*1.14,poleSize(.028),headRadius*1.14);
+  batch.add(SIGNAL_OCT_GEO,accent,sx,yy+poleSize(.018),sz,headRadius*1.11,poleSize(.012),headRadius*1.11);
  }
- const crownY=headBottom+3*step+.013;
- batch.add(SIGNAL_OCT_GEO,darkMetal,sx,crownY,sz,headRadius*1.12,.058,headRadius*1.12);
- batch.add(TWIG,isSmart?'#596c76':'#657075',sx,crownY+.047,sz,headRadius*1.06,.048,headRadius*1.06);
+ const crownY=headBottom+3*step+poleSize(.013);
+ batch.add(SIGNAL_OCT_GEO,darkMetal,sx,crownY,sz,headRadius*1.12,poleSize(.058),headRadius*1.12);
+ batch.add(TWIG,isSmart?'#596c76':'#657075',sx,crownY+poleSize(.047),sz,headRadius*1.06,poleSize(.048),headRadius*1.06);
  this.signals.push({segments,node:i,incoming:(port.dir+2)%4});
  }
  }else{const junctionWidth=Math.max(w,...[...r.links].map(n=>roadWidths[state.roads.get(n)?.type]||w));batch.box('#47565c',x,.081,z,junctionWidth,.055,junctionWidth);}}
