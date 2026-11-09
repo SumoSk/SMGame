@@ -2212,7 +2212,7 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
  roadsideVisualCache.set(roadState,{stamp,details:roadDetails,faces});return faces;
 }
 function drawRoads(roadState=state,roadDetails=junctionDetails){
- const state=roadState,PREMIUM_CONCRETE='#94969a',CONCRETE_JOINT='#85878b';
+ const state=roadState,PREMIUM_CONCRETE='#555957',CONCRETE_JOINT='#4e5250',PREMIUM_LANE='#f0ede4',PREMIUM_CENTER='#d6b36a',PREMIUM_EDGE='#cfd0ca';
  const layouts=new Map(),nearby=new Map(),hidden=new Set(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
  for(const [node]of state.roads){const layout=roadDetails(node);for(const [a,b]of layout.hiddenEdges)hidden.add(edgeKey(a,b));if(layout.arms.length>=3||layout.bend)layouts.set(node,layout);}
  for(const l of layouts.values())for(let yy=Math.floor(l.y-l.halfY-2);yy<=Math.ceil(l.y+l.halfY+2);yy++)for(let xx=Math.floor(l.x-l.halfX-2);xx<=Math.ceil(l.x+l.halfX+2);xx++){const key=id(xx,yy);if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(l);}
@@ -2250,11 +2250,28 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
   stroke([s.point(.5,-half),s.point(.5,half)],CONCRETE_JOINT,.010);
  }
  const capacity=width=>Math.max(1,(Object.values(ROADS).find(t=>Math.abs(t.visualWidth-width)<.01)?.lanes||2)/2);
- for(const s of segments){const ca=capacity(s.wa),cb=capacity(s.wb);for(const [lo,hi]of s.intervals){const guide=(oa,ob,color,dashed=false)=>stroke([s.point(lo,oa+(ob-oa)*lo),s.point(hi,oa+(ob-oa)*hi)],color,color==='#ead78c'?.018:.025,dashed);for(const sign of [-1,1]){guide(.035*sign,.035*sign,'#ead78c');guide(s.wa/2*sign,s.wb/2*sign,'#dce3d8');for(let k=1;k<Math.max(ca,cb);k++)guide(Math.min(s.wa/2-.1,k*s.wa/(ca*2))*sign,Math.min(s.wb/2-.1,k*s.wb/(cb*2))*sign,'#dce3d8',true);}}}
+ for(const seg of segments){const ca=capacity(seg.wa),cb=capacity(seg.wb);
+  const premium=seg.r.type==='large'&&seg.other?.type==='large'&&
+    Math.abs(seg.wa-ROADS.large.visualWidth)<.02&&Math.abs(seg.wb-ROADS.large.visualWidth)<.02;
+  for(const [lo,hi]of seg.intervals){
+   const guide=(oa,ob,color,dashed=false)=>stroke(
+    [seg.point(lo,oa+(ob-oa)*lo),seg.point(hi,oa+(ob-oa)*hi)],color,
+    color==='#ead78c'||color===PREMIUM_CENTER?.018:.025,dashed);
+   for(const sign of [-1,1]){
+    guide(.035*sign,.035*sign,premium?PREMIUM_CENTER:'#ead78c');
+    guide(seg.wa/2*sign,seg.wb/2*sign,premium?PREMIUM_EDGE:'#dce3d8');
+    for(let k=1;k<Math.max(ca,cb);k++)guide(
+     Math.min(seg.wa/2-.1,k*seg.wa/(ca*2))*sign,
+     Math.min(seg.wb/2-.1,k*seg.wb/(cb*2))*sign,
+     premium?PREMIUM_LANE:'#dce3d8',true);
+   }
+  }
+ }
  for(const l of layouts.values()){
- for(const edge of l.borders){const points=edge.map(([x,y])=>[l.x+x,l.y+y]);stroke(points,'#c9c8b5',.28);stroke(points,'#dce3d8');}
- if(l.bend){const [a,b]=l.ports,va=DIR[a.dir],vb=DIR[b.dir],ca=capacity(a.width),cb=capacity(b.width),guide=(oa,ob,color,dashed=false)=>{const ax=va[0]*a.extent-va[1]*oa,ay=va[1]*a.extent+va[0]*oa,bx=vb[0]*b.extent+vb[1]*ob,by=vb[1]*b.extent-vb[0]*ob,cx=a.dir%2===0?bx:ax,cy=a.dir%2===0?ay:by,points=[];for(let k=0;k<=64;k++){const t=k/64,u=1-t;points.push([l.x+u*u*ax+2*u*t*cx+t*t*bx,l.y+u*u*ay+2*u*t*cy+t*t*by]);}stroke(points,color,color==='#ead78c'?.018:.025,dashed);};for(const sign of [-1,1]){guide(.035*sign,.035*sign,'#ead78c');for(let k=1;k<Math.max(ca,cb);k++)guide(Math.min(a.width/2-.1,k*a.width/(ca*2))*sign,Math.min(b.width/2-.1,k*b.width/(cb*2))*sign,'#dce3d8',true);}}
- else if(cam.z>.4){for(const port of l.ports){const d=port.dir,[vx,vy]=DIR[d],px=-vy,py=vx,offset=port.extent+.13,point=(along,side)=>[l.x+vx*along+px*side,l.y+vy*along+py*side];stroke([point(offset,.06),point(offset,port.width/2-.06)],'#edf0df',.075);const [sx,sy]=screen(...point(offset,port.width/2+.3).map(v=>v+.5));ctx.fillStyle='#263e3a';ctx.fillRect(sx-2*cam.z,sy-4*cam.z,4*cam.z,8*cam.z);const light=signalColor(l.node,(d+2)%4);ctx.fillStyle=light==='green'?'#a4dc90':light==='yellow'?'#efd581':'#f08b75';ctx.beginPath();ctx.arc(sx,sy,1.7*cam.z,0,7);ctx.fill();}}
+ const premiumLayout=l.arms.length>=2&&l.arms.every(a=>Math.abs(a.width-ROADS.large.visualWidth)<.02);
+ for(const edge of l.borders){const points=edge.map(([x,y])=>[l.x+x,l.y+y]);stroke(points,'#c9c8b5',.28);stroke(points,premiumLayout?PREMIUM_EDGE:'#dce3d8');}
+ if(l.bend){const [a,b]=l.ports,va=DIR[a.dir],vb=DIR[b.dir],ca=capacity(a.width),cb=capacity(b.width),guide=(oa,ob,color,dashed=false)=>{const ax=va[0]*a.extent-va[1]*oa,ay=va[1]*a.extent+va[0]*oa,bx=vb[0]*b.extent+vb[1]*ob,by=vb[1]*b.extent-vb[0]*ob,cx=a.dir%2===0?bx:ax,cy=a.dir%2===0?ay:by,points=[];for(let k=0;k<=64;k++){const t=k/64,u=1-t;points.push([l.x+u*u*ax+2*u*t*cx+t*t*bx,l.y+u*u*ay+2*u*t*cy+t*t*by]);}stroke(points,color,color==='#ead78c'||color===PREMIUM_CENTER?.018:.025,dashed);};for(const sign of [-1,1]){guide(.035*sign,.035*sign,premiumLayout?PREMIUM_CENTER:'#ead78c');for(let k=1;k<Math.max(ca,cb);k++)guide(Math.min(a.width/2-.1,k*a.width/(ca*2))*sign,Math.min(b.width/2-.1,k*b.width/(cb*2))*sign,premiumLayout?PREMIUM_LANE:'#dce3d8',true);}}
+ else if(cam.z>.4){for(const port of l.ports){const d=port.dir,[vx,vy]=DIR[d],px=-vy,py=vx,offset=port.extent+.13,point=(along,side)=>[l.x+vx*along+px*side,l.y+vy*along+py*side];stroke([point(offset,.06),point(offset,port.width/2-.06)],premiumLayout?PREMIUM_LANE:'#edf0df',.075);const [sx,sy]=screen(...point(offset,port.width/2+.3).map(v=>v+.5));ctx.fillStyle='#263e3a';ctx.fillRect(sx-2*cam.z,sy-4*cam.z,4*cam.z,8*cam.z);const light=signalColor(l.node,(d+2)%4);ctx.fillStyle=light==='green'?'#a4dc90':light==='yellow'?'#efd581':'#f08b75';ctx.beginPath();ctx.arc(sx,sy,1.7*cam.z,0,7);ctx.fill();}}
  }
  if(selected?.kind==='road'&&junction(selected.id)>=3){const [x,y]=xy(selected.id),p=screen(x+.5,y+.5);ctx.strokeStyle='#fff0a9';ctx.lineWidth=2.5*cam.z;ctx.beginPath();ctx.arc(p[0],p[1],Math.max(12,17*cam.z),0,Math.PI*2);ctx.stroke();}
  if(debug)for(const [i]of state.roads){const [x,y]=xy(i),p=screen(x+.5,y+.5);ctx.fillStyle='#fff';ctx.font=`${9*cam.z}px monospace`;ctx.fillText(String(occupancy(i)),p[0],p[1]);}
