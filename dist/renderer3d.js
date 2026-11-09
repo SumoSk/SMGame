@@ -1047,8 +1047,8 @@ export class TrafficRenderer{
    const base=mesh.userData.baseColor||'';
    let role=mesh.userData.nightRole;
    if(isRoad){
-    if(['#47565c','#424f55','#94969a','#85878b'].includes(base))role='asphalt';
-    else if(['#dce3d8','#ead78c','#edf0df','#f1eddb'].includes(base))role='marking';
+    if(['#47565c','#424f55','#555957','#4e5250'].includes(base))role='asphalt';
+    else if(['#dce3d8','#ead78c','#edf0df','#f1eddb','#f0ede4','#d6b36a','#cfd0ca'].includes(base))role='marking';
    }
    let tint=base,intensity=0,managed=false;
    if(role==='asphalt'){managed=true;intensity=visibility.road;tint=base||'#56666a';}
@@ -2783,7 +2783,7 @@ export class TrafficRenderer{
  makeRoads(state,ROADS,junction,previewOnly=false){this.disposeGroup(this.roadGroup);this.disposeGroup(this.signalGroup);this.signals=[];const batch=new Batch(),line=new Batch();const roadWidths={small:ROADS.small.visualWidth||1.175,medium:ROADS.medium.visualWidth||2.35,large:ROADS.large.visualWidth||3.72};
  // Premium eight-lane road: the same 3.72-unit carriageway, with no median.
  // Visual finish only; no change to lane offsets, road links or traffic logic.
- const PREMIUM_CONCRETE='#94969a',CONCRETE_JOINT='#85878b';
+ const PREMIUM_CONCRETE='#555957',CONCRETE_JOINT='#4e5250',PREMIUM_LANE='#f0ede4',PREMIUM_CENTER='#d6b36a',PREMIUM_EDGE='#cfd0ca';
  const layouts=new Map(),hidden=new Set(),nearby=new Map(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
  if(junction.details)for(const [node]of state.roads){const d=junction.details(node);for(const [a,b]of d.hiddenEdges)hidden.add(edgeKey(a,b));if(d.arms.length>=3||d.bend)layouts.set(node,d);}
  for(const layout of layouts.values())for(let xx=Math.floor(layout.x-layout.halfX-2);xx<=Math.ceil(layout.x+layout.halfX+2);xx++)for(let zz=Math.floor(layout.y-layout.halfY-2);zz<=Math.ceil(layout.y+layout.halfY+2);zz++){const key=zz*300+xx;if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(layout);}
@@ -2802,9 +2802,15 @@ export class TrafficRenderer{
  const axisX=dx/len,axisZ=dz/len,perpX=-axisZ,perpZ=axisX,capA=Math.max(1,(Object.values(ROADS).find(t=>Math.abs((t.visualWidth||t.width)-widthA)<.01)?.lanes||ROADS[r.type].lanes)/2),capB=Math.max(1,(Object.values(ROADS).find(t=>Math.abs((t.visualWidth||t.width)-widthB)<.01)?.lanes||ROADS[neighbor.type].lanes)/2),lanes=Math.max(capA,capB);
  // Mark the surviving road intervals right up to the shared junction boundary.
  // Never suppress a whole grid link merely because it is near a junction.
- for(const [lo,hi]of intervals){const guide=(oa,ob,color,dashed=false)=>{const point=t=>{const off=oa+(ob-oa)*t;return[x+dx*t+perpX*off,z+dz*t+perpZ*off];};if(!dashed){ribbon([point(lo),point(hi)],color,color==='#ead78c'?.018:.025);return;}
+ for(const [lo,hi]of intervals){const guide=(oa,ob,color,dashed=false)=>{const point=t=>{const off=oa+(ob-oa)*t;return[x+dx*t+perpX*off,z+dz*t+perpZ*off];};if(!dashed){ribbon([point(lo),point(hi)],color,color==='#ead78c'||color===PREMIUM_CENTER?.018:.025);return;}
  const origin=x*axisX+z*axisZ,start=origin+lo*len,end=origin+hi*len;for(let dash=Math.floor(start);dash<end;dash++){const a=Math.max(start,dash),b=Math.min(end,dash+.45);if(b>a)ribbon([point((a-origin)/len),point((b-origin)/len)],color,.025);}};
- for(const sign of [-1,1]){guide(.035*sign,.035*sign,'#ead78c');guide(widthA/2*sign,widthB/2*sign,'#dce3d8');for(let k=1;k<lanes;k++)guide(Math.min(widthA/2-.1,k*widthA/(capA*2))*sign,Math.min(widthB/2-.1,k*widthB/(capB*2))*sign,'#dce3d8',true);}}
+ const premium=r.type==='large'&&neighbor?.type==='large'&&
+  Math.abs(widthA-roadWidths.large)<.02&&Math.abs(widthB-roadWidths.large)<.02;
+  for(const sign of [-1,1]){
+   guide(.035*sign,.035*sign,premium?PREMIUM_CENTER:'#ead78c');
+   guide(widthA/2*sign,widthB/2*sign,premium?PREMIUM_EDGE:'#dce3d8');
+   for(let k=1;k<lanes;k++)guide(Math.min(widthA/2-.1,k*widthA/(capA*2))*sign,Math.min(widthB/2-.1,k*widthB/(capB*2))*sign,premium?PREMIUM_LANE:'#dce3d8',true);
+  }}
  // Subtle joint every third intact link, underneath lane paint; no extra road width.
  // Skip corners and intersections so joints cannot cut through junction surfaces.
  if(r.type==='large'&&neighbor?.type==='large'&&around.length===0&&intervals.length===1&&
@@ -2816,19 +2822,20 @@ export class TrafficRenderer{
 
  }
  if(junction(i)>=3||layouts.has(i)){const layout=layouts.get(i);if(layout){
- const shape=new THREE.Shape();layout.polygon.forEach(([px,pz],index)=>index?shape.lineTo(px,-pz):shape.moveTo(px,-pz));shape.closePath();const geometry=new THREE.ShapeGeometry(shape);geometry.rotateX(-Math.PI/2);batch.add(geometry,layout.arms.length>=2&&layout.arms.every(a=>Math.abs(a.width-roadWidths.large)<.02)?PREMIUM_CONCRETE:'#47565c',x,.105,z,1,1,1);
- for(const edge of layout.borders){const points=edge.map(([px,pz])=>[x+px,z+pz]);ribbon(points,'#c9c8b5',.28,.08);ribbon(points,'#dce3d8',.025);}
+ const premiumLayout=layout.arms.length>=2&&layout.arms.every(a=>Math.abs(a.width-roadWidths.large)<.02);
+ const shape=new THREE.Shape();layout.polygon.forEach(([px,pz],index)=>index?shape.lineTo(px,-pz):shape.moveTo(px,-pz));shape.closePath();const geometry=new THREE.ShapeGeometry(shape);geometry.rotateX(-Math.PI/2);batch.add(geometry,premiumLayout?PREMIUM_CONCRETE:'#47565c',x,.105,z,1,1,1);
+ for(const edge of layout.borders){const points=edge.map(([px,pz])=>[x+px,z+pz]);ribbon(points,'#c9c8b5',.28,.08);ribbon(points,premiumLayout?PREMIUM_EDGE:'#dce3d8',.025);}
  if(layout.bend){const a=layout.ports[0],b=layout.ports[1],va=[[1,0],[0,1],[-1,0],[0,-1]][a.dir],vb=[[1,0],[0,1],[-1,0],[0,-1]][b.dir],capA=Math.max(1,ROADS[state.roads.get(a.node)?.type||'small'].lanes/2),capB=Math.max(1,ROADS[state.roads.get(b.node)?.type||'small'].lanes/2);
  const guide=(oa,ob,color,dashed=false)=>{const ax=va[0]*a.extent-va[1]*oa,az=va[1]*a.extent+va[0]*oa,bx=vb[0]*b.extent+vb[1]*ob,bz=vb[1]*b.extent-vb[0]*ob,cx=a.dir%2===0?bx:ax,cz=a.dir%2===0?az:bz,points=[];for(let k=0;k<=64;k++){const t=k/64,u=1-t;points.push([x+u*u*ax+2*u*t*cx+t*t*bx,z+u*u*az+2*u*t*cz+t*t*bz]);}if(dashed)dashedRibbon(points,color,.025);else ribbon(points,color,.018);};
- for(const sign of [-1,1]){guide(.035*sign,.035*sign,'#ead78c');for(let k=1;k<Math.max(capA,capB);k++)guide(Math.min(a.width/2-.1,k*a.width/(capA*2))*sign,Math.min(b.width/2-.1,k*b.width/(capB*2))*sign,'#dce3d8',true);}}
+ for(const sign of [-1,1]){guide(.035*sign,.035*sign,premiumLayout?PREMIUM_CENTER:'#ead78c');for(let k=1;k<Math.max(capA,capB);k++)guide(Math.min(a.width/2-.1,k*a.width/(capA*2))*sign,Math.min(b.width/2-.1,k*b.width/(capB*2))*sign,premiumLayout?PREMIUM_LANE:'#dce3d8',true);}}
 
  for(const port of layout.ports){if(layout.bend)continue;
  const [vx,vz]=[[1,0],[0,1],[-1,0],[0,-1]][port.dir],px=-vz,pz=vx,ww=port.width,offset=port.extent+.13;
- line.box('#edf0df',x+vx*offset+px*ww/4,.115,z+vz*offset+pz*ww/4,.075,.012,Math.max(.2,ww/2-.12),-Math.atan2(vz,vx));
+ line.box(premiumLayout?PREMIUM_LANE:'#edf0df',x+vx*offset+px*ww/4,.115,z+vz*offset+pz*ww/4,.075,.012,Math.max(.2,ww/2-.12),-Math.atan2(vz,vx));
  // Compact zebra crossing inside the stop bar; markings never affect routing.
  const across=ww/2-.12,crossAt=port.extent-.28;
  for(let stripe=-across+.09;stripe<across;stripe+=.23){
-  line.box('#f1eddb',x+vx*crossAt+px*stripe,.12,z+vz*crossAt+pz*stripe,.38,.01,.12,-Math.atan2(vz,vx));
+  line.box(premiumLayout?PREMIUM_LANE:'#f1eddb',x+vx*crossAt+px*stripe,.12,z+vz*crossAt+pz*stripe,.38,.01,.12,-Math.atan2(vz,vx));
  }
  // Octagonal three-zone signal, one pole on the verge for each incoming direction.
  // Scale the standard model uniformly to 70%; AI keeps its full size and position.
