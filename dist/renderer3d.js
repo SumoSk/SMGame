@@ -1076,6 +1076,27 @@ export class TrafficRenderer{
    set.lightSpill.material.opacity=night*.13;
   }
  }
+ // Use the existing moving directional sun and shadows on every road width.
+ // Change only physically based material uniforms: no new lights, geometry,
+ // postprocessing, reflective overlays or changes to traffic physics.
+ updateRoadSurfaceLighting(solar,wet){
+  const sunlight=THREE.MathUtils.clamp(solar,0,1);
+  const moisture=THREE.MathUtils.clamp(wet,0,1);
+  if(Math.abs(sunlight-(this.lastRoadSun??-1))<.025&&
+     Math.abs(moisture-(this.lastWet??-1))<.02)return;
+  this.lastRoadSun=sunlight;this.lastWet=moisture;
+  this.roadGroup.traverse(mesh=>{
+   const base=mesh.userData?.baseColor;
+   // Original small/medium asphalt, isolated road nodes and eight-lane
+   // charcoal concrete, including junction and corner surfaces.
+   if(!mesh.material||!['#47565c','#424f55','#555957'].includes(base))return;
+   const concrete=base==='#555957';
+   const dry=concrete?.71:.74,sunSheen=concrete?.11:.12,wetSheen=concrete?.29:.33;
+   mesh.material.roughness=THREE.MathUtils.clamp(
+    dry-sunlight*sunSheen-moisture*wetSheen,.30,.85);
+   mesh.material.metalness=moisture*.075;
+  });
+ }
  updateWeatherLight(state){
   const sun=lightAt(state.time),air=climateAt(state.time,state.city),visibility=cityVisibilityAt(state.time);
   this.scene.background.copy(sun.sky).lerp(new THREE.Color('#738999'),air.cloud*.22+air.rain*.38);
@@ -1121,12 +1142,7 @@ export class TrafficRenderer{
     p[k]=x;p[k+1]=y;p[k+2]=z;p[k+3]=x+.13;p[k+4]=y-.65;p[k+5]=z+.05;
    }this.rain.geometry.attributes.position.needsUpdate=true;
   }
-  if(Math.abs(air.wet-(this.lastWet??-1))>.02){
-   this.roadGroup.traverse(mesh=>{
-    if(!mesh.material||!['#47565c','#424f55'].includes(mesh.userData.baseColor))return;
-    mesh.material.roughness=.83-air.wet*.53;mesh.material.metalness=air.wet*.13;
-   });this.lastWet=air.wet;
-  }
+  this.updateRoadSurfaceLighting(solar,air.wet);
  }
  updateCamera(cam){
   this.cam=cam;
@@ -2980,7 +2996,7 @@ export class TrafficRenderer{
   halos.instanceMatrix.needsUpdate=true;halos.frustumCulled=false;this.streetGlow=halos;this.lampGroup.add(halos);
  }
  this.buildBorderCheckpoints(state);
- this.lastGlow=-1;this.lastWet=-1;this.lastNightVisibility=-1;
+ this.lastGlow=-1;this.lastWet=-1;this.lastRoadSun=-1;this.lastNightVisibility=-1;
 }
 
  buildBorderCheckpoints(state){
