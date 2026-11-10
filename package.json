@@ -1,0 +1,35 @@
+{
+  "name": "smcity-pc",
+  "version": "5.5.0",
+  "private": true,
+  "description": "SMCITY offline-packaged desktop game with secure localhost origin",
+  "main": "pc-localhost-main.cjs",
+  "scripts": {
+    "pc:start": "electron .",
+    "pc:exe": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.smcity.desktop",
+    "productName": "SMCITY",
+    "asar": true,
+    "directories": {
+      "output": "pc-release"
+    },
+    "files": [
+      "index.html",
+      "dist/**/*",
+      "assets/**/*",
+      "*.png",
+      "*.webmanifest",
+      "pc-localhost-main.cjs",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable"
+    }
+  }
+}
