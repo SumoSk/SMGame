@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=dark-concrete-champagne-20261110';
+import { TrafficRenderer } from './renderer3d.js?v=all-road-sunlight-20261110';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
 await import('./game.js?v=dark-concrete-champagne-20261110');
 await import('./member.js?v=4ed815769287');
