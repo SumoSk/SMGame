@@ -6574,7 +6574,7 @@ function roadWaitOwner(v,pos){
 function rememberTrafficWait(v,plan,distance,gate){
  if(gate?.ownerId==null||gate.ownerId===v.id||gate.limit>distance+.03){trafficWaits.delete(v);return;}
  trafficWaits.set(v,{state,version:state.version,path:v.path,plan,distance,
-  ownerId:gate.ownerId,serial:trafficWaitSerial,at:state.time,reason:gate.reason});
+  ownerId:gate.ownerId,serial:trafficWaitSerial,at:state.time,reason:gate.reason,junctionNode:gate.junctionNode??null});
 }
 function processTrafficDeadlocks(simDt){
  if(!(simDt>0))return;
@@ -6600,12 +6600,27 @@ function processTrafficDeadlocks(simDt){
   for(const member of chain)done.add(member);
   if(!indices.has(next))continue;
   const cycle=chain.slice(indices.get(next));if(cycle.length<2)continue;
-  // A normal queue ending at a red signal or a downstream leader has no cycle.
-  // Require an actual junction/bend member before extending road recovery policy.
-  if(!cycle.some(member=>{const w=observations.get(member);return w.plan.junctions.some(g=>w.distance>=g.entry-.03&&w.distance<g.clear);}))continue;
-  const key=[...cycle].sort((a,b)=>a-b).join(':');seenCycles.add(key);
-  const since=trafficCycleSince.get(key);if(since==null){trafficCycleSince.set(key,state.time);continue;}
-  if(state.time-since<3||recovered)continue;
+  // A normal queue ending at a red light/downstream leader has no cycle.
+  const inside=cycle.some(member=>{const w=observations.get(member);return w.plan.junctions.some(g=>w.distance>=g.entry-.03&&w.distance<g.clear);});
+  if(!inside){
+   // Mixed queue/physical cycles also form BEFORE entry. Limit recovery to the
+   // same nearby junction, with an observed queue edge and live green approaches.
+   const queueMember=cycle.find(member=>{const w=observations.get(member);return w.reason==='คิวแยก'&&w.junctionNode!=null;});
+   if(queueMember==null)continue;
+   const node=observations.get(queueMember).junctionNode;
+   if(!cycle.every(member=>{
+    const w=observations.get(member),car=state.vehicles.get(member),g=w.plan.junctions.find(g=>g.node===node);
+    return g&&w.distance>=g.stop-2.5&&w.distance<g.entry&&
+     (!signalRequired(node)||signalAllows(node,motionDirection(car.path,g.pos-1),plannedLane(car,g.pos-1)));
+   }))continue;
+  }
+  const members=[...cycle].sort((a,b)=>a-b),key=members.map(id=>id+'>'+edges.get(id)).join(':');seenCycles.add(key);
+  let since=trafficCycleSince.get(key);
+  if(!since||since.members.some(m=>{const w=observations.get(m.id);return !w||w.path!==m.path||w.plan!==m.plan||Math.abs(w.distance-m.distance)>1e-6;})){
+   since={at:state.time,members:members.map(id=>({id,path:observations.get(id).path,plan:observations.get(id).plan,distance:observations.get(id).distance}))};
+   trafficCycleSince.set(key,since);continue;
+  }
+  if(state.time-since.at<3||recovered)continue;
   const victim=state.vehicles.get(Math.max(...cycle));
   // One intervention breaks a cycle; preserve the original trip and destination reservation.
   if(victim&&(respawnVehicle(victim,'junction_deadlock')||towVehicle(victim.id,true))){
@@ -7048,15 +7063,55 @@ function queueIndex(queue){
 }
 // Followers inherit their lane-head ordering; only eligible vehicles need
 // repeated live exit and conflict checks. Turning cars retain own movement rights.
-function queuedBehindLeader(v,pos,connector){
- const queue=state.junctionQueues?.get(trafficQueueKey(v,v.path[pos]));if(!queue)return false;
+function queueHeadBlocker(v,pos,connector){
+ const queue=state.junctionQueues?.get(trafficQueueKey(v,v.path[pos]));if(!queue)return null;
  const {fronts,byId}=queueIndex(queue),own=byId.get(v.id+':'+pos);
- if(!own)return false;
+ if(!own)return null;
  const heads=fronts.get(connector.incoming+':'+connector.laneIn);
  const front=heads?.first?.id===v.id?heads.second:heads?.first;
- return !!front&&front.distance<own.distance-.01;
+ return front&&front.distance<own.distance-.01?front:null;
+}
+function queuedBehindLeader(v,pos,connector){return !!queueHeadBlocker(v,pos,connector);}
+// A clear exit does not mean an approach can advance. Only a rival which can
+// reach entry NOW may hold up another movement; its waiting age is never reset.
+function junctionQueueMobility(car,pos){
+ if(!trafficSpatial)return {ready:true};
+ if(car.phase!=='driving'||!car.path?.length)return {ready:false,ownerId:null};
+ const plan=motionPlan(car),distance=motionDistance(car,plan),guard=plan.junctions.find(g=>g.pos===pos);
+ if(!guard||distance>=guard.entry)return {ready:false,ownerId:null};
+ // A car registered at two nearby junctions must first clear or acquire the
+ // earlier one. Its downstream request cannot outrank a car which can enter.
+ if(plan.junctions.some(g=>g.pos<pos&&distance<g.clear&&!ownsJunctionPass(car,g.pos)))
+  return {ready:false,ownerId:null};
+ const memo=(trafficSpatial.queueMobility??=new WeakMap()).get(car);
+ const cached=memo&&memo.epoch===trafficSpatial.epoch&&memo.plan===plan&&memo.path===car.path&&
+   memo.pos===pos&&memo.distance===distance?memo.result:null;
+ const entry=Math.min(plan.total,guard.entry+.001),probe=Math.max(.12,entry-distance);
+ let result=cached;
+ if(!result){
+  const savedBlock=car.lastPhysicalBlock;
+  try{
+   const limit=physicalTrafficLimit(car,plan,distance,probe);
+   result={ready:limit>=entry-1e-6,ownerId:car.lastPhysicalBlock?.ownerId??null,limit,entry,distance};
+  }finally{
+   // Arbitration is a read-only probe, not this car's actual movement decision.
+   car.lastPhysicalBlock=savedBlock;
+  }
+  trafficSpatial.queueMobility.set(car,{epoch:trafficSpatial.epoch,plan,path:car.path,pos,distance,result});
+ }
+ // Road claims can change without a spatial update. Cache physical geometry
+ // only; every eligibility attempt must recheck the current approach claims.
+ if(result.ready)for(let k=car.pos+1;k<=pos;k++){
+  if(plan.nodes[k]-TRAFFIC_RULES.vehicleHalfLength*2-.08>entry)break;
+  if(!roadTraversalAvailable(car,k))return {...result,ready:false,ownerId:roadWaitOwner(car,k)};
+ }
+ return result;
+}
+function noteQueueDenial(v,details){
+ v.lastQueueDenial={gameTime:state.time,...details};return false;
 }
 function queueAllows(v,pos,connector,precheckedExit=null){
+ v.lastQueueDenial=null;
  const node=v.path[pos],queue=state.junctionQueues?.get(trafficQueueKey(v,node));if(!queue)return true;
  const {fronts,byId}=queueIndex(queue),own=byId.get(v.id+':'+pos);
  if(!own)return true;
@@ -7067,13 +7122,17 @@ function queueAllows(v,pos,connector,precheckedExit=null){
    (q.id===v.id&&precheckedExit!==null?precheckedExit:junctionExitAvailable(car,q.pos))&&
    !(front&&front.distance<q.distance-.01);
  };
- if(!eligible(own)){const head=fronts.get(own.connector.incoming+':'+own.connector.laneIn)?.first;if(bugCaptureEnabled)v.lastQueueDenial={gameTime:state.time,code:'self_not_eligible',headId:head?.id??null,ownDistance:own.distance};return false;}
+ if(!eligible(own)){const head=queueHeadBlocker(v,pos,connector);return noteQueueDenial(v,{code:'self_not_eligible',headId:head?.id??null,blockerId:head?.id??null,ownDistance:own.distance});}
  const priority=junctionPriority(own,node);
  for(const other of queue){
   if(other.id===v.id||!eligible(other)||!connectorsConflict(connector,other.connector))continue;
   const p=junctionPriority(other,node);
   if(p<priority||p===priority&&(other.at<own.at||other.at===own.at&&
-   (other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id))){if(bugCaptureEnabled)v.lastQueueDenial={gameTime:state.time,code:'other_vehicle_priority',blockerId:other.id,blockerPriority:p,ownPriority:priority,blockerDistance:other.distance,ownDistance:own.distance};return false;}
+   (other.distance<own.distance-.01||Math.abs(other.distance-own.distance)<.01&&other.id<v.id))){
+   const rival=state.vehicles.get(other.id);
+   if(!junctionQueueMobility(rival,other.pos).ready)continue;
+   return noteQueueDenial(v,{code:'other_vehicle_priority',blockerId:other.id,blockerPriority:p,ownPriority:priority,blockerDistance:other.distance,ownDistance:own.distance});
+  }
  }
  return true;
 }
@@ -7182,6 +7241,7 @@ function processJunctionTows(simDt){
  }
 }
 function intersectionAllowed(v,pos,ignoreSignal=false){
+ v.lastJunctionDenial=null;v.lastQueueDenial=null;
  if(ownsJunctionPass(v,pos))return true;const i=v.path[pos];if(!trafficConflictNode(i))return true;
  const entering=motionDirection(v.path,pos-1),lane=plannedLane(v,pos-1);if(!isAirTraffic(v)&&signalRequired(i)&&!ignoreSignal&&!signalAllows(i,entering,lane))return noteVehicleJunctionDenial(v,i,'red_signal',{incoming:entering,lane,signal:signalColor(i,entering,lane)});
  const connector=junctionConnector(v,pos),lock=state.reservations.get(trafficJunctionKey(v,i));
@@ -7191,11 +7251,13 @@ function intersectionAllowed(v,pos,ignoreSignal=false){
  // A queued follower cannot pass the head of its lane. Avoid the expensive
  // downstream exit scan until its turn without weakening collision checks.
  // Keep the lane-head index live instead of bypassing arbitration after red.
- if(!ignoreSignal&&queuedBehindLeader(v,pos,connector))return noteVehicleJunctionDenial(v,i,'queued_behind_head');
+ const head=!ignoreSignal?queueHeadBlocker(v,pos,connector):null;
+ if(head)return noteVehicleJunctionDenial(v,i,'queued_behind_head',{ownerId:head.id,headVehicleId:head.id});
  let exitAvailable=junctionExitAvailable(v,pos);
  if(!exitAvailable&&(v.wait||0)>=.8&&recoverOrphanJunctionClaims(v,i))exitAvailable=junctionExitAvailable(v,pos);
  if(!exitAvailable)return noteVehicleJunctionDenial(v,i,'junction_exit_blocked',{exitCheck:v.lastJunctionExitCheck||null});
- if(!ignoreSignal&&!queueAllows(v,pos,connector,true))return noteVehicleJunctionDenial(v,i,'queue_arbitration_denied');
+ if(!ignoreSignal&&!queueAllows(v,pos,connector,true))return noteVehicleJunctionDenial(v,i,'queue_arbitration_denied',
+  {ownerId:v.lastQueueDenial?.blockerId??null,denial:bugCaptureEnabled?v.lastQueueDenial:null});
  v.lastJunctionDenial=null;return true;
 }
 function ownsJunctionPass(v,pos){return v.junctionPasses?.some(p=>p.pos===pos&&p.node===v.path[pos]);}
@@ -7209,7 +7271,13 @@ function reserveIntersection(v,pos){
  const renew=ownsJunctionPass(v,pos),keys=junctionClaimKeys(v,pos);
  if(!renew){
   const plan=motionPlan(v),g=plan.junctions.find(g=>g.pos===pos);
-  if(!g||!intersectionAllowed(v,pos,motionDistance(v,plan)>g.entry+1e-6)||keys.some(key=>!canHoldRoadCell(v,key)))return false;
+  if(!g||!intersectionAllowed(v,pos,motionDistance(v,plan)>g.entry+1e-6))return false;
+  const blockedKey=keys.find(key=>!canHoldRoadCell(v,key));
+  if(blockedKey!=null){
+   const claim=state.reservations.get(blockedKey),owner=state.occ.get(blockedKey);
+   return noteVehicleJunctionDenial(v,node,'junction_claim_unavailable',
+    {ownerId:claim&&claim.id!==v.id?claim.id:owner!=null&&owner!==v.id?owner:null,claimKey:blockedKey});
+  }
  }
  const key=trafficJunctionKey(v,node),old=state.reservations.get(key);
  const lock=old?.passes?old:{passes:old?[{...old}]:[]};
@@ -7429,7 +7497,9 @@ function motionBarrier(v,plan,s,budget=-1){
  const scan=Math.max(.8,Math.min(3,(v.speed||0)*(v.speed||0)/9.6+.3),budget>=0?budget+.1:0);
  // Cars already on the road have priority: the parking exit must yield, not stop all road traffic.
  const physical=physicalTrafficLimit(v,plan,s,scan);
- let limit=physical,reason=Number.isFinite(physical)?'เว้นระยะรถ':'',ownerId=Number.isFinite(physical)?v.lastPhysicalBlock?.ownerId??null:null;
+ let limit=physical,reason=Number.isFinite(physical)?'เว้นระยะรถ':'',ownerId=Number.isFinite(physical)?v.lastPhysicalBlock?.ownerId??null:null,junctionNode=null;
+ let junctionDenial=null,queueDenial=null;
+ const selectJunction=(g)=>{junctionNode=g.node;junctionDenial=v.lastJunctionDenial;queueDenial=v.lastQueueDenial;};
  const nextPos=v.pos+1;
  if(nextPos<v.path.length&&!roadTraversalAvailable(v,nextPos)){
   const nextNode=v.path[nextPos],nextDirection=motionDirection(v.path,nextPos),nextLane=plannedLane(v,nextPos);
@@ -7445,14 +7515,18 @@ function motionBarrier(v,plan,s,budget=-1){
   const allowed=intersectionAllowed(v,g.pos,inside);
   if(!allowed){
    const stop=Math.max(s,g.stop);
-   if(stop<limit){limit=stop;ownerId=v.lastJunctionDenial?.ownerId??null;reason=!isAirTraffic(v)&&signalRequired(g.node)&&!signalAllows(g.node,dir(v.path[g.pos-1],g.node),plannedLane(v,g.pos-1))?'ไฟแดง':'คิวแยก';}
+   if(stop<limit){limit=stop;selectJunction(g);ownerId=v.lastJunctionDenial?.ownerId??null;reason=!isAirTraffic(v)&&signalRequired(g.node)&&!signalAllows(g.node,dir(v.path[g.pos-1],g.node),plannedLane(v,g.pos-1))?'ไฟแดง':'คิวแยก';}
   // Commit only when this step can reach the entry, not merely the stop line.
   // Otherwise a follower can lock out its leader while waiting behind it.
   }else if(inside||(budget>=0&&g.entry<=s+budget+1e-8&&g.entry<=limit)){
-   if(!reserveIntersection(v,g.pos)){limit=Math.min(limit,Math.max(s,g.stop));reason='คิวแยก';ownerId=v.lastJunctionDenial?.ownerId??roadWaitOwner(v,g.pos);}
+   if(!reserveIntersection(v,g.pos)){
+    const stop=Math.max(s,g.stop);
+    if(stop<limit){limit=stop;reason='คิวแยก';selectJunction(g);ownerId=v.lastJunctionDenial?.ownerId??roadWaitOwner(v,g.pos);}
+   }
   }
  }
- return{limit,reason,ownerId};
+ v.lastJunctionDenial=junctionDenial;v.lastQueueDenial=queueDenial;
+ return{limit,reason,ownerId,junctionNode};
 }
 function enforceNoUTurn(v){
  if(v.noUTurnPolicy===1||!v.path?.length)return;
