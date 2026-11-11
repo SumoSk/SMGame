@@ -7881,3 +7881,11 @@ html body #inspector .sm-inspector-heading .tag{opacity:1!important;color:#bce3c
 .sheet-purchase-actions{margin-top:17px;display:flex;gap:10px}
 .sheet-purchase-actions>button{flex:1;min-height:42px}
 @media(max-width:550px){.map-sheet-buy-pin{min-width:135px;padding:6px 10px 6px 6px}.map-sheet-buy-icon{width:34px;height:34px}.map-sheet-buy-copy strong{font-size:12px}.map-sheet-buy-copy small{font-size:11px}.sheet-purchase-card{gap:10px}.sheet-purchase-emblem{width:43px;height:43px;font-size:29px}}
+
+/* Public fast-forward speeds must remain hidden, even when command bar buttons use !important. */
+#cityCommandBar button[data-creator-only-speed][hidden]{display:none!important}
+/* Keep skip-day cost visible on phones where the full skip label is hidden. */
+#cityCommandBar #skip .skip-mobile-cost{display:none!important}
+@media(max-width:500px){
+ #cityCommandBar #skip .skip-mobile-cost{display:inline!important;font-size:9px;font-weight:700;line-height:1;letter-spacing:-.02em}
+}
