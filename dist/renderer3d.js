@@ -437,6 +437,8 @@ function mountainHeight(x,z){
 // Citizen trait weights are intentionally untouched; tourist taxi is not a
 // ninth random citizen class.
 const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van','touristTaxi','f1','truck6','truck8','roadTrain'];
+// Render-only scaling for all moving/parked cars and LOD models. No physics changes.
+const VEHICLE_VISUAL_SCALE=.80;
 const VEHICLE_WEIGHTS=[[26,36,20,10,4,1,1,2],[11,16,42,20,5,1,1,4],[7,12,11,24,33,6,5,2],[2,4,5,10,25,24,28,2]];
 const VEHICLE_STYLES=[
  [.49,.238,.125,-.028,.303,.118], // compact hatchback
@@ -8996,17 +8998,17 @@ export class TrafficRenderer{
     if(level==='roadTrainLow'||level==='taxiLow'){
      // Dedicated low vehicle body + detail live in baked, instanced geometry.
      dummy.position.set(car.x,car.altitude||0,car.z);
-     dummy.scale.set(1,1,1);dummy.updateMatrix();
+     dummy.scale.set(VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE);dummy.updateMatrix();
      set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
      set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
     }else{
      const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[car.kind];
-     dummy.position.set(car.x,.163+(car.altitude||0),car.z);dummy.scale.set(length,height*.82,width*.96);dummy.updateMatrix();
+     dummy.position.set(car.x,.163*VEHICLE_VISUAL_SCALE+(car.altitude||0),car.z);dummy.scale.set(length*VEHICLE_VISUAL_SCALE,height*.82*VEHICLE_VISUAL_SCALE,width*.96*VEHICLE_VISUAL_SCALE);dummy.updateMatrix();
      set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
      if(set.roof){
       const cos=Math.cos(car.angle),sin=Math.sin(car.angle);
-      dummy.position.set(car.x+cabinX*cos,.165+(car.altitude||0)+height*.5+cabinH*.39,car.z+cabinX*sin);
-      dummy.scale.set(cabinL,cabinH*.78,width*.80);dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
+      dummy.position.set(car.x+cabinX*VEHICLE_VISUAL_SCALE*cos,(.165+height*.5+cabinH*.39)*VEHICLE_VISUAL_SCALE+(car.altitude||0),car.z+cabinX*VEHICLE_VISUAL_SCALE*sin);
+      dummy.scale.set(cabinL*VEHICLE_VISUAL_SCALE,cabinH*.78*VEHICLE_VISUAL_SCALE,width*.80*VEHICLE_VISUAL_SCALE);dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
      }
     }
    }
@@ -9056,7 +9058,7 @@ export class TrafficRenderer{
    const upgraded=Object.hasOwn(VEHICLE_TECH_COLORS,tech);
    const kind=carClassFor(c,id,tech,v),car={x,z,angle,color:upgraded?VEHICLE_TECH_COLORS[tech]:carPaintFor(c,id,kind,fallback),kind,altitude};
    const pixelScale=this.camera.isPerspectiveCamera?this.h/(2*Math.max(.1,this.camera.position.distanceTo(point))*Math.tan(this.camera.fov*Math.PI/360)):centrePixelsPerUnit;
-   const apparentLength=VEHICLE_STYLES[kind][0]*pixelScale;
+   const apparentLength=VEHICLE_STYLES[kind][0]*VEHICLE_VISUAL_SCALE*pixelScale;
    const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
    // Low uses the cheapest proxy at every distance, while preserving car picking.
@@ -9117,26 +9119,26 @@ export class TrafficRenderer{
     if(!old||old.color!==car.color){set.body.setColorAt(i,this.carTint.set(car.color));this.dirtyCarInstances(set.body.instanceColor,i);}
     set.lastCars[i]=car;if(!moved)continue;
     this.carDummy.position.set(car.x,car.altitude||0,car.z);this.carDummy.rotation.set(0,-car.angle,0);
-    this.carDummy.scale.set(1,1,1);this.carDummy.updateMatrix();
+    this.carDummy.scale.set(VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE);this.carDummy.updateMatrix();
     set.body.setMatrixAt(i,this.carDummy.matrix);set.trim.setMatrixAt(i,this.carDummy.matrix);
     const [length,width]=VEHICLE_STYLES[kind],cos=Math.cos(car.angle),sin=Math.sin(car.angle);
     for(const sign of [-1,1]){
      // Car model faces +X in local space; side offsets rotate with the body.
-     const side=sign*width*.33;
+     const side=sign*width*.33*VEHICLE_VISUAL_SCALE;
      for(const [mesh,localX,height] of [[set.headlights,length*.5+.024,.185],[set.taillights,-length*.5-.024,.170]]){
-      this.carLightDummy.position.set(car.x+cos*localX-sin*side,height+(car.altitude||0),car.z+sin*localX+cos*side);
+      this.carLightDummy.position.set(car.x+cos*localX*VEHICLE_VISUAL_SCALE-sin*side,height*VEHICLE_VISUAL_SCALE+(car.altitude||0),car.z+sin*localX*VEHICLE_VISUAL_SCALE+cos*side);
       this.carLightDummy.rotation.set(0,-car.angle,0);
-      this.carLightDummy.scale.set(mesh===set.headlights?.024:.018,.037,.050);
+      this.carLightDummy.scale.set((mesh===set.headlights?.024:.018)*VEHICLE_VISUAL_SCALE,.037*VEHICLE_VISUAL_SCALE,.050*VEHICLE_VISUAL_SCALE);
       this.carLightDummy.updateMatrix();
       mesh.setMatrixAt(i*2+(sign+1)/2,this.carLightDummy.matrix);
      }
     }
     // A very faint forward pool of light on the pavement at night.
     // One transparent instanced box per car; no shadows or dynamic lights.
-    const spillX=length*.5+.17;
+    const spillX=(length*.5+.17)*VEHICLE_VISUAL_SCALE;
     this.carLightDummy.position.set(car.x+cos*spillX,.026,car.z+sin*spillX);
     this.carLightDummy.rotation.set(0,-car.angle,0);
-    this.carLightDummy.scale.set((car.altitude||0)>1?.001:.31,.008,(car.altitude||0)>1?.001:.21);
+    this.carLightDummy.scale.set(((car.altitude||0)>1?.001:.31)*VEHICLE_VISUAL_SCALE,.008,((car.altitude||0)>1?.001:.21)*VEHICLE_VISUAL_SCALE);
     this.carLightDummy.updateMatrix();
     set.lightSpill.setMatrixAt(i,this.carLightDummy.matrix);
     for(const mesh of [set.body,set.trim,set.lightSpill])this.dirtyCarInstances(mesh.instanceMatrix,i);
@@ -9183,7 +9185,7 @@ export class TrafficRenderer{
     for(let i=0;i<items.length;i++){
      const car=items[i],pulse=1.026+.013*Math.sin(time+i*.38);
      d.position.set(car.x,(car.altitude||0)+.002,car.z);
-     d.rotation.set(0,-car.angle,0);d.scale.set(pulse,pulse,pulse);d.updateMatrix();
+     d.rotation.set(0,-car.angle,0);d.scale.set(pulse*VEHICLE_VISUAL_SCALE,pulse*VEHICLE_VISUAL_SCALE,pulse*VEHICLE_VISUAL_SCALE);d.updateMatrix();
      glow.setMatrixAt(i,d.matrix);
     }
     if(items.length)glow.instanceMatrix.needsUpdate=true;
@@ -9200,9 +9202,9 @@ export class TrafficRenderer{
     const pulse=.94+.10*Math.sin(time*1.7+i*.73);
     for(let j=0;j<3;j++){
      const localX=j===2?-.46:-.29,localZ=j===2?0:(j===0?-.15:.15);
-     d.position.set(car.x+cos*localX-sin*localZ,(car.altitude||0)+.16,
-      car.z+sin*localX+cos*localZ);
-     d.rotation.set(0,-car.angle,0);d.scale.set(pulse,j===2?.70:.86,j===2?.70:.85);
+     d.position.set(car.x+(cos*localX-sin*localZ)*VEHICLE_VISUAL_SCALE,(car.altitude||0)+.16*VEHICLE_VISUAL_SCALE,
+      car.z+(sin*localX+cos*localZ)*VEHICLE_VISUAL_SCALE);
+     d.rotation.set(0,-car.angle,0);d.scale.set(pulse*VEHICLE_VISUAL_SCALE,(j===2?.70:.86)*VEHICLE_VISUAL_SCALE,(j===2?.70:.85)*VEHICLE_VISUAL_SCALE);
      d.updateMatrix();streak.setMatrixAt(i*3+j,d.matrix);
     }
    }
