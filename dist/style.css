@@ -7884,8 +7884,3 @@ html body #inspector .sm-inspector-heading .tag{opacity:1!important;color:#bce3c
 
 /* Public fast-forward speeds must remain hidden, even when command bar buttons use !important. */
 #cityCommandBar button[data-creator-only-speed][hidden]{display:none!important}
-/* Keep skip-day cost visible on phones where the full skip label is hidden. */
-#cityCommandBar #skip .skip-mobile-cost{display:none!important}
-@media(max-width:500px){
- #cityCommandBar #skip .skip-mobile-cost{display:inline!important;font-size:9px;font-weight:700;line-height:1;letter-spacing:-.02em}
-}
