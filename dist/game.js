@@ -5760,7 +5760,7 @@ function newMissionCounters(){return{total:0,ontime:0,late:0,missed:0,unavailabl
 function newMissionDay(day=performanceDay(),since=state.time){
  return{day,since,residentOnlyTotals:true,...newMissionCounters(),byKind:Object.fromEntries(MISSION_KINDS.map(k=>[k,newMissionCounters()])),
  tripsStarted:0,tripsArrived:0,tripsByKind:{},arrivalsByKind:{},serviceResults:{},peakCars:0,peakWaiting:0,peakPopulation:0,happyMin:100,happyMax:0,populationIn:0,populationOut:0,touristsIn:0,touristsOut:0,
- touristsRevenue:0,touristsDiscount:0,incidentReward:0,missionBonus:0,roadCost:0,buildingCost:0,buildingsBuilt:0,buildingsRemoved:0,roadsBuilt:0,
+ touristsRevenue:0,touristsDiscount:0,incidentReward:0,missionBonus:0,skipDayFee:0,roadCost:0,buildingCost:0,buildingsBuilt:0,buildingsRemoved:0,roadsBuilt:0,
  taxRevenue:0,businessRevenue:0,maintenanceCost:0,dailySettlement:0,taxAdjustments:0,hudOpeningMoney:state.money,openingMoney:state.money,endingMoney:state.money};
 }
 function newMissionStats(){return{version:2,current:newMissionDay(),previous:null,dismissedDay:-1};}
@@ -5862,7 +5862,7 @@ function missionReportMarkup(which='current'){
  const int=n=>fmt(Math.round(n||0)),fraction=n=>n==null?'—':Number(n).toFixed(1),moneySigned=n=>(n>=0?'+':'−')+money(Math.abs(n)),percent=n=>n==null?'—':n.toFixed(1)+'%';
  const summary=s.cityEnd||(which==='current'?missionCitySnapshot():null);
  const revenue=s.taxRevenue+s.businessRevenue+s.touristsRevenue+s.incidentReward+s.missionBonus+Math.max(0,s.taxAdjustments);
- const expense=s.maintenanceCost+s.touristsDiscount+s.roadCost+s.buildingCost+Math.max(0,-s.taxAdjustments);
+ const expense=s.maintenanceCost+s.touristsDiscount+s.roadCost+s.buildingCost+(s.skipDayFee||0)+Math.max(0,-s.taxAdjustments);
  const financeDelta=(which==='previous'?s.endingMoney:state.money)-s.openingMoney;
  const rows=items=>'<div class="daily-report-rows">'+items.map(([label,value])=>'<div><span>'+label+'</span><strong>'+value+'</strong></div>').join('')+'</div>';
  const panel=(name,items)=>'<section class="daily-report-section"><h3>'+name+'</h3>'+rows(items)+'</section>';
@@ -5886,7 +5886,7 @@ function missionReportMarkup(which='current'){
  const missionHeadline=s.total===0?'ยังไม่มีผลการเดินทาง':s.rate>=80?'การเดินทางดีมาก':s.rate>=50?'ยังมีทริปที่ต้องปรับปรุง':'การเดินทางต้องเร่งแก้ไข';
  const trafficHeadline=s.peakWaiting>Math.max(5,Math.round(s.peakCars*.25))?'รถรอคิวหนาแน่น':'จราจรยังอยู่ในระดับควบคุมได้';
  const financialHeadline=financeDelta>0?'เงินในเมืองเพิ่มขึ้น':financeDelta<0?'เงินในเมืองลดลง':'เงินในเมืองยังไม่เปลี่ยน';
- const financialExplanation=isPrevious?'ยอดสุทธิจริงจากเงินต้นวันถึงปิดบัญชี 06:00':'ยอดสุทธิตั้งแต่เริ่มรอบ · ยังไม่ปิดบัญชี';
+ const financialExplanation=isPrevious&&s.skipDayFee?'ข้ามวัน · สละรายได้ที่ควรได้รับ และจ่ายค่าข้ามวัน 1,000,000 บาท':isPrevious?'ยอดสุทธิจริงจากเงินต้นวันถึงปิดบัญชี 06:00':'ยอดสุทธิตั้งแต่เริ่มรอบ · ยังไม่ปิดบัญชี';
  const insight=s.total===0?'ยังไม่มีภารกิจที่ตัดสินผลในรอบนี้':int(s.success)+' จาก '+int(s.total)+' ภารกิจถึงตรงเวลา';
  const trafficInsight=s.peakCars?'รถมากสุด '+int(s.peakCars)+' คัน · รอคิวสูงสุด '+int(s.peakWaiting)+' คัน':'ยังไม่มีรถที่บันทึกในรอบนี้';
  return '<div class="daily-report-body game-day-recap"><header class="sm-report-header"><span class="panel-heading-icon" aria-hidden="true">📖</span><div><h2>บันทึกเมือง '+dayLabel+'</h2><p class="mission-sub">'+(isPrevious?'จบอีกหนึ่งวันของเมืองเรา':'เรื่องราวของวันนี้ยังเดินต่อ')+' · 06:00–06:00</p></div></header>'+
@@ -5909,7 +5909,7 @@ function missionReportMarkup(which='current'){
  panel('👥 ประชากรและนักท่องเที่ยว',[['ย้ายเข้าใหม่',int(s.populationIn)+' คน'],['ย้ายออก / ถูกนำออก',int(s.populationOut)+' คน'],['นักท่องเที่ยวเข้าเมือง',int(s.touristsIn)+' คน'],['นักท่องเที่ยวออกเมือง',int(s.touristsOut)+' คน'],...snapshotRows.slice(0,7),['จำนวนประชากรสูงสุด',int(s.peakPopulation)+' คน'],['Performance ต่ำสุดระหว่างวัน',fraction(s.happyMin)+'%'],['Performance สูงสุดระหว่างวัน',fraction(s.happyMax)+'%']])+
  panel('🎯 ผลภารกิจทั้งหมด',[['ภารกิจตัดสินผลแล้ว',int(s.total)],['สำเร็จตามเป้าหมาย',int(s.success)],['ตรงเวลา',int(s.ontime)],['ไม่สำเร็จ · ถึงสาย',int(s.late)],['ไปไม่ทัน',int(s.missed)],['ไม่มีเส้นทาง / ใช้บริการไม่ได้',int(s.unavailable)],['ยกเลิกภารกิจ',int(s.cancelled)],['ยังเดินทางอยู่ ณ ตอนนี้',isPrevious?'—':int(s.active)],['กำลังใช้บริการ รอตัดสินผล',isPrevious?'—':int([...state.citizens.values()].filter(c=>c.serviceMission&&!c.serviceMission.resultDone).length)],...typeRows,...serviceRows])+
  panel('🚗 รายงานการเดินทาง',[['เริ่มเดินทางรวม',int(s.tripsStarted)+' เที่ยว'],['ถึงจุดหมายจริง',int(s.tripsArrived)+' เที่ยว'],['เวลาเฉลี่ยเมื่อถึง',fraction(s.average)+' นาทีในเกม'],['ความเร็วเฉลี่ย',fraction(s.secondsPerBlock)+' วินาทีในเกม/บล็อก'],['ระยะทางทริปที่มีผลและวัดได้',int(s.roadBlocks)+' บล็อก'],['เฉลี่ยเวลารถติด',fraction(s.congestionAverage)+' นาทีในเกม'],...tripRows,['รถที่มากที่สุดระหว่างวัน',int(s.peakCars)+' คัน'],['รถรอคิวสูงสุด',int(s.peakWaiting)+' คัน'],...snapshotRows.slice(7,12)])+
- panel('💰 การเงินและการก่อสร้าง',[['เงินต้นวัน',money(s.openingMoney)],['รายได้ภาษีที่ปิดบัญชี',isPrevious?money(s.taxRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้ธุรกิจที่ปิดบัญชี',isPrevious?money(s.businessRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้จากนักท่องเที่ยว',money(s.touristsRevenue)],['เงินคืน / ส่วนลดนักท่องเที่ยว',money(s.touristsDiscount)],['เงินรางวัลแก้จราจร',money(s.incidentReward)],['โบนัสภารกิจสำเร็จ',money(s.missionBonus)],['ปรับภาษีหลังปิดบัญชี',moneySigned(s.taxAdjustments)],['ค่าดูแลเมือง',isPrevious?money(s.maintenanceCost):'สรุปเมื่อสิ้นวัน'],['ก่อสร้างถนน',money(s.roadCost)],['สร้างอาคาร',money(s.buildingCost)],['ถนนเพิ่ม / ปรับปรุง',int(s.roadsBuilt)+' บล็อก'],['อาคารสร้างใหม่',int(s.buildingsBuilt)+' แห่ง'],['อาคารรื้อถอน',int(s.buildingsRemoved)+' แห่ง'],['ยอดเงินสุทธิเปลี่ยน',moneySigned(financeDelta)],['เงินคงเหลือ',money(isPrevious?s.endingMoney:state.money)]])+
+ panel('💰 การเงินและการก่อสร้าง',[['เงินต้นวัน',money(s.openingMoney)],['รายได้ภาษีที่ปิดบัญชี',isPrevious?money(s.taxRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้ธุรกิจที่ปิดบัญชี',isPrevious?money(s.businessRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้จากนักท่องเที่ยว',money(s.touristsRevenue)],['เงินคืน / ส่วนลดนักท่องเที่ยว',money(s.touristsDiscount)],['เงินรางวัลแก้จราจร',money(s.incidentReward)],['โบนัสภารกิจสำเร็จ',money(s.missionBonus)],['ปรับภาษีหลังปิดบัญชี',moneySigned(s.taxAdjustments)],['ค่าดูแลเมือง',isPrevious?money(s.maintenanceCost):'สรุปเมื่อสิ้นวัน'],['ค่าข้ามวัน',money(s.skipDayFee||0)],['ก่อสร้างถนน',money(s.roadCost)],['สร้างอาคาร',money(s.buildingCost)],['ถนนเพิ่ม / ปรับปรุง',int(s.roadsBuilt)+' บล็อก'],['อาคารสร้างใหม่',int(s.buildingsBuilt)+' แห่ง'],['อาคารรื้อถอน',int(s.buildingsRemoved)+' แห่ง'],['ยอดเงินสุทธิเปลี่ยน',moneySigned(financeDelta)],['เงินคงเหลือ',money(isPrevious?s.endingMoney:state.money)]])+
  panel('🏙️ โครงสร้างเมืองและสภาพการจราจร',snapshotRows.slice(12))+
  '</div></details><details class="panel-help report-reading"><summary>วิธีอ่านรายงาน</summary><p>รายงานแสดงวันนี้และวันล่าสุด ไม่เก็บย้อนหลัง 7 วัน · ภาษีและรายได้ธุรกิจสรุปเมื่อจบวัน</p><p>วินาที/บล็อก = เวลาเดินทางรวมของเที่ยวที่ถึง × 60 ÷ ระยะทางรวมที่วัดได้</p></details></div>';
 }
@@ -9470,9 +9470,10 @@ window.SMGameCreatorMetrics=creatorMetrics;
 $('skip').onclick=()=>{
  if(state.money<SKIP_DAY_COST){toast('ต้องมีเงินอย่างน้อย '+money(SKIP_DAY_COST)+' เพื่อข้ามวันค่ะ');return;}
  confirmAction('ข้ามวัน · ค่าธรรมเนียม '+money(SKIP_DAY_COST),
-  'ยืนยันข้ามไปเช้า 06:00 ของวันถัดไปหรือไม่? หักเงิน '+money(SKIP_DAY_COST)+' และไม่ได้รับรายได้ภาษี/ธุรกิจของรอบที่ข้าม โดยยังหักค่าบำรุงรักษาตามปกติ',()=>{
+  '⚠️ การข้ามวันทำให้คุณสละรายได้ภาษีและธุรกิจทั้งหมดที่ควรได้รับจากวันที่ข้าม (รายได้ปิดรอบ 0 บาท) และเสียค่าข้ามวัน '+money(SKIP_DAY_COST)+' โดยยังมีค่าบำรุงรักษาตามปกติ ยืนยันข้ามไปเช้า 06:00 หรือไม่?',()=>{
    if(state.money<SKIP_DAY_COST){toast('เงินไม่พอสำหรับการข้ามวันค่ะ');return;}
    state.money-=SKIP_DAY_COST;
+   missionDay().skipDayFee=(missionDay().skipDayFee||0)+SKIP_DAY_COST;
    for(const c of state.citizens.values())finishResidentService(c,'ข้ามวันก่อนใช้บริการครบ');
    const target=(performanceDay(state.time)+1)*1440+360;
    for(const v of [...state.vehicles.values()]){
