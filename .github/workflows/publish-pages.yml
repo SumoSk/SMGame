@@ -1,0 +1,55 @@
+name: Publish SMCITY
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publish game to GitHub Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout game
+        uses: actions/checkout@v4
+
+      - name: Validate JavaScript
+        run: |
+          node --check dist/game.js
+          node --input-type=module --check < dist/renderer3d.js
+          node --input-type=module --check < dist/bootstrap.js
+
+      - name: Prepare game files
+        run: |
+          mkdir -p _site
+          cp .nojekyll index.html smcity.webmanifest smcity-home-*.png _site/
+          cp -R assets dist _site/
+          test -s _site/dist/game.js
+          test -s _site/dist/renderer3d.js
+          test -s _site/dist/vendor/three.module.js
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload game
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+          include-hidden-files: true
+
+      - name: Deploy game
+        id: deployment
+        uses: actions/deploy-pages@v5
