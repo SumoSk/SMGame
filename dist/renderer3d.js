@@ -1,6 +1,8 @@
 import * as THREE from './vendor/three.module.js';
 
 const BOX=new THREE.BoxGeometry(1,1,1),CYL=new THREE.CylinderGeometry(1,1,1,10),CYL_SMOOTH=new THREE.CylinderGeometry(1,1,1,32),CONE=new THREE.ConeGeometry(1,1,6),LEAF=new THREE.IcosahedronGeometry(1,1),BALL=new THREE.SphereGeometry(1,12,8);
+// Eight-sided shared geometry for the premium octagonal signal, visible from all directions.
+const SIGNAL_OCT_GEO=new THREE.CylinderGeometry(1,1,1,8);
 // A closed roof prism avoids intersecting roof planes at rotated plots.
 const PITCHED_ROOF=(()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([-.5,0,-.5,-.5,0,.5,-.5,1,0,.5,0,-.5,.5,0,.5,.5,1,0],3));g.setIndex([0,1,2,3,5,4,0,2,5,0,5,3,2,1,4,2,4,5,0,3,4,0,4,1]);const flat=g.toNonIndexed();flat.computeVertexNormals();g.dispose();return flat;})();
 // Shared landscape primitives are GPU-instanced, never created for individual trees.
@@ -137,7 +139,7 @@ const RETAIL_WINDOW_TEXTURES=['shop','mall'].map(kind=>{
  texture.colorSpace=THREE.SRGBColorSpace;
  return texture;
 });
-const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry];
+const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,SIGNAL_OCT_GEO,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry];
 
 // One tapered GPU-instanced light streak per beam; no floating glow spheres.
 const CAR_TECH_STREAK=(()=>{const g=new THREE.ConeGeometry(.044,.60,4,1,true);g.rotateZ(-Math.PI/2);return g;})();
@@ -226,7 +228,69 @@ const LANDSCAPE_GLSL=`
   vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
   return texture2D(landscapeNoiseMap,(i+f+0.5)/128.0).r;
  }
- float coastX(float z){return 125.0+sin(z*.032)*5.0+sin(z*.072)*2.0;}
+ float coastX(float z){
+  float zn=(z-150.0)/175.0;
+  float taper=4.5*zn*zn;
+  float patong=5.5*exp(-pow((z-182.0)/16.0,2.0));
+  float karon=4.2*exp(-pow((z-222.0)/15.0,2.0));
+  float bangtao=4.8*exp(-pow((z-96.0)/18.0,2.0));
+  float bays=4.2*sin(z*.046+.4)+2.8*cos(z*.092-.7)+1.6*sin(z*.15+1.1);
+  float bridgeCape=-14.5*exp(-pow((z-150.0)/22.0,2.0));
+  float nMargin=-6.0*exp(-pow(z/24.0,2.0));
+  float sMargin=-6.0*exp(-pow((z-300.0)/24.0,2.0));
+  return 84.0+taper+bays+patong+karon+bangtao+bridgeCape+nMargin+sMargin;
+ }
+ float coastEastX(float z){
+  float zn=(z-150.0)/170.0,zn2=zn*zn;
+  float taper=-22.0*zn2-12.0*zn2*zn2;
+  float chalong=-16.0*exp(-pow((z-258.0)/22.0,2.0));
+  float panwa=14.0*exp(-pow((z-216.0)/20.0,2.0));
+  float yamu=12.0*exp(-pow((z-95.0)/22.0,2.0));
+  float eastGate=8.0*exp(-pow((z-150.0)/22.0,2.0));
+  float waves=3.2*sin(z*.039+1.1)+1.8*cos(z*.082);
+  return 296.0+taper+chalong+panwa+yamu+eastGate+waves;
+ }
+ float coastNorthZ(float x){
+  float xn=(x-190.0)/135.0,xn2=xn*xn;
+  float arch=14.0*xn2+8.0*xn2*xn2;
+  float northGate=-8.0*exp(-pow((x-150.0)/28.0,2.0));
+  float waves=2.4*sin(x*.042+.7)+1.4*cos(x*.088);
+  return 3.0+arch+northGate+waves;
+ }
+ float coastSouthZ(float x){
+  float xn=(x-190.0)/135.0,xn2=xn*xn;
+  float arch=-14.0*xn2-8.0*xn2*xn2;
+  float phromthep=12.0*exp(-pow((x-150.0)/26.0,2.0));
+  float chalong=-11.0*exp(-pow((x-192.0)/20.0,2.0));
+  float panwa=13.0*exp(-pow((x-232.0)/20.0,2.0));
+  float waves=2.4*sin(x*.038+2.1)+1.4*cos(x*.081);
+  return 297.0+arch+phromthep+chalong+panwa+waves;
+ }
+ // Phang Nga roadside headland reaches a little beyond the west car spawn,
+ // but the peninsula remains compact and never touches the Phuket buildable area.
+ float phangNgaShoreX(float z){
+  float t=max(0.0,1.0-pow((z-150.0)/30.0,2.0));
+  return 22.0*pow(t,1.25);
+ }
+ float phangNgaWestX(float z){
+  float t=max(0.0,1.0-pow((z-150.0)/30.0,2.0));
+  return -12.0*pow(t,0.72);
+ }
+ float phangNgaOutward(vec2 p){
+  return max(max(p.x-phangNgaShoreX(p.y),phangNgaWestX(p.y)-p.x),abs(p.y-150.0)-30.0);
+ }
+ float phuketIslandOutward(vec2 p){
+  float r=22.0;
+  float dx=max(coastX(p.y)-p.x,p.x-coastEastX(p.y));
+  float dz=max(coastNorthZ(p.x)-p.y,p.y-coastSouthZ(p.x));
+  vec2 q=vec2(dx+r,dz+r);
+  float island=length(max(q,0.0))+min(max(q.x,q.y),0.0)-r;
+  float phangNga=phangNgaOutward(p);
+  float kohHe=length((p-vec2(214.0,326.0))*vec2(0.9,1.15))-16.5+1.8*sin(p.x*.25+p.y*.2);
+  float kohMaprao=length((p-vec2(322.0,202.0))*vec2(1.05,0.95))-15.0+1.5*cos(p.y*.25-p.x*.2);
+  float kohPu=length((p-vec2(58.0,225.0))*vec2(1.1,0.9))-9.5+1.2*sin(p.x*.3-p.y*.25);
+  return min(min(island,phangNga),min(min(kohHe,kohMaprao),kohPu));
+ }
 `;
 function landscapeShader(material,noise,fragment,extra='',uniforms={}){
  material.onBeforeCompile=shader=>{
@@ -243,7 +307,7 @@ function landscapeShader(material,noise,fragment,extra='',uniforms={}){
  material.customProgramCacheKey=()=>fragment+extra;
  return material;
 }
-function landscapeMaterial(city,kind,noise){
+function landscapeMaterial(city,kind,noise,detailUniform={value:1},mapSheetMaskUniform=null){
  const palette=TERRAIN_PALETTES[city]||TERRAIN_PALETTES.korat;
  const c=hex=>{const a=new THREE.Color(hex);return `vec3(${a.r.toFixed(5)},${a.g.toFixed(5)},${a.b.toFixed(5)})`;};
  const material=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:kind==='wetSand'?.75:.97});
@@ -269,33 +333,44 @@ function landscapeMaterial(city,kind,noise){
    // Occasional soft lawn clearings, with restrained mowing bands.
    float lawn=smoothstep(.70,.88,broad)*(1.0-dry);
    float mowing=.5+.5*sin((p.x*.71+p.y*.34)*3.14159);
-   turf=mix(turf,mix(${c(palette[0])},${c(palette[1])},.66+mowing*.08),lawn*.58);
+   turf=mix(turf,mix(${c(palette[0])},${c(palette[1])},.70+(mowing-.5)*.08*landscapeDetail),lawn*.58);
    // Fractal soil, clover and slender close-up blades without extra meshes.
     float micro=landNoise(p/.16+vec2(19.0,71.0));
     vec2 bladeUV=fract(p*9.0+vec2(landNoise(floor(p*9.0)),grain));
     float blade=(1.0-smoothstep(.04,.12,abs(bladeUV.x-.5)))*(1.0-smoothstep(.55,.95,bladeUV.y));
     float clover=smoothstep(.79,.90,landNoise(p/.85+vec2(3.0,31.0)))*.10;
-    turf*=.89+speckle*.13+fine*.07+micro*.065+(grain-.5)*.06+blade*.045;
+    turf*=.89+speckle*.13+mix(.035,fine*.07,landscapeDetail)+mix(.0325,micro*.065,landscapeDetail)+(grain-.5)*.06*landscapeDetail+mix(.0225,blade*.045,landscapeDetail);
     turf=mix(turf,turf*1.13,clover);
   `;
-  if(city==='phuket')fragment+=`float shore=1.0-smoothstep(1.6,4.8,p.x-coastX(p.y));
-   turf=mix(turf,${c('#b5aa7b')},shore*.72);`;
+  if(city==='phuket')fragment+=`float shore=1.0-smoothstep(1.6,5.8,-phuketIslandOutward(p));
+   turf=mix(turf,${c('#b5aa7b')},shore*.76);`;
   if(city==='bangkok')fragment+=`float bank=abs(p.x-(125.0+sin(p.y*.047)*5.0))-4.0;
    turf=mix(turf,${c('#827c59')},(1.0-smoothstep(0.0,1.6,bank))*.68);`;
   if(city==='korat')fragment+=`// Fine cultivated-field texture for the drier Northeast biome.
    float farm=smoothstep(.57,.84,landNoise(p/25.0+vec2(34.0,16.0)));
    float rows=.5+.5*sin(p.x*2.75+sin(p.y*.19)*.75);
-   turf*=1.0-farm*rows*.045;`;
+   turf*=1.0-farm*rows*.045*landscapeDetail;`;
   fragment+='diffuseColor.rgb*=turf;';
  }else if(kind==='sand'||kind==='wetSand'){
   const wet=kind==='wetSand';
   fragment+=`vec3 sand=mix(${c(wet?'#a29670':'#c8b58a')},${c(wet?'#c2b48b':'#eddfb2')},.32+broad*.48+speckle*.16);
    float ripple=sin(p.y*17.0+sin(p.x*1.7)*2.4+speckle*3.0);
    float pebbles=smoothstep(.82,.96,landNoise(p/.13+vec2(13.0,8.0)));
-    sand*=.955+fine*.052+(grain-.5)*.052+ripple*.012+pebbles*.019;
+    sand*=.955+mix(.026,fine*.052,landscapeDetail)+(grain-.5)*.052*landscapeDetail+ripple*.012*landscapeDetail+pebbles*.019*landscapeDetail;
    diffuseColor.rgb*=sand;`;
  }else fragment+=`diffuseColor.rgb*=.88+speckle*.16+fine*.08;`;
- return landscapeShader(material,noise,fragment);
+ // Sample map-purchase tint on the actual terrain material: no extra coplanar plane.
+ const extra='uniform float landscapeDetail;'+(mapSheetMaskUniform?'\nuniform sampler2D mapSheetMask;':'');
+ const uniforms={landscapeDetail:detailUniform};
+ if(mapSheetMaskUniform){
+  uniforms.mapSheetMask=mapSheetMaskUniform;
+  fragment+=`if(p.x>=0.0&&p.x<300.0&&p.y>=0.0&&p.y<300.0){
+   vec2 sheetUV=(floor(p/25.0)+vec2(0.5))/12.0;
+   float sheetLocked=texture2D(mapSheetMask,sheetUV).r;
+   diffuseColor.rgb=mix(diffuseColor.rgb,${c('#5f7882')},sheetLocked*0.23);
+  }`;
+ }
+ return landscapeShader(material,noise,fragment,extra,uniforms);
 }
 function landscapeWater(city,river,noise,clock){
  const material=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:river?.36:.27,metalness:.08});
@@ -311,13 +386,21 @@ function landscapeWater(city,river,noise,clock){
    float current=pow(max(0.0,sin(p.y*8.0+p.x*1.8-drift*3.0)),18.0)*.035;
    water+=current;
   `:`
-   float offshore=max(0.0,coastX(p.y)-2.2-p.x);
-   vec3 water=mix(${c('#7ac8bd')},${c('#2d8e9c')},smoothstep(0.0,13.0,offshore));
-   water=mix(water,${c('#245d79')},smoothstep(12.0,48.0,offshore));
-   float wave=sin(offshore*4.5-landscapeTime*1.25+sin(p.y*.8)*.65);
-   float foam=pow(max(0.0,wave),12.0)*(1.0-smoothstep(.2,3.1,offshore));
-   foam*=.43+.34*landNoise(vec2(p.y*1.7,offshore*3.0));
-   water=mix(water,${c('#e1efe1')},foam*.64);
+   float offshore=max(0.0,phuketIslandOutward(p)-2.2);
+   float bridgeChannel=max(abs(p.y-150.0)-3.1,max(5.2-p.x,p.x-117.5));
+   vec3 water=mix(${c('#86dcd0')},${c('#47b6be')},smoothstep(0.0,6.5,offshore));
+   water=mix(water,${c('#2d8e9c')},smoothstep(5.5,18.0,offshore));
+   water=mix(water,${c('#245d79')},smoothstep(16.0,65.0,offshore));
+   water=mix(water,${c('#1c4c66')},smoothstep(60.0,185.0,offshore)*.55);
+   float along=p.x*.85+p.y*.85;
+   float wave=sin(offshore*4.5-landscapeTime*1.25+sin(along*.8)*.65);
+   float wave2=sin(offshore*2.8-landscapeTime*.95+cos(along*.55)*.8);
+   float foam=pow(max(0.0,wave),10.0)*(1.0-smoothstep(.15,3.8,offshore));
+   float swash=(1.0-smoothstep(0.0,.82,offshore))*(.55+.45*sin(landscapeTime*1.6+along*.4));
+   foam=max(foam,swash*.78)+pow(max(0.0,wave2),14.0)*(1.0-smoothstep(1.5,7.5,offshore))*.38;
+   foam*=.48+.36*landNoise(vec2(along*1.5,offshore*3.0));
+   float pierWake=(1.0-smoothstep(0.0,1.8,max(0.0,bridgeChannel)))*(.20+.14*sin(p.x*1.8-landscapeTime*2.0));
+   water=mix(water,${c('#ebf7f2')},clamp(foam*.74+pierWake,0.0,1.0));
   `}
   water*=.94+variation*.1+shimmer*.018;
   diffuseColor.rgb*=water;
@@ -354,6 +437,8 @@ function mountainHeight(x,z){
 // Citizen trait weights are intentionally untouched; tourist taxi is not a
 // ninth random citizen class.
 const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van','touristTaxi','f1','truck6','truck8','roadTrain'];
+// Render-only scaling for all moving/parked cars and LOD models. No physics changes.
+const VEHICLE_VISUAL_SCALE=.80;
 const VEHICLE_WEIGHTS=[[26,36,20,10,4,1,1,2],[11,16,42,20,5,1,1,4],[7,12,11,24,33,6,5,2],[2,4,5,10,25,24,28,2]];
 const VEHICLE_STYLES=[
  [.49,.238,.125,-.028,.303,.118], // compact hatchback
@@ -894,23 +979,25 @@ const EXTRA_DECORATION_KEYS=new Set(["thai_canvas_awning","thai_cold_display","t
 export class TrafficRenderer{
  constructor(canvas){
  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.96;
- this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new URLSearchParams(typeof window==='undefined'?'':(window.location?.search??'')).get('camera')==='ortho'?new THREE.OrthographicCamera(-30,30,20,-20,.1,1500):new THREE.PerspectiveCamera(35,innerWidth/Math.max(1,innerHeight),.1,1500);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#e8f7ff','#698057',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
+ this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new URLSearchParams(typeof window==='undefined'?'':(window.location?.search??'')).get('camera')==='ortho'?new THREE.OrthographicCamera(-30,30,20,-20,.1,3800):new THREE.PerspectiveCamera(35,innerWidth/Math.max(1,innerHeight),.1,3800);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#e8f7ff','#698057',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
  this.ray=new THREE.Raycaster();this.ground=new THREE.Plane(UP,0);this.ndc=new THREE.Vector2();this.point=new THREE.Vector3();this.lastKey='';this.roadKey='';this.buildKey='';this.treeKey='';this.previewKey='';this.buildingMeshes=null;this.cameraKey='';this.cam=null;this.w=innerWidth;this.h=innerHeight;this.materials=[];
- this.graphicQuality='medium';this.lastBuildingDetailLevel=null;
+ this.graphicQuality=null;this.lastBuildingDetailLevel=null;
  this.aiSignalGroup=new THREE.Group();this.aiSignalKey='';this.aiSignalGlows=[];
  this.roadGroup=new THREE.Group();this.buildingGroup=new THREE.Group();this.treeGroup=new THREE.Group();this.previewGroup=new THREE.Group();this.signalGroup=new THREE.Group();this.lampGroup=new THREE.Group();this.scene.add(this.roadGroup,this.buildingGroup,this.treeGroup,this.previewGroup,this.signalGroup,this.lampGroup,this.aiSignalGroup);this.createCars();this.createRoute();this.createAtmosphere();this.resize();
  }
- disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.geometry&&!SHARED_RENDER_GEOMETRIES.includes(x.geometry))x.geometry.dispose();});}}
+ disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.isInstancedMesh)x.dispose();if(x.geometry&&!SHARED_RENDER_GEOMETRIES.includes(x.geometry))x.geometry.dispose();});}}
  setGraphicQuality(value){
   if(!['veryHigh','medium','low'].includes(value))return false;
   if(this.graphicQuality===value)return true;
   this.graphicQuality=value;
-  this.treeKey=''; // rebuild near-detail tree geometry when returning from a lower preset
+  this.treeKey='';this.treeBaseKey=''; // refresh visual caches when changing presets
   this.buildKey=''; // LOW has a separate reduced building mesh; rebuild when toggling presets
   // Low deliberately renders into a smaller framebuffer: softer image at every zoom.
-  const ratio=value==='low'?.72:Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,1.6);
+  const ratio=value==='low'?.72:Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,value==='medium'?1.25:1.6);
   this.renderer.setPixelRatio(ratio);
   this.renderer.shadowMap.enabled=value!=='low';
+  const shadowSize=value==='veryHigh'?2048:1024;
+  if(this.light.shadow.mapSize.x!==shadowSize){this.light.shadow.mapSize.set(shadowSize,shadowSize);this.light.shadow.map?.dispose();this.light.shadow.map=null;this.renderer.shadowMap.needsUpdate=true;}
   this.lastBuildingDetailLevel=null;
   this.lastGlow=-1; // Force refresh on the first frame after a quality switch.
   this.treeGroup.visible=value!=='low';
@@ -964,8 +1051,8 @@ export class TrafficRenderer{
    const base=mesh.userData.baseColor||'';
    let role=mesh.userData.nightRole;
    if(isRoad){
-    if(['#47565c','#424f55'].includes(base))role='asphalt';
-    else if(['#dce3d8','#ead78c','#edf0df','#f1eddb'].includes(base))role='marking';
+    if(['#47565c','#424f55','#555957','#4e5250'].includes(base))role='asphalt';
+    else if(['#dce3d8','#ead78c','#edf0df','#f1eddb','#f0ede4','#d6b36a','#cfd0ca'].includes(base))role='marking';
    }
    let tint=base,intensity=0,managed=false;
    if(role==='asphalt'){managed=true;intensity=visibility.road;tint=base||'#56666a';}
@@ -993,6 +1080,27 @@ export class TrafficRenderer{
    set.lightSpill.material.opacity=night*.13;
   }
  }
+ // Use the existing moving directional sun and shadows on every road width.
+ // Change only physically based material uniforms: no new lights, geometry,
+ // postprocessing, reflective overlays or changes to traffic physics.
+ updateRoadSurfaceLighting(solar,wet){
+  const sunlight=THREE.MathUtils.clamp(solar,0,1);
+  const moisture=THREE.MathUtils.clamp(wet,0,1);
+  if(Math.abs(sunlight-(this.lastRoadSun??-1))<.025&&
+     Math.abs(moisture-(this.lastWet??-1))<.02)return;
+  this.lastRoadSun=sunlight;this.lastWet=moisture;
+  this.roadGroup.traverse(mesh=>{
+   const base=mesh.userData?.baseColor;
+   // Original small/medium asphalt, isolated road nodes and eight-lane
+   // charcoal concrete, including junction and corner surfaces.
+   if(!mesh.material||!['#47565c','#424f55','#555957'].includes(base))return;
+   const concrete=base==='#555957';
+   const dry=concrete?.71:.74,sunSheen=concrete?.11:.12,wetSheen=concrete?.29:.33;
+   mesh.material.roughness=THREE.MathUtils.clamp(
+    dry-sunlight*sunSheen-moisture*wetSheen,.30,.85);
+   mesh.material.metalness=moisture*.075;
+  });
+ }
  updateWeatherLight(state){
   const sun=lightAt(state.time),air=climateAt(state.time,state.city),visibility=cityVisibilityAt(state.time);
   this.scene.background.copy(sun.sky).lerp(new THREE.Color('#738999'),air.cloud*.22+air.rain*.38);
@@ -1004,6 +1112,10 @@ export class TrafficRenderer{
   this.light.position.set(this.cam.x+Math.cos(az)*65,27+solar*68,this.cam.y+Math.sin(az)*65);
   this.light.castShadow=this.graphicQuality!=='low'&&sun.strength>.58;
   const glow=smooth(sun.lamps)*(1-air.rain*.12);
+  if(this.phuketLighthouseBeacon){
+   this.phuketLighthouseBeacon.visible=glow>.06;
+   this.phuketLighthouseBeacon.material.opacity=Math.min(.92,glow*.92);
+  }
   this.updateNightVisibility(glow,visibility);
   if(Math.abs(glow-this.lastGlow)>.008){
    for(const group of [this.lampGroup,this.buildingGroup])group.traverse(mesh=>{
@@ -1034,48 +1146,341 @@ export class TrafficRenderer{
     p[k]=x;p[k+1]=y;p[k+2]=z;p[k+3]=x+.13;p[k+4]=y-.65;p[k+5]=z+.05;
    }this.rain.geometry.attributes.position.needsUpdate=true;
   }
-  if(Math.abs(air.wet-(this.lastWet??-1))>.02){
-   this.roadGroup.traverse(mesh=>{
-    if(!mesh.material||!['#47565c','#424f55'].includes(mesh.userData.baseColor))return;
-    mesh.material.roughness=.83-air.wet*.53;mesh.material.metalness=air.wet*.13;
-   });this.lastWet=air.wet;
-  }
+  this.updateRoadSurfaceLighting(solar,air.wet);
  }
  updateCamera(cam){
   this.cam=cam;
-  const aspect=this.w/Math.max(1,this.h),zoom=Math.max(.22,cam.z);
+  const aspect=this.w/Math.max(1,this.h),zoom=Math.max(.15,cam.z);
   const angle=cam.angle??Math.PI/4;
   const elevation=Math.max(Math.PI*35/180,Math.min(Math.PI*78/180,cam.elevation??Math.PI*50/180));
   cam.elevation=elevation;
   let radius;
   if(this.camera.isPerspectiveCamera){
-   // Match the orthographic view's scale at the city focus, then introduce genuine depth.
-   // This keeps construction and zoom controls intact while testing perspective only.
    this.camera.aspect=aspect;
    const viewHeight=this.h/(26*zoom);
    radius=Math.max(12,viewHeight/(2*Math.tan(this.camera.fov*Math.PI/360)));
   }else{
-   // Comparison mode: append ?camera=ortho to the experimental preview URL.
    const half=this.h/(2*26*zoom);
    this.camera.left=-half*aspect;this.camera.right=half*aspect;
    this.camera.top=half;this.camera.bottom=-half;
    radius=Math.hypot(90,86);
   }
+  // Camera-scale near clipping restores depth precision for nearly coplanar terrain,
+  // beach, and map-sheet surfaces at far zoom while preserving street-level detail.
+  const near=Math.max(.1,Math.min(12,radius*.012));
+  if(Math.abs(this.camera.near-near)>.0001)this.camera.near=near;
+  // Distant pixels cannot resolve blade/ripple micro-patterns; fade their contrast.
+  if(this.landscapeDetailUniform)this.landscapeDetailUniform.value=Math.max(0,Math.min(1,(zoom-.38)/.5));
   const horizontal=radius*Math.cos(elevation);
   this.camera.position.set(cam.x+Math.sin(angle)*horizontal,radius*Math.sin(elevation),cam.y+Math.cos(angle)*horizontal);
   this.camera.lookAt(cam.x,0,cam.y);
   this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
+  const shadowSpan=Math.round(Math.max(65,Math.min(220,74/Math.max(.22,zoom))));
+  if(this.lastShadowSpan!==shadowSpan){
+   this.lastShadowSpan=shadowSpan;
+   Object.assign(this.light.shadow.camera,{left:-shadowSpan,right:shadowSpan,top:shadowSpan,bottom:-shadowSpan,near:1,far:Math.max(220,shadowSpan*3.6)});
+   this.light.shadow.camera.updateProjectionMatrix();
+  }
   this.light.position.set(cam.x-45,90,cam.y-35);this.light.target.position.set(cam.x,0,cam.y);this.light.target.updateMatrixWorld();
  }
  screen(x,z,height=0){this.point.set(x,height/18,z).project(this.camera);return[(this.point.x+1)*this.w/2,(1-this.point.y)*this.h/2];}
  world(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const p=new THREE.Vector3();this.ray.ray.intersectPlane(this.ground,p);return[p.x,p.z];}
  pickBuilding(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const hits=this.ray.intersectObjects(this.buildingGroup.children,true);for(const h of hits){const id=h.object.userData.ids?.[h.instanceId];if(id!=null)return id;}return null;}
- coast(z){return 125+Math.sin(z*.032)*5+Math.sin(z*.072)*2;}
+ coast(z){
+  const zn=(z-150)/175,taper=4.5*zn*zn;
+  const patong=5.5*Math.exp(-(((z-182)/16)**2));
+  const karon=4.2*Math.exp(-(((z-222)/15)**2));
+  const bangtao=4.8*Math.exp(-(((z-96)/18)**2));
+  const bays=4.2*Math.sin(z*.046+.4)+2.8*Math.cos(z*.092-.7)+1.6*Math.sin(z*.15+1.1);
+  const bridgeCape=-14.5*Math.exp(-(((z-150)/22)**2));
+  const nMargin=-6*Math.exp(-((z/24)**2)),sMargin=-6*Math.exp(-(((z-300)/24)**2));
+  return 84+taper+bays+patong+karon+bangtao+bridgeCape+nMargin+sMargin;
+ }
+ coastEast(z){
+  const zn=(z-150)/170,zn2=zn*zn,taper=-22*zn2-12*zn2*zn2;
+  const chalong=-16*Math.exp(-(((z-258)/22)**2));
+  const panwa=14*Math.exp(-(((z-216)/20)**2));
+  const yamu=12*Math.exp(-(((z-95)/22)**2));
+  const eastGate=8*Math.exp(-(((z-150)/22)**2));
+  const waves=3.2*Math.sin(z*.039+1.1)+1.8*Math.cos(z*.082);
+  return 296+taper+chalong+panwa+yamu+eastGate+waves;
+ }
+ coastNorth(x){
+  const xn=(x-190)/135,xn2=xn*xn,arch=14*xn2+8*xn2*xn2;
+  const northGate=-8*Math.exp(-(((x-150)/28)**2));
+  const waves=2.4*Math.sin(x*.042+.7)+1.4*Math.cos(x*.088);
+  return 3+arch+northGate+waves;
+ }
+ coastSouth(x){
+  const xn=(x-190)/135,xn2=xn*xn,arch=-14*xn2-8*xn2*xn2;
+  const phromthep=12*Math.exp(-(((x-150)/26)**2));
+  const chalong=-11*Math.exp(-(((x-192)/20)**2));
+  const panwa=13*Math.exp(-(((x-232)/20)**2));
+  const waves=2.4*Math.sin(x*.038+2.1)+1.4*Math.cos(x*.081);
+  return 297+arch+phromthep+chalong+panwa+waves;
+ }
+ phangNgaShoreX(z){
+  const t=Math.max(0,1-((z-150)/30)**2);
+  return 22*Math.pow(t,1.25);
+ }
+ phangNgaWestX(z){
+  const t=Math.max(0,1-((z-150)/30)**2);
+  return -12*Math.pow(t,.72);
+ }
+ islandOutward(x,z){
+  const r=22;
+  const dx=Math.max(this.coast(z)-x,x-this.coastEast(z));
+  const dz=Math.max(this.coastNorth(x)-z,z-this.coastSouth(x));
+  const qx=dx+r,qz=dz+r;
+  return Math.hypot(Math.max(qx,0),Math.max(qz,0))+Math.min(Math.max(qx,qz),0)-r;
+ }
+ contourPolygon(cx,cz,targetOutward,fn,steps=420,maxR=260){
+  const pts=[];
+  for(let i=0;i<steps;i++){
+   const a=i/steps*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a);
+   let lo=0,hi=maxR;
+   for(let it=0;it<15;it++){
+    const mid=(lo+hi)*.5;
+    if(fn(cx+ca*mid,cz+sa*mid)<targetOutward)lo=mid;else hi=mid;
+   }
+   const r=(lo+hi)*.5;
+   pts.push([cx+ca*r,cz+sa*r]);
+  }
+  return pts;
+ }
+ addPhangNgaWelcomeSign(details){
+  // The sign is north of the road, off the x=0 spawn and away from bridge traffic.
+  const x=-4.2,z=163.5;
+  details.box('#b4b5a8',x,.10,z,2.25,.24,11.1);
+  details.box('#e6ddc2',x,.22,z,1.98,.12,10.7);
+  for(const dz of [-3.50,3.50]){
+   const sideZ=z+dz;
+   details.box('#ddd3b8',x,2.52,sideZ,.64,5.04,.64);
+   details.box('#1b535b',x,2.54,sideZ,.43,4.85,.43);
+   details.box('#d9b15f',x,5.20,sideZ,.86,.22,.86);
+   details.add(PITCHED_ROOF,'#b76c43',x,5.42,sideZ,1.04,.33,1.04);
+   details.box('#e6d0a1',x,.32,sideZ,1.06,.45,1.0);
+  }
+  details.box('#173f48',x,3.55,z,.55,3.26,9.0);
+  details.box('#d8b565',x,3.55,z,.60,3.10,8.82);
+  details.box('#174750',x,3.55,z,.68,2.95,8.62);
+  details.box('#b47746',x,5.28,z,.84,.20,9.18);
+  details.add(PITCHED_ROOF,'#c77e4b',x,5.45,z,1.10,.43,9.42);
+  for(const dz of [-4.23,4.23]){
+   details.add(BALL,'#e8c47b',x,5.75,z+dz,.21,.24,.21);
+  }
+  for(const dz of [-4.70,4.70]){
+   details.box('#a66c52',x,.30,z+dz,1.9,.32,1.1);
+   for(const side of [-.42,.42])details.add(LEAF,'#6c996e',x+side,.60,z+dz,.40,.46,.40);
+   details.add(BALL,'#edaa8b',x,.91,z+dz,.18,.15,.18);
+  }
+  const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=480;
+  const ctx=canvas.getContext('2d',{alpha:false});
+  ctx.fillStyle='#174750';ctx.fillRect(0,0,1024,480);
+  ctx.strokeStyle='#f0d59d';ctx.lineWidth=13;ctx.strokeRect(18,18,988,444);
+  ctx.strokeStyle='#c58e49';ctx.lineWidth=3;ctx.strokeRect(38,38,948,404);
+  // Simple Andaman sea and sunrise emblems instead of heavy polygon lettering.
+  ctx.fillStyle='#f1c77d';ctx.beginPath();ctx.arc(512,91,35,Math.PI,0);ctx.fill();
+  for(const d of [0,22]){
+   ctx.strokeStyle=d?'#dfc294':'#9ac5ba';ctx.lineWidth=7;ctx.beginPath();
+   for(let px=360;px<=665;px+=8){const yy=103+d+Math.sin((px-360)*.041)*6;if(px===360)ctx.moveTo(px,yy);else ctx.lineTo(px,yy);}ctx.stroke();
+  }
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#f4e5c4';ctx.font='600 55px "Noto Sans Thai",Tahoma,sans-serif';ctx.fillText('ยินดีต้อนรับสู่',512,172,880);
+  ctx.fillStyle='#ffdda1';ctx.font='800 113px "Noto Sans Thai",Tahoma,sans-serif';ctx.fillText('จังหวัดพังงา',512,290,900);
+  ctx.fillStyle='#d7eae3';ctx.font='600 38px Arial,Tahoma,sans-serif';ctx.fillText('WELCOME TO PHANG NGA',512,382,890);
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  texture.minFilter=THREE.LinearMipmapLinearFilter;
+  texture.magFilter=THREE.LinearFilter;
+  texture.anisotropy=4;
+  const plane=new THREE.PlaneGeometry(8.20,2.72);
+  const mat=new THREE.MeshBasicMaterial({map:texture,side:THREE.FrontSide});
+  for(const facing of [-1,1]){
+   const face=new THREE.Mesh(plane,mat);
+   face.rotation.y=facing*Math.PI/2;
+   face.position.set(x+facing*.36,3.55,z);
+   face.renderOrder=2;
+   this.scene.add(face);this.terrainGroup.push(face);
+  }
+ }
+ buildPhuketSeaBridge(details){
+  // Bridge meets the small Phang Nga landfall; the main road continues to the west gate at x=0.
+  const z=150,xStart=this.phangNgaShoreX(z)-1.4,xEnd=this.coast(z)+1.5,spanLen=xEnd-xStart,xMid=(xStart+xEnd)*.5;
+  // 1. Main reinforced concrete box-girder deck, lower spine & side cornices
+  details.box('#cad2ce',xMid,-.042,z,spanLen+.8,.11,4.68);
+  details.box('#94a4a0',xMid,-.115,z,spanLen+.4,.075,3.65);
+  // 2. Side cantilevered promenades, Chino-Portuguese cream balustrades & Andaman turquoise trim
+  for(const side of [-1,1]){
+   const wz=z+side*2.18,fz=z+side*2.38,rz=z+side*2.28;
+   details.box('#eeeae0',xMid,.118,wz,spanLen+.6,.14,.38);
+   details.box('#1f5d6e',xMid,.058,fz,spanLen+.6,.16,.075);
+   details.box('#d8a84e',xMid,.145,fz,spanLen+.6,.035,.085);
+   details.box('#f7f3e8',xMid,.365,rz,spanLen+.5,.048,.062);
+   details.box('#d8a84e',xMid,.265,rz,spanLen+.5,.030,.045);
+   for(let x=xStart+.8;x<=xEnd-.6;x+=2.4){
+    details.box('#ebe5d5',x,.245,rz,.10,.25,.10);
+   }
+   // Ornamental Phuket Golden Swan / Andaman Pearl Bridge Lamps
+   for(let x=xStart+4.2;x<=xEnd-4.2;x+=7.2){
+    const lz=z+side*2.32;
+    details.box('#d8cfc0',x,.26,lz,.22,.24,.22);
+    details.add(CYL,'#2a5563',x,.98,lz,.042,1.25,.042);
+    details.add(CYL,'#d9a74a',x,.52,lz,.058,.18,.058);
+    details.box('#d9a74a',x,1.58,lz-side*.16,.06,.05,.36);
+    details.add(BALL,'#fff4d2',x,1.56,lz-side*.30,.125,.105,.125,0,0,0,null,true);
+   }
+  }
+  // 3. Grand Bridge Approach Plazas & Welcome Arch Pillars at both landfalls
+  for(const [ax,dir] of [[xStart-.4,1],[xEnd+.4,-1]]){
+   details.box('#9da8a3',ax,-.06,z,2.45,.28,6.20);
+   details.box('#e8e2d4',ax-dir*.25,.12,z,2.05,.22,5.85);
+   for(const side of [-1,1]){
+    const pz=z+side*2.65;
+    details.box('#f2ece0',ax,0.68,pz,.88,1.12,.88);
+    details.box('#235361',ax,0.68,pz,.94,.92,.32);
+    details.box('#d9a448',ax,1.28,pz,1.06,.16,1.06);
+    details.add(PITCHED_ROOF,'#c9783b',ax,1.54,pz,1.36,.48,1.36,0,0,0);
+    details.box('#e5ded0',ax+dir*1.15,.22,pz,.95,.18,.55);
+    details.add(BALL,'#df5286',ax+dir*1.15,.40,pz,.34,.22,.28);
+   }
+  }
+  // 4. Marine concrete pier bents, wave-splitter fenders, pile caps & foam rings across the strait
+  for(let x=xStart+6.0;x<=xEnd-5.5;x+=7.2){
+   details.box('#e6f4f1',x,-.248,z,2.15,.026,5.55);
+   details.box('#8d9e9c',x,-.202,z,1.72,.14,5.05);
+   details.box('#b2bebb',x,-.082,z,1.12,.12,4.45);
+   for(const side of [-1,1]){
+    details.add(CYL,'#c8d2ce',x,-.14,z+side*1.52,.34,.26,.34);
+    details.add(CONE,'#98a8a6',x,-.17,z+side*2.55,.28,.22,.28);
+   }
+  }
+  // 5. Three Signature Sarasin Bridge Chino-Portuguese Viewing Towers & Pedestrian Skybridge Pavilions
+  for(const [idx,tx] of [[0,xStart+spanLen*.24],[1,xStart+spanLen*.50],[2,xStart+spanLen*.76]]){
+   const isCenter=idx===1;
+   const tw=isCenter?4.65:3.85,td=isCenter?7.60:6.95,th=isCenter?4.15:3.55;
+   details.box('#e6f4f1',tx,-.246,z,tw+.45,.028,td+.45);
+   details.box('#8e9f9d',tx,-.188,z,tw,.17,td);
+   for(const side of [-1,1]){
+    const tz=z+side*2.78;
+    details.box('#e8e2d4',tx,.13,tz,tw-.55,.26,1.45);
+    details.box('#d8a84e',tx,.28,tz+side*.62,tw-.65,.06,.08);
+    details.box('#f4efe2',tx,th*.5+.12,tz,.92,th,.92);
+    details.box('#215260',tx,th*.5+.12,tz,.98,th-.22,.34);
+    details.box('#d9a448',tx,th+.22,tz,1.14,.18,1.14);
+    details.add(PITCHED_ROOF,'#c97338',tx,th+.56,tz,1.52,.62,1.52,0,0,0);
+    if(isCenter){
+     details.add(PITCHED_ROOF,'#e0a94c',tx,th+.98,tz,1.02,.45,1.02,0,0,0);
+     details.add(CONE,'#f5d278',tx,th+1.36,tz,.14,.48,.14);
+    }
+    for(const [dx,hOff] of [[-6.4,th-.25],[-3.2,th-.85],[3.2,th-.85],[6.4,th-.25]]){
+     const len=Math.hypot(dx,hOff-.32),tilt=Math.atan2(dx,hOff-.32);
+     details.add(CYL,'#e6ecee',tx+dx*.5,.32+(hOff-.32)*.5,z+side*2.28,.026,len,.026,0,0,-tilt);
+    }
+    if(isCenter){
+     details.add(CYL,'#374a50',tx,-.02,z+side*3.45,.08,.36,.08);
+     details.add(BALL,side<0?'#ff5a52':'#4be38a',tx,.20,z+side*3.45,.12,.12,.12,0,0,0,null,true);
+    }
+   }
+   details.box('#204c59',tx,th-.02,z,.82,.30,6.35);
+   details.box('#f4efe2',tx,th+.22,z,.72,.22,6.15);
+   details.box('#d9a448',tx,th+.38,z,.88,.11,6.45);
+   details.add(PITCHED_ROOF,'#c97338',tx,th+.68,z,1.35,.54,3.15,0,Math.PI/2,0);
+   if(isCenter){
+    details.add(PITCHED_ROOF,'#e0a94c',tx,th+1.08,z,.92,.42,2.10,0,Math.PI/2,0);
+    details.add(CONE,'#f5d278',tx,th+1.45,z,.15,.52,.15);
+   }
+  }
+ }
+ decoratePhuketBeaches(details,beachContour){
+  const umbrellaColors=['#e45c4e','#f2c14e','#38b2b2','#3d7cc9','#f4f0e4','#e67f3d'];
+  const towelColors=['#f7f4ea','#7ad1e0','#f4b860','#ef8a82'];
+  // 1. Beach Umbrella & Sun Lounger clusters following Phuket's sculpted sandy bays all around the island
+  let uIdx=0;
+  for(let i=0;i<beachContour.length;i+=3){
+   const [bx,bz]=beachContour[i];
+   if(Math.abs(bz-150)<10||Math.abs(bx-150)<10)continue;
+   // Favor West Andaman bays (Mai Khao, Bang Tao, Kamala, Patong, Karon, Kata) and Southeast Chalong/Panwa bays
+   const isWest=bx<155;
+   if(hash(i,71)<(isWest?.26:.58))continue;
+   const cx=198,cz=150,dx=cx-bx,dz=cz-bz,len=Math.hypot(dx,dz)||1,ux=dx/len,uz=dz/len,px=-uz,pz=ux;
+   const uCol=umbrellaColors[uIdx%umbrellaColors.length],tCol=towelColors[uIdx%towelColors.length];
+   uIdx++;
+   const ox=bx+ux*.45,oz=bz+uz*.45;
+   details.add(CYL,'#8c6849',ox,.18,oz,.028,.56,.028);
+   details.add(CONE,uCol,ox,.48,oz,.52,.22,.52,0,uIdx*.7,0);
+   details.add(CONE,'#f8f5ec',ox,.52,oz,.24,.12,.24,0,uIdx*.7,0);
+   const yaw=-Math.atan2(uz,ux);
+   for(const side of [-.34,.34]){
+    const lx=ox+ux*.12+px*side,lz=oz+uz*.12+pz*side;
+    details.box('#b5895a',lx,-.05,lz,.58,.045,.24,yaw);
+    details.box(tCol,lx,-.02,lz,.48,.032,.20,yaw);
+   }
+  }
+  // 2. Iconic Phuket Beach Lifeguard Towers & Seaside Bamboo Salas along the West & South Bays
+  for(const [idx,lz] of [[0,48],[1,88],[2,122],[3,178],[4,218],[5,254]]){
+   const lx=this.coast(lz)+1.25;
+   if(idx%2===0){
+    for(const dx of [-.32,.32])for(const dz of [-.32,.32])details.add(CYL,'#d8cfc2',lx+dx,.28,lz+dz,.04,.75,.04);
+    details.box('#f4f1e8',lx,.68,lz,.88,.10,.88);
+    details.box('#df463b',lx,.98,lz,.72,.52,.72);
+    details.box('#f4f1e8',lx,1.02,lz,.76,.22,.76);
+    details.add(PITCHED_ROOF,'#df463b',lx,1.38,lz,1.02,.36,1.02,0,0,0);
+    details.box('#f5c542',lx-.48,.35,lz,.08,.62,.22);
+   }else{
+    details.box('#c9b898',lx+.35,.04,lz,1.65,.12,1.65);
+    for(const dx of [-.65,.65])for(const dz of [-.65,.65])details.add(CYL,'#7e583a',lx+.35+dx,.52,lz+dz,.055,.88,.055);
+    details.add(PITCHED_ROOF,'#b6844c',lx+.35,1.12,lz,2.05,.52,2.05,0,0,0);
+    details.add(PITCHED_ROOF,'#cfa063',lx+.35,1.42,lz,1.25,.36,1.25,0,0,0);
+    details.box('#8d6443',lx+.35,.26,lz,.85,.28,.45);
+   }
+  }
+  // 3. Traditional Thai Longtail Boats & White Andaman Yachts/Catamarans anchored in the bays
+  const boatSpots=[
+   [this.coast(42)-9.5,42,'longtail',.2],[this.coast(64)-13.5,64,'yacht',-.15],
+   [this.coast(86)-8.8,86,'longtail',.35],[this.coast(112)-15.0,112,'yacht',.1],
+   [this.coast(132)-8.2,132,'longtail',-.25],[this.coast(170)-9.0,170,'longtail',.18],
+   [this.coast(192)-14.5,192,'yacht',-.2],[this.coast(214)-8.5,214,'longtail',.3],
+   [this.coast(238)-16.0,238,'yacht',.08],[this.coast(262)-9.2,262,'longtail',-.18],
+   [195,302,'yacht',.4],[208,306,'longtail',-.3],[258,288,'yacht',-.2],[308,185,'longtail',.5]
+  ];
+  for(const [bx,bz,kind,yaw] of boatSpots){
+   if(kind==='longtail'){
+    details.box('#dceee9',bx,-.248,bz,2.05,.02,0.68,yaw);
+    details.box('#6e482b',bx,-.18,bz,1.65,.14,.42,yaw);
+    details.box('#8c5d38',bx-.15,-.06,bz,.95,.22,.38,yaw);
+    details.box('#2c6b78',bx-.15,.08,bz,.98,.05,.44,yaw);
+    details.box('#e65345',bx+.78,-.06,bz,.22,.16,.14,yaw);
+    details.box('#f4c84b',bx+.88,-.02,bz,.14,.12,.12,yaw);
+    details.box('#b5c0c2',bx-.95,-.16,bz,.65,.03,.03,yaw);
+   }else{
+    details.box('#dceee9',bx,-.248,bz,2.85,.024,1.35,yaw);
+    details.box('#f6f7f2',bx,-.16,bz,2.35,.18,.96,yaw);
+    details.box('#25697c',bx,-.11,bz,2.38,.05,.98,yaw);
+    details.box('#ffffff',bx-.12,.02,bz,1.35,.22,.74,yaw);
+    details.box('#568e9e',bx+.22,.04,bz,.45,.16,.68,yaw);
+    details.box('#f6f7f2',bx-.18,.18,bz,.95,.08,.62,yaw);
+    details.add(CYL,'#d8dfe0',bx+.15,.72,bz,.028,1.15,.028);
+   }
+  }
+  // 4. Kanchanaphisek Lighthouse at Promthep Cape (Southern tip of Phuket) & Chalong Pier Marina
+  const px=136,pz=this.coastSouth(136)-2.2;
+  details.box('#d8cfc0',px,.22,pz,3.2,.44,3.2);
+  details.box('#eee8dc',px,.58,pz,2.4,.32,2.4);
+  details.add(CYL,'#f7f5ee',px,2.15,pz,.62,2.85,.82);
+  details.add(CYL,'#d8a448',px,3.68,pz,.78,.28,.78);
+  details.add(CYL,'#6ab7c9',px,4.05,pz,.56,.52,.56);
+  details.add(CONE,'#c97b3d',px,4.58,pz,.74,.62,.74);
+  details.add(BALL,'#fff3bd',px,4.05,pz,.42,.38,.42);
+ }
  groundShape(points,color,height){
   const shape=new THREE.Shape();points.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));shape.closePath();
   const geo=new THREE.ShapeGeometry(shape);geo.rotateX(-Math.PI/2);
   const material=color?.isMaterial?color:new THREE.MeshStandardMaterial({color,roughness:1});
   const mesh=new THREE.Mesh(geo,material);mesh.position.y=height;mesh.receiveShadow=true;
+  // Stable top-down layer order even where mobile depth values coincide.
+  const kind=material.userData?.landscapeKind;
+  mesh.renderOrder=kind==='wetSand'?-3:kind==='sand'?-2:kind==='grass'?-1:0;
   this.scene.add(mesh);this.terrainGroup.push(mesh);return mesh;
  }
  terrain(city){
@@ -1085,28 +1490,57 @@ export class TrafficRenderer{
     if(o.material)for(const material of Array.isArray(o.material)?o.material:[o.material])material.dispose();
    });
   }
-  // The small atlas belongs to this renderer and survives map switches. No
-  // cached material or GPU mesh is retained from the preceding city.
-  this.landscapeNoiseMap??=landscapeNoise();this.landscapeClock??={value:0};
-  this.terrainGroup=[];this.city=city;
+  this.landscapeNoiseMap??=landscapeNoise();this.landscapeClock??={value:0};this.landscapeDetailUniform??={value:1};
+  if(!this.mapSheetMaskTexture){
+   const pixels=new Uint8Array(12*12*4);
+   const texture=new THREE.DataTexture(pixels,12,12,THREE.RGBAFormat);
+   texture.wrapS=texture.wrapT=THREE.ClampToEdgeWrapping;
+   texture.magFilter=texture.minFilter=THREE.NearestFilter;
+   texture.generateMipmaps=false;texture.flipY=false;texture.needsUpdate=true;
+   this.mapSheetMaskTexture=texture;this.mapSheetMaskUniform={value:texture};
+  }
+  this.terrainGroup=[];this.city=city;this.phuketLighthouseBeacon=null;
   const noise=this.landscapeNoiseMap,clock=this.landscapeClock;
-  const grass=landscapeMaterial(city,'grass',noise);
-  const water=new THREE.Mesh(new THREE.PlaneGeometry(900,900),landscapeWater(city,false,noise,clock));
-  water.rotation.x=-Math.PI/2;water.position.set(150,-.26,150);water.receiveShadow=true;
+  const grass=landscapeMaterial(city,'grass',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform);
+  const water=new THREE.Mesh(new THREE.PlaneGeometry(3200,3200),landscapeWater(city,false,noise,clock));
+  water.rotation.x=-Math.PI/2;water.position.set(150,-.26,150);water.receiveShadow=true;water.renderOrder=-4;
   this.scene.add(water);this.terrainGroup.push(water);
-  const coast=[];for(let z=-50;z<=350;z+=.8)coast.push([this.coast(z),z]);
   const strip=(points,a,b,material,y)=>this.groundShape([...points.map(([x,z])=>[x+a,z]),...points.slice().reverse().map(([x,z])=>[x+b,z])],material,y);
   if(city==='phuket'){
-   this.groundShape([...coast.map(([x,z])=>[x-2.2,z]),[370,350],[370,-50]],landscapeMaterial(city,'sand',noise),-.12);
-   this.groundShape([...coast.map(([x,z])=>[x+1.6,z]),[370,350],[370,-50]],grass,0);
-   strip(coast,-2.2,-1.05,landscapeMaterial(city,'wetSand',noise),-.105);
+   const sandMat=landscapeMaterial(city,'sand',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform),wetSandMat=landscapeMaterial(city,'wetSand',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform);
+   const islandFn=(x,z)=>this.islandOutward(x,z);
+   this.groundShape(this.contourPolygon(198,150,2.2,islandFn,420,260),wetSandMat,-.12);
+   this.groundShape(this.contourPolygon(198,150,1.05,islandFn,420,260),sandMat,-.105);
+   this.groundShape(this.contourPolygon(198,150,-1.6,islandFn,420,260),grass,0);
+   // The west gate stays x=0. Only the scenery extends 12 units past it;
+   // two coastlines close the landform naturally without a straight cut edge.
+   const phangNgaCoast=[];
+   for(let z=120;z<=180;z+=1)phangNgaCoast.push([this.phangNgaShoreX(z),z]);
+   const phangNgaLand=(offset)=>[
+    ...phangNgaCoast.map(([x,z])=>[x+offset*Math.max(0,1-((z-150)/30)**2),z]),
+    ...phangNgaCoast.slice().reverse().map(([,z])=>[this.phangNgaWestX(z)-offset*Math.max(0,1-((z-150)/30)**2),z])
+   ];
+   this.groundShape(phangNgaLand(2.2),wetSandMat,-.12);
+   this.groundShape(phangNgaLand(1.05),sandMat,-.105);
+   this.groundShape(phangNgaLand(-1.6),grass,0);
+   // Scenic Satellite Islands off Phuket (Koh He off Chalong Bay, Koh Maprao off East Coast & Koh Pu off Kata Beach)
+   const kohHeFn=(x,z)=>Math.hypot((x-214)*.9,(z-326)*1.15)-16.5+1.8*Math.sin(x*.25+z*.2);
+   this.groundShape(this.contourPolygon(214,326,2.2,kohHeFn,90,34),wetSandMat,-.12);
+   this.groundShape(this.contourPolygon(214,326,1.05,kohHeFn,90,34),sandMat,-.105);
+   this.groundShape(this.contourPolygon(214,326,-1.6,kohHeFn,90,34),grass,0);
+   const kohMapraoFn=(x,z)=>Math.hypot((x-322)*1.05,(z-202)*.95)-15+1.5*Math.cos(z*.25-x*.2);
+   this.groundShape(this.contourPolygon(322,202,2.2,kohMapraoFn,90,34),wetSandMat,-.12);
+   this.groundShape(this.contourPolygon(322,202,1.05,kohMapraoFn,90,34),sandMat,-.105);
+   this.groundShape(this.contourPolygon(322,202,-1.6,kohMapraoFn,90,34),grass,0);
+   const kohPuFn=(x,z)=>Math.hypot((x-58)*1.1,(z-225)*.9)-9.5+1.2*Math.sin(x*.3-z*.25);
+   this.groundShape(this.contourPolygon(58,225,2.2,kohPuFn,80,24),wetSandMat,-.12);
+   this.groundShape(this.contourPolygon(58,225,1.05,kohPuFn,80,24),sandMat,-.105);
+   this.groundShape(this.contourPolygon(58,225,-1.6,kohPuFn,80,24),grass,0);
   }else{
-   this.groundShape([[-40,-40],[-40,340],[340,340],[340,-40]],grass,0);
+   this.groundShape([[-1100,-1100],[-1100,1400],[1400,1400],[1400,-1100]],grass,0);
    if(city==='bangkok'){
-    const river=[];for(let z=-40;z<=340;z+=.8)river.push([125+Math.sin(z*.047)*5,z]);
+    const river=[];for(let z=-600;z<=900;z+=1.2)river.push([125+Math.sin(z*.047)*5,z]);
     strip(river,-4,4,landscapeWater(city,true,noise,clock),.015);
-    // Narrow silt margins stay within the existing river width and do not
-    // move the river, road crossings or buildable banks.
     strip(river,-4,-3.65,landscapeMaterial(city,'wetSand',noise),.017);
     strip(river,3.65,4,landscapeMaterial(city,'wetSand',noise),.017);
    }
@@ -1170,22 +1604,54 @@ export class TrafficRenderer{
    }
   }
   if(city==='phuket'){
-   for(let n=0;n<95;n++){
-    const z=55+hash(n,9)*225,x=this.coast(z)-1.1+hash(n,21)*1.8;
+   this.buildPhuketSeaBridge(details);
+   this.addPhangNgaWelcomeSign(details);
+   const beachContour=this.contourPolygon(198,150,.3,((x,z)=>this.islandOutward(x,z)),300,260);
+   this.decoratePhuketBeaches(details,beachContour);
+   // Lighthouse beam appears only after dark; it does not affect pathfinding or collisions.
+   const lighthouseZ=this.coastSouth(136)-2.2;
+   const beacon=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({
+    color:'#fff4bc',transparent:true,opacity:0,depthWrite:false,
+    blending:THREE.AdditiveBlending,toneMapped:false
+   }));
+   beacon.scale.set(.53,.46,.53);beacon.position.set(136,4.05,lighthouseZ);
+   beacon.visible=false;this.phuketLighthouseBeacon=beacon;
+   this.scene.add(beacon);this.terrainGroup.push(beacon);
+   for(let n=0;n<180;n++){
+    const idx=Math.floor(hash(n,9)*beachContour.length),pt=beachContour[idx];
+    const jitter=(hash(n,21)-.5)*1.6,ang=idx/beachContour.length*TAU;
+    const x=pt[0]+Math.cos(ang)*jitter,z=pt[1]+Math.sin(ang)*jitter;
+    if(Math.abs(z-150)<5||Math.abs(x-150)<5)continue;
     const size=.08+hash(n,37)*.27;
     details.add(LEAF,['#9b9984','#c2b79a','#aaa98c'][n%3],x,-.07,z,size,size*.36,size*.71,0,n,0);
    }
-   // Small offshore rock groups at the Phuket shoreline. Strictly offshore,
-   // outside all driveable/buildable land; baked once and GPU-instanced.
-   for(let n=0;n<13;n++){
-    const z=28+hash(n,28)*242,shore=this.coast(z),x=shore-8-hash(n,72)*18;
-    const radius=.65+hash(n,33)*1.25;
+   // Small offshore rock groups & limestone islets around Phuket's bays and headlands
+   for(let n=0;n<32;n++){
+    const idx=Math.floor(hash(n,28)*beachContour.length),pt=beachContour[idx];
+    const ang=idx/beachContour.length*TAU,off=8+hash(n,72)*19;
+    const x=pt[0]+Math.cos(ang)*off,z=pt[1]+Math.sin(ang)*off;
+    if(Math.abs(z-150)<16&&x<135||x>=0&&x<this.phangNgaShoreX(z)+6&&Math.abs(z-150)<31)continue;
+    const radius=.75+hash(n,33)*1.45;
     for(let l=0;l<3;l++){
      const a=l*2.39996+hash(n,9)*TAU,dist=l===0?0:radius*(.35+.2*hash(l,n));
-     const px=x+Math.cos(a)*dist,pz=z+Math.sin(a)*dist,s=.45+hash(n+l,41)*.7;
-     details.add(LEAF,['#798e83','#9a9b87','#647e73'][l],px,-.11+s*.29,pz,
-      radius*s,.38*s,radius*s,0,a,0,null,false,'stone');
+     const px=x+Math.cos(a)*dist,pz=z+Math.sin(a)*dist,s=.48+hash(n+l,41)*.75;
+     details.add(LEAF,['#798e83','#9a9b87','#647e73'][l],px,-.11+s*.31,pz,
+      radius*s,.42*s,radius*s,0,a,0,null,false,'stone');
     }
+   }
+   // Coconut palms & tropical trees on satellite islands and the Phang Nga checkpoint.
+   for(let n=0;n<28;n++){
+    const a=hash(n,11)*TAU,r=hash(n,29)*10.5;
+    this.tree(details,214+Math.cos(a)*r,326+Math.sin(a)*r*.8,.72+hash(n,51)*.4,n%3?'palm':'rain','far',n%4);
+    this.tree(details,322+Math.cos(a)*r*.85,202+Math.sin(a)*r,.72+hash(n,67)*.4,n%3?'palm':'shade','far',n%4);
+    if(n<14)this.tree(details,58+Math.cos(a)*r*.52,225+Math.sin(a)*r*.58,.68+hash(n,73)*.35,n%2?'palm':'rain','far',n%4);
+   }
+   // Keep a few trees on the returned land; none blocks the west access road (z=150).
+   for(let n=0;n<12;n++){
+    const z=n<6?130+hash(n,43)*11:159+hash(n,43)*11;
+    const coast=this.phangNgaShoreX(z),x=2+hash(n,17)*Math.max(0,coast-5);
+    if(x>=coast-1.7)continue;
+    this.tree(details,x,z,.72+hash(n,61)*.32,n%3?'palm':'rain','far',n%4);
    }
   }
   const group=details.build();this.scene.add(group);this.terrainGroup.push(group);this.treeKey='';
@@ -1448,7 +1914,7 @@ export class TrafficRenderer{
   if(!/^(thai_|industrial_|temple_|landmark_)/.test(kind))return false;
   // All 24 Thai decorations are 35% of authored size (30% smaller than the prior 50%),
   // grounded at the same point; saved positions, collisions and simulation are untouched.
-  const scale=.35,angle=(rotation||0)*Math.PI/2,c=Math.cos(angle),s=Math.sin(angle);
+  const scale=kind==='landmark_parliament'?0.78:0.35,angle=(rotation||0)*Math.PI/2,c=Math.cos(angle),s=Math.sin(angle);
   const point=(u,v)=>[x+scale*(u*c+v*s),z+scale*(-u*s+v*c)];
   const box=(col,u,y,v,w,h,d,ry=0,rx=0,rz=0)=>{
    const p=point(u,v);batch.add(BOX,col,p[0],y*scale,p[1],w*scale,h*scale,d*scale,rx,angle+ry,rz);
@@ -1617,6 +2083,74 @@ export class TrafficRenderer{
     }
     for(const a of[-.58,.58])box('#9c7755',a,.20,.05,.13,.35,.12,0,0,a*.45);
     box('#d9bc7d',0,.09,0,1.55,.18,1.60);break;
+   }
+
+   case 'landmark_parliament':{
+    // Monumental Thai Parliament: a white modern U-wing campus, gold tiered
+    // ceremonial roof and needle spire, twin flags, water and gardens.
+    // All parts use shared instanced primitives; entirely decorative.
+    const ivory='#eee8dc',white='#faf5ea',edge='#c9d1cd',blue='#354c59';
+    box('#48b6d3',0,.025,0,12.4,.055,10.2); // surrounding water
+    box('#cbd6d1',0,.11,-.18,11.6,.20,8.9);
+    box('#9ec65f',0,.235,-.30,11.08,.085,8.32);
+    box('#ece9df',0,.28,2.91,9.2,.09,2.10);
+    box('#e5e3db',0,.26,4.22,2.10,.16,2.00); // approach bridge
+    box('#fff8e7',0,.35,4.22,1.85,.08,1.96);
+    // Broad symmetrical white offices leave two real open-air courtyards.
+    box('#c5c9c6',0,.37,-2.68,9.35,.29,1.99);
+    box(ivory,0,1.63,-2.68,9.04,2.35,1.73);
+    box(white,0,2.96,-2.68,9.28,.24,2.02);
+    box(edge,0,2.81,-2.68,9.36,.09,2.07);
+    for(const s of[-1,1]){
+     box('#c5c9c6',s*3.47,.37,-.63,2.21,.29,5.34);
+     box(ivory,s*3.47,1.49,-.63,2.07,2.08,5.26);
+     box(white,s*3.47,2.66,-.63,2.33,.25,5.51);
+     box(edge,s*3.47,2.51,-.63,2.37,.09,5.56);
+     box('#e5e4dd',s*2.78,1.31,1.13,2.96,1.70,1.54);
+     box(white,s*2.78,2.29,1.13,3.02,.22,1.68);
+     box(edge,s*2.78,2.17,1.13,3.11,.08,1.74);
+     box(blue,s*3.5,1.10,2.28,1.33,1.05,.055);
+     box('#f6efe0',s*3.5,1.70,2.31,1.40,.095,.065);
+    }
+    // Interior gardens visible between the modern wings.
+    box('#78b365',0,.45,-.51,3.72,.045,2.48);
+    box('#e1e0cf',0,.47,-.50,.58,.060,2.20);
+    // The central Thai ceremonial gable is the principal focal point.
+    box('#e4d8bf',0,1.49,.82,2.78,2.08,2.03);
+    for(const u of[-1.04,-.52,.52,1.04])column(u,1.89,2.45,white);
+    box(blue,0,1.18,1.88,.97,1.55,.065);
+    box('#d4a448',0,2.36,1.95,1.70,.15,.085);
+    thaiRoof(0,.54,4.05,3.13,2.77,1.05,'#d99f2d');
+    thaiRoof(0,.28,3.10,2.52,3.54,.74,'#f0c54a');
+    box('#d89926',0,4.20,.23,1.62,.21,1.59);
+    cyl('#d79e2d',0,4.49,.23,.73,.35);
+    cone('#ffce50',0,5.09,.23,.82,1.01);
+    cyl('#e1a32d',0,5.67,.23,.54,.21);
+    cone('#e0a52c',0,6.26,.23,.57,1.18);
+    cyl('#ffd05b',0,6.92,.23,.29,.17);
+    cone('#efbd3a',0,7.48,.23,.32,.99);
+    cone('#fff2a1',0,8.09,.23,.10,.38);
+    // Stairs and two Thai tricolour flags in the public forecourt.
+    for(let i=0;i<4;i++)box(i%2?'#dfddd3':'#f8f3e8',0,.39-i*.05,2.06+i*.23,1.88+i*.22,.10,.35);
+    for(const u of[-2.25,2.25]){
+     cyl('#bec8c9',u,1.66,3.32,.039,2.72);
+     ball('#e9bc48',u,3.09,3.32,.09);
+     for(const [dy,h,col]of[[0,.075,'#bc3844'],[-.083,.075,'#f8f6eb'],[-.20,.15,'#244885'],[-.316,.075,'#f8f6eb'],[-.40,.075,'#bc3844']])
+      box(col,u+.39,2.71+dy,3.35,.78,h,.028);
+    }
+    // Boats and polygonal greenery preserve the reference's island silhouette.
+    for(const u of[-4.35,4.35]){
+     box('#91623e',u,.16,4.22,.91,.15,.37);
+     box('#d8a351',u,.22,4.21,.70,.06,.24);
+     cone('#c58c41',u+.50,.17,4.21,.17,.32);
+    }
+    for(const u of[-5.00,-3.94,3.94,5.00])for(const v of[-3.20,1.37]){
+     cyl('#967d55',u,.66,v,.09,.77);
+     ball('#64a347',u,1.18,v,.43);
+     ball('#94c84e',u+.13,1.36,v-.10,.28);
+    }
+    for(const u of[-4.0,-3.38,3.38,4.0])ball('#6baa49',u,.44,2.94,.24);
+    break;
    }
    case 'landmark_city_gate':{
     for(const u of[-2.05,2.05]){box('#d7c4a0',u,1.40,0,.76,2.8,1.08);box('#9a5945',u,2.8,0,.88,.17,1.15);}
@@ -1839,6 +2373,33 @@ export class TrafficRenderer{
     for(const v of[-.55,.55])ball('#b5d188',.22,2.48,v,.24);
     for(const u of[-.61,.63])cyl('#d9bb79',u,.17,.45,.045,.34);
     break;
+
+   case 'landmark_parliament':{
+    // Near-only facade ornaments. Distant cities retain a light silhouette.
+    const glazing='#304c5d',trim='#d2d9d4',gold='#e7b33f';
+    for(const v of[-3.57,-1.79])for(let i=0;i<13;i++){
+     const u=(i-6)*.63;
+     box(glazing,u,1.51,v,.34,.96,.04);
+     box(trim,u,2.04,v,.40,.065,.07);
+    }
+    for(const s of[-1,1]){
+     for(let i=0;i<8;i++){
+      const v=-2.85+i*.58;
+      box(glazing,s*4.53,1.44,v,.045,.94,.32);
+      box(trim,s*4.57,1.97,v,.055,.065,.39);
+     }
+     for(let i=0;i<4;i++){
+      const u=s*(2.15+i*.48);
+      box(glazing,u,1.27,2.04,.31,.86,.05);
+     }
+     for(const v of[-3.42,-2.40,-1.36,-.32,.70])box(trim,s*3.47,2.82,v,2.25,.06,.06);
+     for(const v of[-3.38,-2.30,-1.20,-.10,.90,1.93])ball('#78b255',s*4.87,.43,v,.22);
+     for(let i=0;i<4;i++)ball('#ffe184',s*(.58+i*.27),4.02,.24,.055);
+    }
+    for(const u of[-1.02,-.52,.52,1.02])box(gold,u,2.47,2.04,.13,.24,.065);
+    for(const u of[-.65,0,.65])box('#e9e5d9',u,.43,3.87,.08,.055,1.24);
+    break;
+   }
    case 'landmark_city_gate':
     for(const u of[-2.05,2.05]){
      for(const y of[.55,1.30,2.13])motif(u,y,.57);
@@ -2142,79 +2703,97 @@ export class TrafficRenderer{
     Math.sin(a)*ring,.070,.065,.075,a);
   }
  }
+ // Keep the distant forest on the GPU. Camera movement rebuilds only nearby detail.
  trees(state,cam){
- const cellX=Math.floor(cam.x/18),cellZ=Math.floor(cam.y/18);
- const key=[cellX,cellZ,state.version,this.buildKey,state.city,state.landscapeVersion||0].join(':');
- if(key===this.treeKey)return;this.treeKey=key;this.disposeGroup(this.treeGroup);
- const b=new Batch(),span=62,hidden=new Set(state.hiddenAutoTrees||[]);this.landscapePicks=new Map();let pickId=0;
- const clear=(x,z)=>{
-  const ix=Math.floor(x),iz=Math.floor(z);
-  if(ix<1||iz<1||ix>=299||iz>=299)return false;
-  if(state.city==='phuket'&&x<this.coast(z)+2.8||state.city==='bangkok'&&Math.abs(x-(125+Math.sin(z*.047)*5))<6)return false;
-  for(let yy=iz-1;yy<=iz+1;yy++)for(let xx=ix-1;xx<=ix+1;xx++){const index=yy*300+xx;if(state.footprint[index]>=0||state.buildGrid[index]>=0)return false;}
-  return true;
- };
- // Organic groves replace a perfectly even scattering of six repeated
- // trees. City-specific species and non-selectable undergrowth reuse the
- // existing instanced geometry; no per-frame mesh allocations or physics.
- const biomeTrees={
-  phuket:['palm','palm','rain','shade','banyan','flower','shrub'],
-  bangkok:['rain','banyan','willow','shade','flower','jacaranda','oak'],
-  chiangmai:['pine','cedar','oak','shade','flower','cherry','cypress'],
-  korat:['shade','oak','rain','shrub','maple','flower','banyan'],
-  london:['oak','willow','maple','shade','cherry','cypress','rain']
- };
- const species=biomeTrees[state.city]||biomeTrees.korat;
- const shrubColors=state.city==='chiangmai'?['#487e58','#64976a','#7da67c']:
-  state.city==='korat'?['#77965d','#91a66c','#acb478']:
-  state.city==='phuket'?['#4e9470','#69a77b','#8bb895']:
-  ['#548b65','#78a57c','#91b695'];
- const flowerColors=state.city==='chiangmai'?['#e9b1d4','#b5a4d9','#f6c4cf']:
-  state.city==='korat'?['#f0cd82','#e8a4b0','#eac18d']:
-  ['#e8a4c0','#d6b6ec','#f1c77e'];
- for(let z=cellZ*18-span;z<cellZ*18+span;z+=2.7)for(let x=cellX*18-span;x<cellX*18+span;x+=2.7){
-  // Use coherent landscape groves without increasing average tree density.
-  const grove=hash(Math.floor(x/14)+23,Math.floor(z/14)+57);
-  if(hash(x,z)<(grove>.53?.56:.82))continue;
-  const tx=x+hash(z,x)*1.8,tz=z+hash(x+7,z)*1.8,ix=Math.floor(tx),iz=Math.floor(tz);
-  if(!clear(tx,tz)||hidden.has(iz*300+ix))continue;
-  const variety=hash(tx+12,tz+3);
-  let kind=species[Math.min(species.length-1,Math.floor(variety*species.length))];
-  if(state.city==='phuket'&&tx<this.coast(tz)+13&&variety>.25)kind='palm';
-  if(state.city==='bangkok'&&Math.abs(tx-(125+Math.sin(tz*.047)*5))<14&&variety>.38)kind='willow';
-  const near=this.graphicQuality==='veryHigh'||Math.hypot(tx-cam.x,tz-cam.y)<27;
-  b.pickId=++pickId;this.landscapePicks.set(pickId,{auto:true,x:tx,y:tz,kind,rotation:state.autoTreeRotations?.[iz*300+ix]||0});
-  this.tree(b,tx,tz,(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),kind,near?'near':'far',state.autoTreeRotations?.[iz*300+ix]||0);
-  // Selectable trees remain selectable, but their understory isn't a new
-  // interactable game object or something that persists in saves.
-  b.pickId=null;
-  if(!near||hash(tx+31,tz+7)<.44)continue;
-  for(let k=0;k<3;k++){
-   const angle=k*2.39996+hash(tx+1,tz)*6.2832,rad=.34+.40*hash(tx+k,tz+4);
-   const px=tx+Math.cos(angle)*rad,pz=tz+Math.sin(angle)*rad;
-   if(!clear(px,pz))continue;
-   const color=shrubColors[(k+Math.floor(hash(tx,tz+2)*3))%shrubColors.length];
-   const size=.15+.08*hash(px,pz);
-   b.add(HEDGE_LEAF,color,px,.15,pz,size,.13,size,0,angle,0,null,false,'foliage');
-   if(k===1||hash(px+8,pz)> .76){
-    const color=flowerColors[(k+Math.floor(hash(px,pz+9)*3))%flowerColors.length];
-    for(let petal=0;petal<4;petal++){
-     const a=petal*TAU/4;
-     b.add(FLOWER_PETAL,color,px+Math.cos(a)*.085,.286,pz+Math.sin(a)*.085,
-      .052,.022,.041,0,a,0,null,false,'flower');
-    }
-   }
+ const baseKey=[state.version,this.buildKey,state.city,state.landscapeVersion||0,this.graphicQuality].join(':');
+ if(this.treeState!==state||this.treeBaseKey!==baseKey){
+  this.treeState=state;this.treeBaseKey=baseKey;this.treeKey='';this.disposeGroup(this.treeGroup);
+  this.landscapePicks=new Map();this.treeRecords=[];this.treeRecordCells=new Map();this.treePlantedRecords=[];
+  this.treeHiddenIds=new Set();this.farTreeInstances=new Map();
+  const b=new Batch(),hidden=new Set(state.hiddenAutoTrees||[]);let pickId=0;
+  const clear=(x,z)=>{
+   const ix=Math.floor(x),iz=Math.floor(z);
+   if(ix<1||iz<1||ix>=299||iz>=299)return false;
+   if(state.city==='phuket'&&this.islandOutward(x,z)>-2.8||state.city==='bangkok'&&Math.abs(x-(125+Math.sin(z*.047)*5))<6)return false;
+   for(let yy=iz-1;yy<=iz+1;yy++)for(let xx=ix-1;xx<=ix+1;xx++){const index=yy*300+xx;if(state.footprint[index]>=0||state.buildGrid[index]>=0)return false;}
+   return true;
+  };
+  this.treeClear=clear;
+  const biomeTrees={phuket:['palm','palm','rain','shade','banyan','flower','shrub'],bangkok:['rain','banyan','willow','shade','flower','jacaranda','oak'],chiangmai:['pine','cedar','oak','shade','flower','cherry','cypress'],korat:['shade','oak','rain','shrub','maple','flower','banyan'],london:['oak','willow','maple','shade','cherry','cypress','rain']};
+  const species=biomeTrees[state.city]||biomeTrees.korat;
+  this.treeShrubColors=state.city==='chiangmai'?['#487e58','#64976a','#7da67c']:state.city==='korat'?['#77965d','#91a66c','#acb478']:state.city==='phuket'?['#4e9470','#69a77b','#8bb895']:['#548b65','#78a57c','#91b695'];
+  this.treeFlowerColors=state.city==='chiangmai'?['#e9b1d4','#b5a4d9','#f6c4cf']:state.city==='korat'?['#f0cd82','#e8a4b0','#eac18d']:['#e8a4c0','#d6b6ec','#f1c77e'];
+  const add=record=>{
+   record.id=++pickId;this.treeRecords.push(record);
+   this.landscapePicks.set(record.id,record.item?{item:record.item}:{auto:true,x:record.x,y:record.z,kind:record.kind,rotation:record.rotation});
+   const key=Math.floor(record.x/18)+':'+Math.floor(record.z/18);let cell=this.treeRecordCells.get(key);if(!cell)this.treeRecordCells.set(key,cell=[]);cell.push(record);
+   if(record.item)this.treePlantedRecords.push(record);
+   this.renderTreeRecord(b,record,false);
+  };
+  const xMin=state.city==='phuket'?112:2;
+  for(let z=2;z<298;z+=2.7)for(let x=xMin;x<298;x+=2.7){
+   const grove=hash(Math.floor(x/14)+23,Math.floor(z/14)+57);
+   if(hash(x,z)<(grove>.53?.56:.82))continue;
+   const tx=x+hash(z,x)*1.8,tz=z+hash(x+7,z)*1.8,ix=Math.floor(tx),iz=Math.floor(tz);
+   if(!clear(tx,tz)||hidden.has(iz*300+ix))continue;
+   const variety=hash(tx+12,tz+3);let kind=species[Math.min(species.length-1,Math.floor(variety*species.length))];
+   if(state.city==='phuket'&&this.islandOutward(tx,tz)>-14&&variety>.25)kind='palm';
+   if(state.city==='bangkok'&&Math.abs(tx-(125+Math.sin(tz*.047)*5))<14&&variety>.38)kind='willow';
+   add({x:tx,z:tz,kind,scale:(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),rotation:state.autoTreeRotations?.[iz*300+ix]||0});
+  }
+  for(const t of state.plantedTrees||[]){
+   if(!Number.isFinite(t.x)||!Number.isFinite(t.y)||t.x<0||t.y<0||t.x>=300||t.y>=300)continue;
+   const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:['oak','rain','willow','cherry','maple','jacaranda'].includes(t.kind)?1.24:['cedar','cypress'].includes(t.kind)?1.20:t.kind==='palm'?1.12:1.04;
+   add({x:t.x,z:t.y,kind:t.kind,scale,rotation:t.rotation||0,item:t});
+  }
+  this.treeFarGroup=b.build();this.treeDetailGroup=new THREE.Group();this.treeGroup.add(this.treeFarGroup,this.treeDetailGroup);
+  for(const mesh of this.treeFarGroup.children){
+   mesh.userData.farTreeMatrices=mesh.instanceMatrix.array.slice();
+   mesh.userData.ids.forEach((id,index)=>{if(id==null)return;let entries=this.farTreeInstances.get(id);if(!entries)this.farTreeInstances.set(id,entries=[]);entries.push({mesh,index});});
   }
  }
- for(const t of state.plantedTrees||[]){
-  if(!Number.isFinite(t.x)||!Number.isFinite(t.y)||t.x<0||t.y<0||t.x>=300||t.y>=300||Math.abs(t.x-cellX*18)>span+3||Math.abs(t.y-cellZ*18)>span+3)continue;
-  const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:['oak','rain','willow','cherry','maple','jacaranda'].includes(t.kind)?1.24:['cedar','cypress'].includes(t.kind)?1.20:t.kind==='palm'?1.12:1.04;
-  b.pickId=++pickId;this.landscapePicks.set(pickId,{item:t});
-  const nearby=this.graphicQuality==='veryHigh'||Math.hypot(t.x-cam.x,t.y-cam.y)<27;
-  if(!this.decoration(b,t.x,t.y,t.kind,t.rotation||0,nearby?'near':'far'))this.tree(b,t.x,t.y,scale,t.kind,nearby?'near':'far',t.rotation||0);
+ const zoomedIn=(cam.z??1)>=.75,cellX=zoomedIn?Math.floor(cam.x/18):'all',cellZ=zoomedIn?Math.floor(cam.y/18):'all';
+ const key=[baseKey,cellX,cellZ].join(':');if(key===this.treeKey)return;this.treeKey=key;
+ const near=[],radius=this.graphicQuality==='veryHigh'?42:27;
+ if(zoomedIn){
+  for(let x=Math.floor((cam.x-radius)/18);x<=Math.floor((cam.x+radius)/18);x++)for(let z=Math.floor((cam.y-radius)/18);z<=Math.floor((cam.y+radius)/18);z++)
+   for(const record of this.treeRecordCells.get(x+':'+z)||[])if(!(record.item&&this.graphicQuality==='veryHigh')&&Math.hypot(record.x-cam.x,record.z-cam.y)<radius)near.push(record);
+  if(this.graphicQuality==='veryHigh')near.push(...this.treePlantedRecords);
  }
- this.treeGroup.add(b.build());
+ near.sort((a,b)=>a.id-b.id);
+ const hidden=new Set(near.map(record=>record.id)),changed=new Map();
+ const mask=(id,hide)=>{
+  for(const {mesh,index}of this.farTreeInstances.get(id)||[]){
+   const offset=index*16,array=mesh.instanceMatrix.array;
+   if(hide){array.fill(0,offset,offset+16);array[offset+15]=1;}
+   else array.set(mesh.userData.farTreeMatrices.subarray(offset,offset+16),offset);
+   const range=changed.get(mesh);if(range){range[0]=Math.min(range[0],offset);range[1]=Math.max(range[1],offset+16);}else changed.set(mesh,[offset,offset+16]);
+  }
+ };
+ for(const id of this.treeHiddenIds)if(!hidden.has(id))mask(id,false);
+ for(const id of hidden)if(!this.treeHiddenIds.has(id))mask(id,true);
+ for(const [mesh,[start,end]]of changed){mesh.instanceMatrix.clearUpdateRanges();mesh.instanceMatrix.addUpdateRange(start,end-start);mesh.instanceMatrix.needsUpdate=true;}
+ this.treeHiddenIds=hidden;this.disposeGroup(this.treeDetailGroup);
+ if(near.length){const detail=new Batch();for(const record of near)this.renderTreeRecord(detail,record,true);this.treeDetailGroup.add(detail.build());}
  }
+ renderTreeRecord(batch,record,near){
+ const {x,z,kind,scale,rotation,id,item}=record;batch.pickId=id;
+ if(item){if(!this.decoration(batch,x,z,kind,rotation,near?'near':'far'))this.tree(batch,x,z,scale,kind,near?'near':'far',rotation);}
+ else this.tree(batch,x,z,scale,kind,near?'near':'far',rotation);
+ batch.pickId=null;
+ if(item||!near||hash(x+31,z+7)<.44)return;
+ for(let k=0;k<3;k++){
+  const angle=k*2.39996+hash(x+1,z)*6.2832,rad=.34+.40*hash(x+k,z+4),px=x+Math.cos(angle)*rad,pz=z+Math.sin(angle)*rad;
+  if(!this.treeClear(px,pz))continue;
+  const color=this.treeShrubColors[(k+Math.floor(hash(x,z+2)*3))%this.treeShrubColors.length],size=.15+.08*hash(px,pz);
+  batch.add(HEDGE_LEAF,color,px,.15,pz,size,.13,size,0,angle,0,null,false,'foliage');
+  if(k===1||hash(px+8,pz)>.76){
+   const color=this.treeFlowerColors[(k+Math.floor(hash(px,pz+9)*3))%this.treeFlowerColors.length];
+   for(let petal=0;petal<4;petal++){const a=petal*TAU/4;batch.add(FLOWER_PETAL,color,px+Math.cos(a)*.085,.286,pz+Math.sin(a)*.085,.052,.022,.041,0,a,0,null,false,'flower');}
+  }
+ }
+ }
+
  pickLandscapes(x,y){
   if(!this.treeGroup.visible||!this.landscapePicks)return [];
   this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);
@@ -2243,6 +2822,9 @@ export class TrafficRenderer{
   if(this.heatGroup)this.disposeGroup(this.heatGroup);
  }
  makeRoads(state,ROADS,junction,previewOnly=false){this.disposeGroup(this.roadGroup);this.disposeGroup(this.signalGroup);this.signals=[];const batch=new Batch(),line=new Batch();const roadWidths={small:ROADS.small.visualWidth||1.175,medium:ROADS.medium.visualWidth||2.35,large:ROADS.large.visualWidth||3.72};
+ // Premium eight-lane road: the same 3.72-unit carriageway, with no median.
+ // Visual finish only; no change to lane offsets, road links or traffic logic.
+ const PREMIUM_CONCRETE='#555957',CONCRETE_JOINT='#4e5250',PREMIUM_LANE='#f0ede4',PREMIUM_CENTER='#d6b36a',PREMIUM_EDGE='#cfd0ca';
  const layouts=new Map(),hidden=new Set(),nearby=new Map(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
  if(junction.details)for(const [node]of state.roads){const d=junction.details(node);for(const [a,b]of d.hiddenEdges)hidden.add(edgeKey(a,b));if(d.arms.length>=3||d.bend)layouts.set(node,d);}
  for(const layout of layouts.values())for(let xx=Math.floor(layout.x-layout.halfX-2);xx<=Math.ceil(layout.x+layout.halfX+2);xx++)for(let zz=Math.floor(layout.y-layout.halfY-2);zz<=Math.ceil(layout.y+layout.halfY+2);zz++){const key=zz*300+xx;if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(layout);}
@@ -2255,51 +2837,97 @@ export class TrafficRenderer{
  const dashedRibbon=(points,color,width)=>{let distance=0,run=[];for(let k=1;k<points.length;k++){const a=points[k-1],b=points[k],length=Math.hypot(b[0]-a[0],b[1]-a[1]);let used=0;while(used<length-1e-9){const phase=distance%1,on=phase<.45,step=Math.min(length-used,(on?.45:1)-phase);if(step<1e-9){distance+=1e-8;continue;}const p=[a[0]+(b[0]-a[0])*used/length,a[1]+(b[1]-a[1])*used/length];used+=step;const q=[a[0]+(b[0]-a[0])*used/length,a[1]+(b[1]-a[1])*used/length];if(on){if(!run.length)run.push(p);run.push(q);}else if(run.length){ribbon(run,color,width);run=[];}distance+=step;}}if(run.length)ribbon(run,color,width);};
  const cutInterval=(x,z,dx,dz,l)=>{let a=0,b=1;for(const [start,delta,lo,hi]of [[x,dx,l.x-l.halfX,l.x+l.halfX],[z,dz,l.y-l.halfY,l.y+l.halfY]]){if(Math.abs(delta)<1e-9){if(start<lo||start>hi)return null;}else{const t0=(lo-start)/delta,t1=(hi-start)/delta;a=Math.max(a,Math.min(t0,t1));b=Math.min(b,Math.max(t0,t1));}}return b>a?[a,b]:null;};
 
- for(const [i,r]of state.roads){const x=i%300,z=Math.floor(i/300),w=roadWidths[r.type];if(!r.links.size)batch.box('#424f55',x,.062,z,w,.12,w);for(const j of r.links){if(j<i||!state.roads.has(j)||hidden.has(edgeKey(i,j)))continue;const nx=j%300,nz=Math.floor(j/300),dx=nx-x,dz=nz-z,len=Math.hypot(dx,dz),angle=-Math.atan2(dz,dx),mx=(x+nx)/2,mz=(z+nz)/2,neighbor=state.roads.get(j),segmentWidth=Math.max(w,neighbor?roadWidths[neighbor.type]||w:w);let widthA=w,widthB=neighbor?roadWidths[neighbor.type]||w:w,intervals=[[0,1]];const around=[...new Set([...(nearby.get(i)||[]),...(nearby.get(j)||[])])];
+ for(const [i,r]of state.roads){const x=i%300,z=Math.floor(i/300),w=roadWidths[r.type];if(!r.links.size)batch.box(r.type==='large'?PREMIUM_CONCRETE:'#424f55',x,.062,z,w,.12,w);for(const j of r.links){if(j<i||!state.roads.has(j)||hidden.has(edgeKey(i,j)))continue;const nx=j%300,nz=Math.floor(j/300),dx=nx-x,dz=nz-z,len=Math.hypot(dx,dz),angle=-Math.atan2(dz,dx),mx=(x+nx)/2,mz=(z+nz)/2,neighbor=state.roads.get(j),segmentWidth=Math.max(w,neighbor?roadWidths[neighbor.type]||w:w);let widthA=w,widthB=neighbor?roadWidths[neighbor.type]||w:w,intervals=[[0,1]];const around=[...new Set([...(nearby.get(i)||[]),...(nearby.get(j)||[])])];
  for(const layout of around){const axis=Math.abs(dx)>Math.abs(dz)?0:1,center=axis===0?mx-layout.x:mz-layout.y,dir=axis===0?(center>=0?0:2):(center>=0?1:3),arm=layout.arms.find(a=>a.dir===dir),aligned=axis===0?Math.abs(z-layout.y)<.01:Math.abs(x-layout.x)<.01;if(aligned&&arm){widthA=widthB=arm.width;const cut=cutInterval(x,z,dx,dz,layout);if(cut){const pieces=[];for(const [lo,hi]of intervals){if(cut[1]<=lo||cut[0]>=hi)pieces.push([lo,hi]);else{if(cut[0]>lo)pieces.push([lo,cut[0]]);if(cut[1]<hi)pieces.push([cut[1],hi]);}}intervals=pieces;}}}
- const parts=widthA===widthB?1:12;for(const [lo,hi]of intervals)for(let part=0;part<parts;part++){const a=lo+(hi-lo)*part/parts,b=lo+(hi-lo)*(part+1)/parts,t=(a+b)/2,sw=widthA+(widthB-widthA)*t,cx=x+dx*t,cz=z+dz*t,overlap=around.length?.002:.04;batch.box('#c9c8b5',cx,.015,cz,len*(b-a)+overlap,.08,sw+.28,angle);batch.box('#47565c',cx,.075,cz,len*(b-a)+overlap,.055,sw,angle);}
+ const parts=widthA===widthB?1:12;for(const [lo,hi]of intervals)for(let part=0;part<parts;part++){const a=lo+(hi-lo)*part/parts,b=lo+(hi-lo)*(part+1)/parts,t=(a+b)/2,sw=widthA+(widthB-widthA)*t,cx=x+dx*t,cz=z+dz*t,overlap=around.length?.002:.04;batch.box('#c9c8b5',cx,.015,cz,len*(b-a)+overlap,.08,sw+.28,angle);batch.box(r.type==='large'&&neighbor?.type==='large'?PREMIUM_CONCRETE:'#47565c',cx,.075,cz,len*(b-a)+overlap,.055,sw,angle);}
  const axisX=dx/len,axisZ=dz/len,perpX=-axisZ,perpZ=axisX,capA=Math.max(1,(Object.values(ROADS).find(t=>Math.abs((t.visualWidth||t.width)-widthA)<.01)?.lanes||ROADS[r.type].lanes)/2),capB=Math.max(1,(Object.values(ROADS).find(t=>Math.abs((t.visualWidth||t.width)-widthB)<.01)?.lanes||ROADS[neighbor.type].lanes)/2),lanes=Math.max(capA,capB);
  // Mark the surviving road intervals right up to the shared junction boundary.
  // Never suppress a whole grid link merely because it is near a junction.
- for(const [lo,hi]of intervals){const guide=(oa,ob,color,dashed=false)=>{const point=t=>{const off=oa+(ob-oa)*t;return[x+dx*t+perpX*off,z+dz*t+perpZ*off];};if(!dashed){ribbon([point(lo),point(hi)],color,color==='#ead78c'?.018:.025);return;}
+ for(const [lo,hi]of intervals){const guide=(oa,ob,color,dashed=false)=>{const point=t=>{const off=oa+(ob-oa)*t;return[x+dx*t+perpX*off,z+dz*t+perpZ*off];};if(!dashed){ribbon([point(lo),point(hi)],color,color==='#ead78c'||color===PREMIUM_CENTER?.018:.025);return;}
  const origin=x*axisX+z*axisZ,start=origin+lo*len,end=origin+hi*len;for(let dash=Math.floor(start);dash<end;dash++){const a=Math.max(start,dash),b=Math.min(end,dash+.45);if(b>a)ribbon([point((a-origin)/len),point((b-origin)/len)],color,.025);}};
- for(const sign of [-1,1]){guide(.035*sign,.035*sign,'#ead78c');guide(widthA/2*sign,widthB/2*sign,'#dce3d8');for(let k=1;k<lanes;k++)guide(Math.min(widthA/2-.1,k*widthA/(capA*2))*sign,Math.min(widthB/2-.1,k*widthB/(capB*2))*sign,'#dce3d8',true);}}
+ const premium=r.type==='large'&&neighbor?.type==='large'&&
+  Math.abs(widthA-roadWidths.large)<.02&&Math.abs(widthB-roadWidths.large)<.02;
+  for(const sign of [-1,1]){
+   guide(.035*sign,.035*sign,premium?PREMIUM_CENTER:'#ead78c');
+   guide(widthA/2*sign,widthB/2*sign,premium?PREMIUM_EDGE:'#dce3d8');
+   for(let k=1;k<lanes;k++)guide(Math.min(widthA/2-.1,k*widthA/(capA*2))*sign,Math.min(widthB/2-.1,k*widthB/(capB*2))*sign,premium?PREMIUM_LANE:'#dce3d8',true);
+  }}
+ // Subtle joint every third intact link, underneath lane paint; no extra road width.
+ // Skip corners and intersections so joints cannot cut through junction surfaces.
+ if(r.type==='large'&&neighbor?.type==='large'&&around.length===0&&intervals.length===1&&
+    Math.abs(intervals[0][0])<1e-8&&Math.abs(intervals[0][1]-1)<1e-8&&
+    (Math.abs(dx)>.5?Math.min(x,nx):Math.min(z,nz))%3===0){
+  const across=Math.min(widthA,widthB)*.5-.045,ex=mx+perpX*across,ez=mz+perpZ*across;
+  stroke(ex,ez,mx-perpX*across,mz-perpZ*across,CONCRETE_JOINT,.010,.114);
+ }
 
  }
  if(junction(i)>=3||layouts.has(i)){const layout=layouts.get(i);if(layout){
- const shape=new THREE.Shape();layout.polygon.forEach(([px,pz],index)=>index?shape.lineTo(px,-pz):shape.moveTo(px,-pz));shape.closePath();const geometry=new THREE.ShapeGeometry(shape);geometry.rotateX(-Math.PI/2);batch.add(geometry,'#47565c',x,.105,z,1,1,1);
- for(const edge of layout.borders){const points=edge.map(([px,pz])=>[x+px,z+pz]);ribbon(points,'#c9c8b5',.28,.08);ribbon(points,'#dce3d8',.025);}
+ const premiumLayout=layout.arms.length>=2&&layout.arms.every(a=>Math.abs(a.width-roadWidths.large)<.02);
+ const shape=new THREE.Shape();layout.polygon.forEach(([px,pz],index)=>index?shape.lineTo(px,-pz):shape.moveTo(px,-pz));shape.closePath();const geometry=new THREE.ShapeGeometry(shape);geometry.rotateX(-Math.PI/2);batch.add(geometry,premiumLayout?PREMIUM_CONCRETE:'#47565c',x,.105,z,1,1,1);
+ for(const edge of layout.borders){const points=edge.map(([px,pz])=>[x+px,z+pz]);ribbon(points,'#c9c8b5',.28,.08);ribbon(points,premiumLayout?PREMIUM_EDGE:'#dce3d8',.025);}
  if(layout.bend){const a=layout.ports[0],b=layout.ports[1],va=[[1,0],[0,1],[-1,0],[0,-1]][a.dir],vb=[[1,0],[0,1],[-1,0],[0,-1]][b.dir],capA=Math.max(1,ROADS[state.roads.get(a.node)?.type||'small'].lanes/2),capB=Math.max(1,ROADS[state.roads.get(b.node)?.type||'small'].lanes/2);
  const guide=(oa,ob,color,dashed=false)=>{const ax=va[0]*a.extent-va[1]*oa,az=va[1]*a.extent+va[0]*oa,bx=vb[0]*b.extent+vb[1]*ob,bz=vb[1]*b.extent-vb[0]*ob,cx=a.dir%2===0?bx:ax,cz=a.dir%2===0?az:bz,points=[];for(let k=0;k<=64;k++){const t=k/64,u=1-t;points.push([x+u*u*ax+2*u*t*cx+t*t*bx,z+u*u*az+2*u*t*cz+t*t*bz]);}if(dashed)dashedRibbon(points,color,.025);else ribbon(points,color,.018);};
- for(const sign of [-1,1]){guide(.035*sign,.035*sign,'#ead78c');for(let k=1;k<Math.max(capA,capB);k++)guide(Math.min(a.width/2-.1,k*a.width/(capA*2))*sign,Math.min(b.width/2-.1,k*b.width/(capB*2))*sign,'#dce3d8',true);}}
+ for(const sign of [-1,1]){guide(.035*sign,.035*sign,premiumLayout?PREMIUM_CENTER:'#ead78c');for(let k=1;k<Math.max(capA,capB);k++)guide(Math.min(a.width/2-.1,k*a.width/(capA*2))*sign,Math.min(b.width/2-.1,k*b.width/(capB*2))*sign,premiumLayout?PREMIUM_LANE:'#dce3d8',true);}}
 
  for(const port of layout.ports){if(layout.bend)continue;
  const [vx,vz]=[[1,0],[0,1],[-1,0],[0,-1]][port.dir],px=-vz,pz=vx,ww=port.width,offset=port.extent+.13;
- line.box('#edf0df',x+vx*offset+px*ww/4,.115,z+vz*offset+pz*ww/4,.075,.012,Math.max(.2,ww/2-.12),-Math.atan2(vz,vx));
+ line.box(premiumLayout?PREMIUM_LANE:'#edf0df',x+vx*offset+px*ww/4,.115,z+vz*offset+pz*ww/4,.075,.012,Math.max(.2,ww/2-.12),-Math.atan2(vz,vx));
  // Compact zebra crossing inside the stop bar; markings never affect routing.
  const across=ww/2-.12,crossAt=port.extent-.28;
  for(let stripe=-across+.09;stripe<across;stripe+=.23){
-  line.box('#f1eddb',x+vx*crossAt+px*stripe,.12,z+vz*crossAt+pz*stripe,.38,.01,.12,-Math.atan2(vz,vx));
+  line.box(premiumLayout?PREMIUM_LANE:'#f1eddb',x+vx*crossAt+px*stripe,.12,z+vz*crossAt+pz*stripe,.38,.01,.12,-Math.atan2(vz,vx));
  }
- // One shared signal head for every lane from this incoming approach.
- const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3),yaw=Math.atan2(vx,vz);
- batch.box('#c9c8b5',sx,.115,sz,.26,.12,.26);
- batch.add(CYL,'#3e5356',sx,.85,sz,.038,1.5,.038);
- batch.add(CYL,'#a8b8ae',sx,.23,sz,.053,.16,.053);
- batch.add(CYL,'#e5dfc9',sx,.49,sz,.042,.085,.042);
- batch.box('#d0ae64',sx,1.57,sz,.29,.69,.105,yaw);
- batch.box('#203337',sx+vx*.018,1.57,sz+vz*.018,.245,.64,.14,yaw);
- const lenses={};
- for(const [name,yy]of [['red',1.76],['yellow',1.57],['green',1.38]]){
-  // Hoods and lens wells face their own approach, rather than all facing south.
-  batch.box('#17292e',sx+vx*.1,yy+.067,sz+vz*.1,.16,.035,.14,yaw);
-  const bulb=new THREE.Mesh(BALL,new THREE.MeshBasicMaterial({color:'#33413c'}));
-  bulb.scale.set(.057,.057,.026);bulb.rotation.y=yaw;
-  bulb.position.set(sx+vx*.099,yy,sz+vz*.099);this.signalGroup.add(bulb);lenses[name]=bulb;
+ // Octagonal three-zone signal, one pole on the verge for each incoming direction.
+ // Scale the standard model uniformly to 70%; AI keeps its full size and position.
+ const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3);
+ const isSmart=state.signals.get(i)?.mode==='smart';
+ const poleScale=isSmart?1:.70;
+ const poleY=y=>.05+(y-.05)*poleScale;
+ const poleSize=v=>v*poleScale;
+ const accent=isSmart?'#4bdcf3':'#bb9968';
+ const darkMetal=isSmart?'#253945':'#394348';
+ const headRadius=poleSize(isSmart?.183:.153),headBottom=poleY(isSmart?1.56:1.47);
+ // Faceted low-poly pedestal and sculpted, gently tapered roadside post.
+ batch.add(SIGNAL_OCT_GEO,darkMetal,sx,poleY(.143),sz,poleSize(isSmart?.176:.143),poleSize(.186),poleSize(isSmart?.176:.143));
+ batch.add(SIGNAL_OCT_GEO,accent,sx,poleY(.247),sz,poleSize(isSmart?.159:.126),poleSize(.018),poleSize(isSmart?.159:.126));
+ batch.add(TWIG,isSmart?'#304852':'#526066',sx,poleY(.866),sz,poleSize(isSmart?.117:.091),poleSize(1.213),poleSize(isSmart?.117:.091));
+ batch.add(SIGNAL_OCT_GEO,'#77858b',sx,poleY(1.444),sz,poleSize(isSmart?.115:.092),poleSize(.078),poleSize(isSmart?.115:.092));
+ // Fine vertical inlays: standard bronze; AI cyan. Only scale the standard version.
+ for(const side of [-1,1]){
+  batch.box(accent,sx+side*poleSize(isSmart?.106:.081),poleY(.87),sz,poleSize(.014),poleSize(.53),poleSize(.026));
+  batch.box(accent,sx,poleY(.87),sz+side*poleSize(isSmart?.106:.081),poleSize(.026),poleSize(.53),poleSize(.014));
  }
- this.signals.push({lenses,node:i,incoming:(port.dir+2)%4});
+ if(isSmart){
+  // AI identity remains unchanged at full size.
+  batch.add(SIGNAL_OCT_GEO,'#23c4df',sx,.286,sz,.154,.022,.154);
+  batch.add(SIGNAL_OCT_GEO,'#4fd8f0',sx,1.38,sz,.116,.025,.116);
  }
- }else{const junctionWidth=Math.max(w,...[...r.links].map(n=>roadWidths[state.roads.get(n)?.type]||w));batch.box('#47565c',x,.081,z,junctionWidth,.055,junctionWidth);}}
+ // Three 360-degree lenses, each retaining its real incoming approach traffic phase.
+ const segments={};
+ const levels=[['green',0],['yellow',1],['red',2]];
+ const lensHeight=poleSize(.230),step=poleSize(.252);
+ for(const [name,index]of levels){
+  const lens=new THREE.Mesh(SIGNAL_OCT_GEO,new THREE.MeshStandardMaterial({
+   color:'#323a39',emissive:'#101416',emissiveIntensity:.025,
+   roughness:.27,metalness:.09
+  }));
+  lens.scale.set(headRadius,lensHeight,headRadius);
+  lens.position.set(sx,headBottom+lensHeight*.5+index*step,sz);
+  this.signalGroup.add(lens);
+  segments[name]=lens;
+ }
+ for(const index of [0,1,2,3]){
+  const yy=headBottom-poleSize(.016)+index*step;
+  batch.add(SIGNAL_OCT_GEO,'#24333a',sx,yy,sz,headRadius*1.14,poleSize(.028),headRadius*1.14);
+  batch.add(SIGNAL_OCT_GEO,accent,sx,yy+poleSize(.018),sz,headRadius*1.11,poleSize(.012),headRadius*1.11);
+ }
+ const crownY=headBottom+3*step+poleSize(.013);
+ batch.add(SIGNAL_OCT_GEO,darkMetal,sx,crownY,sz,headRadius*1.12,poleSize(.058),headRadius*1.12);
+ batch.add(TWIG,isSmart?'#596c76':'#657075',sx,crownY+poleSize(.047),sz,headRadius*1.06,poleSize(.048),headRadius*1.06);
+ this.signals.push({segments,node:i,incoming:(port.dir+2)%4});
+ }
+ }else{const junctionWidth=Math.max(w,...[...r.links].map(n=>roadWidths[state.roads.get(n)?.type]||w));batch.box(r.type==='large'?PREMIUM_CONCRETE:'#47565c',x,.081,z,junctionWidth,.055,junctionWidth);}}
 
  }
  this.roadGroup.add(batch.build(false),line.build(false));
@@ -2350,7 +2978,7 @@ export class TrafficRenderer{
   }
  }
  if(roadside.plants?.length){const group=hedges.build(true);group.userData.roadsidePlants=true;this.roadGroup.add(group);}
- for(const [color,positions]of paint){if(!positions.length)continue;const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.computeVertexNormals();const material=new THREE.MeshStandardMaterial({color,roughness:.83,metalness:0,side:THREE.DoubleSide});const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.userData.baseColor=color;mesh.userData.nightRole='road-marking';this.roadGroup.add(mesh);}
+ for(const [color,positions]of paint){if(!positions.length)continue;const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.computeVertexNormals();const material=new THREE.MeshStandardMaterial({color,roughness:.83,metalness:0,side:THREE.DoubleSide});const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.userData.baseColor=color;mesh.userData.nightRole=color===CONCRETE_JOINT?'night-asphalt':'road-marking';this.roadGroup.add(mesh);}
  if(previewOnly)return;
  // Customs-style checkpoints are decorative; all four original road gates and traffic rules remain unchanged.
  // The actual offices, lifted arms, canopies and nighttime LEDs are added after rebuilding the lamp group.
@@ -2393,7 +3021,7 @@ export class TrafficRenderer{
   halos.instanceMatrix.needsUpdate=true;halos.frustumCulled=false;this.streetGlow=halos;this.lampGroup.add(halos);
  }
  this.buildBorderCheckpoints(state);
- this.lastGlow=-1;this.lastWet=-1;this.lastNightVisibility=-1;
+ this.lastGlow=-1;this.lastWet=-1;this.lastRoadSun=-1;this.lastNightVisibility=-1;
 }
 
  buildBorderCheckpoints(state){
@@ -2458,7 +3086,7 @@ export class TrafficRenderer{
    this.aiSignalGlows=[];
    for(const node of nodes){
     const x=node%300,z=Math.floor(node/300);
-    // A cyan-lit center island without a real GPU point light for each intersection.
+    // Restored original circular AI marker on the intersection ground.
     const halo=new THREE.Mesh(new THREE.CircleGeometry(1.05,32),
      new THREE.MeshBasicMaterial({color:'#38bdff',transparent:true,opacity:.24,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
     halo.rotation.x=-Math.PI/2;halo.position.set(x,.164,z);halo.renderOrder=3;
@@ -2479,7 +3107,19 @@ export class TrafficRenderer{
   for(const halo of this.aiSignalGlows)halo.material.opacity=.24*pulse;
  }
 
- updateSignals(signalColor){const lit={red:'#ff6855',yellow:'#ffd56b',green:'#9eeb96'},dim={red:'#4d302e',yellow:'#494230',green:'#2b473f'};for(const s of this.signals||[]){const active=signalColor(s.node,s.incoming);for(const [name,lens]of Object.entries(s.lenses))lens.material.color.set(name===active?lit[name]:dim[name]);}}
+ updateSignals(signalColor){
+  const on={red:'#ff5554',yellow:'#ffd25d',green:'#58ee91'};
+  const off={red:'#563537',yellow:'#554d35',green:'#365447'};
+  for(const signal of this.signals||[]){
+   const active=signalColor(signal.node,signal.incoming);
+   for(const [name,lens]of Object.entries(signal.segments)){
+    const lit=active===name;
+    lens.material.color.set(lit?on[name]:off[name]);
+    lens.material.emissive.set(lit?on[name]:'#0e1517');
+    lens.material.emissiveIntensity=lit?1.3:.025;
+   }
+  }
+ }
  roof(batch,x,z,w,d,base,color,id){const angle=Math.atan2(.55,d/2),length=Math.hypot(d/2,.55);for(const sign of[-1,1])batch.add(BOX,color,x,base+.275,z+sign*d/4,w+.18,.10,length+.11,sign*angle,0,0,id);for(let k=-w/2+.12;k<w/2;k+=.22){for(const sign of[-1,1])batch.add(BOX,'#b86d48',x+k,base+.3,z+sign*d/4,.023,.035,length+.12,sign*angle,0,0,id);}batch.box('#ce8054',x,base+.57,z,w+.19,.07,.08,0,id);}
  window(batch,x,y,z,w,h,side,id){if(side==='front'){batch.box('#385d69',x,y,z,w,h,.025,0,id);if(hash(x+id,y+z)>.36)batch.box('#ffdf9d',x,y,z+.034,w*.76,h*.78,.012,0,id,true);batch.box('#dddac4',x,y,z+.02,.026,h+.04,.022,0,id);batch.box('#e9e6d4',x,y-h/2-.035,z+.04,w+.1,.06,.075,0,id);}else{batch.box('#456d75',x,y,z,.025,h,w,0,id);if(hash(z+id,x+y)>.40)batch.box('#ffe2ad',x+.035,y,z,.012,h*.77,w*.73,0,id,true);batch.box('#ede7d3',x+.02,y-h/2-.035,z,.075,.06,w+.08,0,id);}}
  parkingLot(batch,b){for(const rect of this.parking.parkingVisuals(b)){const p=this.parking.lotPoint(b,rect.u,rect.v),asphalt=['#515f62','#58666a','#465e65'].includes(rect.color),marking=['#e9e6cc','#c5d2c2','#bbc9b9','#94d9aa','#f3ca88','#e5e6d0','#f1ca85','#86d1dc'].includes(rect.color),ground=['#bdc6ae','#9baaa0','#96af8f'].includes(rect.color);const y=ground?.025:asphalt?.065:marking?.102:.085;batch.box(rect.color,p.x-.5,y,p.y-.5,rect.w,.012,rect.h,-(b.rotation||0)*Math.PI/2,b.id,false,asphalt?'night-asphalt':marking?'night-marking':'night-lot-base');}}
@@ -8381,17 +9021,17 @@ export class TrafficRenderer{
     if(level==='roadTrainLow'||level==='taxiLow'){
      // Dedicated low vehicle body + detail live in baked, instanced geometry.
      dummy.position.set(car.x,car.altitude||0,car.z);
-     dummy.scale.set(1,1,1);dummy.updateMatrix();
+     dummy.scale.set(VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE);dummy.updateMatrix();
      set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
      set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
     }else{
      const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[car.kind];
-     dummy.position.set(car.x,.163+(car.altitude||0),car.z);dummy.scale.set(length,height*.82,width*.96);dummy.updateMatrix();
+     dummy.position.set(car.x,.163*VEHICLE_VISUAL_SCALE+(car.altitude||0),car.z);dummy.scale.set(length*VEHICLE_VISUAL_SCALE,height*.82*VEHICLE_VISUAL_SCALE,width*.96*VEHICLE_VISUAL_SCALE);dummy.updateMatrix();
      set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
      if(set.roof){
       const cos=Math.cos(car.angle),sin=Math.sin(car.angle);
-      dummy.position.set(car.x+cabinX*cos,.165+(car.altitude||0)+height*.5+cabinH*.39,car.z+cabinX*sin);
-      dummy.scale.set(cabinL,cabinH*.78,width*.80);dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
+      dummy.position.set(car.x+cabinX*VEHICLE_VISUAL_SCALE*cos,(.165+height*.5+cabinH*.39)*VEHICLE_VISUAL_SCALE+(car.altitude||0),car.z+cabinX*VEHICLE_VISUAL_SCALE*sin);
+      dummy.scale.set(cabinL*VEHICLE_VISUAL_SCALE,cabinH*.78*VEHICLE_VISUAL_SCALE,width*.80*VEHICLE_VISUAL_SCALE);dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
      }
     }
    }
@@ -8441,7 +9081,7 @@ export class TrafficRenderer{
    const upgraded=Object.hasOwn(VEHICLE_TECH_COLORS,tech);
    const kind=carClassFor(c,id,tech,v),car={x,z,angle,color:upgraded?VEHICLE_TECH_COLORS[tech]:carPaintFor(c,id,kind,fallback),kind,altitude};
    const pixelScale=this.camera.isPerspectiveCamera?this.h/(2*Math.max(.1,this.camera.position.distanceTo(point))*Math.tan(this.camera.fov*Math.PI/360)):centrePixelsPerUnit;
-   const apparentLength=VEHICLE_STYLES[kind][0]*pixelScale;
+   const apparentLength=VEHICLE_STYLES[kind][0]*VEHICLE_VISUAL_SCALE*pixelScale;
    const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
    // Low uses the cheapest proxy at every distance, while preserving car picking.
@@ -8502,26 +9142,26 @@ export class TrafficRenderer{
     if(!old||old.color!==car.color){set.body.setColorAt(i,this.carTint.set(car.color));this.dirtyCarInstances(set.body.instanceColor,i);}
     set.lastCars[i]=car;if(!moved)continue;
     this.carDummy.position.set(car.x,car.altitude||0,car.z);this.carDummy.rotation.set(0,-car.angle,0);
-    this.carDummy.scale.set(1,1,1);this.carDummy.updateMatrix();
+    this.carDummy.scale.set(VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE);this.carDummy.updateMatrix();
     set.body.setMatrixAt(i,this.carDummy.matrix);set.trim.setMatrixAt(i,this.carDummy.matrix);
     const [length,width]=VEHICLE_STYLES[kind],cos=Math.cos(car.angle),sin=Math.sin(car.angle);
     for(const sign of [-1,1]){
      // Car model faces +X in local space; side offsets rotate with the body.
-     const side=sign*width*.33;
+     const side=sign*width*.33*VEHICLE_VISUAL_SCALE;
      for(const [mesh,localX,height] of [[set.headlights,length*.5+.024,.185],[set.taillights,-length*.5-.024,.170]]){
-      this.carLightDummy.position.set(car.x+cos*localX-sin*side,height+(car.altitude||0),car.z+sin*localX+cos*side);
+      this.carLightDummy.position.set(car.x+cos*localX*VEHICLE_VISUAL_SCALE-sin*side,height*VEHICLE_VISUAL_SCALE+(car.altitude||0),car.z+sin*localX*VEHICLE_VISUAL_SCALE+cos*side);
       this.carLightDummy.rotation.set(0,-car.angle,0);
-      this.carLightDummy.scale.set(mesh===set.headlights?.024:.018,.037,.050);
+      this.carLightDummy.scale.set((mesh===set.headlights?.024:.018)*VEHICLE_VISUAL_SCALE,.037*VEHICLE_VISUAL_SCALE,.050*VEHICLE_VISUAL_SCALE);
       this.carLightDummy.updateMatrix();
       mesh.setMatrixAt(i*2+(sign+1)/2,this.carLightDummy.matrix);
      }
     }
     // A very faint forward pool of light on the pavement at night.
     // One transparent instanced box per car; no shadows or dynamic lights.
-    const spillX=length*.5+.17;
+    const spillX=(length*.5+.17)*VEHICLE_VISUAL_SCALE;
     this.carLightDummy.position.set(car.x+cos*spillX,.026,car.z+sin*spillX);
     this.carLightDummy.rotation.set(0,-car.angle,0);
-    this.carLightDummy.scale.set((car.altitude||0)>1?.001:.31,.008,(car.altitude||0)>1?.001:.21);
+    this.carLightDummy.scale.set(((car.altitude||0)>1?.001:.31)*VEHICLE_VISUAL_SCALE,.008,((car.altitude||0)>1?.001:.21)*VEHICLE_VISUAL_SCALE);
     this.carLightDummy.updateMatrix();
     set.lightSpill.setMatrixAt(i,this.carLightDummy.matrix);
     for(const mesh of [set.body,set.trim,set.lightSpill])this.dirtyCarInstances(mesh.instanceMatrix,i);
@@ -8568,7 +9208,7 @@ export class TrafficRenderer{
     for(let i=0;i<items.length;i++){
      const car=items[i],pulse=1.026+.013*Math.sin(time+i*.38);
      d.position.set(car.x,(car.altitude||0)+.002,car.z);
-     d.rotation.set(0,-car.angle,0);d.scale.set(pulse,pulse,pulse);d.updateMatrix();
+     d.rotation.set(0,-car.angle,0);d.scale.set(pulse*VEHICLE_VISUAL_SCALE,pulse*VEHICLE_VISUAL_SCALE,pulse*VEHICLE_VISUAL_SCALE);d.updateMatrix();
      glow.setMatrixAt(i,d.matrix);
     }
     if(items.length)glow.instanceMatrix.needsUpdate=true;
@@ -8585,9 +9225,9 @@ export class TrafficRenderer{
     const pulse=.94+.10*Math.sin(time*1.7+i*.73);
     for(let j=0;j<3;j++){
      const localX=j===2?-.46:-.29,localZ=j===2?0:(j===0?-.15:.15);
-     d.position.set(car.x+cos*localX-sin*localZ,(car.altitude||0)+.16,
-      car.z+sin*localX+cos*localZ);
-     d.rotation.set(0,-car.angle,0);d.scale.set(pulse,j===2?.70:.86,j===2?.70:.85);
+     d.position.set(car.x+(cos*localX-sin*localZ)*VEHICLE_VISUAL_SCALE,(car.altitude||0)+.16*VEHICLE_VISUAL_SCALE,
+      car.z+(sin*localX+cos*localZ)*VEHICLE_VISUAL_SCALE);
+     d.rotation.set(0,-car.angle,0);d.scale.set(pulse*VEHICLE_VISUAL_SCALE,(j===2?.70:.86)*VEHICLE_VISUAL_SCALE,(j===2?.70:.85)*VEHICLE_VISUAL_SCALE);
      d.updateMatrix();streak.setMatrixAt(i*3+j,d.matrix);
     }
    }
@@ -8671,7 +9311,7 @@ export class TrafficRenderer{
   const b=demolitionPreview.building;if(b)boxes.push([b.x+b.w/2,b.y+b.h/2,b.w,b.h,'#281919',.60,true]);
  }
  if(selected?.kind==='building'){const b=state.buildings.get(selected.id);if(b){const {w,h}=this.parking.buildingBounds(b);boxes.push([b.x+w/2,b.y+h/2,w,h,'#fff1a1']);}}
- if(selected?.kind==='landscape'){const item=selected.record?.item||selected.record;if(item){const small=COMPACT_DECORATION_KEYS.has(item.kind)||EXTRA_DECORATION_KEYS.has(item.kind)||/^(thai_|industrial_|temple_|landmark_)/.test(item.kind);boxes.push([item.x,item.y,small?.75:1.8,small?.75:1.8,'#fff1a1']);}}
+ if(selected?.kind==='landscape'){const item=selected.record?.item||selected.record;if(item){const small=COMPACT_DECORATION_KEYS.has(item.kind)||EXTRA_DECORATION_KEYS.has(item.kind)||/^(thai_|industrial_|temple_|landmark_)/.test(item.kind);const footprint=item.kind==='landmark_parliament'?9.8:(small?.75:1.8);boxes.push([item.x,item.y,footprint,item.kind==='landmark_parliament'?7.9:footprint,'#fff1a1']);}}
  if(hover&&(tool.startsWith('tree:')||tool==='treeRow'||tool==='treeBrush')){
   const x=hover.snap?hover.x+.5:Math.round((hover.rawX??hover.x+.5)*100)/100,z=hover.snap?hover.y+.5:Math.round((hover.rawY??hover.y+.5)*100)/100,i=hover.y*300+hover.x;
   if(hover.x>=0&&hover.y>=0&&hover.x<300&&hover.y<300){
@@ -8683,9 +9323,68 @@ export class TrafficRenderer{
  if(selected?.kind==='road'&&junction(selected.id)>=3)boxes.push([selected.id%300,Math.floor(selected.id/300),2.4,2.4,'#fff1a1']);
  for(const [x,z,w,d,color,opacity=.22,overlay=false]of boxes){const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthWrite:false,depthTest:!overlay}));plane.renderOrder=overlay?20:0;plane.rotation.x=-Math.PI/2;plane.position.set(x,.14,z);this.previewGroup.add(plane);const points=[new THREE.Vector3(x-w/2,.17,z-d/2),new THREE.Vector3(x+w/2,.17,z-d/2),new THREE.Vector3(x+w/2,.17,z+d/2),new THREE.Vector3(x-w/2,.17,z+d/2),new THREE.Vector3(x-w/2,.17,z-d/2)];this.previewGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color})));}
  }
- render({state,cam,hover,drag,roadPreview,demolitionPreview=null,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}
+ // A translucent, world-anchored Map Sheet preview. Uses one draw call for
+ // the ground tint and at most two line calls; the terrain mesh is unchanged.
+ // Existing roads/buildings remain above this thin layer. Visual-only patch:
+ // no purchasing, no build restriction, no save schema changes.
+ updateMapCover(mapCover,state){
+  if(!mapCover)return;
+  const key=state.city+':'+mapCover.key;
+  if(this.mapCoverKey===key&&this.mapCoverSource===state)return;
+  this.mapCoverSource=state;this.mapCoverKey=key;
+  if(!this.mapCoverGroup){this.mapCoverGroup=new THREE.Group();this.scene.add(this.mapCoverGroup);}
+  else this.disposeGroup(this.mapCoverGroup);
+  const size=mapCover.size,opened=mapCover.opened,n=300/size;
+  const edgePoints=[],freeEdges=[];
+  // Uniform-sized mask texels represent 25x25 sheet unlocks; no extra depth layers.
+  const pixels=this.mapSheetMaskTexture.image.data;
+  for(let ty=0;ty<n;ty++)for(let tx=0;tx<n;tx++){
+   const k=(ty*n+tx)*4;
+   pixels[k]=opened.has(tx+':'+ty)?0:255;
+   pixels[k+1]=0;pixels[k+2]=0;pixels[k+3]=255;
+  }
+  this.mapSheetMaskTexture.needsUpdate=true;
+  // Mirrors game.js isPhuketWaterTile: Phang Nga scenery and sea cannot be sold.
+  const land=(x,z)=>state.city!=='phuket'||this.islandOutward(x,z)<=-1.2;
+  const segment=(out,x0,z0,x1,z1,y)=>out.push(x0,y,z0,x1,y,z1);
+  const edge=(out,x0,z0,x1,z1,y)=>{
+   if(state.city!=='phuket')return segment(out,x0,z0,x1,z1,y);
+   const length=Math.hypot(x1-x0,z1-z0),steps=Math.ceil(length);
+   for(let i=0;i<steps;i++){
+    const a=i/steps,b=(i+1)/steps,m=(a+b)/2;
+    if(land(x0+(x1-x0)*m,z0+(z1-z0)*m))
+     segment(out,x0+(x1-x0)*a,z0+(z1-z0)*a,x0+(x1-x0)*b,z0+(z1-z0)*b,y);
+   }
+  };
+  for(let ty=0;ty<n;ty++)for(let tx=0;tx<n;tx++){
+   const id=tx+':'+ty,x=tx*size,z=ty*size;
+   if(opened.has(id))continue;
+   // Only thin sheet boundaries, not a dense grid inside each sheet.
+   if(ty===0||!opened.has(tx+':'+(ty-1)))edge(edgePoints,x,z,x+size,z,.060);
+   else edge(freeEdges,x,z,x+size,z,.063);
+   if(tx===0||!opened.has((tx-1)+':'+ty))edge(edgePoints,x,z,x,z+size,.060);
+   else edge(freeEdges,x,z,x,z+size,.063);
+   if(ty===n-1)edge(edgePoints,x,z+size,x+size,z+size,.060);
+   else if(opened.has(tx+':'+(ty+1)))edge(freeEdges,x,z+size,x+size,z+size,.063);
+   if(tx===n-1)edge(edgePoints,x+size,z,x+size,z+size,.060);
+   else if(opened.has((tx+1)+':'+ty))edge(freeEdges,x+size,z,x+size,z+size,.063);
+  }
+  const lines=(points,color,opacity)=>{
+   if(!points.length)return;
+   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));
+   const line=new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color,transparent:true,opacity,depthWrite:false,toneMapped:false}));
+   line.userData.mapCoverBaseOpacity=opacity;this.mapCoverGroup.add(line);
+  };
+  lines(edgePoints,'#ecf4e9',.21);
+  lines(freeEdges,'#c2f4d1',.42);
+ }
+ render({state,cam,mapCover,hover,drag,roadPreview,demolitionPreview=null,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}this.updateMapCover(mapCover,state);
+ // Fade distant one-pixel sheet boundaries to prevent subpixel crawling.
+ if(this.mapCoverGroup){const fade=.25+.75*Math.max(0,Math.min(1,(cam.z-.23)/.45));for(const line of this.mapCoverGroup.children)if(line.userData.mapCoverBaseOpacity!=null)line.material.opacity=line.userData.mapCoverBaseOpacity*fade;}
  const buildKey=state.buildings.size+':'+(state.buildingVisualVersion||0);
- const roadKey=[state.version,state.roads.size,heat,buildKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}if(this.graphicQuality==='low'){this.treeGroup.visible=false;}
+ // A purchased AI upgrade does not increment the road layout version: refresh its poles immediately.
+ const smartSignalKey=[...state.signals].filter(([node,setting])=>setting.mode==='smart'&&state.roads.has(node)).map(([node])=>node).sort((a,b)=>a-b).join(',');
+ const roadKey=[state.version,state.roads.size,heat,buildKey,smartSignalKey].join(':');if(roadKey!==this.roadKey){this.roadKey=roadKey;this.makeRoads(state,ROADS,junction);}if(buildKey!==this.buildKey){this.buildKey=buildKey;this.makeBuildings(state,CATALOG,KINDS);}if(this.graphicQuality==='low'){this.treeGroup.visible=false;}
  else{this.treeGroup.visible=true;this.trees(state,cam);}
  // Skip all vehicle pose, instance and effect preparation in map-only mode.
  if(heat)this.hideCars();

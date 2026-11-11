@@ -1,19 +1,18 @@
-/* SMCITY verified private Supabase Storage saves. Loaded after both account adapters.
-   Legacy JSON database saves remain readable until their owners overwrite them. */
+/* SMCITY private Storage saves: exclusively authenticated simple-game sessions.
+   Migrated city saves remain available under the simple owner ID. */
 (()=>{
  const api=window.SMGameAccount;
  if(!api||typeof api.save!=='function'||window.SMGameStorageSavesReady)return;
  const endpoint='https://jeqbyhzbpivscsduwkcj.supabase.co/functions/v1/smgame-save-storage';
  const pub='sb_publishable_yEaGo1wDqb4qehdi702eMQ_ZqyVcHuf';
- const old={getSave:api.getSave.bind(api)};
+ // Only the simple account adapter may read its historical JSON saves.
+ const simpleJson={getSave:api.getSave.bind(api)};
  const bucket='smcity-city-saves',maxBytes=15000000;
  const encoder=new TextEncoder(),decoder=new TextDecoder();
  async function token(){
   const simple=window.SMGameSimpleSessionToken?.();
-  if(simple)return simple;
-  const legacy=await window.SMGameLegacyAccessToken?.();
-  if(!legacy)throw Error('กรุณาเข้าสู่ระบบอีกครั้งค่ะ');
-  return legacy;
+  if(!simple)throw Error('กรุณาเข้าบัญชีเกมแบบง่ายก่อนเซฟหรือโหลดเมืองค่ะ');
+  return simple;
  }
  async function request(action,values={}){
   const bearer=await token();
@@ -77,7 +76,7 @@
  };
  api.getSave=async slotId=>{
   const ownerId=api.user?.id,result=await request('get',{slotId});
-  if(result.legacy)return old.getSave(slotId);
+  if(result.legacy)return simpleJson.getSave(slotId); // smgame_simple_saves only
   if(typeof result.url!=='string'||!['gzip','json'].includes(result.encoding)||!Number.isSafeInteger(result.bytes)||result.bytes<1||result.bytes>maxBytes||!/^[a-f0-9]{64}$/.test(result.sha256||''))throw Error('เซิร์ฟเวอร์ส่งข้อมูลไฟล์เซฟไม่ถูกต้อง');
   const response=await fetch(result.url,{cache:'no-store'});
   if(!response.ok)throw Error('ดาวน์โหลดเซฟไม่สำเร็จ ('+response.status+')');
