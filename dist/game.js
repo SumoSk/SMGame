@@ -2853,14 +2853,17 @@ function motionPlan(v){
  const plan={path,version:state.version,lanes,route,nodes,pieces,turns:corners,junctions,total};return rememberMotionPlan(v,plan);
 }
 function motionDistance(v,plan=motionPlan(v)){const i=Math.max(0,Math.min(v.pos,plan.nodes.length-1));return plan.nodes[i]+Math.max(0,Math.min(1,v.progress||0))*((plan.nodes[i+1]??plan.nodes[i])-plan.nodes[i]);}
-function positionOnMotion(plan,s){
- if(!plan.pieces.length){const p=xy(plan.path[0]||0);return{x:p[0]+.5,y:p[1]+.5,angle:0};}
+function positionOnMotion(plan,s,out=null){
+ if(!plan.pieces.length){const p=xy(plan.path[0]||0);if(out){out.x=p[0]+.5;out.y=p[1]+.5;out.angle=0;delete out.dx;delete out.dy;return out;}return{x:p[0]+.5,y:p[1]+.5,angle:0};}
  let lo=0,hi=plan.pieces.length-1;while(lo<hi){const mid=(lo+hi)>>1;if(plan.pieces[mid].endDistance<s)lo=mid+1;else hi=mid;}
  const p=plan.pieces[lo],along=Math.max(0,Math.min(p.length,s-p.startDistance));let t=p.length?along/p.length:0;
  if(p.arc){let a=0,b=128;while(a+1<b){const m=(a+b)>>1;if(p.arc[m]<along)a=m;else b=m;}const fraction=(along-p.arc[a])/Math.max(1e-10,p.arc[b]-p.arc[a]);t=(a+fraction)/128;}
- const point=p.line?{x:p.p0.x+(p.p3.x-p.p0.x)*t,y:p.p0.y+(p.p3.y-p.p0.y)*t}:bezierPoint(p.p0,p.p1,p.p2,p.p3,t);
- const tangent=p.line?{x:p.p3.x-p.p0.x,y:p.p3.y-p.p0.y}:bezierTangent(p.p0,p.p1,p.p2,p.p3,t);
- const length=Math.hypot(tangent.x,tangent.y)||1;return{x:point.x,y:point.y,angle:Math.atan2(tangent.y*.78,tangent.x),dx:tangent.x/length,dy:tangent.y/length};
+ let x,y,dx,dy;
+ if(p.line){dx=p.p3.x-p.p0.x;dy=p.p3.y-p.p0.y;x=p.p0.x+dx*t;y=p.p0.y+dy*t;}
+ else{const point=bezierPoint(p.p0,p.p1,p.p2,p.p3,t),tangent=bezierTangent(p.p0,p.p1,p.p2,p.p3,t);x=point.x;y=point.y;dx=tangent.x;dy=tangent.y;}
+ const length=Math.hypot(dx,dy)||1,angle=Math.atan2(dy*.78,dx);
+ if(out){out.x=x;out.y=y;out.angle=angle;out.dx=dx/length;out.dy=dy/length;return out;}
+ return{x,y,angle,dx:dx/length,dy:dy/length};
 }
 // Reuse poses within one traffic step only; geometry and distance invalidate
 // immediately when the car moves, changes route, or enters/leaves a driveway.
@@ -7383,6 +7386,18 @@ function refreshMotionReservations(v,plan,s){
  v.committedJunction=active.length?active[active.length-1].node:null;
 }
 let trafficSpatial=null;
+// Containers belong to one synchronous simulation step. Refill them with live
+// positions every step; never reuse a previous step's traffic decisions.
+const trafficScratch={cells:new Map(),cars:new Map(),candidates:new Map(),cellPool:[]};
+function beginTrafficSpatial(){
+ const scratch=trafficScratch;
+ scratch.cellPool.length=0;
+ for(const cell of scratch.cells.values()){cell.clear();scratch.cellPool.push(cell);}
+ scratch.cells.clear();scratch.cars.clear();scratch.candidates.clear();
+ scratch.lots=null;scratch.poseMemo=new WeakMap();scratch.parkingGrid=null;
+ scratch.physicalMemo=null;scratch.epoch=0;
+ return scratch;
+}
 // Unlike the road-only index, this conservative grid also includes departing
 // cars without a lotPath and stuck cars without heldPose. Exact checks stay live.
 function updateParkingRoadSpatial(v){
@@ -7453,8 +7468,20 @@ function capsulesOverlap(p,q){
 }
 function updateTrafficSpatial(v){
  indexParkingLotCar(v);updateParkingRoadSpatial(v);
- if(!trafficSpatial)return;trafficSpatial.epoch++;const old=trafficSpatial.cars.get(v.id);if(old){const cell=trafficSpatial.cells.get(old.key);cell?.delete(v.id);if(!cell?.size)trafficSpatial.cells.delete(old.key);trafficSpatial.cars.delete(v.id);}
- if(!state.vehicles.has(v.id)||(!['driving','parking_in','parking_out'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath)&&!(v.phase==='stuck'&&v.heldPose)))return;const pose=vehiclePosition(v),key=trafficSpatialPrefix(v)+Math.floor(pose.x/2)+':'+Math.floor(pose.y/2);let cell=trafficSpatial.cells.get(key);if(!cell)trafficSpatial.cells.set(key,cell=new Map());const record={id:v.id,pose,key};cell.set(v.id,record);trafficSpatial.cars.set(v.id,record);
+ if(!trafficSpatial)return;
+ trafficSpatial.epoch++;
+ const old=trafficSpatial.cars.get(v.id),eligible=state.vehicles.has(v.id)&&(['driving','parking_in','parking_out'].includes(v.phase)||v.phase==='departing'&&v.lotPath||v.phase==='stuck'&&v.heldPose);
+ const pose=eligible?vehiclePosition(v):null,key=pose?trafficSpatialPrefix(v)+Math.floor(pose.x/2)+':'+Math.floor(pose.y/2):null;
+ if(old){
+  const cell=trafficSpatial.cells.get(old.key);cell?.delete(v.id);
+  // Keep the bucket when this car is still inside it. Delete/reinsert the car
+  // to preserve the original candidate order, using its newly computed pose.
+  if(!cell?.size&&old.key!==key)trafficSpatial.cells.delete(old.key);
+  trafficSpatial.cars.delete(v.id);
+ }
+ if(!pose)return;
+ let cell=trafficSpatial.cells.get(key);if(!cell)trafficSpatial.cells.set(key,cell=trafficSpatial.cellPool.pop()||new Map());
+ const record={id:v.id,pose,key};cell.set(v.id,record);trafficSpatial.cars.set(v.id,record);
 }
 // Only reciprocal, simultaneous lane swaps may phase through one another.
 // Ordinary following, one-sided cut-ins, intersections and parking stay solid.
@@ -7483,25 +7510,25 @@ function laneSwapClearance(a,b,longitudinalGap){
  if(Math.abs(a.start-b.start)<.36||Math.abs(a.end-b.end)<.36)return false;
  return Number.isFinite(longitudinalGap)&&Math.abs(longitudinalGap)<=.65;
 }
-function reciprocalLaneSwap(v,other,plan,s,otherPose){
+function reciprocalLaneSwap(v,other,plan,s,otherPose,origin){
  if(v.phase!=='driving'||other.phase!=='driving'||v.id===other.id)return false;
  const a=laneChangeSegment(v,plan,s);
  if(!a)return false;
  const otherPlan=motionPlan(other),otherS=motionDistance(other,otherPlan);
  const b=laneChangeSegment(other,otherPlan,otherS);
  if(!b)return false;
- const start=positionOnMotion(plan,s),d=DIR[a.direction];
- const ahead=(otherPose.x-start.x)*d[0]+(otherPose.y-start.y)*d[1];
+ const d=DIR[a.direction];
+ const ahead=(otherPose.x-origin.x)*d[0]+(otherPose.y-origin.y)*d[1];
  return laneSwapClearance(a,b,ahead);
 }
 // Already overlapping cars may clear in a stable front-to-back order.
-function convergingLanePair(v,other,plan,s,otherPose){
+function convergingLanePair(v,other,plan,s,otherPose,origin){
  if(v.phase!=='driving'||other.phase!=='driving')return null;
  const d=motionDirection(v.path,v.pos);
  if(d!==motionDirection(other.path,other.pos))return null;
- const axis=DIR[d],origin=positionOnMotion(plan,s),op=motionPlan(other),os=motionDistance(other,op);
+ const axis=DIR[d],op=motionPlan(other),os=motionDistance(other,op);
  // Crossing traffic and actual turns keep their existing intersection rules.
- if([ [plan,s],[op,os] ].some(([p,at])=>p.turns.some(t=>t.endDistance>at-.2&&t.startDistance<at+3.5)))return null;
+ if(plan.turns.some(t=>t.endDistance>s-.2&&t.startDistance<s+3.5)||op.turns.some(t=>t.endDistance>os-.2&&t.startDistance<os+3.5))return null;
  const shifting=(p,at)=>(p.laneShifts??=p.pieces.filter(t=>!t.turn&&!t.line)).find(t=>t.endDistance>at-.5&&t.startDistance<at+3.5&&Math.abs((t.p3.x-t.p0.x)*axis[1]-(t.p3.y-t.p0.y)*axis[0])>.08);
  const shift=shifting(plan,s),otherShift=shifting(op,os);if(!shift&&!otherShift)return null;
  if(Math.abs((otherPose.x-origin.x)*axis[1]-(otherPose.y-origin.y)*axis[0])<.08)return null;
@@ -7514,12 +7541,12 @@ function convergingLanePair(v,other,plan,s,otherPose){
  const ahead=(otherPose.x-origin.x)*axis[0]+(otherPose.y-origin.y)*axis[1];
  return {wins:ahead< -1e-6||Math.abs(ahead)<=1e-6&&v.id<other.id,stop:Math.max(s,(shift?.startDistance??s)-.7)};
 }
-function overlapEscapePriority(v,other,plan,s,otherPose,merge=null){
+function overlapEscapePriority(v,other,plan,s,otherPose,merge,origin){
  if(v.phase!=='driving'||other.phase!=='driving')return false;
  // Release saved, mutually blocked merge pairs in one stable order. This
  // recovery is limited to the converging same-direction lane corridor.
- if(merge?.wins&&((v.wait||0)>=2&&(other.wait||0)>=2||capsulesOverlap(positionOnMotion(plan,s),otherPose)))return true;
- const origin=positionOnMotion(plan,s),sameDirection=origin.dx*otherPose.dx+origin.dy*otherPose.dy;
+ if(merge?.wins&&((v.wait||0)>=2&&(other.wait||0)>=2||capsulesOverlap(origin,otherPose)))return true;
+ const sameDirection=origin.dx*otherPose.dx+origin.dy*otherPose.dy;
  if(!(sameDirection>.88)||!capsulesOverlap(origin,otherPose))return false;
  // The normal traffic limit still applies to cars that are not overlapping.
  const dx=otherPose.x-origin.x,dy=otherPose.y-origin.y,otherAhead=dx*origin.dx+dy*origin.dy;
@@ -7552,12 +7579,12 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
   const record=trafficSpatial.cars.get(id);if(!record)continue;
   const p=record.pose,x=p.x-origin.x,y=p.y-origin.y;
   if(x*x+y*y>(lookahead+.7)*(lookahead+.7))continue;
-  const merge=convergingLanePair(v,otherCar,plan,s,p);
+  const merge=convergingLanePair(v,otherCar,plan,s,p,origin);
   if(merge&&!merge.wins&&merge.stop<mergeLimit){mergeLimit=merge.stop;mergeBlock={gameTime:state.time,ownerId:id,distance:merge.stop,reason:'lane_merge_priority'};}
   // Only lateral crossings may ghost. Existing overlaps are released in
   // front-to-back order instead of forcing every vehicle to stop forever.
-  if(reciprocalLaneSwap(v,otherCar,plan,s,p)
-   ||overlapEscapePriority(v,otherCar,plan,s,p,merge))continue;
+  if(reciprocalLaneSwap(v,otherCar,plan,s,p,origin)
+   ||overlapEscapePriority(v,otherCar,plan,s,p,merge,origin))continue;
   if(piece&&origin.dx!=null&&p.dx!=null&&Math.abs(origin.dx*p.dy-origin.dy*p.dx)<.01){
    const across=Math.abs(x*origin.dy-y*origin.dx);
    // On a straight stretch, cars in another parallel lane must not hold up the left lane.
@@ -7567,7 +7594,8 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
   near.push(p);nearIds.push(id);
  }
  if(!near.length){v.lastPhysicalBlock=mergeBlock;return mergeLimit;}let safe=s;
- for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along);for(let j=0;j<near.length;j++)if(capsulesOverlap(p,near[j])){v.lastPhysicalBlock={gameTime:state.time,ownerId:nearIds[j],distance:along,reason:'physical_capsule_overlap',...(bugCaptureEnabled?{ownerPose:near[j]}:{})};const physicalLimit=Math.max(s,safe-.025);if(mergeLimit<=physicalLimit)v.lastPhysicalBlock=mergeBlock;return Math.min(mergeLimit,physicalLimit);}safe=along;if(along===end)break;}
+ const sample={};
+ for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along,sample);for(let j=0;j<near.length;j++)if(capsulesOverlap(p,near[j])){v.lastPhysicalBlock={gameTime:state.time,ownerId:nearIds[j],distance:along,reason:'physical_capsule_overlap',...(bugCaptureEnabled?{ownerPose:near[j]}:{})};const physicalLimit=Math.max(s,safe-.025);if(mergeLimit<=physicalLimit)v.lastPhysicalBlock=mergeBlock;return Math.min(mergeLimit,physicalLimit);}safe=along;if(along===end)break;}
  v.lastPhysicalBlock=mergeBlock;return mergeLimit;
 }
 function motionBarrier(v,plan,s,budget=-1){
@@ -7624,9 +7652,9 @@ function enforceNoUTurn(v){
 // The existing reciprocal-swap rule remains the only normal collision exception.
 function laneChangeCorridorClear(v,plan,distance=ADAPTIVE_LANE_RULES.sweep){
  if(!trafficSpatial||!plan?.total)return false;
- const end=Math.min(plan.total,distance);
+ const end=Math.min(plan.total,distance),sample={};
  for(let travel=.12;travel<=end+.12;travel+=.12){
-  const pose=positionOnMotion(plan,Math.min(end,travel)),cx=Math.floor(pose.x/2),cy=Math.floor(pose.y/2);
+  const pose=positionOnMotion(plan,Math.min(end,travel),sample),cx=Math.floor(pose.x/2),cy=Math.floor(pose.y/2);
   for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)
    for(const other of trafficSpatial.cells.get(trafficSpatialPrefix(v)+(cx+dx)+':'+(cy+dy))?.values()||[]){
     if(other.id===v.id||!sameTrafficLayer(v,state.vehicles.get(other.id))||Math.hypot(other.pose.x-pose.x,other.pose.y-pose.y)>1.15)continue;
@@ -7642,13 +7670,14 @@ function commitSafeLaneChange(v,newLane,reason,newRoute=null){
  if(state.time<(v.adaptiveLaneUntil||0))return false;
  const direction=motionDirection(v.path,v.pos),oldLane=plannedLane(v,v.pos);
  if(Math.abs(newLane-oldLane)!==1||newLane<0||newLane>=laneCapacity(v.path[v.pos],direction))return false;
- const path=newRoute||v.path.slice(v.pos);
+ // Own one route copy. Routes supplied by the route cache must stay untouched.
+ const path=newRoute?[...newRoute]:v.path.slice(v.pos);
  if(path.length<3||path[0]!==v.path[v.pos]||path[1]!==v.path[v.pos+1])return false;
- for(const node of path.slice(0,3))
-  if(!state.roads.has(node)||trafficConflictNode(node)||laneCapacity(node,direction)<=newLane)return false;
+ for(let i=0;i<3;i++)
+  if(!state.roads.has(path[i])||trafficConflictNode(path[i])||laneCapacity(path[i],direction)<=newLane)return false;
  if(trafficConflictNode(path[0])||trafficConflictNode(path[1])||!cellAvailable(path[0],direction,newLane,v.id)||!cellAvailable(path[1],direction,newLane,v.id))return false;
  const actual=vehiclePosition(v);
- const proposal={...v,path:[...path],pathSet:new Set(path),pos:0,progress:0,
+ const proposal={...v,path,pos:0,progress:0,
   motionStartPose:{...actual},motionSeedLane:newLane,emergencyInitialLane:newLane,
   turnLanes:{},junctionPasses:[],junctionQueueSince:{},committedJunction:null};
  const plan=motionPlan(proposal);
@@ -7656,6 +7685,8 @@ function commitSafeLaneChange(v,newLane,reason,newRoute=null){
  const forward=DIR[direction],ahead=positionOnMotion(plan,Math.min(1,plan.total));
  if((ahead.x-actual.x)*forward[0]+(ahead.y-actual.y)*forward[1]<.05)return false;
  if(!laneChangeCorridorClear(v,plan)||!canHoldRoadCell(v,roadCellKey(proposal,0)))return false;
+ // Safety checks above only read the route; build its membership set on commit.
+ proposal.pathSet=new Set(path);
  removeVehicleApproaches(v);release(v);Object.assign(v,proposal);rememberMotionPlan(v,plan);
  v.adaptiveLaneUntil=state.time+ADAPTIVE_LANE_RULES.cooldown;
  v.stopReason=reason;v.routeCheckedVersion=state.version;
@@ -7755,7 +7786,7 @@ function emergencyRightReroute(v,alerts){
 }
 function advanceVehicles(realDt,gameDt){
  trafficWaitSerial++;
- let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);let pairedDeadlocks=null;for(const car of state.vehicles.values()){if(mutualPhysicalDeadlock(car))(pairedDeadlocks??=new Set()).add(car.id);if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if((car.phase==='gate_waiting'||car.phase==='departing'&&(car.lotReady||car.departureNoRoute||!state.buildings.has(car.fromId)))&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial={cells:new Map(),cars:new Map(),candidates:new Map(),lots:null,poseMemo:new WeakMap(),parkingGrid:null,epoch:0};for(const car of state.vehicles.values())updateTrafficSpatial(car);
+ let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);let pairedDeadlocks=null;for(const car of state.vehicles.values()){if(mutualPhysicalDeadlock(car))(pairedDeadlocks??=new Set()).add(car.id);if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if((car.phase==='gate_waiting'||car.phase==='departing'&&(car.lotReady||car.departureNoRoute||!state.buildings.has(car.fromId)))&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial=beginTrafficSpatial();for(const car of state.vehicles.values())updateTrafficSpatial(car);
  prepareParkingMerges(simDt);
  rescueOppositeExitPairs();
  if(junctionTowState!==state){junctionTowState=state;junctionTowCandidates.clear();junctionTowLog.length=0;junctionTowClock=0;}
@@ -7937,6 +7968,7 @@ function advanceVehicles(realDt,gameDt){
   }finally{updateParkingRoadSpatial(v);queueVehicleApproaches(v);}
  }
  processTrafficDeadlocks(simDt);processJunctionTows(simDt);
+ trafficSpatial.lots=null;trafficSpatial.parkingGrid=null;trafficSpatial.physicalMemo=null;
  trafficSpatial=null;parkingMerges=[];
  for(const [key,res]of state.reservations){if(res.passes){res.passes=res.passes.filter(p=>p.until>=state.time&&state.vehicles.has(p.id));if(res.passes.length)res.id=res.passes[0].id;else state.reservations.delete(key);}else if(res.until<state.time||!state.vehicles.has(res.id))state.reservations.delete(key);}
 }

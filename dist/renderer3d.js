@@ -1154,34 +1154,42 @@ export class TrafficRenderer{
   const angle=cam.angle??Math.PI/4;
   const elevation=Math.max(Math.PI*35/180,Math.min(Math.PI*78/180,cam.elevation??Math.PI*50/180));
   cam.elevation=elevation;
-  let radius;
-  if(this.camera.isPerspectiveCamera){
-   this.camera.aspect=aspect;
-   const viewHeight=this.h/(26*zoom);
-   radius=Math.max(12,viewHeight/(2*Math.tan(this.camera.fov*Math.PI/360)));
-  }else{
-   const half=this.h/(2*26*zoom);
-   this.camera.left=-half*aspect;this.camera.right=half*aspect;
-   this.camera.top=half;this.camera.bottom=-half;
-   radius=Math.hypot(90,86);
-  }
-  // Camera-scale near clipping restores depth precision for nearly coplanar terrain,
-  // beach, and map-sheet surfaces at far zoom while preserving street-level detail.
-  const near=Math.max(.1,Math.min(12,radius*.012));
-  if(Math.abs(this.camera.near-near)>.0001)this.camera.near=near;
-  // Distant pixels cannot resolve blade/ripple micro-patterns; fade their contrast.
+  // Terrain can create its shared uniform after the first camera update.
   if(this.landscapeDetailUniform)this.landscapeDetailUniform.value=Math.max(0,Math.min(1,(zoom-.38)/.5));
-  const horizontal=radius*Math.cos(elevation);
-  this.camera.position.set(cam.x+Math.sin(angle)*horizontal,radius*Math.sin(elevation),cam.y+Math.cos(angle)*horizontal);
-  this.camera.lookAt(cam.x,0,cam.y);
-  this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
-  const shadowSpan=Math.round(Math.max(65,Math.min(220,74/Math.max(.22,zoom))));
-  if(this.lastShadowSpan!==shadowSpan){
-   this.lastShadowSpan=shadowSpan;
-   Object.assign(this.light.shadow.camera,{left:-shadowSpan,right:shadowSpan,top:shadowSpan,bottom:-shadowSpan,near:1,far:Math.max(220,shadowSpan*3.6)});
-   this.light.shadow.camera.updateProjectionMatrix();
+  // Update projection, transforms and culling only when view inputs change.
+  const previous=this.cameraPose;
+  const changed=!previous||previous.camera!==this.camera||previous.x!==cam.x||previous.y!==cam.y||previous.zoom!==zoom||previous.angle!==angle||previous.elevation!==elevation||previous.w!==this.w||previous.h!==this.h||previous.fov!==this.camera.fov||previous.far!==this.camera.far||previous.cameraZoom!==this.camera.zoom;
+  if(changed){
+   this.cameraPose={camera:this.camera,x:cam.x,y:cam.y,zoom,angle,elevation,w:this.w,h:this.h,fov:this.camera.fov,far:this.camera.far,cameraZoom:this.camera.zoom};
+   this.cameraViewVersion=(this.cameraViewVersion||0)+1;
+   let radius;
+   if(this.camera.isPerspectiveCamera){
+    this.camera.aspect=aspect;
+    const viewHeight=this.h/(26*zoom);
+    radius=Math.max(12,viewHeight/(2*Math.tan(this.camera.fov*Math.PI/360)));
+   }else{
+    const half=this.h/(2*26*zoom);
+    this.camera.left=-half*aspect;this.camera.right=half*aspect;
+    this.camera.top=half;this.camera.bottom=-half;
+    radius=Math.hypot(90,86);
+   }
+   // Camera-scale near clipping restores depth precision for nearly coplanar terrain,
+   // beach, and map-sheet surfaces at far zoom while preserving street-level detail.
+   const near=Math.max(.1,Math.min(12,radius*.012));
+   if(Math.abs(this.camera.near-near)>.0001)this.camera.near=near;
+   const horizontal=radius*Math.cos(elevation);
+   this.camera.position.set(cam.x+Math.sin(angle)*horizontal,radius*Math.sin(elevation),cam.y+Math.cos(angle)*horizontal);
+   this.camera.lookAt(cam.x,0,cam.y);
+   this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
+   const shadowSpan=Math.round(Math.max(65,Math.min(220,74/Math.max(.22,zoom))));
+   if(this.lastShadowSpan!==shadowSpan){
+    this.lastShadowSpan=shadowSpan;
+    Object.assign(this.light.shadow.camera,{left:-shadowSpan,right:shadowSpan,top:shadowSpan,bottom:-shadowSpan,near:1,far:Math.max(220,shadowSpan*3.6)});
+    this.light.shadow.camera.updateProjectionMatrix();
+   }
+   this.light.target.position.set(cam.x,0,cam.y);this.light.target.updateMatrixWorld();
   }
-  this.light.position.set(cam.x-45,90,cam.y-35);this.light.target.position.set(cam.x,0,cam.y);this.light.target.updateMatrixWorld();
+  this.light.position.set(cam.x-45,90,cam.y-35);
  }
  screen(x,z,height=0){this.point.set(x,height/18,z).project(this.camera);return[(this.point.x+1)*this.w/2,(1-this.point.y)*this.h/2];}
  world(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const p=new THREE.Vector3();this.ray.ray.intersectPlane(this.ground,p);return[p.x,p.z];}
@@ -3112,6 +3120,8 @@ export class TrafficRenderer{
   const off={red:'#563537',yellow:'#554d35',green:'#365447'};
   for(const signal of this.signals||[]){
    const active=signalColor(signal.node,signal.incoming);
+   if(signal.renderedSegments===signal.segments&&signal.renderedColor===active)continue;
+   signal.renderedSegments=signal.segments;signal.renderedColor=active;
    for(const [name,lens]of Object.entries(signal.segments)){
     const lit=active===name;
     lens.material.color.set(lit?on[name]:off[name]);
@@ -9065,27 +9075,40 @@ export class TrafficRenderer{
   this.carIndicatorHits=[];this.carLODStats={near:0,medium:0,far:0,culled:0};
  }
  cars(state,vehiclePosition,CATALOG,vehicleTimeliness=null,selected=null,showDiamonds=true){
-  const groups=VEHICLE_TYPES.map(()=>[]),medium=[],far=[],roadTrainLow=[],taxiLow=[],indicators=[],techEffects=[],warpPoints=[];
+  // These arrays are consumed synchronously. Previous GPU poses keep immutable
+  // car records, so only containers are reused, never those previous records.
+  const buffers=this.carFrameBuffers??={groups:VEHICLE_TYPES.map(()=>[]),medium:[],far:[],roadTrainLow:[],taxiLow:[],indicators:[],techEffects:[],warpPoints:[]};
+  const {groups,medium,far,roadTrainLow,taxiLow,indicators,techEffects,warpPoints}=buffers;
+  for(const items of groups)items.length=0;
+  for(const items of [medium,far,roadTrainLow,taxiLow,indicators,techEffects,warpPoints])items.length=0;
+  this.parkedRenderCache??=new WeakMap();
   const frustum=this.carViewFrustum,point=this.carViewPoint,cam=this.cam;
-  this.camera.updateMatrixWorld(true);
+  if(this.carFrustumVersion!==this.cameraViewVersion||!this.carFrustumReady){
   frustum.setFromProjectionMatrix(this.carViewMatrix.multiplyMatrices(
    this.camera.projectionMatrix,this.camera.matrixWorldInverse));
-  const centrePixelsPerUnit=this.camera.isPerspectiveCamera?this.h/(2*this.camera.position.distanceTo(new THREE.Vector3(cam.x,0,cam.y))*Math.tan(this.camera.fov*Math.PI/360)):this.h/(this.camera.top-this.camera.bottom);
+   this.carFrustumVersion=this.cameraViewVersion;this.carFrustumReady=true;
+  }
+  const centrePixelsPerUnit=this.camera.isPerspectiveCamera?this.h/(2*this.camera.position.distanceTo(point.set(cam.x,0,cam.y))*Math.tan(this.camera.fov*Math.PI/360)):this.h/(this.camera.top-this.camera.bottom);
   this.carLODStats={near:0,medium:0,far:0,culled:0};
-  const add=(x,z,angle,c,id,fallback,v=null,buildingId=null,altitude=0)=>{
+  const add=(x,z,angle,c,id,fallback,v=null,buildingId=null,altitude=0,parkedPose=null)=>{
+   const tech=v?.vehicleTech??c?.vehicleTech??'normal';
+   const cached=parkedPose&&this.parkedRenderCache.get(parkedPose);
+   let car,kind,distance,upgraded,level;
+   if(cached&&cached.view===this.cameraViewVersion&&cached.quality===this.graphicQuality&&cached.id===id&&cached.citizenId===c?.id&&cached.trait===c?.profile?.trait&&cached.tourist===c?.tourist&&cached.tech===tech&&cached.vehicleKind===v?.kind&&cached.axles===v?.delivery?.axles&&cached.fallback===fallback&&cached.car.x===x&&cached.car.z===z&&cached.car.angle===angle&&cached.car.altitude===altitude){
+    ({car,kind,distance,upgraded,level}=cached);
+   }else{
    point.set(x,.22+altitude,z);
    if(frustum.planes.some(plane=>plane.distanceToPoint(point)<-1.5)){
     this.carLODStats.culled++;return;
    }
-   const tech=v?.vehicleTech??c?.vehicleTech??'normal';
-   const upgraded=Object.hasOwn(VEHICLE_TECH_COLORS,tech);
-   const kind=carClassFor(c,id,tech,v),car={x,z,angle,color:upgraded?VEHICLE_TECH_COLORS[tech]:carPaintFor(c,id,kind,fallback),kind,altitude};
+   upgraded=Object.hasOwn(VEHICLE_TECH_COLORS,tech);
+   kind=carClassFor(c,id,tech,v);car={x,z,angle,color:upgraded?VEHICLE_TECH_COLORS[tech]:carPaintFor(c,id,kind,fallback),kind,altitude};
    const pixelScale=this.camera.isPerspectiveCamera?this.h/(2*Math.max(.1,this.camera.position.distanceTo(point))*Math.tan(this.camera.fov*Math.PI/360)):centrePixelsPerUnit;
    const apparentLength=VEHICLE_STYLES[kind][0]*VEHICLE_VISUAL_SCALE*pixelScale;
-   const distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
+   distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
    // Low uses the cheapest proxy at every distance, while preserving car picking.
-   const level=v?.kind==='intercity'&&this.graphicQuality==='low'?'roadTrainLow':
+   level=v?.kind==='intercity'&&this.graphicQuality==='low'?'roadTrainLow':
     kind===8&&this.graphicQuality==='low'?'taxiLow':
     kind===8&&this.graphicQuality==='medium'&&distance>65?'taxiLow':
     kind===8?'near':
@@ -9093,6 +9116,8 @@ export class TrafficRenderer{
     this.graphicQuality==='low'?'far':
     apparentLength>=22&&distance<=Math.max(24,12/Math.max(.1,cam?.z??1))
      ?'near':apparentLength>=10?'medium':'far';
+   if(parkedPose)this.parkedRenderCache.set(parkedPose,{view:this.cameraViewVersion,quality:this.graphicQuality,id,citizenId:c?.id,trait:c?.profile?.trait,tourist:c?.tourist,tech,vehicleKind:v?.kind,axles:v?.delivery?.axles,fallback,car,kind,distance,upgraded,level});
+   }
    if(upgraded)techEffects.push({x,z,angle,altitude,tech,distance});
    if(level==='near')groups[kind].push(car);
    else if(level==='medium')medium.push(car);
@@ -9123,7 +9148,7 @@ export class TrafficRenderer{
    for(const id of b.parked){
    if(this.parking.parkingIsMoving(id))continue;
    const p=this.parkedCarPose(b,id);
-   if(p)add(p.x-.5,p.y-.5,Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),state.citizens.get(id),id,this.parking.citizenCarColor(id),state.vehicles.get(state.citizens.get(id)?.vehicleId),b.id);
+   if(p)add(p.x-.5,p.y-.5,Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),state.citizens.get(id),id,this.parking.citizenCarColor(id),state.vehicles.get(state.citizens.get(id)?.vehicleId),b.id,0,p);
    }
   }
   for(const v of state.vehicles.values())if(v.phase==='warp_charge'&&v.airFrom&&v.airTo){warpPoints.push(v.airFrom,v.airTo);}
