@@ -1174,7 +1174,9 @@ function parkingVisuals(b){
  for(const u of [1.05,t.plotWidth-1.05])rect(u,t.plotHeight-.66,.12,.38,'#e5e6d0');
  return rects;
 }
-function drawParking2D(b){for(const r of parkingVisuals(b)){const points=[[r.u-r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v+r.h/2],[r.u-r.w/2,r.v+r.h/2]].map(([u,v])=>{const p=lotPoint(b,u,v);return screen(p.x-.5,p.y-.5);});poly(points,r.color);}for(const cid of b.parked||[]){if(parkingIsMoving(cid))continue;const i=parkingSpace(b,cid),p=parkingSlotPose(b,i);if(p){const q=screen(p.x,p.y);drawTechCarShape(q[0],q[1],p.angle,citizenCarColor(cid),cam.z,state.citizens.get(cid)?.vehicleTech);}}}
+// Vehicle geometry is 80% of its previous size in 2D fallback too.
+const CAR_VISUAL_SCALE_2D=.80;
+function drawParking2D(b){for(const r of parkingVisuals(b)){const points=[[r.u-r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v-r.h/2],[r.u+r.w/2,r.v+r.h/2],[r.u-r.w/2,r.v+r.h/2]].map(([u,v])=>{const p=lotPoint(b,u,v);return screen(p.x-.5,p.y-.5);});poly(points,r.color);}for(const cid of b.parked||[]){if(parkingIsMoving(cid))continue;const i=parkingSpace(b,cid),p=parkingSlotPose(b,i);if(p){const q=screen(p.x,p.y);drawTechCarShape(q[0],q[1],p.angle,citizenCarColor(cid),cam.z*CAR_VISUAL_SCALE_2D,state.citizens.get(cid)?.vehicleTech);}}}
 
 const BUG_CAPTURE_STORAGE_KEY='smcity-bug-capture-v1';
 let bugCaptureEnabled=false;
@@ -2629,10 +2631,10 @@ function drawVehicles(){for(const v of state.vehicles.values()){
   ctx.save();ctx.fillStyle='#49d6ff33';ctx.strokeStyle='#a9efff';ctx.lineWidth=2*cam.z;
   ctx.fillRect(q[0]-7*cam.z,q[1]-95*cam.z,14*cam.z,95*cam.z);ctx.beginPath();ctx.arc(q[0],q[1],7*cam.z,0,Math.PI*2);ctx.stroke();ctx.restore();
  }
- if(v.kind==='delivery')drawDeliveryTruckShape(p[0],p[1],pos.angle,v.color,cam.z,v.delivery?.axles||6);
- else if(v.kind==='intercity')drawIntercityRoadTrain(p[0],p[1],pos.angle,v.color,cam.z);
- else if(state.citizens.get(v.citizenId)?.tourist)drawTouristTaxiShape(p[0],p[1],pos.angle,cam.z);
- else drawTechCarShape(p[0],p[1],pos.angle,v.color,cam.z,v.vehicleTech);
+ if(v.kind==='delivery')drawDeliveryTruckShape(p[0],p[1],pos.angle,v.color,cam.z*CAR_VISUAL_SCALE_2D,v.delivery?.axles||6);
+ else if(v.kind==='intercity')drawIntercityRoadTrain(p[0],p[1],pos.angle,v.color,cam.z*CAR_VISUAL_SCALE_2D);
+ else if(state.citizens.get(v.citizenId)?.tourist)drawTouristTaxiShape(p[0],p[1],pos.angle,cam.z*CAR_VISUAL_SCALE_2D);
+ else drawTechCarShape(p[0],p[1],pos.angle,v.color,cam.z*CAR_VISUAL_SCALE_2D,v.vehicleTech);
 }}
 // Lane geometry is immutable during a trip. It is rebuilt only after a route or
 // road edit, rather than being recalculated from the car's new lane each frame.
