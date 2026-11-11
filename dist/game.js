@@ -399,6 +399,20 @@ function homeSideClearanceCells(b){
  }
  return cells;
 }
+// One entire empty tile around each building parcel, including corners.
+// Existing saves are never relocated: this check runs only on new placements
+// and explicit building moves, not during load or footprint reconstruction.
+const BUILDING_SPACING_ERROR='สิ่งปลูกสร้างต้องเว้นระยะห่างกันอย่างน้อย 1 ช่องค่ะ';
+function buildingTooClose(b,ignoreId=null){
+ const {w,h}=buildingBounds(b);
+ for(let yy=b.y-1;yy<=b.y+h;yy++)for(let xx=b.x-1;xx<=b.x+w;xx++){
+  if(xx>=b.x&&xx<b.x+w&&yy>=b.y&&yy<b.y+h)continue;
+  if(!valid(xx,yy))continue;
+  const other=state.buildGrid[id(xx,yy)];
+  if(other>=0&&other!==ignoreId)return true;
+ }
+ return false;
+}
 function checkParkingBuilding(key,x,y,ignoreId=null,preferredRotation=null){
  const t=CATALOG[key];if(!t||(!ignoreId&&t.kind==='civic'))return{error:'นำอาคารบริการประชาชนออกจากระบบสร้างแล้วค่ะ'};if(!ignoreId&&['home_small','home_medium'].includes(key))return{error:'อาคารบ้านรุ่นนี้หยุดให้สร้างแล้วค่ะ'};
  const quota=buildingQuotaStatus(key);if(ignoreId==null&&quota.locked)return{error:quota.message};
@@ -409,6 +423,7 @@ function checkParkingBuilding(key,x,y,ignoreId=null,preferredRotation=null){
   if(!mapCanBuildRect(x,y,bounds.w,bounds.h)){error=MAP_SHEET_LOCK_MESSAGE;continue;}
   let inSea=false;for(let yy=y;yy<y+bounds.h&&!inSea;yy++)for(let xx=x;xx<x+bounds.w;xx++)if(isPhuketWaterTile(xx,yy)){inSea=true;break;}if(inSea){error='พื้นที่ในทะเลสร้างไม่ได้ค่ะ · สร้างเฉพาะบนเกาะภูเก็ตนะคะ';continue;}let blocked=false;for(let yy=y;yy<y+bounds.h&&!blocked;yy++)for(let xx=x;xx<x+bounds.w;xx++){const i=id(xx,yy);if(state.footprint[i]>=0||(state.buildGrid[i]>=0&&state.buildGrid[i]!==ignoreId)){blocked=true;break;}}
   if(blocked){error='พื้นที่อาคารและลานจอดทับถนนหรือสิ่งปลูกสร้างค่ะ';continue;}
+  if(buildingTooClose(b,ignoreId)){error=BUILDING_SPACING_ERROR;continue;}
   if(homeSideClearanceCells(b).some(i=>state.homeSideRoadFootprint?.[i])){error=HOME_SIDE_CLEARANCE_ERROR;continue;}
   const access=parkingAccess(b);if(access.length)return{access,rotation,bounds};
  }
@@ -1769,10 +1784,10 @@ function startNewCity(city='phuket'){
  const streets=[[[164,132],[176,132]],[[176,132],[176,144]],[[176,144],[164,144]],[[164,138],[176,138]]];
  for(const [a,b] of streets)if(!buildRoad(lineCells(id(a[0],villageY(a[1])),id(b[0],villageY(b[1]))),'small',true))throw Error('Starter village road could not be placed');
  const plots=[
-  ['home_starter',167,128,0],['home_starter',170,128,0],
-  ['home_starter',167,133,2],['park_starter',170,133,2],
-  ['restaurant_starter',167,140,0],['shop_starter',170,140,0],
-  ['mall_starter',167,145,2],['office_starter',170,145,2],
+  ['home_starter',167,128,0],['home_starter',171,128,0],
+  ['home_starter',167,133,2],['park_starter',171,133,2],
+  ['restaurant_starter',167,140,0],['shop_starter',171,140,0],
+  ['mall_starter',167,145,2],['office_starter',171,145,2],
   ['factory_starter',160,134,3],['hotel_starter',160,140,3],
   ['pub_starter',177,134,1],['casino_starter',177,140,1]
  ];
