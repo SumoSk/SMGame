@@ -25,7 +25,6 @@ const ROAD_TRAIN_SIGNAL_BUFFER=.12; // only intercity road trains need extra int
 const ADAPTIVE_LANE_RULES={minWait:2,obstacleAhead:2.2,turnBuffer:9,junctionBuffer:5,cooldown:8,sweep:3.1};
 const GAME_MINUTES_PER_SECOND=.8;
 const NORMAL_SPEED_SCALE=2; // UI 1x runs at the former 2x simulation speed.
-const SKIP_DAY_COST=1000000; // Charge once when the player confirms a day skip.
 const CITIES={phuket:{name:'ภูเก็ต',en:'PHUKET ISLAND',sub:'เกาะเล็ก ๆ กับความเป็นไปได้ที่ยิ่งใหญ่',terrain:'island'},bangkok:{name:'กรุงเทพฯ',en:'BANGKOK METROPOLIS',sub:'เชื่อมสองฝั่งเมือง ให้ทุกชีวิตไปต่อ',terrain:'river'},chiangmai:{name:'เชียงใหม่',en:'CHIANG MAI',sub:'เมืองเหนือที่เติบโต ในจังหวะของคุณ',terrain:'mountain'},korat:{name:'โคราช',en:'NAKHON RATCHASIMA',sub:'ประตูสู่อีสาน ทุกเส้นทางเริ่มที่นี่',terrain:'through'},london:{name:'ลอนดอน',en:'LONDON SHOWCASE',sub:'เมืองตัวอย่าง ลอนดอน · ประชาชน 1,000 คน',terrain:'through'}};
 const KINDS={civic:{name:'พื้นที่เดิมจากเซฟเก่า',icon:'▫',color:'#c8d4df',roof:'#516783'},casino:{name:'คาสิโน',icon:'♠',color:'#6250ac',roof:'#20223f'},hotel:{name:'โรงแรม',icon:'▣',color:'#b8dfe9',roof:'#4f93ad'},home:{name:'บ้าน',icon:'⌂',color:'#e9b871',roof:'#db8558'},shop:{name:'ร้านค้า',icon:'▤',color:'#f4c76c',roof:'#d79c3e'},restaurant:{name:'ร้านอาหาร',icon:'♨',color:'#eaa080',roof:'#c76251'},mall:{name:'ห้าง',icon:'▥',color:'#cee7db',roof:'#5d9c98'},office:{name:'สำนักงาน',icon:'▥',color:'#b9d5da',roof:'#4f8598'},factory:{name:'โรงงาน',icon:'⚙',color:'#c4c9b4',roof:'#7d8c81'},park:{name:'สวน',icon:'♧',color:'#8aba70',roof:'#5b9658'},pub:{name:'ผับ',icon:'♫',color:'#bfa6c8',roof:'#88618e'}};
 const CATALOG={};
@@ -5760,7 +5759,7 @@ function newMissionCounters(){return{total:0,ontime:0,late:0,missed:0,unavailabl
 function newMissionDay(day=performanceDay(),since=state.time){
  return{day,since,residentOnlyTotals:true,...newMissionCounters(),byKind:Object.fromEntries(MISSION_KINDS.map(k=>[k,newMissionCounters()])),
  tripsStarted:0,tripsArrived:0,tripsByKind:{},arrivalsByKind:{},serviceResults:{},peakCars:0,peakWaiting:0,peakPopulation:0,happyMin:100,happyMax:0,populationIn:0,populationOut:0,touristsIn:0,touristsOut:0,
- touristsRevenue:0,touristsDiscount:0,incidentReward:0,missionBonus:0,skipDayFee:0,roadCost:0,buildingCost:0,buildingsBuilt:0,buildingsRemoved:0,roadsBuilt:0,
+ touristsRevenue:0,touristsDiscount:0,incidentReward:0,missionBonus:0,skipDayFee:0,skippedDay:0,roadCost:0,buildingCost:0,buildingsBuilt:0,buildingsRemoved:0,roadsBuilt:0,
  taxRevenue:0,businessRevenue:0,maintenanceCost:0,dailySettlement:0,taxAdjustments:0,hudOpeningMoney:state.money,openingMoney:state.money,endingMoney:state.money};
 }
 function newMissionStats(){return{version:2,current:newMissionDay(),previous:null,dismissedDay:-1};}
@@ -5886,7 +5885,7 @@ function missionReportMarkup(which='current'){
  const missionHeadline=s.total===0?'ยังไม่มีผลการเดินทาง':s.rate>=80?'การเดินทางดีมาก':s.rate>=50?'ยังมีทริปที่ต้องปรับปรุง':'การเดินทางต้องเร่งแก้ไข';
  const trafficHeadline=s.peakWaiting>Math.max(5,Math.round(s.peakCars*.25))?'รถรอคิวหนาแน่น':'จราจรยังอยู่ในระดับควบคุมได้';
  const financialHeadline=financeDelta>0?'เงินในเมืองเพิ่มขึ้น':financeDelta<0?'เงินในเมืองลดลง':'เงินในเมืองยังไม่เปลี่ยน';
- const financialExplanation=isPrevious&&s.skipDayFee?'ข้ามวัน · สละรายได้ที่ควรได้รับ และจ่ายค่าข้ามวัน 1,000,000 บาท':isPrevious?'ยอดสุทธิจริงจากเงินต้นวันถึงปิดบัญชี 06:00':'ยอดสุทธิตั้งแต่เริ่มรอบ · ยังไม่ปิดบัญชี';
+ const financialExplanation=isPrevious&&s.skippedDay?'ข้ามวัน · สละรายได้ภาษีและธุรกิจของวันที่ข้าม':isPrevious&&s.skipDayFee?'ข้ามวันครั้งก่อน · มีค่าข้ามวันที่จ่ายไปในอดีต':isPrevious?'ยอดสุทธิจริงจากเงินต้นวันถึงปิดบัญชี 06:00':'ยอดสุทธิตั้งแต่เริ่มรอบ · ยังไม่ปิดบัญชี';
  const insight=s.total===0?'ยังไม่มีภารกิจที่ตัดสินผลในรอบนี้':int(s.success)+' จาก '+int(s.total)+' ภารกิจถึงตรงเวลา';
  const trafficInsight=s.peakCars?'รถมากสุด '+int(s.peakCars)+' คัน · รอคิวสูงสุด '+int(s.peakWaiting)+' คัน':'ยังไม่มีรถที่บันทึกในรอบนี้';
  return '<div class="daily-report-body game-day-recap"><header class="sm-report-header"><span class="panel-heading-icon" aria-hidden="true">📖</span><div><h2>บันทึกเมือง '+dayLabel+'</h2><p class="mission-sub">'+(isPrevious?'จบอีกหนึ่งวันของเมืองเรา':'เรื่องราวของวันนี้ยังเดินต่อ')+' · 06:00–06:00</p></div></header>'+
@@ -5909,7 +5908,7 @@ function missionReportMarkup(which='current'){
  panel('👥 ประชากรและนักท่องเที่ยว',[['ย้ายเข้าใหม่',int(s.populationIn)+' คน'],['ย้ายออก / ถูกนำออก',int(s.populationOut)+' คน'],['นักท่องเที่ยวเข้าเมือง',int(s.touristsIn)+' คน'],['นักท่องเที่ยวออกเมือง',int(s.touristsOut)+' คน'],...snapshotRows.slice(0,7),['จำนวนประชากรสูงสุด',int(s.peakPopulation)+' คน'],['Performance ต่ำสุดระหว่างวัน',fraction(s.happyMin)+'%'],['Performance สูงสุดระหว่างวัน',fraction(s.happyMax)+'%']])+
  panel('🎯 ผลภารกิจทั้งหมด',[['ภารกิจตัดสินผลแล้ว',int(s.total)],['สำเร็จตามเป้าหมาย',int(s.success)],['ตรงเวลา',int(s.ontime)],['ไม่สำเร็จ · ถึงสาย',int(s.late)],['ไปไม่ทัน',int(s.missed)],['ไม่มีเส้นทาง / ใช้บริการไม่ได้',int(s.unavailable)],['ยกเลิกภารกิจ',int(s.cancelled)],['ยังเดินทางอยู่ ณ ตอนนี้',isPrevious?'—':int(s.active)],['กำลังใช้บริการ รอตัดสินผล',isPrevious?'—':int([...state.citizens.values()].filter(c=>c.serviceMission&&!c.serviceMission.resultDone).length)],...typeRows,...serviceRows])+
  panel('🚗 รายงานการเดินทาง',[['เริ่มเดินทางรวม',int(s.tripsStarted)+' เที่ยว'],['ถึงจุดหมายจริง',int(s.tripsArrived)+' เที่ยว'],['เวลาเฉลี่ยเมื่อถึง',fraction(s.average)+' นาทีในเกม'],['ความเร็วเฉลี่ย',fraction(s.secondsPerBlock)+' วินาทีในเกม/บล็อก'],['ระยะทางทริปที่มีผลและวัดได้',int(s.roadBlocks)+' บล็อก'],['เฉลี่ยเวลารถติด',fraction(s.congestionAverage)+' นาทีในเกม'],...tripRows,['รถที่มากที่สุดระหว่างวัน',int(s.peakCars)+' คัน'],['รถรอคิวสูงสุด',int(s.peakWaiting)+' คัน'],...snapshotRows.slice(7,12)])+
- panel('💰 การเงินและการก่อสร้าง',[['เงินต้นวัน',money(s.openingMoney)],['รายได้ภาษีที่ปิดบัญชี',isPrevious?money(s.taxRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้ธุรกิจที่ปิดบัญชี',isPrevious?money(s.businessRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้จากนักท่องเที่ยว',money(s.touristsRevenue)],['เงินคืน / ส่วนลดนักท่องเที่ยว',money(s.touristsDiscount)],['เงินรางวัลแก้จราจร',money(s.incidentReward)],['โบนัสภารกิจสำเร็จ',money(s.missionBonus)],['ปรับภาษีหลังปิดบัญชี',moneySigned(s.taxAdjustments)],['ค่าดูแลเมือง',isPrevious?money(s.maintenanceCost):'สรุปเมื่อสิ้นวัน'],['ค่าข้ามวัน',money(s.skipDayFee||0)],['ก่อสร้างถนน',money(s.roadCost)],['สร้างอาคาร',money(s.buildingCost)],['ถนนเพิ่ม / ปรับปรุง',int(s.roadsBuilt)+' บล็อก'],['อาคารสร้างใหม่',int(s.buildingsBuilt)+' แห่ง'],['อาคารรื้อถอน',int(s.buildingsRemoved)+' แห่ง'],['ยอดเงินสุทธิเปลี่ยน',moneySigned(financeDelta)],['เงินคงเหลือ',money(isPrevious?s.endingMoney:state.money)]])+
+ panel('💰 การเงินและการก่อสร้าง',[['เงินต้นวัน',money(s.openingMoney)],['รายได้ภาษีที่ปิดบัญชี',isPrevious?money(s.taxRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้ธุรกิจที่ปิดบัญชี',isPrevious?money(s.businessRevenue):'สรุปเมื่อสิ้นวัน'],['รายได้จากนักท่องเที่ยว',money(s.touristsRevenue)],['เงินคืน / ส่วนลดนักท่องเที่ยว',money(s.touristsDiscount)],['เงินรางวัลแก้จราจร',money(s.incidentReward)],['โบนัสภารกิจสำเร็จ',money(s.missionBonus)],['ปรับภาษีหลังปิดบัญชี',moneySigned(s.taxAdjustments)],['ค่าดูแลเมือง',isPrevious?money(s.maintenanceCost):'สรุปเมื่อสิ้นวัน'],...(s.skipDayFee?[['ค่าข้ามวันในอดีต',money(s.skipDayFee)]]:[]),['ก่อสร้างถนน',money(s.roadCost)],['สร้างอาคาร',money(s.buildingCost)],['ถนนเพิ่ม / ปรับปรุง',int(s.roadsBuilt)+' บล็อก'],['อาคารสร้างใหม่',int(s.buildingsBuilt)+' แห่ง'],['อาคารรื้อถอน',int(s.buildingsRemoved)+' แห่ง'],['ยอดเงินสุทธิเปลี่ยน',moneySigned(financeDelta)],['เงินคงเหลือ',money(isPrevious?s.endingMoney:state.money)]])+
  panel('🏙️ โครงสร้างเมืองและสภาพการจราจร',snapshotRows.slice(12))+
  '</div></details><details class="panel-help report-reading"><summary>วิธีอ่านรายงาน</summary><p>รายงานแสดงวันนี้และวันล่าสุด ไม่เก็บย้อนหลัง 7 วัน · ภาษีและรายได้ธุรกิจสรุปเมื่อจบวัน</p><p>วินาที/บล็อก = เวลาเดินทางรวมของเที่ยวที่ถึง × 60 ÷ ระยะทางรวมที่วัดได้</p></details></div>';
 }
@@ -9467,39 +9466,40 @@ function creatorMetrics(){
   isPlaying:state.speed>0&&!window.SMGameAuthLocked&&!$('dialog').open};
 }
 window.SMGameCreatorMetrics=creatorMetrics;
-$('skip').onclick=()=>{
- if(state.money<SKIP_DAY_COST){toast('ต้องมีเงินอย่างน้อย '+money(SKIP_DAY_COST)+' เพื่อข้ามวันค่ะ');return;}
- confirmAction('ข้ามวัน · ค่าธรรมเนียม '+money(SKIP_DAY_COST),
-  '⚠️ การข้ามวันทำให้คุณสละรายได้ภาษีและธุรกิจทั้งหมดที่ควรได้รับจากวันที่ข้าม (รายได้ปิดรอบ 0 บาท) และเสียค่าข้ามวัน '+money(SKIP_DAY_COST)+' โดยยังมีค่าบำรุงรักษาตามปกติ ยืนยันข้ามไปเช้า 06:00 หรือไม่?',()=>{
-   if(state.money<SKIP_DAY_COST){toast('เงินไม่พอสำหรับการข้ามวันค่ะ');return;}
-   state.money-=SKIP_DAY_COST;
-   missionDay().skipDayFee=(missionDay().skipDayFee||0)+SKIP_DAY_COST;
-   for(const c of state.citizens.values())finishResidentService(c,'ข้ามวันก่อนใช้บริการครบ');
-   const target=(performanceDay(state.time)+1)*1440+360;
-   for(const v of [...state.vehicles.values()]){
-    if(v.citizenId&&['work','leisure','home'].includes(v.kind)){
-     const c=state.citizens.get(v.citizenId);
-     if(!c?.tourist)journeyResult(c,v,'cancelled','ข้ามวันระหว่างเดินทาง');
-    }
-    arrive(v,true);
+$('skip').onclick=()=>confirmAction(
+ 'ข้ามวัน',
+ '⚠️ การข้ามวันไม่มีค่าธรรมเนียม แต่คุณจะสละรายได้ภาษีและธุรกิจทั้งหมดที่ควรได้รับจากวันที่ข้าม (รายได้ปิดรอบ 0 บาท) และยังมีค่าบำรุงรักษาตามปกติ ยืนยันข้ามไปเช้า 06:00 ของวันถัดไปหรือไม่?',
+ ()=>{
+  // Day-skipping is a recovery option, not a paid feature.
+  // Keep the regular 06:00 day close, score reports and next-day schedules.
+  missionDay().skippedDay=1;
+  for(const c of state.citizens.values())finishResidentService(c,'ข้ามวันก่อนใช้บริการครบ');
+  const target=(performanceDay(state.time)+1)*1440+360;
+  for(const v of [...state.vehicles.values()]){
+   if(v.citizenId&&['work','leisure','home'].includes(v.kind)){
+    const c=state.citizens.get(v.citizenId);
+    if(!c?.tourist)journeyResult(c,v,'cancelled','ข้ามวันระหว่างเดินทาง');
    }
-   state.events=state.events.filter(e=>e.at>=target);eventHeapify();
-   state.time=target;
-   daily({forfeitIncome:true});
-   missionAutoPulse();
-   for(const c of [...state.citizens.values()]){
-    if(c.removed)continue;
-    if(c.tourist){removeCitizen(c);continue;}
-    for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}
-    state.buildings.get(c.homeId)?.parked.add(c.id);
-    c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;
-    c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));
-   }
-   syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;renderTools();
-   addNews('ข้ามวัน · จ่าย '+money(SKIP_DAY_COST)+' และไม่ได้รับรายได้ประจำวัน');
-   updateUI();toast('ข้ามวันสำเร็จ · หัก '+money(SKIP_DAY_COST)+' และงดรายได้ของวันที่ข้ามค่ะ');
-  });
-};
+   arrive(v,true);
+  }
+  state.events=state.events.filter(e=>e.at>=target);eventHeapify();
+  state.time=target;
+  daily({forfeitIncome:true});
+  missionAutoPulse();
+  for(const c of [...state.citizens.values()]){
+   if(c.removed)continue;
+   if(c.tourist){removeCitizen(c);continue;}
+   for(const b of state.buildings.values()){b.visitors.delete(c.id);b.parked.delete(c.id);}
+   state.buildings.get(c.homeId)?.parked.add(c.id);
+   c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';
+   c.queued=null;c.pending=null;c.lifeRun=null;c.activityUntil=null;
+   c.scheduled.delete(Math.floor(target/1440));scheduleDay(c,Math.floor(target/1440));
+  }
+  syncParkingSlots();state.lastImmigration=target;state.lastPass=target;state.speed=1;
+  renderTools();addNews('ข้ามวัน · สละรายได้ภาษีและธุรกิจของวันที่ข้าม · เริ่มวันใหม่ 06:00');
+  updateUI();toast('ข้ามวันสำเร็จ · ไม่หักค่าข้ามวัน แต่สละรายได้ของวันที่ข้ามค่ะ');
+ }
+);
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_city_status',title:'อ่านสถานะเมือง',description:'อ่านงบประมาณ ประชากร Performance จราจร และความต้องการของเมืองที่กำลังเล่น',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||Object.keys(input).length)throw Error('Expected empty object');return{city:CITIES[state.city].name,time:timeText(state.time),money:state.money,...computeStats()};}})).catch(()=>{});}catch{}}
 // Read-only diagnostics and exact game actions are exposed only in the local test harness.
 if(typeof window.__TRAFFIC_TEST_HARNESS__==='function')window.__TRAFFIC_TEST_HARNESS__({creatorMetrics,roadEraseNodesAt,removeRoadNodes,rotateLandscape,updateLandscapeQuickActions,get landscapeRotation(){return landscapeRotation;},cityLifeForecast,lifePlannerMarkup,showCityLevelCelebration,dismissCityLevelCelebration,cityLevelForPeak,cityNextLevelTarget,ensureCityLevel,updateCityLevel,updateCityLevelHud,cityLevelStatus,updateMissionMoodHud,journeyResult,claimCityCrate,openCityCrateModal,openCityCrateResult,openAICreditInfo,performanceDay,ensurePerformance,personalPerformance,recordPerformance,closePerformanceDay,serviceAvailability,startComplaintTrip,refreshComplaints,incomeFactor,DECOR_KINDS,LANDSCAPE_KINDS,moveLandscape,deleteLandscape,beginMoveLandscape,pickLandscapeAt,landscapeChoicesAt,selectLandscapeAt,selectNextLandscape,landscapePlacement,get landscapeSnap(){return landscapeSnap;},BUILDING_CHAINS,buildingQuotaStatus,beginMoveBuilding,moveBuilding,straightIntercityPath,updateIntercityFreight,deliveryNightAt,buildDeliveryRun,updateNightDeliveries,startDeliveryReturn,assistedBuildingPlacement,getDemolitionPreview,finishCanvasInteraction,get state(){return state;},mapSheetNextPrice,sheetAt,sheetUnlocked,buyMapSheet,openMapSheetPurchase,mapCanBuildRect,get cam(){return cam;},get selected(){return selected;},get carStatusDiamondsVisible(){return carStatusDiamondsVisible;},get aiPinsVisible(){return aiPinsVisible;},toggleAIPinLabels,activateAISignalPin,updateAISignalPins,buyAISignal,openAISignalUpgrade,smartSignalStep,aiSignalQueuePressure,get graphicQuality(){return graphicQuality;},applyGraphicQuality,openGraphicsMenu,get canvasCarMarkerHits(){return canvasCarMarkerHits;},screen,get incidentCases(){return incidentCases;},scanIncidents,resolveIncident,openTrafficIncident,incidentEventType,incidentRewardStatus,openManualIncidentLog,manualIncidentLogs,syncManualIncidentLogs,incidentSummaryVehicle,updateIncidentMarkers,nudgeCamera,resetCameraAngle,TOURISM,tourismCapacity,admitTourist,touristStep,touristEnter,touristCharge,touristTrafficFailure,touristLeave,touristHotel,arriveTourist,updateTourism,tourismLedger,touristPeople,touristDashboardData,touristCurrentActivity,touristInspector,renderTouristDashboard,showTouristDashboard,releaseHotel,prepareTouristDemolition,daily,LIFESTYLES,CITIZEN_TRAITS,VEHICLE_TECHS,openVehicleUpgrade,syncCitizenVehicleTech,vehicleTechCounts,vehiclePosition,advanceSkyVehicle,citizenServicePreference,SERVICE_STAY,serviceWindow,workRoutine,runLifestyle,lifeAdvance,newCitizen,scheduleDay,planForDay,ensureRoutine,habitRandom,eventPush,eventPop,eventHeapify,citizenDashboardData,filteredCitizenRecords,renderCitizenDashboard,showCitizenDashboard,hideCitizenDashboard,TREE_KINDS,landscapeClear,plantLandscape,eraseLandscape,plantLandscapeStroke,lotCarsOverlap,advanceLot,parkingFree,parkingSpace,lotSlots,lotPoint,lotModel,buildingBounds,parkingSlotPose,parkingPose,parkingVisuals,syncParkingSlots,beginParkingArrival,prepareLotDeparture,arrive,trackingRoute,trackingDestination,trackingOrigin,trackingEndpoint,vehicleTimeliness,selectedCarVehicle,normalizeSelectedCar,updateTrackingOverlay,drawCarIndicators2D,reset,startNewCity,id,xy,route,tripRoute,buildRoad,buildBuilding,checkBuilding,checkRoad,demolishRoad,demolishBuilding,createTrip,missingRoute,routeWarningPosition,updatePlaceLabels,updateRouteWarnings,recoverVehicle,checkDepartureRoute,canTowVehicle,towVehicle,strandVehicle,cancelVehicle,immigration,tick,computeStats,cityDemand,cityAdvice,updateCityAdvisor,observeDemandNotices,demandNoticeList,clearDemandNoticeForBuild,runAction,drawRoads,advanceVehicles,junctionDetails,cityBugReport,openCityReport,captureTowedVehicleEvidence,explainRoadTraversal,rememberVehicleStop,setBugCaptureEnabled,get bugCaptureEnabled(){return bugCaptureEnabled;},updateCityQuickModes,aiMapReport,sendCurrentMapToAi,aiMapFilename,recordMissionResult,missionStatsSummary,openMissionDashboard,missionFinishDay,missionAutoPulse,missionAutoClose,missionReportMarkup,renderInspector,renderTools,dockItems,openMainMenu,openReportMenu,inspectAt,updateBuildingQuickActions,signalHitAt,signalSettings,signalSlots,signalCycle,signalProgress,signalStatus,signalPhase,signalColor,signalAllows,editSignal,controlSignal,setSignalDefaults,restoreRecommendedSignals,selectTool,snapshot,loadGame,saveGame,buildingTraffic,buildingGaugeMetrics,readSaveSlots,readDurableSaveSlots,saveDurableGame,validateSave,prepareJunctionQueues,junctionConnector,connectorsConflict,enforceNoUTurn,capsulesOverlap,mergeRoadKeys,parkingClaimed,prepareParkingMerges,oppositeSmallRoadExit,oppositeExitAdmissionBlocker,rescueOppositeExitPairs,returnOppositeExitCarToLot,get oppositeExitPairSince(){return oppositeExitPairSince;},laneSwapClearance,laneChangeCorridorClear,commitSafeLaneChange,attemptAdaptiveLaneChange,queueAllows,reserveIntersection,release,accessFor,dir,junction,plannedLane,intersectionAllowed,stopProgress,roadChanged,occupancy,vehiclePosition,motionPlan,motionDistance,positionOnMotion,laneOffset,lineCells,roadEraseSegmentCells,appendRoadEraseStroke,roadErasePlan,demolishRoadStroke,demolitionBuildingAt,setDockCollapsed,getRoadPreview,closeModal,get pendingRoadPreview(){return pendingRoadPreview;},beginParkingArrival,recordEntranceArrival,constructionDialogPlacement,positionConstructionDialog,cancelBuildingMove,touristActivityResult,worksOnDay,updateCityActivity,startCityOuting,chooseCityOuting,migrateActivity251,homeActivityLimit,activitySnapshot,HOME_ACTIVITY_TARGETS,SERVICE_HOURS,SERVICE_STAY,scheduleDay,lifePlan,migrateJourneyRules,lifeRetry,arriveLifestyle,respawnVehicle,NO_ROUTE_TIMEOUT,IMMOBILE_RESPAWN_TIMEOUT,journeyResult,arrivalOutcome,trackJourney,travelEstimate,buildingTravelEstimate,TRAVEL_PLANNING,optionalActivityFits,estimatePlanTravel,migrateTravelPlanning,resumeCancelledLife,workTax,JOURNEY_RULES,beginMoveBuilding,moveBuilding,get movingBuildingId(){return movingBuildingId;},roadsideVisuals,roadVisualWidth,bezierPoint,bezierTangent,TRIPS,ROADS,CATALOG});
