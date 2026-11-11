@@ -981,21 +981,23 @@ export class TrafficRenderer{
  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.96;
  this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new URLSearchParams(typeof window==='undefined'?'':(window.location?.search??'')).get('camera')==='ortho'?new THREE.OrthographicCamera(-30,30,20,-20,.1,3800):new THREE.PerspectiveCamera(35,innerWidth/Math.max(1,innerHeight),.1,3800);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#e8f7ff','#698057',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
  this.ray=new THREE.Raycaster();this.ground=new THREE.Plane(UP,0);this.ndc=new THREE.Vector2();this.point=new THREE.Vector3();this.lastKey='';this.roadKey='';this.buildKey='';this.treeKey='';this.previewKey='';this.buildingMeshes=null;this.cameraKey='';this.cam=null;this.w=innerWidth;this.h=innerHeight;this.materials=[];
- this.graphicQuality='medium';this.lastBuildingDetailLevel=null;
+ this.graphicQuality=null;this.lastBuildingDetailLevel=null;
  this.aiSignalGroup=new THREE.Group();this.aiSignalKey='';this.aiSignalGlows=[];
  this.roadGroup=new THREE.Group();this.buildingGroup=new THREE.Group();this.treeGroup=new THREE.Group();this.previewGroup=new THREE.Group();this.signalGroup=new THREE.Group();this.lampGroup=new THREE.Group();this.scene.add(this.roadGroup,this.buildingGroup,this.treeGroup,this.previewGroup,this.signalGroup,this.lampGroup,this.aiSignalGroup);this.createCars();this.createRoute();this.createAtmosphere();this.resize();
  }
- disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.geometry&&!SHARED_RENDER_GEOMETRIES.includes(x.geometry))x.geometry.dispose();});}}
+ disposeGroup(group){for(const o of [...group.children]){group.remove(o);o.traverse(x=>{if(x.material){const ms=Array.isArray(x.material)?x.material:[x.material];for(const m of ms)m.dispose();}if(x.isInstancedMesh)x.dispose();if(x.geometry&&!SHARED_RENDER_GEOMETRIES.includes(x.geometry))x.geometry.dispose();});}}
  setGraphicQuality(value){
   if(!['veryHigh','medium','low'].includes(value))return false;
   if(this.graphicQuality===value)return true;
   this.graphicQuality=value;
-  this.treeKey=''; // rebuild near-detail tree geometry when returning from a lower preset
+  this.treeKey='';this.treeBaseKey=''; // refresh visual caches when changing presets
   this.buildKey=''; // LOW has a separate reduced building mesh; rebuild when toggling presets
   // Low deliberately renders into a smaller framebuffer: softer image at every zoom.
-  const ratio=value==='low'?.72:Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,1.6);
+  const ratio=value==='low'?.72:Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,value==='medium'?1.25:1.6);
   this.renderer.setPixelRatio(ratio);
   this.renderer.shadowMap.enabled=value!=='low';
+  const shadowSize=value==='veryHigh'?2048:1024;
+  if(this.light.shadow.mapSize.x!==shadowSize){this.light.shadow.mapSize.set(shadowSize,shadowSize);this.light.shadow.map?.dispose();this.light.shadow.map=null;this.renderer.shadowMap.needsUpdate=true;}
   this.lastBuildingDetailLevel=null;
   this.lastGlow=-1; // Force refresh on the first frame after a quality switch.
   this.treeGroup.visible=value!=='low';
@@ -2701,76 +2703,97 @@ export class TrafficRenderer{
     Math.sin(a)*ring,.070,.065,.075,a);
   }
  }
+ // Keep the distant forest on the GPU. Camera movement rebuilds only nearby detail.
  trees(state,cam){
- const zoomedIn=(cam.z??1)>=.75;
- const cellX=zoomedIn?Math.floor(cam.x/18):'all',cellZ=zoomedIn?Math.floor(cam.y/18):'all';
- const key=[cellX,cellZ,state.version,this.buildKey,state.city,state.landscapeVersion||0].join(':');
- if(key===this.treeKey)return;this.treeKey=key;this.disposeGroup(this.treeGroup);
- const b=new Batch(),hidden=new Set(state.hiddenAutoTrees||[]);this.landscapePicks=new Map();let pickId=0;
- const clear=(x,z)=>{
-  const ix=Math.floor(x),iz=Math.floor(z);
-  if(ix<1||iz<1||ix>=299||iz>=299)return false;
-  if(state.city==='phuket'&&this.islandOutward(x,z)>-2.8||state.city==='bangkok'&&Math.abs(x-(125+Math.sin(z*.047)*5))<6)return false;
-  for(let yy=iz-1;yy<=iz+1;yy++)for(let xx=ix-1;xx<=ix+1;xx++){const index=yy*300+xx;if(state.footprint[index]>=0||state.buildGrid[index]>=0)return false;}
-  return true;
- };
- const biomeTrees={
-  phuket:['palm','palm','rain','shade','banyan','flower','shrub'],
-  bangkok:['rain','banyan','willow','shade','flower','jacaranda','oak'],
-  chiangmai:['pine','cedar','oak','shade','flower','cherry','cypress'],
-  korat:['shade','oak','rain','shrub','maple','flower','banyan'],
-  london:['oak','willow','maple','shade','cherry','cypress','rain']
- };
- const species=biomeTrees[state.city]||biomeTrees.korat;
- const shrubColors=state.city==='chiangmai'?['#487e58','#64976a','#7da67c']:
-  state.city==='korat'?['#77965d','#91a66c','#acb478']:
-  state.city==='phuket'?['#4e9470','#69a77b','#8bb895']:
-  ['#548b65','#78a57c','#91b695'];
- const flowerColors=state.city==='chiangmai'?['#e9b1d4','#b5a4d9','#f6c4cf']:
-  state.city==='korat'?['#f0cd82','#e8a4b0','#eac18d']:
-  ['#e8a4c0','#d6b6ec','#f1c77e'];
- const zMin=2,zMax=298,xMin=state.city==='phuket'?112:2,xMax=298;
- for(let z=zMin;z<zMax;z+=2.7)for(let x=xMin;x<xMax;x+=2.7){
-  const grove=hash(Math.floor(x/14)+23,Math.floor(z/14)+57);
-  if(hash(x,z)<(grove>.53?.56:.82))continue;
-  const tx=x+hash(z,x)*1.8,tz=z+hash(x+7,z)*1.8,ix=Math.floor(tx),iz=Math.floor(tz);
-  if(!clear(tx,tz)||hidden.has(iz*300+ix))continue;
-  const variety=hash(tx+12,tz+3);
-  let kind=species[Math.min(species.length-1,Math.floor(variety*species.length))];
-  if(state.city==='phuket'&&this.islandOutward(tx,tz)>-14&&variety>.25)kind='palm';
-  if(state.city==='bangkok'&&Math.abs(tx-(125+Math.sin(tz*.047)*5))<14&&variety>.38)kind='willow';
-  const dist=Math.hypot(tx-cam.x,tz-cam.y);
-  const near=zoomedIn&&(this.graphicQuality==='veryHigh'?dist<42:dist<27);
-  b.pickId=++pickId;this.landscapePicks.set(pickId,{auto:true,x:tx,y:tz,kind,rotation:state.autoTreeRotations?.[iz*300+ix]||0});
-  this.tree(b,tx,tz,(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),kind,near?'near':'far',state.autoTreeRotations?.[iz*300+ix]||0);
-  b.pickId=null;
-  if(!near||hash(tx+31,tz+7)<.44)continue;
-  for(let k=0;k<3;k++){
-   const angle=k*2.39996+hash(tx+1,tz)*6.2832,rad=.34+.40*hash(tx+k,tz+4);
-   const px=tx+Math.cos(angle)*rad,pz=tz+Math.sin(angle)*rad;
-   if(!clear(px,pz))continue;
-   const color=shrubColors[(k+Math.floor(hash(tx,tz+2)*3))%shrubColors.length];
-   const size=.15+.08*hash(px,pz);
-   b.add(HEDGE_LEAF,color,px,.15,pz,size,.13,size,0,angle,0,null,false,'foliage');
-   if(k===1||hash(px+8,pz)> .76){
-    const color=flowerColors[(k+Math.floor(hash(px,pz+9)*3))%flowerColors.length];
-    for(let petal=0;petal<4;petal++){
-     const a=petal*TAU/4;
-     b.add(FLOWER_PETAL,color,px+Math.cos(a)*.085,.286,pz+Math.sin(a)*.085,
-      .052,.022,.041,0,a,0,null,false,'flower');
-    }
-   }
+ const baseKey=[state.version,this.buildKey,state.city,state.landscapeVersion||0,this.graphicQuality].join(':');
+ if(this.treeState!==state||this.treeBaseKey!==baseKey){
+  this.treeState=state;this.treeBaseKey=baseKey;this.treeKey='';this.disposeGroup(this.treeGroup);
+  this.landscapePicks=new Map();this.treeRecords=[];this.treeRecordCells=new Map();this.treePlantedRecords=[];
+  this.treeHiddenIds=new Set();this.farTreeInstances=new Map();
+  const b=new Batch(),hidden=new Set(state.hiddenAutoTrees||[]);let pickId=0;
+  const clear=(x,z)=>{
+   const ix=Math.floor(x),iz=Math.floor(z);
+   if(ix<1||iz<1||ix>=299||iz>=299)return false;
+   if(state.city==='phuket'&&this.islandOutward(x,z)>-2.8||state.city==='bangkok'&&Math.abs(x-(125+Math.sin(z*.047)*5))<6)return false;
+   for(let yy=iz-1;yy<=iz+1;yy++)for(let xx=ix-1;xx<=ix+1;xx++){const index=yy*300+xx;if(state.footprint[index]>=0||state.buildGrid[index]>=0)return false;}
+   return true;
+  };
+  this.treeClear=clear;
+  const biomeTrees={phuket:['palm','palm','rain','shade','banyan','flower','shrub'],bangkok:['rain','banyan','willow','shade','flower','jacaranda','oak'],chiangmai:['pine','cedar','oak','shade','flower','cherry','cypress'],korat:['shade','oak','rain','shrub','maple','flower','banyan'],london:['oak','willow','maple','shade','cherry','cypress','rain']};
+  const species=biomeTrees[state.city]||biomeTrees.korat;
+  this.treeShrubColors=state.city==='chiangmai'?['#487e58','#64976a','#7da67c']:state.city==='korat'?['#77965d','#91a66c','#acb478']:state.city==='phuket'?['#4e9470','#69a77b','#8bb895']:['#548b65','#78a57c','#91b695'];
+  this.treeFlowerColors=state.city==='chiangmai'?['#e9b1d4','#b5a4d9','#f6c4cf']:state.city==='korat'?['#f0cd82','#e8a4b0','#eac18d']:['#e8a4c0','#d6b6ec','#f1c77e'];
+  const add=record=>{
+   record.id=++pickId;this.treeRecords.push(record);
+   this.landscapePicks.set(record.id,record.item?{item:record.item}:{auto:true,x:record.x,y:record.z,kind:record.kind,rotation:record.rotation});
+   const key=Math.floor(record.x/18)+':'+Math.floor(record.z/18);let cell=this.treeRecordCells.get(key);if(!cell)this.treeRecordCells.set(key,cell=[]);cell.push(record);
+   if(record.item)this.treePlantedRecords.push(record);
+   this.renderTreeRecord(b,record,false);
+  };
+  const xMin=state.city==='phuket'?112:2;
+  for(let z=2;z<298;z+=2.7)for(let x=xMin;x<298;x+=2.7){
+   const grove=hash(Math.floor(x/14)+23,Math.floor(z/14)+57);
+   if(hash(x,z)<(grove>.53?.56:.82))continue;
+   const tx=x+hash(z,x)*1.8,tz=z+hash(x+7,z)*1.8,ix=Math.floor(tx),iz=Math.floor(tz);
+   if(!clear(tx,tz)||hidden.has(iz*300+ix))continue;
+   const variety=hash(tx+12,tz+3);let kind=species[Math.min(species.length-1,Math.floor(variety*species.length))];
+   if(state.city==='phuket'&&this.islandOutward(tx,tz)>-14&&variety>.25)kind='palm';
+   if(state.city==='bangkok'&&Math.abs(tx-(125+Math.sin(tz*.047)*5))<14&&variety>.38)kind='willow';
+   add({x:tx,z:tz,kind,scale:(kind==='shrub'?.46:.67)+hash(tx,tz)*(kind==='banyan'?.75:.48),rotation:state.autoTreeRotations?.[iz*300+ix]||0});
+  }
+  for(const t of state.plantedTrees||[]){
+   if(!Number.isFinite(t.x)||!Number.isFinite(t.y)||t.x<0||t.y<0||t.x>=300||t.y>=300)continue;
+   const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:['oak','rain','willow','cherry','maple','jacaranda'].includes(t.kind)?1.24:['cedar','cypress'].includes(t.kind)?1.20:t.kind==='palm'?1.12:1.04;
+   add({x:t.x,z:t.y,kind:t.kind,scale,rotation:t.rotation||0,item:t});
+  }
+  this.treeFarGroup=b.build();this.treeDetailGroup=new THREE.Group();this.treeGroup.add(this.treeFarGroup,this.treeDetailGroup);
+  for(const mesh of this.treeFarGroup.children){
+   mesh.userData.farTreeMatrices=mesh.instanceMatrix.array.slice();
+   mesh.userData.ids.forEach((id,index)=>{if(id==null)return;let entries=this.farTreeInstances.get(id);if(!entries)this.farTreeInstances.set(id,entries=[]);entries.push({mesh,index});});
   }
  }
- for(const t of state.plantedTrees||[]){
-  if(!Number.isFinite(t.x)||!Number.isFinite(t.y)||t.x<0||t.y<0||t.x>=300||t.y>=300)continue;
-  const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:['oak','rain','willow','cherry','maple','jacaranda'].includes(t.kind)?1.24:['cedar','cypress'].includes(t.kind)?1.20:t.kind==='palm'?1.12:1.04;
-  b.pickId=++pickId;this.landscapePicks.set(pickId,{item:t});
-  const nearby=zoomedIn&&(this.graphicQuality==='veryHigh'||Math.hypot(t.x-cam.x,t.y-cam.y)<27);
-  if(!this.decoration(b,t.x,t.y,t.kind,t.rotation||0,nearby?'near':'far'))this.tree(b,t.x,t.y,scale,t.kind,nearby?'near':'far',t.rotation||0);
+ const zoomedIn=(cam.z??1)>=.75,cellX=zoomedIn?Math.floor(cam.x/18):'all',cellZ=zoomedIn?Math.floor(cam.y/18):'all';
+ const key=[baseKey,cellX,cellZ].join(':');if(key===this.treeKey)return;this.treeKey=key;
+ const near=[],radius=this.graphicQuality==='veryHigh'?42:27;
+ if(zoomedIn){
+  for(let x=Math.floor((cam.x-radius)/18);x<=Math.floor((cam.x+radius)/18);x++)for(let z=Math.floor((cam.y-radius)/18);z<=Math.floor((cam.y+radius)/18);z++)
+   for(const record of this.treeRecordCells.get(x+':'+z)||[])if(!(record.item&&this.graphicQuality==='veryHigh')&&Math.hypot(record.x-cam.x,record.z-cam.y)<radius)near.push(record);
+  if(this.graphicQuality==='veryHigh')near.push(...this.treePlantedRecords);
  }
- this.treeGroup.add(b.build());
+ near.sort((a,b)=>a.id-b.id);
+ const hidden=new Set(near.map(record=>record.id)),changed=new Map();
+ const mask=(id,hide)=>{
+  for(const {mesh,index}of this.farTreeInstances.get(id)||[]){
+   const offset=index*16,array=mesh.instanceMatrix.array;
+   if(hide){array.fill(0,offset,offset+16);array[offset+15]=1;}
+   else array.set(mesh.userData.farTreeMatrices.subarray(offset,offset+16),offset);
+   const range=changed.get(mesh);if(range){range[0]=Math.min(range[0],offset);range[1]=Math.max(range[1],offset+16);}else changed.set(mesh,[offset,offset+16]);
+  }
+ };
+ for(const id of this.treeHiddenIds)if(!hidden.has(id))mask(id,false);
+ for(const id of hidden)if(!this.treeHiddenIds.has(id))mask(id,true);
+ for(const [mesh,[start,end]]of changed){mesh.instanceMatrix.clearUpdateRanges();mesh.instanceMatrix.addUpdateRange(start,end-start);mesh.instanceMatrix.needsUpdate=true;}
+ this.treeHiddenIds=hidden;this.disposeGroup(this.treeDetailGroup);
+ if(near.length){const detail=new Batch();for(const record of near)this.renderTreeRecord(detail,record,true);this.treeDetailGroup.add(detail.build());}
  }
+ renderTreeRecord(batch,record,near){
+ const {x,z,kind,scale,rotation,id,item}=record;batch.pickId=id;
+ if(item){if(!this.decoration(batch,x,z,kind,rotation,near?'near':'far'))this.tree(batch,x,z,scale,kind,near?'near':'far',rotation);}
+ else this.tree(batch,x,z,scale,kind,near?'near':'far',rotation);
+ batch.pickId=null;
+ if(item||!near||hash(x+31,z+7)<.44)return;
+ for(let k=0;k<3;k++){
+  const angle=k*2.39996+hash(x+1,z)*6.2832,rad=.34+.40*hash(x+k,z+4),px=x+Math.cos(angle)*rad,pz=z+Math.sin(angle)*rad;
+  if(!this.treeClear(px,pz))continue;
+  const color=this.treeShrubColors[(k+Math.floor(hash(x,z+2)*3))%this.treeShrubColors.length],size=.15+.08*hash(px,pz);
+  batch.add(HEDGE_LEAF,color,px,.15,pz,size,.13,size,0,angle,0,null,false,'foliage');
+  if(k===1||hash(px+8,pz)>.76){
+   const color=this.treeFlowerColors[(k+Math.floor(hash(px,pz+9)*3))%this.treeFlowerColors.length];
+   for(let petal=0;petal<4;petal++){const a=petal*TAU/4;batch.add(FLOWER_PETAL,color,px+Math.cos(a)*.085,.286,pz+Math.sin(a)*.085,.052,.022,.041,0,a,0,null,false,'flower');}
+  }
+ }
+ }
+
  pickLandscapes(x,y){
   if(!this.treeGroup.visible||!this.landscapePicks)return [];
   this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);
