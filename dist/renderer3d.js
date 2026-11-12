@@ -139,7 +139,34 @@ const RETAIL_WINDOW_TEXTURES=['shop','mall'].map(kind=>{
  texture.colorSpace=THREE.SRGBColorSpace;
  return texture;
 });
-const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,SIGNAL_OCT_GEO,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry];
+const SOFT_LIGHT_GROUND=new THREE.PlaneGeometry(1,1);SOFT_LIGHT_GROUND.rotateX(-Math.PI/2);
+const SOFT_LIGHT_BILLBOARD=new THREE.PlaneGeometry(1,1);
+// Tiny lamp lenses keep their smooth normals without the full building-sphere
+// tessellation. More poles still use fewer total lamp triangles than before.
+const STREET_LAMP_LENS=new THREE.SphereGeometry(1,10,5);
+const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,SIGNAL_OCT_GEO,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry,SOFT_LIGHT_GROUND,SOFT_LIGHT_BILLBOARD,STREET_LAMP_LENS];
+// One instanced pass for every street-light corona. Face the camera in the
+// vertex shader so panning never rewrites hundreds of lamp matrices on the CPU.
+function streetCoronaMaterial(texture){
+ return new THREE.ShaderMaterial({
+  uniforms:{lightMap:{value:texture},lightColor:{value:new THREE.Color('#fff0d1')},lightOpacity:{value:0}},
+  vertexShader:`varying vec2 vLightUv;
+   void main(){
+    vLightUv=uv;
+    vec4 centre=modelViewMatrix*instanceMatrix*vec4(0.0,0.0,0.0,1.0);
+    vec2 size=vec2(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz));
+    centre.xy+=position.xy*size;
+    gl_Position=projectionMatrix*centre;
+   }`,
+  fragmentShader:`uniform sampler2D lightMap;uniform vec3 lightColor;uniform float lightOpacity;varying vec2 vLightUv;
+   void main(){
+    float falloff=texture2D(lightMap,vLightUv).a;
+    gl_FragColor=vec4(lightColor,falloff*lightOpacity);
+    #include <colorspace_fragment>
+   }`,
+  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false
+ });
+}
 
 // One tapered GPU-instanced light streak per beam; no floating glow spheres.
 const CAR_TECH_STREAK=(()=>{const g=new THREE.ConeGeometry(.044,.60,4,1,true);g.rotateZ(-Math.PI/2);return g;})();
@@ -170,14 +197,14 @@ function lightAt(time){
 // Headline hours: bright buildings through 22:00, deepest night at 04:00,
 // blue-hour recovery from 05:00 and the original sunrise from 06:00 onward.
 const CITY_VISIBILITY=[
- [0,1.01,.91,.12,.17,.07],[180,.95,.90,.10,.15,.06],
- [240,.92,.90,.09,.14,.06],[300,.98,.91,.11,.16,.07],
+ [0,.96,.94,.085,.13,.07],[180,.91,.93,.075,.12,.06],
+ [240,.88,.93,.07,.11,.06],[300,.94,.94,.08,.12,.07],
  [330,.97,.86,.12,.13,.09],[360,1.20,.90,.13,.18,.10],
- [390,1.64,.91,.10,.18,.06],[510,2.23,1.03,0,0,0],
- [720,2.44,1.09,0,0,0],[900,2.14,1.02,0,0,0],
+ [390,1.50,.93,.09,.15,.06],[510,1.96,1.01,0,0,0],
+ [720,2.03,1.04,0,0,0],[900,1.91,1.01,0,0,0],
  [1020,1.63,.94,.08,.10,.04],[1080,1.02,.88,.14,.17,.08],
- [1140,1.07,.92,.14,.18,.08],[1260,1.05,.92,.13,.18,.08],
- [1320,1.03,.91,.12,.17,.07],[1440,1.01,.91,.12,.17,.07]
+ [1140,1.02,.95,.10,.14,.08],[1260,1.00,.95,.095,.14,.08],
+ [1320,.98,.94,.085,.13,.07],[1440,.96,.94,.085,.13,.07]
 ];
 function cityVisibilityAt(time){
  const minute=((time%1440)+1440)%1440;
@@ -940,7 +967,7 @@ class Batch{
  this.data.get(key).items.push({x,y,z,sx,sy,sz,rx,ry,rz,buildingId});
 }
  box(color,x,y,z,sx,sy,sz,ry=0,id=null,glow=false,finish='matte'){this.add(BOX,color,x,y,z,sx,sy,sz,0,ry,0,id,glow,finish);}
- build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,fine=false,items} of this.data.values()){const roughness=finish==='glass'?.18:finish==='metal'?.32:finish==='water'?.21:finish==='wood'?.71:finish==='stone'?.88:.83;const metalness=finish==='glass'?.26:finish==='metal'?.58:finish==='water'?.08:0;const material=finish==='shop-sign-face'?
+ build(shadow=true){const dummy=new THREE.Object3D();for(const {geo,color,glow,finish,fine=false,items} of this.data.values()){const roughness=finish==='glass'?.22:finish==='metal'?.36:finish==='water'?.21:finish==='wood'?.79:finish==='stone'?.90:.78;const metalness=finish==='glass'?.14:finish==='metal'?.48:finish==='water'?.08:0;const material=finish==='shop-sign-face'?
  new THREE.MeshBasicMaterial({map:SHOP_SIGN_FACE.texture,side:THREE.FrontSide,toneMapped:false,depthWrite:true}):
  finish==='retail-window-shop'||finish==='retail-window-mall'?
  new THREE.MeshBasicMaterial({map:RETAIL_WINDOW_TEXTURES[finish==='retail-window-mall'?1:0]}):
@@ -979,7 +1006,7 @@ const EXTRA_DECORATION_KEYS=new Set(["thai_canvas_awning","thai_cold_display","t
 export class TrafficRenderer{
  constructor(canvas){
  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.96;
- this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new URLSearchParams(typeof window==='undefined'?'':(window.location?.search??'')).get('camera')==='ortho'?new THREE.OrthographicCamera(-30,30,20,-20,.1,3800):new THREE.PerspectiveCamera(35,innerWidth/Math.max(1,innerHeight),.1,3800);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#e8f7ff','#698057',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
+ this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new URLSearchParams(typeof window==='undefined'?'':(window.location?.search??'')).get('camera')==='ortho'?new THREE.OrthographicCamera(-30,30,20,-20,.1,3800):new THREE.PerspectiveCamera(35,innerWidth/Math.max(1,innerHeight),.1,3800);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#dcecff','#74745f',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
  this.ray=new THREE.Raycaster();this.ground=new THREE.Plane(UP,0);this.ndc=new THREE.Vector2();this.point=new THREE.Vector3();this.lastKey='';this.roadKey='';this.buildKey='';this.treeKey='';this.previewKey='';this.buildingMeshes=null;this.cameraKey='';this.cam=null;this.w=innerWidth;this.h=innerHeight;this.materials=[];
  this.graphicQuality=null;this.lastBuildingDetailLevel=null;
  this.aiSignalGroup=new THREE.Group();this.aiSignalKey='';this.aiSignalGlows=[];
@@ -1021,9 +1048,13 @@ export class TrafficRenderer{
  createAtmosphere(){
   // Keep the city unobstructed at every hour: no atmospheric fog/haze.
   this.scene.fog=null;
-  const cv=document.createElement('canvas');cv.width=64;cv.height=64;const c=cv.getContext('2d'),g=c.createRadialGradient(32,32,1,32,32,31);
-  g.addColorStop(0,'rgba(255,238,191,.72)');g.addColorStop(.37,'rgba(255,190,116,.28)');g.addColorStop(1,'rgba(255,183,104,0)');
+  const cv=document.createElement('canvas');cv.width=64;cv.height=64;const c=cv.getContext('2d'),g=c.createRadialGradient(32,32,0,32,32,31);
+  // Neutral radiance is tinted once by each light material. The broad tail
+  // softens the edge without bloom, a second render target or per-lamp lights.
+  g.addColorStop(0,'rgba(255,255,255,.84)');g.addColorStop(.18,'rgba(255,255,255,.50)');
+  g.addColorStop(.48,'rgba(255,255,255,.19)');g.addColorStop(.78,'rgba(255,255,255,.035)');g.addColorStop(1,'rgba(255,255,255,0)');
   c.fillStyle=g;c.fillRect(0,0,64,64);this.glowTexture=new THREE.CanvasTexture(cv);
+  this.glowTexture.colorSpace=THREE.SRGBColorSpace;
   this.rainPoints=new Float32Array(430*6);const geometry=new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.BufferAttribute(this.rainPoints,3));
   this.rain=new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color:'#cfe6f1',transparent:true,opacity:0,depthWrite:false}));
@@ -1077,7 +1108,7 @@ export class TrafficRenderer{
     mesh.material.opacity=night*.94;
    }
    set.lightSpill.visible=night>.20&&set.lightSpill.count>0;
-   set.lightSpill.material.opacity=night*.13;
+   set.lightSpill.material.opacity=night*.25;
   }
  }
  // Use the existing moving directional sun and shadows on every road width.
@@ -1095,9 +1126,9 @@ export class TrafficRenderer{
    // charcoal concrete, including junction and corner surfaces.
    if(!mesh.material||!['#47565c','#424f55','#555957'].includes(base))return;
    const concrete=base==='#555957';
-   const dry=concrete?.71:.74,sunSheen=concrete?.11:.12,wetSheen=concrete?.29:.33;
+   const dry=concrete?.79:.82,sunSheen=concrete?.08:.09,wetSheen=concrete?.25:.27;
    mesh.material.roughness=THREE.MathUtils.clamp(
-    dry-sunlight*sunSheen-moisture*wetSheen,.30,.85);
+    dry-sunlight*sunSheen-moisture*wetSheen,.38,.85);
    mesh.material.metalness=moisture*.075;
   });
  }
@@ -1124,10 +1155,14 @@ export class TrafficRenderer{
      !(mesh.userData.factoryNightTier||mesh.userData.mallNightTier||mesh.userData.shopNightTier)||
      (mesh.userData.factoryNightTier||mesh.userData.mallNightTier||mesh.userData.shopNightTier)==='essential');
     const architecturalLED=!!(mesh.userData.factoryNightTier||mesh.userData.mallNightTier||mesh.userData.shopNightTier);
-    mesh.material.opacity=(architecturalLED?.98:.78)*glow;
-    mesh.material.emissiveIntensity=architecturalLED?2.0+glow*.55:.70+glow*.55;
+    mesh.material.opacity=(architecturalLED?.96:.86)*glow;
+    mesh.material.emissiveIntensity=architecturalLED?1.8+glow*.6:.85+glow*.7;
    });
-   if(this.streetGlow)this.streetGlow.material.opacity=.38*glow;
+   if(this.streetGlow){this.streetGlow.material.opacity=.50*glow;this.streetGlow.visible=glow>.015;}
+   if(this.streetCoronas){
+    this.streetCoronas.material.uniforms.lightOpacity.value=.30*glow;
+    this.streetCoronas.visible=glow>.015&&this.graphicQuality!=='low';
+   }
    this.lastGlow=glow;
   }
   // Breathing cyan reactor light: only existing instanced materials are
@@ -2991,7 +3026,7 @@ export class TrafficRenderer{
  // Customs-style checkpoints are decorative; all four original road gates and traffic rules remain unchanged.
  // The actual offices, lifted arms, canopies and nighttime LEDs are added after rebuilding the lamp group.
  // Decorative street lighting; no changes to roads, routing or collision.
- this.disposeGroup(this.lampGroup);this.streetGlow=null;
+ this.disposeGroup(this.lampGroup);this.streetGlow=null;this.streetCoronas=null;
  const poles=new Batch(),spots=[];
  const blockedAccess=[];
  for(const building of state.buildings.values())for(const access of building.access||[])blockedAccess.push([access.x-.5,access.y-.5]);
@@ -3001,8 +3036,9 @@ export class TrafficRenderer{
   const x=node%300,z=Math.floor(node/300),links=[...road.links],a=links[0],b=links[1];
   const horiz=Math.floor(a/300)===z&&Math.floor(b/300)===z&&(a-node)*(b-node)<0;
   const vert=a%300===x&&b%300===x&&(Math.floor(a/300)-z)*(Math.floor(b/300)-z)<0;
-  if(!horiz&&!vert||horiz&&x%9!==0||vert&&z%9!==0)continue;
-  const baseSign=(Math.floor(x/9)+Math.floor(z/9))%2?1:-1;
+  // Six-tile spacing adds coverage while retaining the previous 2,500 cap.
+  if(!horiz&&!vert||horiz&&x%6!==0||vert&&z%6!==0)continue;
+  const baseSign=(Math.floor(x/6)+Math.floor(z/6))%2?1:-1;
   // Keep street lamps visually in the carriageway / verge band, not deep on
   // the sidewalk, and never let them block building access points.
   const offset=Math.max(.28,(ROADS[road.type]?.visualWidth||1.175)/2-.06);
@@ -3017,16 +3053,25 @@ export class TrafficRenderer{
   const {px,pz,hx,hz}=chosen;
   poles.add(CYL,'#536b73',px,.76,pz,.035,1.52,.035);
   poles.box('#667980',(px+hx)/2,1.49,(pz+hz)/2,vert?.37:.08,.055,horiz?.37:.08);
-  poles.add(BALL,'#d4d5bf',hx,1.46,hz,.12,.09,.12);
-  poles.add(BALL,'#ffdfa0',hx,1.46,hz,.123,.093,.123,0,0,0,null,true);
-  spots.push([hx,hz]);
+  poles.add(STREET_LAMP_LENS,'#d4d5bf',hx,1.46,hz,.12,.09,.12);
+  poles.add(STREET_LAMP_LENS,'#ffdfa0',hx,1.46,hz,.123,.093,.123,0,0,0,null,true);
+  const span=road.type==='large'?5.0:road.type==='medium'?3.8:2.4;
+  spots.push({hx,hz,vertical:vert,span,
+   poolX:hx-(vert?Math.sign(px-x)*offset*.5:0),poolZ:hz-(horiz?Math.sign(pz-z)*offset*.5:0)});
  }
  if(spots.length){
   this.lampGroup.add(poles.build(false));
-  const geo=new THREE.PlaneGeometry(3.3,3.3),mat=new THREE.MeshBasicMaterial({map:this.glowTexture,color:'#ffd29d',transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,toneMapped:false});
-  const halos=new THREE.InstancedMesh(geo,mat,spots.length),d=new THREE.Object3D();
-  for(let i=0;i<spots.length;i++){d.position.set(spots[i][0],.151,spots[i][1]);d.rotation.set(-Math.PI/2,0,0);d.scale.set(1,1,1);d.updateMatrix();halos.setMatrixAt(i,d.matrix);}
-  halos.instanceMatrix.needsUpdate=true;halos.frustumCulled=false;this.streetGlow=halos;this.lampGroup.add(halos);
+  const mat=new THREE.MeshBasicMaterial({map:this.glowTexture,color:'#ffe8bd',transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,toneMapped:false});
+  const halos=new THREE.InstancedMesh(SOFT_LIGHT_GROUND,mat,spots.length),d=new THREE.Object3D();
+  const coronas=new THREE.InstancedMesh(SOFT_LIGHT_BILLBOARD,streetCoronaMaterial(this.glowTexture),spots.length);
+  for(let i=0;i<spots.length;i++){
+   const p=spots[i];d.position.set(p.poolX,.151,p.poolZ);d.rotation.set(0,p.vertical?Math.PI/2:0,0);d.scale.set(6.3,1,p.span);d.updateMatrix();halos.setMatrixAt(i,d.matrix);
+   d.position.set(p.hx,1.46,p.hz);d.rotation.set(0,0,0);d.scale.set(.48,.48,1);d.updateMatrix();coronas.setMatrixAt(i,d.matrix);
+  }
+  halos.instanceMatrix.needsUpdate=true;halos.computeBoundingSphere();halos.renderOrder=1;
+  coronas.instanceMatrix.needsUpdate=true;coronas.computeBoundingSphere();coronas.renderOrder=2;
+  halos.visible=false;coronas.visible=false;
+  this.streetGlow=halos;this.streetCoronas=coronas;this.lampGroup.add(halos,coronas);
  }
  this.buildBorderCheckpoints(state);
  this.lastGlow=-1;this.lastWet=-1;this.lastRoadSun=-1;this.lastNightVisibility=-1;
@@ -3126,7 +3171,7 @@ export class TrafficRenderer{
     const lit=active===name;
     lens.material.color.set(lit?on[name]:off[name]);
     lens.material.emissive.set(lit?on[name]:'#0e1517');
-    lens.material.emissiveIntensity=lit?1.3:.025;
+    lens.material.emissiveIntensity=lit?1.5:.025;
    }
   }
  }
@@ -8955,8 +9000,8 @@ export class TrafficRenderer{
    color,transparent:true,opacity:0,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending
   }),capacity*2);
   const headlights=lightMesh('#fff3d6'),taillights=lightMesh('#ff3d35');
-  const lightSpill=new THREE.InstancedMesh(BOX,new THREE.MeshBasicMaterial({
-   color:'#ffeac2',transparent:true,opacity:0,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending
+  const lightSpill=new THREE.InstancedMesh(SOFT_LIGHT_GROUND,new THREE.MeshBasicMaterial({
+   map:this.glowTexture,color:'#fff0d1',transparent:true,opacity:0,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending
   }),capacity);
   for(const mesh of [headlights,taillights,lightSpill]){
    mesh.frustumCulled=false;mesh.renderOrder=3;mesh.count=0;mesh.visible=false;
@@ -9181,12 +9226,12 @@ export class TrafficRenderer{
       mesh.setMatrixAt(i*2+(sign+1)/2,this.carLightDummy.matrix);
      }
     }
-    // A very faint forward pool of light on the pavement at night.
+    // One soft shared-texture pool, above the actual road surface, per car.
     // One transparent instanced box per car; no shadows or dynamic lights.
-    const spillX=(length*.5+.17)*VEHICLE_VISUAL_SCALE;
-    this.carLightDummy.position.set(car.x+cos*spillX,.026,car.z+sin*spillX);
+    const spillX=(length*.5+.40)*VEHICLE_VISUAL_SCALE;
+    this.carLightDummy.position.set(car.x+cos*spillX,.158,car.z+sin*spillX);
     this.carLightDummy.rotation.set(0,-car.angle,0);
-    this.carLightDummy.scale.set(((car.altitude||0)>1?.001:.31)*VEHICLE_VISUAL_SCALE,.008,((car.altitude||0)>1?.001:.21)*VEHICLE_VISUAL_SCALE);
+    this.carLightDummy.scale.set(((car.altitude||0)>1?.001:1.0)*VEHICLE_VISUAL_SCALE,1,.54*VEHICLE_VISUAL_SCALE);
     this.carLightDummy.updateMatrix();
     set.lightSpill.setMatrixAt(i,this.carLightDummy.matrix);
     for(const mesh of [set.body,set.trim,set.lightSpill])this.dirtyCarInstances(mesh.instanceMatrix,i);
@@ -9427,5 +9472,6 @@ export class TrafficRenderer{
  this.renderer.render(this.scene,this.camera);
  }
 }
+
 
 
