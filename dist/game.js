@@ -330,6 +330,47 @@ function starterParkingOverlapAllowed(a,b,pa=null,pb=null){
  const building=state.buildings.get(lot);if(!CATALOG[building?.key]?.starterTier)return false;
  return starterLotOverlapAllowed(building,pa||vehiclePosition(a),pb||vehiclePosition(b));
 }
+// Ghosting ends at a queued exit. Keep this small, transient queue with the
+// building, and retain its leader until the rear clears the road merge.
+const starterExitQueues=new WeakMap(),STARTER_EXIT_QUEUE_GAP=1.1;
+function starterExitQueue(b){
+ if(!CATALOG[b?.key]?.starterTier)return [];
+ const t=CATALOG[b.key],slots=lotSlots(b);
+ const active=v=>state.vehicles.get(v.id)===v&&v.fromId===b.id&&
+  (v.phase==='departing'&&!v.departureNoRoute&&(!!v.lotPath||!!slots[parkingSpace(b,v.citizenId)])||v.phase==='parking_out'||v.phase==='driving'&&v.mergeExitActive);
+ let queue=(starterExitQueues.get(b)||[]).filter(active);
+ const joining=[...parkingLotCars(b.id)].filter(v=>active(v)&&!queue.includes(v));
+ const remaining=v=>{
+  if(v.phase!=='departing')return 0;
+  if(v.lotPath)return lotPathLength(v.lotPath)-(v.lotDistance||0);
+  const slot=slots[parkingSpace(b,v.citizenId)];
+  return Math.abs(slot.aisle-slot.v)+Math.abs((t.parkingExitU??t.plotWidth-.45)-slot.u)+Math.abs((t.parkingWaitV??t.plotHeight-.15)-slot.aisle);
+ };
+ // Clear the bays nearest the mouth first when several requests begin in
+ // one frame, so a waiting bay cannot sit across the lead car's connector.
+ joining.sort((a,c)=>Number(c.phase!=='departing')-Number(a.phase!=='departing')||
+  remaining(a)-remaining(c)||a.id-c.id);
+ queue.push(...joining);
+ // A corridor restored from a save already has priority over new requests.
+ queue.sort((a,c)=>Number(c.phase!=='departing')-Number(a.phase!=='departing'));
+ starterExitQueues.set(b,queue);return queue;
+}
+function starterExitQueueLimit(v,total){
+ const b=state.buildings.get(v.fromId);
+ if(!CATALOG[b?.key]?.starterTier||!['departing','parking_out'].includes(v.phase))return Infinity;
+ const rank=starterExitQueue(b).indexOf(v);
+ if(rank<=0)return Infinity;
+ return v.phase==='departing'?Math.max(0,total-STARTER_EXIT_QUEUE_GAP*rank):(v.lotDistance||0);
+}
+function overlappingStarterExitLeader(v,other){
+ if(v.fromId!==other.fromId||!['departing','parking_out'].includes(other.phase)||!v.lotPath||!other.lotPath)return false;
+ const b=state.buildings.get(v.fromId);
+ if(!CATALOG[b?.key]?.starterTier||starterExitQueue(b)[0]!==v)return false;
+ // Old saves may already have two cars at the same waiting point. Freeze
+ // the follower and let only the leader separate, without bypassing the road.
+ const p=parkingPose(other);
+ return starterLotInterior(b,p)&&lotCarsOverlap(parkingPose(v),p);
+}
 // A single shared driveway is an admission point, not a spawn pad. Keep a
 // second arriving car on its road route until the first clears the entrance.
 function parkingEntranceOccupied(v,b,entry){
@@ -355,7 +396,7 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
   if(other.id===v.id||other.lotBuilding!==v.lotBuilding||!other.lotPath)continue;
   if(overlappingEntranceLeader(v,other))continue;
   const p=parkingPose(other);if(starterLotOverlapAllowed(b,pose,p))continue;
-  if(lotCarsOverlap(pose,p))return noteParkingBlock(v,'lot_live_vehicle_overlap',{blockerVehicleId:other.id,checkedPose:pose,blockingPose:p,observedPhysical:true});
+  if(lotCarsOverlap(pose,p)&&!overlappingStarterExitLeader(v,other))return noteParkingBlock(v,'lot_live_vehicle_overlap',{blockerVehicleId:other.id,checkedPose:pose,blockingPose:p,observedPhysical:true});
  }
  // The first/last metres of the driveway are shared with live road traffic.
  // A car leaving or entering the lot must not ignore vehicles on the street.
@@ -377,15 +418,16 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
 function canLeaveParkingSpace(v,points){
  const building=state.buildings.get(v.lotBuilding);
  // Reserve enough room to clear the bay before joining the one-way aisle.
- const mergeLength=lotPathLength(points.slice(0,2))+.7;
+ const mergeLength=lotPathLength(points.slice(0,2))+.7,ownLimit=starterExitQueueLimit(v,lotPathLength(points));
  const samples=[];
- for(let d=0;d<=mergeLength;d+=.12)samples.push(lotPathPose(points,d));
+ for(let d=0;d<=mergeLength;d+=.12)samples.push(lotPathPose(points,Math.min(d,ownLimit)));
  const bounds=poses=>{let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;for(const p of poses){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}return{minX,minY,maxX,maxY};};
  const own=bounds(samples);
  for(const other of parkingLotCars(v.lotBuilding)){
   if(other.id===v.id||other.lotBuilding!==v.lotBuilding||!other.lotPath)continue;
   // Sample each unchanged path once, rather than once per opposing sample.
-  const upcoming=[];for(let ahead=0;ahead<=1.5;ahead+=.15)upcoming.push(lotPathPose(other.lotPath,(other.lotDistance||0)+ahead));
+  const upcoming=[],distance=other.lotDistance||0,limit=starterExitQueueLimit(other,lotPathLength(other.lotPath));
+  for(let ahead=0;ahead<=1.5;ahead+=.15)upcoming.push(lotPathPose(other.lotPath,Math.max(distance,Math.min(distance+ahead,limit))));
   const theirs=bounds(upcoming);
   // One block exceeds the collision routine's maximum center distance at .06.
   if(own.maxX+1<theirs.minX||theirs.maxX+1<own.minX||own.maxY+1<theirs.minY||theirs.maxY+1<own.minY)continue;
@@ -700,6 +742,8 @@ function prepareParkingMerges(dt){
 // Driveway admission now checks only the single road tile immediately ahead.
 // Parking aisle collisions remain governed by advanceLot/lotClear as each car moves.
 function canCommitParkingMerge(v){
+ const b=state.buildings.get(v.fromId);
+ if(CATALOG[b?.key]?.starterTier){const ahead=starterExitQueue(b)[0];if(ahead&&ahead!==v)return noteParkingBlock(v,'starter_exit_queue',{blockerVehicleId:ahead.id});}
  const opposite=oppositeExitAdmissionBlocker(v);
  if(opposite)return noteParkingBlock(v,'opposite_small_road_exit_priority',{blockerVehicleId:opposite.id});
  const own=parkingMerges.find(g=>g.v===v);
@@ -788,7 +832,7 @@ function grandSignalRelease(v){
  crossing.cleared=true;crossing.granted=false;
 }
 function advanceLot(v,dt,maxDistance=Infinity,ignoreRoadTraffic=false){
- const total=lotPathLength(v.lotPath),target=Math.min(total,maxDistance,(v.lotDistance||0)+LOT_SPEED*dt);let distance=v.lotDistance||0;
+ const total=lotPathLength(v.lotPath),queueLimit=starterExitQueueLimit(v,total),target=Math.min(total,maxDistance,queueLimit,(v.lotDistance||0)+LOT_SPEED*dt);let distance=v.lotDistance||0;
  // Small swept steps also protect queues when the game runs at high speed.
  while(distance<target-1e-8){
   const next=Math.min(target,distance+.04),crossing=v.grandCrossing;
@@ -802,7 +846,8 @@ function advanceLot(v,dt,maxDistance=Infinity,ignoreRoadTraffic=false){
   distance=next;v.lastMovedAt=state.time;
   if(crossing?.granted&&!crossing.cleared&&distance>=crossing.clearAt)grandSignalRelease(v);
  }
- v.lotDistance=distance;return distance>=total-1e-7;
+ if(queueLimit<total&&distance>=queueLimit-1e-7)v.stopReason='รอคิวทางออกจากลานจอด';
+ v.lotDistance=distance;return distance>=total-1e-7&&queueLimit>=total;
 }
 function parkingBankBusy(b,index,arriving,requester=null){
  // A single continuous eastbound aisle carries inbound and outbound traffic.
@@ -842,10 +887,10 @@ function parkingBankBusy(b,index,arriving,requester=null){
 function prepareLotDeparture(v,dt){
  if((v.oppositeExitRetryAt||0)>state.time){v.stopReason='รออีกฝั่งออกก่อนหลังการกู้รถ';return false;}
  const b=state.buildings.get(v.fromId);if(!b){traceDeparture(v,'origin_building_missing');return true;}
- if(v.lotReady)return true;
+ if(v.lotReady){if(CATALOG[b.key]?.starterTier&&starterExitQueue(b)[0]!==v){v.stopReason='รอคิวทางออกจากลานจอด';return false;}return true;}
  if(!v.lotPath){
-  // Starter cars may leave independent bays together. The existing shared
-  // driveway/merge admission below still serializes entry onto the road.
+  // Independent starter bays may move together; the exit queue in advanceLot
+  // keeps a full car gap before they reach the shared waiting point.
   const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){noteParkingBlock(v,'departure_missing_parking_slot',{requestedSlot:index});v.stopReason='ไม่พบช่องจอดของรถ';return false;}
   if(parkingBankBusy(b,index,false,v)){v.stopReason='รอรถเข้าจอดในแถวเดียวกัน';return false;}
   const t=CATALOG[b.key],exitU=t.dualParking?(slot.zone==='A'?t.parkingExitA:t.parkingExitB):(t.parkingExitU??t.plotWidth-.45);
