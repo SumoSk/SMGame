@@ -537,13 +537,15 @@ function carGeometries(style){
  const glass=taxi?'#264653':'#263e54',windshield='#739aa9';
  const metal=luxury?'#eadbb9':chromed?'#c7dbe2':'#9aaab4';
  const wheelR=(pickup||suv||van)?.083:sport?.069:.076;
+ let tyreBottom=Infinity;
+ const tyreContact=geo=>{geo.computeBoundingBox();tyreBottom=Math.min(tyreBottom,geo.boundingBox.min.y);};
  const box=(parts,color,x,y,z,l,h,w,rot=0)=>{
   // Keep all freight sections inside the road collision capsule (~.64 long).
   if(roadTrain){x*=.24;l*=.24;}
   if(roadTrainLow){x*=.80;l*=.80;}
   const geo=new THREE.BoxGeometry(l,h,w);
   if(rot)geo.rotateZ(rot);geo.translate(x,y,z);
-  parts.push({color,geo});
+  parts.push({color,geo});return geo;
  };
  // SMCITY 4.2.1: custom F1-only silhouette (no saloon cabin, doors or roof).
  // This changes visual geometry only, never vehicle physics or collision rules.
@@ -572,7 +574,7 @@ function carGeometries(style){
    for(let i=0;i<6;i++)
     box(detail,'#243342',-.185+i*.056,.218+(i%2)*.020,side+sign*.005,.027,.014,.009);
    for(const xx of [-.186,.184])
-    box(detail,'#17232c',xx,.112,sign*.144,.093,.098,.053); // chunky low-poly wheels
+    tyreContact(box(detail,'#17232c',xx,.112,sign*.144,.093,.098,.053)); // chunky low-poly wheels
    box(detail,'#fff2cb',.309,.212,sign*.085,.010,.033,.050);
   }
  }else if(roadTrainLow){
@@ -589,7 +591,7 @@ function carGeometries(style){
    box(detail,'#b4dae2',-.242,.290,side,.184,.024,.010);
    box(detail,'#b4dae2',.002,.290,side,.178,.024,.010);
    for(const axle of [-.302,-.158,.058,.278])
-    box(detail,'#15232c',axle*.80,.115,sign*.132,.056,.080,.036);
+    tyreContact(box(detail,'#15232c',axle*.80,.115,sign*.132,.056,.080,.036));
   }
  }else if(roadTrain){
   // Compact tractor + TWO distinct cargo bodies, all within an F1-length silhouette.
@@ -630,6 +632,7 @@ function carGeometries(style){
     const zz=sign*.135;
     const wheel=new THREE.CylinderGeometry(.034,.034,.043,12);
     wheel.rotateX(Math.PI/2);wheel.translate(axle*.24,.112,zz);
+    tyreContact(wheel);
     detail.push({color:'#161f27',geo:wheel});
     const rim=new THREE.CylinderGeometry(.022,.022,.047,12);
     rim.rotateX(Math.PI/2);rim.translate(axle*.24,.112,zz+sign*.006);
@@ -666,6 +669,7 @@ function carGeometries(style){
    const z=sign*.160;
    const wheel=new THREE.CylinderGeometry(.062,.062,.047,12);
    wheel.rotateX(Math.PI/2);wheel.translate(xx,.106,z);
+   tyreContact(wheel);
    detail.push({color:'#101820',geo:wheel});
    const rim=new THREE.CylinderGeometry(.036,.036,.052,12);
    rim.rotateX(Math.PI/2);rim.translate(xx,.106,z+sign*.005);
@@ -731,6 +735,7 @@ function carGeometries(style){
    const zz=sign*.188;
    const tyre=new THREE.CylinderGeometry(.072,.072,.064,14);
    tyre.rotateX(Math.PI/2);tyre.translate(axle,.114,zz);
+   tyreContact(tyre);
    detail.push({color:'#0d131b',geo:tyre});
    const rim=new THREE.CylinderGeometry(.039,.039,.067,12);
    rim.rotateX(Math.PI/2);rim.translate(axle,.114,zz+sign*.004);
@@ -794,6 +799,7 @@ function carGeometries(style){
   const z=sign*width*.51,y=.105;
   const tyre=new THREE.CylinderGeometry(wheelR,wheelR,.041,12);
   tyre.rotateX(Math.PI/2);tyre.translate(axle,y,z);
+  tyreContact(tyre);
   detail.push({color:'#161e25',geo:tyre});
   const rim=new THREE.CylinderGeometry(wheelR*.64,wheelR*.64,.043,12);
   rim.rotateX(Math.PI/2);rim.translate(axle,y,z+sign*.013);
@@ -949,7 +955,7 @@ function carGeometries(style){
   out.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
   out.computeBoundingSphere();return out;
  };
- return{body:merge(paint),trim:merge(detail)};
+ return{body:merge(paint),trim:merge(detail),tyreBottom};
 }
 
 class Batch{
@@ -2866,6 +2872,7 @@ export class TrafficRenderer{
   if(this.heatGroup)this.disposeGroup(this.heatGroup);
  }
  makeRoads(state,ROADS,junction,previewOnly=false){this.disposeGroup(this.roadGroup);this.disposeGroup(this.signalGroup);this.signals=[];const batch=new Batch(),line=new Batch();const roadWidths={small:ROADS.small.visualWidth||1.175,medium:ROADS.medium.visualWidth||2.35,large:ROADS.large.visualWidth||3.72};
+ this.carRoadWidths=roadWidths;
  // Premium eight-lane road: the same 3.72-unit carriageway, with no median.
  // Visual finish only; no change to lane offsets, road links or traffic logic.
  const PREMIUM_CONCRETE='#555957',CONCRETE_JOINT='#4e5250',PREMIUM_LANE='#f0ede4',PREMIUM_CENTER='#d6b36a',PREMIUM_EDGE='#cfd0ca';
@@ -9033,7 +9040,7 @@ export class TrafficRenderer{
     mesh.frustumCulled=false;mesh.castShadow=false;mesh.receiveShadow=false;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(mesh);
    }
-   const made={capacity,body,roof};
+   const made={capacity,body,roof,tyreBottom:lowModel.tyreBottom};
    this.carLODSets.set(level,made);return made;
   }
   const body=new THREE.InstancedMesh(BOX,new THREE.MeshStandardMaterial({
@@ -9059,7 +9066,34 @@ export class TrafficRenderer{
   else attribute.addUpdateRange(start,end-start);
   attribute.needsUpdate=true;
  }
- sameCarPose(a,b){return !!a&&a.x===b.x&&a.z===b.z&&a.angle===b.angle&&a.altitude===b.altitude;}
+ sameCarPose(a,b){return !!a&&a.x===b.x&&a.z===b.z&&a.angle===b.angle&&a.altitude===b.altitude&&a.surfaceY===b.surfaceY;}
+ // Model coordinates predate the raised road/parking surfaces. Anchor the
+ // measured tyre bottom after scaling, rather than sinking the axle into them.
+ carBaseY(car,tyreBottom=this.carModels[car.kind].tyreBottom){return (car.surfaceY??.105)+(car.altitude||0)-tyreBottom*VEHICLE_VISUAL_SCALE;}
+ carSurfaceY(state,CATALOG,v,buildingId,x,z){
+  const road=state.roads.get(v?.path?.[v.pos||0]),roadY=road?.links?.size===0?.122:.105,lotY=.071;
+  let lot=buildingId;
+  if(lot==null)switch(v?.phase){
+   case 'parking_in':case 'air_land':lot=v.lotBuilding??v.toId;break;
+   case 'departing':case 'parking_out':case 'air_lift':case 'warp_charge':lot=v.lotBuilding??v.fromId;break;
+   case 'delivery_unload':lot=v.toId;break;
+  }
+  const b=state.buildings.get(lot),t=CATALOG[b?.key];if(!t)return roadY;
+  if(buildingId!=null)return lotY;
+  const incoming=v?.phase==='parking_in'||v?.phase==='air_land',access=b.access?.find(a=>incoming?a.entry:a.exit);
+  const street=state.roads.get(access?.node),width=this.carRoadWidths?.[street?.type]??(street?.type==='large'?3.72:street?.type==='medium'?2.35:1.175);
+  const rx=(access?.node??0)%300,rz=Math.floor((access?.node??0)/300);let outward,gap;
+  switch(b.rotation||0){
+   case 1:outward=b.x-x;gap=b.x-rx;break;
+   case 2:outward=b.y-z;gap=b.y-rz;break;
+   case 3:outward=x-b.x-t.plotHeight;gap=rx-b.x-t.plotHeight;break;
+   default:outward=z-b.y-t.plotHeight;gap=rz-b.y-t.plotHeight;
+  }
+  // Match the existing sloped driveway: flat lot, then its short street lip.
+  const end=access?Math.max(.06,gap-width/2+.035):.06;
+  const blend=Math.max(0,Math.min(1,(outward+.08)/(end+.08)));
+  return lotY+(roadY-lotY)*blend;
+ }
  updateSimpleCars(level,items){
   const old=this.carLODSets.get(level);
   if(!items.length){
@@ -9074,17 +9108,20 @@ export class TrafficRenderer{
     dummy.rotation.set(0,-car.angle,0);
     if(level==='roadTrainLow'||level==='taxiLow'){
      // Dedicated low vehicle body + detail live in baked, instanced geometry.
-     dummy.position.set(car.x,car.altitude||0,car.z);
+     dummy.position.set(car.x,this.carBaseY(car,set.tyreBottom),car.z);
      dummy.scale.set(VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE);dummy.updateMatrix();
      set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
      set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
     }else{
      const [length,width,height,cabinX,cabinL,cabinH]=VEHICLE_STYLES[car.kind];
-     dummy.position.set(car.x,.163*VEHICLE_VISUAL_SCALE+(car.altitude||0),car.z);dummy.scale.set(length*VEHICLE_VISUAL_SCALE,height*.82*VEHICLE_VISUAL_SCALE,width*.96*VEHICLE_VISUAL_SCALE);dummy.updateMatrix();
+     const bottom=this.carModels[car.kind].tyreBottom,top=.163+height*.41,base=this.carBaseY(car);
+     // The cheap solid includes the wheel silhouette down to the same contact
+     // plane, so distant cars do not float or jump when their detail changes.
+     dummy.position.set(car.x,(top+bottom)*.5*VEHICLE_VISUAL_SCALE+base,car.z);dummy.scale.set(length*VEHICLE_VISUAL_SCALE,(top-bottom)*VEHICLE_VISUAL_SCALE,width*.96*VEHICLE_VISUAL_SCALE);dummy.updateMatrix();
      set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
      if(set.roof){
       const cos=Math.cos(car.angle),sin=Math.sin(car.angle);
-      dummy.position.set(car.x+cabinX*VEHICLE_VISUAL_SCALE*cos,(.165+height*.5+cabinH*.39)*VEHICLE_VISUAL_SCALE+(car.altitude||0),car.z+cabinX*VEHICLE_VISUAL_SCALE*sin);
+      dummy.position.set(car.x+cabinX*VEHICLE_VISUAL_SCALE*cos,(.165+height*.5+cabinH*.39)*VEHICLE_VISUAL_SCALE+base,car.z+cabinX*VEHICLE_VISUAL_SCALE*sin);
       dummy.scale.set(cabinL*VEHICLE_VISUAL_SCALE,cabinH*.78*VEHICLE_VISUAL_SCALE,width*.80*VEHICLE_VISUAL_SCALE);dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
      }
     }
@@ -9146,7 +9183,7 @@ export class TrafficRenderer{
     this.carLODStats.culled++;return;
    }
    upgraded=Object.hasOwn(VEHICLE_TECH_COLORS,tech);
-   kind=carClassFor(c,id,tech,v);car={x,z,angle,color:upgraded?VEHICLE_TECH_COLORS[tech]:carPaintFor(c,id,kind,fallback),kind,altitude};
+   kind=carClassFor(c,id,tech,v);car={x,z,angle,color:upgraded?VEHICLE_TECH_COLORS[tech]:carPaintFor(c,id,kind,fallback),kind,altitude,surfaceY:this.carSurfaceY(state,CATALOG,v,buildingId,x,z)};
    const pixelScale=this.camera.isPerspectiveCamera?this.h/(2*Math.max(.1,this.camera.position.distanceTo(point))*Math.tan(this.camera.fov*Math.PI/360)):centrePixelsPerUnit;
    const apparentLength=VEHICLE_STYLES[kind][0]*VEHICLE_VISUAL_SCALE*pixelScale;
    distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
@@ -9162,7 +9199,7 @@ export class TrafficRenderer{
      ?'near':apparentLength>=10?'medium':'far';
    if(parkedPose)this.parkedRenderCache.set(parkedPose,{view:this.cameraViewVersion,quality:this.graphicQuality,id,citizenId:c?.id,trait:c?.profile?.trait,tourist:c?.tourist,tech,vehicleKind:v?.kind,axles:v?.delivery?.axles,fallback,car,kind,distance,upgraded,level});
    }
-   if(upgraded)techEffects.push({x,z,angle,altitude,tech,distance});
+   if(upgraded)techEffects.push({x,z,angle,altitude,tech,distance,kind,surfaceY:car.surfaceY});
    if(level==='near')groups[kind].push(car);
    else if(level==='medium')medium.push(car);
    else if(level==='roadTrainLow')roadTrainLow.push(car);
@@ -9173,7 +9210,7 @@ export class TrafficRenderer{
     selected?.kind==='parked'&&selected.id===id;
    const status=showDiamonds&&!state.citizens.get(v?.citizenId??id)?.tourist?(vehicleTimeliness?.(v)||'green'):'green';
    if(focused||showDiamonds&&status!=='green')indicators.push({
-    x,z,angle,kind,focused,altitude,
+    x,z,angle,kind,focused,altitude,surfaceY:car.surfaceY,
     status,
     selection:v?{kind:'vehicle',id:v.id,citizenId:v.citizenId}:{kind:'parked',id,buildingId}
    });
@@ -9210,7 +9247,8 @@ export class TrafficRenderer{
     const car=items[i],old=set.lastCars[i],moved=!this.sameCarPose(old,car);
     if(!old||old.color!==car.color){set.body.setColorAt(i,this.carTint.set(car.color));this.dirtyCarInstances(set.body.instanceColor,i);}
     set.lastCars[i]=car;if(!moved)continue;
-    this.carDummy.position.set(car.x,car.altitude||0,car.z);this.carDummy.rotation.set(0,-car.angle,0);
+    const base=this.carBaseY(car);
+    this.carDummy.position.set(car.x,base,car.z);this.carDummy.rotation.set(0,-car.angle,0);
     this.carDummy.scale.set(VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE,VEHICLE_VISUAL_SCALE);this.carDummy.updateMatrix();
     set.body.setMatrixAt(i,this.carDummy.matrix);set.trim.setMatrixAt(i,this.carDummy.matrix);
     const [length,width]=VEHICLE_STYLES[kind],cos=Math.cos(car.angle),sin=Math.sin(car.angle);
@@ -9218,7 +9256,7 @@ export class TrafficRenderer{
      // Car model faces +X in local space; side offsets rotate with the body.
      const side=sign*width*.33*VEHICLE_VISUAL_SCALE;
      for(const [mesh,localX,height] of [[set.headlights,length*.5+.024,.185],[set.taillights,-length*.5-.024,.170]]){
-      this.carLightDummy.position.set(car.x+cos*localX*VEHICLE_VISUAL_SCALE-sin*side,height*VEHICLE_VISUAL_SCALE+(car.altitude||0),car.z+sin*localX*VEHICLE_VISUAL_SCALE+cos*side);
+      this.carLightDummy.position.set(car.x+cos*localX*VEHICLE_VISUAL_SCALE-sin*side,height*VEHICLE_VISUAL_SCALE+base,car.z+sin*localX*VEHICLE_VISUAL_SCALE+cos*side);
       this.carLightDummy.rotation.set(0,-car.angle,0);
       this.carLightDummy.scale.set((mesh===set.headlights?.024:.018)*VEHICLE_VISUAL_SCALE,.037*VEHICLE_VISUAL_SCALE,.050*VEHICLE_VISUAL_SCALE);
       this.carLightDummy.updateMatrix();
@@ -9276,7 +9314,7 @@ export class TrafficRenderer{
     glow.count=items.length;glow.visible=items.length>0;
     for(let i=0;i<items.length;i++){
      const car=items[i],pulse=1.026+.013*Math.sin(time+i*.38);
-     d.position.set(car.x,(car.altitude||0)+.002,car.z);
+     d.position.set(car.x,this.carBaseY(car)+.002,car.z);
      d.rotation.set(0,-car.angle,0);d.scale.set(pulse*VEHICLE_VISUAL_SCALE,pulse*VEHICLE_VISUAL_SCALE,pulse*VEHICLE_VISUAL_SCALE);d.updateMatrix();
      glow.setMatrixAt(i,d.matrix);
     }
@@ -9294,7 +9332,7 @@ export class TrafficRenderer{
     const pulse=.94+.10*Math.sin(time*1.7+i*.73);
     for(let j=0;j<3;j++){
      const localX=j===2?-.46:-.29,localZ=j===2?0:(j===0?-.15:.15);
-     d.position.set(car.x+(cos*localX-sin*localZ)*VEHICLE_VISUAL_SCALE,(car.altitude||0)+.16*VEHICLE_VISUAL_SCALE,
+     d.position.set(car.x+(cos*localX-sin*localZ)*VEHICLE_VISUAL_SCALE,this.carBaseY(car)+.16*VEHICLE_VISUAL_SCALE,
       car.z+(sin*localX+cos*localZ)*VEHICLE_VISUAL_SCALE);
      d.rotation.set(0,-car.angle,0);d.scale.set(pulse*VEHICLE_VISUAL_SCALE,(j===2?.70:.86)*VEHICLE_VISUAL_SCALE,(j===2?.70:.85)*VEHICLE_VISUAL_SCALE);
      d.updateMatrix();streak.setMatrixAt(i*3+j,d.matrix);
@@ -9348,9 +9386,9 @@ export class TrafficRenderer{
   this.carIndicatorHits=[];this.carSelectionFrame.visible=false;let count=0;
   for(const record of records){
    const style=VEHICLE_STYLES[record.kind],roof=.18+style[2]/2+style[5]*1.08;
-   if(record.focused){const frame=this.carSelectionFrame;frame.visible=true;frame.position.set(record.x,roof/2+.035+(record.altitude||0),record.z);frame.rotation.set(0,-record.angle,0);frame.scale.set(style[0]+.09,roof+.04,style[1]+.08);}
+   if(record.focused){const frame=this.carSelectionFrame;frame.visible=true;frame.position.set(record.x,this.carBaseY(record)+roof/2+.035,record.z);frame.rotation.set(0,-record.angle,0);frame.scale.set(style[0]+.09,roof+.04,style[1]+.08);}
    if(!showDiamonds||!Object.hasOwn({orange:0,red:1},record.status))continue;
-   const worldY=roof+.025+(record.altitude||0);
+   const worldY=this.carBaseY(record)+roof+.025;
    const depth=(record.x-this.camera.position.x)*forward.x+(worldY-this.camera.position.y)*forward.y+(record.z-this.camera.position.z)*forward.z;
    const unit=this.camera.isPerspectiveCamera?2*Math.max(.1,depth)*tanHalf/this.h:(this.camera.top-this.camera.bottom)/this.h;
    d.position.set(record.x,worldY,record.z).addScaledVector(up,(pixels*.5+2)*unit);this.carMarkerPoint.copy(d.position).project(this.camera);
