@@ -145,27 +145,35 @@ const SOFT_LIGHT_BILLBOARD=new THREE.PlaneGeometry(1,1);
 // tessellation. More poles still use fewer total lamp triangles than before.
 const STREET_LAMP_LENS=new THREE.SphereGeometry(1,10,5);
 const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,SIGNAL_OCT_GEO,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry,SOFT_LIGHT_GROUND,SOFT_LIGHT_BILLBOARD,STREET_LAMP_LENS];
-// One instanced pass for every street-light corona. Face the camera in the
-// vertex shader so panning never rewrites hundreds of lamp matrices on the CPU.
-function streetCoronaMaterial(texture){
+// Generate a monochrome falloff in the shader. Never sample RGB from a canvas
+// glow image: texture colour variation must not become coloured road speckles.
+// The billboard variant also keeps camera motion off the CPU instance buffers.
+function softLightMaterial(color,billboard=false){
  return new THREE.ShaderMaterial({
-  uniforms:{lightMap:{value:texture},lightColor:{value:new THREE.Color('#fff0d1')},lightOpacity:{value:0}},
+  uniforms:{lightColor:{value:new THREE.Color(color)},lightOpacity:{value:0}},
   vertexShader:`varying vec2 vLightUv;
    void main(){
     vLightUv=uv;
+    ${billboard?`
     vec4 centre=modelViewMatrix*instanceMatrix*vec4(0.0,0.0,0.0,1.0);
     vec2 size=vec2(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz));
     centre.xy+=position.xy*size;
     gl_Position=projectionMatrix*centre;
+    `:`gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.0);`}
    }`,
-  fragmentShader:`uniform sampler2D lightMap;uniform vec3 lightColor;uniform float lightOpacity;varying vec2 vLightUv;
+  fragmentShader:`uniform vec3 lightColor;uniform float lightOpacity;varying vec2 vLightUv;
    void main(){
-    float falloff=texture2D(lightMap,vLightUv).a;
-    gl_FragColor=vec4(lightColor,falloff*lightOpacity);
+    vec2 delta=vLightUv*2.0-1.0;
+    float falloff=max(0.0,1.0-dot(delta,delta));
+    falloff*=falloff;falloff*=falloff;
+    gl_FragColor=vec4(lightColor,.72*falloff*lightOpacity);
     #include <colorspace_fragment>
    }`,
-  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false
+  transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false
  });
+}
+function setSoftLightOpacity(material,opacity){
+ material.opacity=opacity;material.uniforms.lightOpacity.value=opacity;
 }
 
 // One tapered GPU-instanced light streak per beam; no floating glow spheres.
@@ -1048,13 +1056,6 @@ export class TrafficRenderer{
  createAtmosphere(){
   // Keep the city unobstructed at every hour: no atmospheric fog/haze.
   this.scene.fog=null;
-  const cv=document.createElement('canvas');cv.width=64;cv.height=64;const c=cv.getContext('2d'),g=c.createRadialGradient(32,32,0,32,32,31);
-  // Neutral radiance is tinted once by each light material. The broad tail
-  // softens the edge without bloom, a second render target or per-lamp lights.
-  g.addColorStop(0,'rgba(255,255,255,.84)');g.addColorStop(.18,'rgba(255,255,255,.50)');
-  g.addColorStop(.48,'rgba(255,255,255,.19)');g.addColorStop(.78,'rgba(255,255,255,.035)');g.addColorStop(1,'rgba(255,255,255,0)');
-  c.fillStyle=g;c.fillRect(0,0,64,64);this.glowTexture=new THREE.CanvasTexture(cv);
-  this.glowTexture.colorSpace=THREE.SRGBColorSpace;
   this.rainPoints=new Float32Array(430*6);const geometry=new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.BufferAttribute(this.rainPoints,3));
   this.rain=new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color:'#cfe6f1',transparent:true,opacity:0,depthWrite:false}));
@@ -1108,7 +1109,7 @@ export class TrafficRenderer{
     mesh.material.opacity=night*.94;
    }
    set.lightSpill.visible=night>.20&&set.lightSpill.count>0;
-   set.lightSpill.material.opacity=night*.25;
+   setSoftLightOpacity(set.lightSpill.material,night*.25);
   }
  }
  // Use the existing moving directional sun and shadows on every road width.
@@ -1158,9 +1159,9 @@ export class TrafficRenderer{
     mesh.material.opacity=(architecturalLED?.96:.86)*glow;
     mesh.material.emissiveIntensity=architecturalLED?1.8+glow*.6:.85+glow*.7;
    });
-   if(this.streetGlow){this.streetGlow.material.opacity=.50*glow;this.streetGlow.visible=glow>.015;}
+   if(this.streetGlow){setSoftLightOpacity(this.streetGlow.material,.50*glow);this.streetGlow.visible=glow>.015;}
    if(this.streetCoronas){
-    this.streetCoronas.material.uniforms.lightOpacity.value=.30*glow;
+    setSoftLightOpacity(this.streetCoronas.material,.30*glow);
     this.streetCoronas.visible=glow>.015&&this.graphicQuality!=='low';
    }
    this.lastGlow=glow;
@@ -3061,9 +3062,9 @@ export class TrafficRenderer{
  }
  if(spots.length){
   this.lampGroup.add(poles.build(false));
-  const mat=new THREE.MeshBasicMaterial({map:this.glowTexture,color:'#ffe8bd',transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,toneMapped:false});
+  const mat=softLightMaterial('#ffe8bd');
   const halos=new THREE.InstancedMesh(SOFT_LIGHT_GROUND,mat,spots.length),d=new THREE.Object3D();
-  const coronas=new THREE.InstancedMesh(SOFT_LIGHT_BILLBOARD,streetCoronaMaterial(this.glowTexture),spots.length);
+  const coronas=new THREE.InstancedMesh(SOFT_LIGHT_BILLBOARD,softLightMaterial('#fff0d1',true),spots.length);
   for(let i=0;i<spots.length;i++){
    const p=spots[i];d.position.set(p.poolX,.151,p.poolZ);d.rotation.set(0,p.vertical?Math.PI/2:0,0);d.scale.set(6.3,1,p.span);d.updateMatrix();halos.setMatrixAt(i,d.matrix);
    d.position.set(p.hx,1.46,p.hz);d.rotation.set(0,0,0);d.scale.set(.48,.48,1);d.updateMatrix();coronas.setMatrixAt(i,d.matrix);
@@ -9000,9 +9001,7 @@ export class TrafficRenderer{
    color,transparent:true,opacity:0,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending
   }),capacity*2);
   const headlights=lightMesh('#fff3d6'),taillights=lightMesh('#ff3d35');
-  const lightSpill=new THREE.InstancedMesh(SOFT_LIGHT_GROUND,new THREE.MeshBasicMaterial({
-   map:this.glowTexture,color:'#fff0d1',transparent:true,opacity:0,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending
-  }),capacity);
+  const lightSpill=new THREE.InstancedMesh(SOFT_LIGHT_GROUND,softLightMaterial('#fff0d1'),capacity);
   for(const mesh of [headlights,taillights,lightSpill]){
    mesh.frustumCulled=false;mesh.renderOrder=3;mesh.count=0;mesh.visible=false;
    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(mesh);
