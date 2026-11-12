@@ -309,6 +309,27 @@ function lotCarsOverlap(a,b,margin=.035){
  }
  return true;
 }
+// Starter parcels alone may share physical space inside their own lot.
+// Require the whole car footprint to stay inside the rotated parcel; the
+// driveway mouth, road merge, slot ownership and all other tiers stay solid.
+function starterLotInterior(b,pose){
+ const t=CATALOG[b?.key];if(!t?.starterTier||!pose)return false;
+ const p=localParkingPoint(b,pose),angle=Math.atan2(Math.sin(pose.angle||0)/.78,Math.cos(pose.angle||0))-(b.rotation||0)*Math.PI/2;
+ const cs=Math.abs(Math.cos(angle)),sn=Math.abs(Math.sin(angle)),u=.290*cs+.135*sn,v=.290*sn+.135*cs;
+ return Number.isFinite(p.u)&&Number.isFinite(p.v)&&p.u>=u&&p.u<=t.plotWidth-u&&p.v>=v&&p.v<=t.plotHeight-v;
+}
+function starterLotOverlapAllowed(b,a,p){return !!CATALOG[b?.key]?.starterTier&&starterLotInterior(b,a)&&starterLotInterior(b,p);}
+function starterParkingLotId(v){
+ if(v?.phase==='parking_in')return v.lotBuilding??v.toId;
+ if(v?.phase==='departing'||v?.phase==='parking_out')return v.lotBuilding??v.fromId;
+ return null;
+}
+function starterParkingOverlapAllowed(a,b,pa=null,pb=null){
+ const lot=starterParkingLotId(a);
+ if(lot==null||lot!==starterParkingLotId(b))return false;
+ const building=state.buildings.get(lot);if(!CATALOG[building?.key]?.starterTier)return false;
+ return starterLotOverlapAllowed(building,pa||vehiclePosition(a),pb||vehiclePosition(b));
+}
 // A single shared driveway is an admission point, not a spawn pad. Keep a
 // second arriving car on its road route until the first clears the entrance.
 function parkingEntranceOccupied(v,b,entry){
@@ -329,14 +350,15 @@ function overlappingEntranceLeader(v,other){
  return Math.hypot(a.x-b.x,a.y-b.y)<.24;
 }
 function lotClear(v,pose,ignoreRoadTraffic=false){
+ const b=state.buildings.get(v.lotBuilding);
  for(const other of parkingLotCars(v.lotBuilding)){
   if(other.id===v.id||other.lotBuilding!==v.lotBuilding||!other.lotPath)continue;
   if(overlappingEntranceLeader(v,other))continue;
-  if(lotCarsOverlap(pose,parkingPose(other)))return noteParkingBlock(v,'lot_live_vehicle_overlap',{blockerVehicleId:other.id,checkedPose:pose,blockingPose:parkingPose(other),observedPhysical:true});
+  const p=parkingPose(other);if(starterLotOverlapAllowed(b,pose,p))continue;
+  if(lotCarsOverlap(pose,p))return noteParkingBlock(v,'lot_live_vehicle_overlap',{blockerVehicleId:other.id,checkedPose:pose,blockingPose:p,observedPhysical:true});
  }
  // The first/last metres of the driveway are shared with live road traffic.
  // A car leaving or entering the lot must not ignore vehicles on the street.
- const b=state.buildings.get(v.lotBuilding);
  if(!ignoreRoadTraffic&&b&&['departing','parking_out'].includes(v.phase)){
   const t=CATALOG[b.key],entrance=lotPoint(b,t.frontageEntranceU??.45,t.plotHeight),exit=lotPoint(b,t.frontageExitU??(t.dualParking?t.parkingExitB:t.plotWidth-.45),t.plotHeight);
   if(v.phase==='parking_out'||Math.min(Math.hypot(pose.x-entrance.x,pose.y-entrance.y),Math.hypot(pose.x-exit.x,pose.y-exit.y))<1.15)
@@ -348,11 +370,12 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
    }
  }
  if(b)for(const cid of b.parked){
-  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1&&lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015))return noteParkingBlock(v,'lot_parked_citizen_overlap',{blockerCitizenId:cid,blockerSlot:parkingSpace(b,cid),checkedPose:pose,blockingPose:p,observedPhysical:true});
+  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(starterLotOverlapAllowed(b,pose,p))continue;if(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1&&lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015))return noteParkingBlock(v,'lot_parked_citizen_overlap',{blockerCitizenId:cid,blockerSlot:parkingSpace(b,cid),checkedPose:pose,blockingPose:p,observedPhysical:true});
  }
  return true;
 }
 function canLeaveParkingSpace(v,points){
+ const building=state.buildings.get(v.lotBuilding);
  // Reserve enough room to clear the bay before joining the one-way aisle.
  const mergeLength=lotPathLength(points.slice(0,2))+.7;
  const samples=[];
@@ -366,7 +389,7 @@ function canLeaveParkingSpace(v,points){
   const theirs=bounds(upcoming);
   // One block exceeds the collision routine's maximum center distance at .06.
   if(own.maxX+1<theirs.minX||theirs.maxX+1<own.minX||own.maxY+1<theirs.minY||theirs.maxY+1<own.minY)continue;
-  for(let k=0;k<samples.length;k++)for(let n=0;n<upcoming.length;n++)if(lotCarsOverlap(samples[k],upcoming[n],.06))return noteParkingBlock(v,'bay_exit_predicted_path_conflict',{blockerVehicleId:other.id,checkedPose:samples[k],blockingPredictedPose:upcoming[n],ownLookahead:k*.12,blockerLookahead:n*.15,forecastOnly:true});
+  for(let k=0;k<samples.length;k++)for(let n=0;n<upcoming.length;n++)if(!starterLotOverlapAllowed(building,samples[k],upcoming[n])&&lotCarsOverlap(samples[k],upcoming[n],.06))return noteParkingBlock(v,'bay_exit_predicted_path_conflict',{blockerVehicleId:other.id,checkedPose:samples[k],blockingPredictedPose:upcoming[n],ownLookahead:k*.12,blockerLookahead:n*.15,forecastOnly:true});
  }return true;
 }
 function parkingAccess(b){
@@ -788,6 +811,7 @@ function parkingBankBusy(b,index,arriving,requester=null){
  // merges locally at the exact physical conflict, without cross-bank deadlocks.
  const target=lotSlots(b)[index];
  if(!target)return false;
+ if(CATALOG[b.key]?.starterTier)return false;
  if(b.key==='home_mahanakhon'||b.key==='home_mahanakhon_compact'){
   // The compact court must not lock a whole row just because another car
   // was ASSIGNED a neighbouring bay. Check its ACTUAL current position:
@@ -820,8 +844,8 @@ function prepareLotDeparture(v,dt){
  const b=state.buildings.get(v.fromId);if(!b){traceDeparture(v,'origin_building_missing');return true;}
  if(v.lotReady)return true;
  if(!v.lotPath){
-  // The compact exit has no room for a follower beside a turning leader.
-  if(b.key==='home_starter'&&[...parkingLotCars(b.id)].some(other=>other.id!==v.id&&other.fromId===b.id&&other.lotPath&&['departing','parking_out'].includes(other.phase))){v.stopReason='รอรถคันหน้าพ้นทางออกบ้าน';return false;}
+  // Starter cars may leave independent bays together. The existing shared
+  // driveway/merge admission below still serializes entry onto the road.
   const index=parkingSpace(b,v.citizenId,true),slot=lotSlots(b)[index];if(!slot){noteParkingBlock(v,'departure_missing_parking_slot',{requestedSlot:index});v.stopReason='ไม่พบช่องจอดของรถ';return false;}
   if(parkingBankBusy(b,index,false,v)){v.stopReason='รอรถเข้าจอดในแถวเดียวกัน';return false;}
   const t=CATALOG[b.key],exitU=t.dualParking?(slot.zone==='A'?t.parkingExitA:t.parkingExitB):(t.parkingExitU??t.plotWidth-.45);
@@ -892,13 +916,13 @@ function parkingBayObstructed(v,b,index){
  for(const cid of b.parked){
   if(cid===v.citizenId||parkingIsMoving(cid))continue;
   const other=parkingSlotPose(b,parkingSpace(b,cid));
-  if(other&&lotCarsOverlap(pose,other,CATALOG[b.key].dualParking?0:['home_mahanakhon','home_mahanakhon_compact'].includes(b.key)?.015:.03))return true;
+  if(other&&!starterLotOverlapAllowed(b,pose,other)&&lotCarsOverlap(pose,other,CATALOG[b.key].dualParking?0:['home_mahanakhon','home_mahanakhon_compact'].includes(b.key)?.015:.03))return true;
  }
  for(const other of parkingLotCars(b.id)){
   if(other.id===v.id||other.lotBuilding!==b.id||!other.lotPath)continue;
   if(b.parkingSlots?.indexOf(other.citizenId)===index)return true;
   const actual=parkingPose(other);
-  if(actual&&lotCarsOverlap(pose,actual,.06))return true;
+  if(actual&&!starterLotOverlapAllowed(b,pose,actual)&&lotCarsOverlap(pose,actual,.06))return true;
  }
  return false;
 }
@@ -3024,7 +3048,8 @@ function incidentNormalWait(v){
 function incidentBlockingVehicle(v){
  const p=v.lastPhysicalBlock;
  if(!Number.isFinite(p?.gameTime)||state.time-p.gameTime>3||p.gameTime>state.time)return null;
- return state.vehicles.get(p.ownerId)||null;
+ const other=state.vehicles.get(p.ownerId)||null;
+ return other&&starterParkingOverlapAllowed(v,other)?null:other;
 }
 function incidentNearby(positions,pose){const near=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
  const key=(Math.floor(pose.x/2)+dx)+','+(Math.floor(pose.y/2)+dy);
@@ -3049,9 +3074,10 @@ function scanIncidents(force=false){
   const near=incidentNearby(positions,pose).filter(o=>o.v.id!==v.id&&sameTrafficLayer(v,o.v));
   // A center-distance threshold treats ordinary stopped traffic as a crash.
   // Use the same oriented physical footprint that the parking movement uses.
-  const overlapped=near.filter(o=>o.stalled>=INCIDENT_STALL_MINUTES&&o.v.phase!=='gate_waiting'&&lotCarsOverlap(pose,o.pose,0));
+  const overlapped=near.filter(o=>o.stalled>=INCIDENT_STALL_MINUTES&&o.v.phase!=='gate_waiting'&&!starterParkingOverlapAllowed(v,o.v,pose,o.pose)&&lotCarsOverlap(pose,o.pose,0));
   const heading={x:pose.dx??Math.cos(pose.angle||0),y:pose.dy??Math.sin(pose.angle||0)};
   const followerOf=near.find(o=>{
+   if(starterParkingOverlapAllowed(v,o.v,pose,o.pose))return false;
    const dx=o.pose.x-pose.x,dy=o.pose.y-pose.y;
    return (dx*heading.x+dy*heading.y)>.30&&dx*heading.x+dy*heading.y<2.2&&Math.abs(dx*heading.y-dy*heading.x)<.60&&o.stalled>=INCIDENT_STALL_MINUTES;
   });
@@ -3114,7 +3140,7 @@ function incidentEventType(incident){
  const cars=incident.vehicles.map(id=>state.vehicles.get(id)).filter(Boolean);
  for(let i=0;i<cars.length;i++)for(let j=i+1;j<cars.length;j++){
   const a=incidentPosition(cars[i]),b=incidentPosition(cars[j]);
-  if(sameTrafficLayer(cars[i],cars[j])&&a&&b&&lotCarsOverlap(a,b,.025))return 'collision';
+  if(sameTrafficLayer(cars[i],cars[j])&&a&&b&&!starterParkingOverlapAllowed(cars[i],cars[j],a,b)&&lotCarsOverlap(a,b,.025))return 'collision';
  }
  return 'breakdown';
 }
@@ -3138,7 +3164,7 @@ function incidentQueueFollowers(root){
  for(let i=0;i<frontier.length&&result.length<64;i++){
   const lead=frontier[i];
   for(const item of candidates){
-   if(seen.has(item.v.id))continue;
+   if(seen.has(item.v.id)||starterParkingOverlapAllowed(lead.v,item.v,lead.pose,item.pose))continue;
    const direction={x:item.pose.dx??Math.cos(item.pose.angle||0),y:item.pose.dy??Math.sin(item.pose.angle||0)};
    const dx=lead.pose.x-item.pose.x,dy=lead.pose.y-item.pose.y;
    const along=dx*direction.x+dy*direction.y;
@@ -8000,7 +8026,7 @@ function incidentParkingOverlap(v){
   if(other.id===v.id||!sameTrafficLayer(v,other)||
    !['departing','parking_in','parking_out'].includes(other.phase)||
    (other.lotBuilding??other.fromId??other.toId)!==lot||incidentStoppedFor(other)<INCIDENT_STALL_MINUTES)continue;
-  const p=vehiclePosition(other);if(p&&lotCarsOverlap(pose,p,0))return true;
+  const p=vehiclePosition(other);if(p&&!starterParkingOverlapAllowed(v,other,pose,p)&&lotCarsOverlap(pose,p,0))return true;
  }
  return false;
 }
@@ -9619,5 +9645,6 @@ if(missionFailureToggle)missionFailureToggle.onclick=()=>{
 };
 resize();startNewCity();requestAnimationFrame(frame);
 })();
+
 
 
