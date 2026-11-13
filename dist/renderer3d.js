@@ -1158,8 +1158,9 @@ export class TrafficRenderer{
    this.shadowLastBuildingsVersion!==state.buildingVisualVersion||
    this.shadowLastLandscapeVersion!==state.landscapeVersion;
   const sunMoved=Math.abs(sun.minute-(this.shadowLastSunMinute??-Infinity))>=.25;
-  // Interactive pan/zoom: <= 5 shadow redraws/s. Stationary time: <= ~1.4/s.
-  if(wasActive&&!sceneChanged&&!(viewChanged&&elapsed>=200)&&!(sunMoved&&elapsed>=700))return;
+  // Refresh at most once every 3 seconds during camera motion or sun movement.
+  // Scene changes and shadow activation still refresh immediately.
+  if(wasActive&&!sceneChanged&&!(elapsed>=3000&&(viewChanged||sunMoved)))return;
   // Snap shadow coverage to world-space texels to reduce swimming at far zoom.
   const texel=2*span/Math.max(1,this.light.shadow.mapSize.x);
   const cx=Math.round(cam.x/texel)*texel,cz=Math.round(cam.y/texel)*texel;
