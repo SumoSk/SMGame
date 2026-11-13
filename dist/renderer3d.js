@@ -140,6 +140,8 @@ const RETAIL_WINDOW_TEXTURES=['shop','mall'].map(kind=>{
  return texture;
 });
 const SOFT_LIGHT_GROUND=new THREE.PlaneGeometry(1,1);SOFT_LIGHT_GROUND.rotateX(-Math.PI/2);
+// Shared 12-sided ground ellipse: one instanced pass replaces heavy per-car shadow casting.
+const CAR_CONTACT_SHADOW_GEO=new THREE.CircleGeometry(1,12);CAR_CONTACT_SHADOW_GEO.rotateX(-Math.PI/2);
 const SOFT_LIGHT_BILLBOARD=new THREE.PlaneGeometry(1,1);
 // Tiny lamp lenses keep their smooth normals without the full building-sphere
 // tessellation. More poles still use fewer total lamp triangles than before.
@@ -1019,7 +1021,7 @@ const COMPACT_DECORATION_KEYS=new Set(["fence_white","fence_wood","fence_iron","
 const EXTRA_DECORATION_KEYS=new Set(["thai_canvas_awning","thai_cold_display","thai_icebox","thai_vegetable_baskets","thai_drink_crates","thai_motorbike","thai_metal_table","thai_plastic_chair","industrial_forklift","industrial_cone","industrial_barrier","industrial_zone_sign","industrial_floodlight","industrial_wrapped_pallet","industrial_crates","industrial_generator","temple_incense","temple_candles","temple_donation_box","temple_hanging_bell","temple_wall","temple_lantern","temple_naga","temple_shrine","street_bus_stop","street_bench","street_soi_sign","street_median_planter","street_bollard_strip","street_vine_arch","street_folding_barrier","street_lightbox","nature_bush_pine","nature_bush_banyan","nature_thai_flower","nature_lotus_bowl","nature_square_fountain","nature_zen_rocks","nature_park_cluster","nature_short_hedge"]);
 export class TrafficRenderer{
  constructor(canvas){
- this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.96;
+ this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.autoUpdate=false;this.renderer.shadowMap.needsUpdate=true;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.96;
  this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#77bec3');this.camera=new URLSearchParams(typeof window==='undefined'?'':(window.location?.search??'')).get('camera')==='ortho'?new THREE.OrthographicCamera(-30,30,20,-20,.1,3800):new THREE.PerspectiveCamera(35,innerWidth/Math.max(1,innerHeight),.1,3800);this.camera.position.set(190,85,220);this.camera.lookAt(150,0,150);this.skyLight=new THREE.HemisphereLight('#dcecff','#74745f',2.35);this.scene.add(this.skyLight);this.light=new THREE.DirectionalLight('#fff0ce',3.1);this.light.position.set(110,100,105);this.light.castShadow=true;this.light.shadow.mapSize.set(2048,2048);Object.assign(this.light.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:220});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.035;this.light.shadow.radius=3;this.scene.add(this.light,this.light.target);
  this.ray=new THREE.Raycaster();this.ground=new THREE.Plane(UP,0);this.ndc=new THREE.Vector2();this.point=new THREE.Vector3();this.lastKey='';this.roadKey='';this.buildKey='';this.treeKey='';this.previewKey='';this.buildingMeshes=null;this.cameraKey='';this.cam=null;this.w=innerWidth;this.h=innerHeight;this.materials=[];
  this.graphicQuality=null;this.lastBuildingDetailLevel=null;
@@ -1040,6 +1042,7 @@ export class TrafficRenderer{
   const shadowSize=value==='veryHigh'?2048:1024;
   if(this.light.shadow.mapSize.x!==shadowSize){this.light.shadow.mapSize.set(shadowSize,shadowSize);this.light.shadow.map?.dispose();this.light.shadow.map=null;this.renderer.shadowMap.needsUpdate=true;}
   this.lastBuildingDetailLevel=null;
+  this.shadowRefreshAt=-Infinity;this.renderer.shadowMap.needsUpdate=true;
   this.lastGlow=-1; // Force refresh on the first frame after a quality switch.
   this.treeGroup.visible=value!=='low';
   this.resize();
@@ -1139,6 +1142,44 @@ export class TrafficRenderer{
    mesh.material.metalness=moisture*.075;
   });
  }
+ // Keep the sun, shadows, and camera centred on one stable map until
+ // the city, sun or camera needs a new sample. This avoids per-frame shadow passes.
+ updateShadowBudget(state,sun,solar,az){
+  const active=this.graphicQuality!=='low'&&sun.strength>.58;
+  const wasActive=this.light.castShadow;
+  this.light.castShadow=active;
+  if(!active)return;
+  const now=performance.now(),cam=this.cam;
+  const span=Math.ceil(Math.max(65,Math.min(220,74/Math.max(.22,cam.z)))/8)*8;
+  const elapsed=now-(this.shadowRefreshAt??-Infinity);
+  const viewChanged=this.cameraViewVersion!==this.shadowLastViewVersion||span!==this.lastShadowSpan;
+  const sceneChanged=this.shadowLastState!==state||
+   this.shadowLastSceneVersion!==state.version||
+   this.shadowLastBuildingsVersion!==state.buildingVisualVersion||
+   this.shadowLastLandscapeVersion!==state.landscapeVersion;
+  const sunMoved=Math.abs(sun.minute-(this.shadowLastSunMinute??-Infinity))>=.25;
+  // Interactive pan/zoom: <= 5 shadow redraws/s. Stationary time: <= ~1.4/s.
+  if(wasActive&&!sceneChanged&&!(viewChanged&&elapsed>=200)&&!(sunMoved&&elapsed>=700))return;
+  // Snap shadow coverage to world-space texels to reduce swimming at far zoom.
+  const texel=2*span/Math.max(1,this.light.shadow.mapSize.x);
+  const cx=Math.round(cam.x/texel)*texel,cz=Math.round(cam.y/texel)*texel;
+  if(span!==this.lastShadowSpan){
+   this.lastShadowSpan=span;
+   Object.assign(this.light.shadow.camera,{left:-span,right:span,top:span,bottom:-span,near:1,far:Math.max(220,span*3.6)});
+   this.light.shadow.camera.updateProjectionMatrix();
+  }
+  this.light.target.position.set(cx,0,cz);this.light.target.updateMatrixWorld();
+  this.light.position.set(cx+Math.cos(az)*65,27+solar*68,cz+Math.sin(az)*65);
+  this.light.updateMatrixWorld();
+  this.shadowLastState=state;
+  this.shadowLastSceneVersion=state.version;
+  this.shadowLastBuildingsVersion=state.buildingVisualVersion;
+  this.shadowLastLandscapeVersion=state.landscapeVersion;
+  this.shadowLastViewVersion=this.cameraViewVersion;
+  this.shadowLastSunMinute=sun.minute;
+  this.shadowRefreshAt=now;
+  this.renderer.shadowMap.needsUpdate=true;
+ }
  updateWeatherLight(state){
   const sun=lightAt(state.time),air=climateAt(state.time,state.city),visibility=cityVisibilityAt(state.time);
   this.scene.background.copy(sun.sky).lerp(new THREE.Color('#738999'),air.cloud*.22+air.rain*.38);
@@ -1147,8 +1188,7 @@ export class TrafficRenderer{
   this.light.intensity=Math.max(.22,sun.strength*(1-air.cloud*.18-air.rain*.36));
   this.renderer.toneMappingExposure=Math.max(.82,visibility.exposure*(1-air.rain*.09));
   const solar=Math.max(0,Math.sin((sun.minute-360)/720*Math.PI)),az=sun.minute/1440*Math.PI*2;
-  this.light.position.set(this.cam.x+Math.cos(az)*65,27+solar*68,this.cam.y+Math.sin(az)*65);
-  this.light.castShadow=this.graphicQuality!=='low'&&sun.strength>.58;
+  this.updateShadowBudget(state,sun,solar,az);
   const glow=smooth(sun.lamps)*(1-air.rain*.12);
   if(this.phuketLighthouseBeacon){
    this.phuketLighthouseBeacon.visible=glow>.06;
@@ -1223,15 +1263,9 @@ export class TrafficRenderer{
    this.camera.position.set(cam.x+Math.sin(angle)*horizontal,radius*Math.sin(elevation),cam.y+Math.cos(angle)*horizontal);
    this.camera.lookAt(cam.x,0,cam.y);
    this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
-   const shadowSpan=Math.round(Math.max(65,Math.min(220,74/Math.max(.22,zoom))));
-   if(this.lastShadowSpan!==shadowSpan){
-    this.lastShadowSpan=shadowSpan;
-    Object.assign(this.light.shadow.camera,{left:-shadowSpan,right:shadowSpan,top:shadowSpan,bottom:-shadowSpan,near:1,far:Math.max(220,shadowSpan*3.6)});
-    this.light.shadow.camera.updateProjectionMatrix();
-   }
-   this.light.target.position.set(cam.x,0,cam.y);this.light.target.updateMatrixWorld();
+   // Light and target are moved together only when shadow map is redrawn,
+   // preventing stale shadow maps from swimming during camera motion.
   }
-  this.light.position.set(cam.x-45,90,cam.y-35);
  }
  screen(x,z,height=0){this.point.set(x,height/18,z).project(this.camera);return[(this.point.x+1)*this.w/2,(1-this.point.y)*this.h/2];}
  world(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const p=new THREE.Vector3();this.ray.ray.intersectPlane(this.ground,p);return[p.x,p.z];}
@@ -9003,6 +9037,7 @@ export class TrafficRenderer{
  createCars(){
   this.carModels=VEHICLE_TYPES.map((_,i)=>carGeometries(i));
   this.carSets=new Map();this.carDummy=new THREE.Object3D();this.carLightDummy=new THREE.Object3D();this.carTint=new THREE.Color();
+  this.carContactShadowMesh=null;this.carContactShadowPoses=[];
   // Medium: silhouette + glass cabin. Far: one tinted box. Only the near set uses detailed meshes and lights.
   this.carLODSets=new Map();
   this.carViewMatrix=new THREE.Matrix4();this.carViewFrustum=new THREE.Frustum();this.carViewPoint=new THREE.Vector3();
@@ -9029,7 +9064,8 @@ export class TrafficRenderer{
    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(mesh);
   }
   for(const mesh of [body,trim]){
-   mesh.castShadow=true;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.count=0;this.scene.add(mesh);
+   // Dynamic vehicles no longer enter the expensive world shadow-map pass.
+   mesh.castShadow=false;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.count=0;this.scene.add(mesh);
   }
   const created={capacity,body,trim,headlights,taillights,lightSpill};
   this.carSets.set(kind,created);this.lastNightVisibility=-1;return created;
@@ -9072,6 +9108,39 @@ export class TrafficRenderer{
    roof.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.scene.add(roof);
   }
   const made={capacity,body,roof};this.carLODSets.set(level,made);return made;
+ }
+ // One lightweight instanced ellipse per near ground vehicle. A single material,
+ // no shadow casting, no new light, no effect on traffic or physical car poses.
+ ensureCarContactShadows(needed){
+  let mesh=this.carContactShadowMesh;
+  if(mesh&&mesh.instanceMatrix.count>=needed)return mesh;
+  if(mesh){this.scene.remove(mesh);mesh.material.dispose();mesh.dispose();}
+  const capacity=Math.max(32,2**Math.ceil(Math.log2(Math.max(1,needed))));
+  mesh=new THREE.InstancedMesh(CAR_CONTACT_SHADOW_GEO,
+   new THREE.MeshBasicMaterial({color:'#17222b',transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide}),capacity);
+  mesh.castShadow=false;mesh.receiveShadow=false;mesh.frustumCulled=false;mesh.count=0;
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  this.scene.add(mesh);this.carContactShadowMesh=mesh;this.carContactShadowPoses=[];
+  return mesh;
+ }
+ updateCarContactShadows(items){
+  if(this.graphicQuality==='low'||!this.light.castShadow||!items.length){
+   if(this.carContactShadowMesh)this.carContactShadowMesh.count=0;
+   return;
+  }
+  const mesh=this.ensureCarContactShadows(items.length),poses=this.carContactShadowPoses,d=this.carLightDummy;
+  for(let i=0;i<items.length;i++){
+   const car=items[i],old=poses[i];
+   if(old&&this.sameCarPose(old,car)&&old.kind===car.kind)continue;
+   const [length,width]=VEHICLE_STYLES[car.kind];
+   d.position.set(car.x,(car.surfaceY??.105)+.004,car.z);
+   d.rotation.set(0,-car.angle,0);
+   d.scale.set(length*.53*VEHICLE_VISUAL_SCALE,1,width*.67*VEHICLE_VISUAL_SCALE);
+   d.updateMatrix();mesh.setMatrixAt(i,d.matrix);
+   this.dirtyCarInstances(mesh.instanceMatrix,i);
+   poses[i]=car;
+  }
+  poses.length=items.length;mesh.count=items.length;
  }
  // Keep one pending upload range, including changes while a light mesh is hidden.
  // Moving cars precede parked cars, so unchanged parking suffixes stay on the GPU.
@@ -9167,16 +9236,17 @@ export class TrafficRenderer{
   for(const set of this.carLODSets.values())for(const mesh of [set.body,set.roof])if(mesh)mesh.count=0;
   for(const mesh of this.carTechMeshes?.values()||[])mesh.count=0;
   if(this.carMarkerMesh)this.carMarkerMesh.count=0;
+  if(this.carContactShadowMesh)this.carContactShadowMesh.count=0;
   if(this.carSelectionFrame)this.carSelectionFrame.visible=false;
   this.carIndicatorHits=[];this.carLODStats={near:0,medium:0,far:0,culled:0};
  }
  cars(state,vehiclePosition,CATALOG,vehicleTimeliness=null,selected=null,showDiamonds=true){
   // These arrays are consumed synchronously. Previous GPU poses keep immutable
   // car records, so only containers are reused, never those previous records.
-  const buffers=this.carFrameBuffers??={groups:VEHICLE_TYPES.map(()=>[]),medium:[],far:[],roadTrainLow:[],taxiLow:[],indicators:[],techEffects:[],warpPoints:[]};
-  const {groups,medium,far,roadTrainLow,taxiLow,indicators,techEffects,warpPoints}=buffers;
+  const buffers=this.carFrameBuffers??={groups:VEHICLE_TYPES.map(()=>[]),medium:[],far:[],roadTrainLow:[],taxiLow:[],indicators:[],techEffects:[],warpPoints:[],contactShadows:[]};
+  const {groups,medium,far,roadTrainLow,taxiLow,indicators,techEffects,warpPoints,contactShadows}=buffers;
   for(const items of groups)items.length=0;
-  for(const items of [medium,far,roadTrainLow,taxiLow,indicators,techEffects,warpPoints])items.length=0;
+  for(const items of [medium,far,roadTrainLow,taxiLow,indicators,techEffects,warpPoints,contactShadows])items.length=0;
   this.parkedRenderCache??=new WeakMap();
   const frustum=this.carViewFrustum,point=this.carViewPoint,cam=this.cam;
   if(this.carFrustumVersion!==this.cameraViewVersion||!this.carFrustumReady){
@@ -9215,7 +9285,7 @@ export class TrafficRenderer{
    if(parkedPose)this.parkedRenderCache.set(parkedPose,{view:this.cameraViewVersion,quality:this.graphicQuality,id,citizenId:c?.id,trait:c?.profile?.trait,tourist:c?.tourist,tech,vehicleKind:v?.kind,axles:v?.delivery?.axles,fallback,car,kind,distance,upgraded,level});
    }
    if(upgraded)techEffects.push({x,z,angle,altitude,tech,distance,kind,surfaceY:car.surfaceY});
-   if(level==='near')groups[kind].push(car);
+   if(level==='near'){groups[kind].push(car);if(this.graphicQuality!=='low'&&altitude<.3)contactShadows.push(car);}
    else if(level==='medium')medium.push(car);
    else if(level==='roadTrainLow')roadTrainLow.push(car);
    else if(level==='taxiLow')taxiLow.push(car);
@@ -9254,6 +9324,7 @@ export class TrafficRenderer{
   this.updateSimpleCars('far',far);
   this.updateSimpleCars('roadTrainLow',roadTrainLow);
   this.updateSimpleCars('taxiLow',taxiLow);
+  this.updateCarContactShadows(contactShadows);
   for(let kind=0;kind<groups.length;kind++){
    const items=groups[kind],old=this.carSets.get(kind);
    if(!items.length){if(old){old.body.count=0;old.trim.count=0;old.headlights.count=0;old.taillights.count=0;old.lightSpill.count=0;}continue;}
