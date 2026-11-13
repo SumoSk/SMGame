@@ -3185,7 +3185,22 @@ export class TrafficRenderer{
  }
  roof(batch,x,z,w,d,base,color,id){const angle=Math.atan2(.55,d/2),length=Math.hypot(d/2,.55);for(const sign of[-1,1])batch.add(BOX,color,x,base+.275,z+sign*d/4,w+.18,.10,length+.11,sign*angle,0,0,id);for(let k=-w/2+.12;k<w/2;k+=.22){for(const sign of[-1,1])batch.add(BOX,'#b86d48',x+k,base+.3,z+sign*d/4,.023,.035,length+.12,sign*angle,0,0,id);}batch.box('#ce8054',x,base+.57,z,w+.19,.07,.08,0,id);}
  window(batch,x,y,z,w,h,side,id){if(side==='front'){batch.box('#385d69',x,y,z,w,h,.025,0,id);if(hash(x+id,y+z)>.36)batch.box('#ffdf9d',x,y,z+.034,w*.76,h*.78,.012,0,id,true);batch.box('#dddac4',x,y,z+.02,.026,h+.04,.022,0,id);batch.box('#e9e6d4',x,y-h/2-.035,z+.04,w+.1,.06,.075,0,id);}else{batch.box('#456d75',x,y,z,.025,h,w,0,id);if(hash(z+id,x+y)>.40)batch.box('#ffe2ad',x+.035,y,z,.012,h*.77,w*.73,0,id,true);batch.box('#ede7d3',x+.02,y-h/2-.035,z,.075,.06,w+.08,0,id);}}
- parkingLot(batch,b){for(const rect of this.parking.parkingVisuals(b)){const p=this.parking.lotPoint(b,rect.u,rect.v),asphalt=['#515f62','#58666a','#465e65'].includes(rect.color),marking=['#e9e6cc','#c5d2c2','#bbc9b9','#94d9aa','#f3ca88','#e5e6d0','#f1ca85','#86d1dc'].includes(rect.color),ground=['#bdc6ae','#9baaa0','#96af8f'].includes(rect.color);const y=ground?.025:asphalt?.065:marking?.102:.085;batch.box(rect.color,p.x-.5,y,p.y-.5,rect.w,.012,rect.h,-(b.rotation||0)*Math.PI/2,b.id,false,asphalt?'night-asphalt':marking?'night-marking':'night-lot-base');}}
+ parkingLot(batch,b){
+  // Separate coplanar parking surfaces in the depth buffer. Drive lanes
+  // remain at the original height so they still meet graded access roads;
+  // underlying paving and parking paint sit in distinct, shallow layers.
+  // This changes visuals only: plot geometry, car poses and parking logic stay put.
+  for(const rect of this.parking.parkingVisuals(b)){
+   const p=this.parking.lotPoint(b,rect.u,rect.v);
+   const asphalt=['#515f62','#58666a','#465e65'].includes(rect.color);
+   const marking=['#e9e6cc','#c5d2c2','#bbc9b9','#94d9aa','#f3ca88','#e5e6d0','#f1ca85','#86d1dc'].includes(rect.color);
+   const ground=['#bdc6ae','#9baaa0','#96af8f'].includes(rect.color);
+   const asphaltY=rect.color==='#515f62'?.057:rect.color==='#465e65'?.061:.065;
+   const markingY=['#94d9aa','#f3ca88','#f1ca85','#86d1dc'].includes(rect.color)?.106:rect.color==='#c5d2c2'?.102:.098;
+   const y=ground?.025:asphalt?asphaltY:marking?markingY:.085;
+   batch.box(rect.color,p.x-.5,y,p.y-.5,rect.w,.012,rect.h,-(b.rotation||0)*Math.PI/2,b.id,false,asphalt?'night-asphalt':marking?'night-marking':'night-lot-base');
+  }
+ }
  building(batch,b,CATALOG,KINDS){
   // Visual-only architecture v5: every component remains within its plot.
   if(this.parking)this.parkingLot(batch,b);
