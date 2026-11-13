@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=smcity-v571-wheel-height-20261113';
+import { TrafficRenderer } from './renderer3d.js?v=smcity-v571-parking-depth-20261113';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
 await import('./game.js?v=smcity-v571-exit-queue-20261113');
 await import('./member.js?v=4ed815769287');
