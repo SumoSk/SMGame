@@ -7884,3 +7884,19 @@ html body #inspector .sm-inspector-heading .tag{opacity:1!important;color:#bce3c
 
 /* Public fast-forward speeds must remain hidden, even when command bar buttons use !important. */
 #cityCommandBar button[data-creator-only-speed][hidden]{display:none!important}
+
+/* Compact construction reference overlay controls. */
+#planningCoverageControls{position:fixed;z-index:94;right:12px;bottom:170px;box-sizing:border-box;width:242px;max-width:calc(100vw - 24px);padding:10px 12px;border:1px solid #5898d66b;border-radius:13px;background:rgba(16,31,48,.97);color:#eef6ff;box-shadow:0 6px 22px #05132330;font:12px/1.45 system-ui,-apple-system,sans-serif}
+#planningCoverageControls[hidden]{display:none!important}
+#planningCoverageControls header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+#planningCoverageControls header strong{font-size:12px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#planningCoverageControls header button{display:grid;place-items:center;flex:0 0 25px;width:25px;height:25px;min-height:25px;padding:0;border:0;border-radius:7px;background:#2c435b;color:#e6f1ff;font:19px/1 system-ui;cursor:pointer}
+#planningCoverageControls .planning-coverage-legend{display:flex;gap:15px;align-items:center;margin-bottom:9px;color:#c6d9eb;font-size:11px}
+#planningCoverageControls .planning-coverage-legend span{display:flex;align-items:center;gap:5px;white-space:nowrap}
+#planningCoverageControls .planning-coverage-legend i{display:inline-block;width:8px;height:8px;border-radius:50%}
+#planningCoverageControls .coverage-blue{background:#398bff}
+#planningCoverageControls .coverage-green{background:#36e58c}
+#planningCoverageControls label{display:flex;justify-content:space-between;gap:8px;align-items:center;color:#c7d9ec;font-size:11px}
+#planningCoverageControls output{color:#f1f7ff;font-weight:650;white-space:nowrap}
+#planningCoverageRadius{display:block;box-sizing:border-box;width:100%;height:24px;margin:2px 0 0;padding:0;accent-color:#398bff;cursor:pointer}
+@media(max-width:600px){#planningCoverageControls{right:8px;width:216px;padding:8px 10px;border-radius:11px;font-size:11px}#planningCoverageControls header{margin-bottom:5px}#planningCoverageControls header strong{font-size:11px}#planningCoverageControls .planning-coverage-legend{gap:12px;margin-bottom:7px;font-size:10px}#planningCoverageControls label{font-size:10px}}

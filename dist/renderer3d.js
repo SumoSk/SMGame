@@ -9801,6 +9801,52 @@ export class TrafficRenderer{
  // the ground tint and at most two line calls; the terrain mesh is unchanged.
  // Existing roads/buildings remain above this thin layer. Visual-only patch:
  // no purchasing, no build restriction, no save schema changes.
+ // Instanced reference marks are cached independently of routes and simulation.
+ updatePlanningCoverage(coverage){
+  if(!coverage?.data){if(this.planningCoverageGroup)this.planningCoverageGroup.visible=false;return;}
+  const data=coverage.data;
+  if(this.planningCoverageSource!==data){
+   if(!this.planningCoverageGroup){this.planningCoverageGroup=new THREE.Group();this.scene.add(this.planningCoverageGroup);}
+   else this.disposeGroup(this.planningCoverageGroup);
+   const group=this.planningCoverageGroup,dummy=new THREE.Object3D();
+   const material=(color,opacity)=>new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthTest:false,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
+   const disc=()=>new THREE.CircleGeometry(1,64).rotateX(-Math.PI/2);
+   const circle=()=>new THREE.RingGeometry(.994,1,64).rotateX(-Math.PI/2);
+   const square=()=>new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2);
+   const frame=()=>new THREE.RingGeometry(.465,.5,4,1,Math.PI/4).rotateX(-Math.PI/2).scale(Math.SQRT2,1,Math.SQRT2);
+   const batch=(points,geometry,color,opacity,order,round=false)=>{
+    if(!points.length){geometry.dispose();return;}
+    const mesh=new THREE.InstancedMesh(geometry,material(color,opacity),points.length);
+    mesh.castShadow=false;mesh.receiveShadow=false;mesh.frustumCulled=false;mesh.renderOrder=order;
+    for(let i=0;i<points.length;i++){
+     const p=points[i];dummy.position.set(p.x,.18,p.z);
+     dummy.scale.set(round?data.radius:p.w+.3,1,round?data.radius:p.h+.3);
+     dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate=true;group.add(mesh);
+   };
+   batch(data.targets,disc(),'#3182ff',.025,40,true);
+   batch(data.targets,circle(),'#398bff',.88,41,true);
+   batch(data.targets,square(),'#3182ff',.10,42);
+   batch(data.targets,frame(),'#5da6ff',.92,43);
+   batch(data.homes,square(),'#2ae18b',.15,44);
+   batch(data.homes,frame(),'#36e58c',.90,45);
+   const previewFill=new THREE.Mesh(disc(),material('#3182ff',.075)),previewRing=new THREE.Mesh(circle(),material('#91c4ff',.95));
+   for(const [i,mesh]of [previewFill,previewRing].entries()){
+    mesh.castShadow=false;mesh.receiveShadow=false;mesh.frustumCulled=false;mesh.renderOrder=46+i;
+    mesh.scale.set(data.radius,1,data.radius);mesh.visible=false;group.add(mesh);
+   }
+   this.planningCoveragePreview=[previewFill,previewRing];this.planningCoveragePreviewKey='';
+   this.planningCoverageSource=data;
+  }
+  this.planningCoverageGroup.visible=true;
+  const p=coverage.preview,key=p?p.x+':'+p.z:'none';
+  if(this.planningCoveragePreviewKey!==key){
+   for(const mesh of this.planningCoveragePreview){mesh.visible=!!p;if(p)mesh.position.set(p.x,.19,p.z);}
+   this.planningCoveragePreviewKey=key;
+  }
+ }
+ 
  updateMapCover(mapCover,state){
   if(!mapCover)return;
   const key=state.city+':'+mapCover.key;
@@ -9852,7 +9898,7 @@ export class TrafficRenderer{
   lines(edgePoints,'#ecf4e9',.21);
   lines(freeEdges,'#c2f4d1',.42);
  }
- render({state,cam,mapCover,hover,drag,roadPreview,demolitionPreview=null,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}this.updateMapCover(mapCover,state);
+ render({state,cam,mapCover,hover,drag,roadPreview,demolitionPreview=null,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true,planningCoverage=null}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}this.updateMapCover(mapCover,state);
  // Fade distant one-pixel sheet boundaries to prevent subpixel crawling.
  if(this.mapCoverGroup){const fade=.25+.75*Math.max(0,Math.min(1,(cam.z-.23)/.45));for(const line of this.mapCoverGroup.children)if(line.userData.mapCoverBaseOpacity!=null)line.material.opacity=line.userData.mapCoverBaseOpacity*fade;}
  const buildKey=state.buildings.size+':'+(state.buildingVisualVersion||0);
@@ -9864,6 +9910,7 @@ export class TrafficRenderer{
  if(heat)this.hideCars();
  else this.cars(state,vehiclePosition,CATALOG,vehicleTimeliness,selected,showCarDiamonds);
   this.preview(state,hover,drag,tool,selected,CATALOG,ROADS,junction,checkBuilding,roadPreview,demolitionPreview);
+  this.updatePlanningCoverage(planningCoverage);
  this.updateSignals(signalColor);this.updateAISignalGlow(state);this.updateGrandSignals();this.updateWeatherLight(state);
  this.updateBuildingDetailLOD(cam);
  const visualNow=performance.now()*.001;

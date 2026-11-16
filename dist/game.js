@@ -3820,8 +3820,9 @@ function updateAISignalPins(){
 function draw(){updateMapBuyPin();updateLandscapeQuickActions();normalizeSelectedCar();const roadPreview=getRoadPreview(),placement=hover&&CATALOG[tool]?assistedBuildingPlacement(tool,hover.x,hover.y):null,visualHover=placement?{...hover,x:placement.x,y:placement.y,placement}:hover,demolitionPreview=getDemolitionPreview();
  // An invalid active road stroke warns once; mere hovering never spams a toast.
  if(drag&&!drag.pan&&ROADS[tool]&&roadPreview?.error===HOME_SIDE_CLEARANCE_ERROR&&!drag.sideGapNoticeShown){drag.sideGapNoticeShown=true;toast(HOME_SIDE_CLEARANCE_ERROR);}
-if(renderer3d){renderer3d.render({state,cam,mapCover:mapCoverPreview(),hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible});updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawMapCover2D(mapCoverPreview());drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
-drawDemolitionPreview2D(demolitionPreview);
+if(renderer3d){renderer3d.render({state,cam,mapCover:mapCoverPreview(),hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible,planningCoverage:planningCoverageData(visualHover)});updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawMapCover2D(mapCoverPreview());drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
+drawPlanningCoverage2D(planningCoverageData(visualHover));
+ drawDemolitionPreview2D(demolitionPreview);
 if(hover&&tool!=='hand'&&!ROADS[tool]){if(CATALOG[tool])drawBuilding({key:tool,x:visualHover.x,y:visualHover.y,rotation:placement.rotation||0},true);else if(!demolitionPreview){const cells=drag?.cells||[owner(id(hover.x,hover.y))];for(const i of cells){const [x,y]=xy(i),s=screen(x,y);ctx.fillStyle=tool.startsWith('erase')?'#df7e6c99':'#fbe3989c';ctx.fillRect(s[0],s[1],T*cam.z,T*cam.z*.78);}}}
 if(state.buildings.size===0){const p=screen(154,143);ctx.fillStyle='#214c3ac9';ctx.font=`500 ${Math.max(12,14*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillText('เมืองใหม่ เริ่มจากถนนเส้นแรก',p[0],p[1]);ctx.font=`${Math.max(10,11*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillStyle='#3f6148';ctx.fillText('ถนนหลัก 8 เลนพร้อมแล้ว · เลือกถนนเล็ก แล้วลากต่อออกมา',p[0],p[1]+22*cam.z);}
 }
@@ -4943,6 +4944,90 @@ function dockSectionFor(currentCategory){
 const BUILD_DOCK_KINDS={home:['home','hotel'],work:['office','factory'],food:['shop','restaurant','mall'],leisure:['park','pub','casino']};
 let openBuildingKind=null;
 let openLandscapeGroup=null;
+
+// Visual planning reference only; the selected radius never changes trips,
+// service reservations, job assignment, capacity, placement rules or saves.
+const planningCoverage={enabled:false,kind:null,radius:25};
+let planningCoverageCache=null,planningCoveragePanelKey='';
+function setPlanningCoverage(kind=null,enabled=true){
+ const kinds=BUILD_DOCK_KINDS[category];
+ planningCoverage.enabled=!!enabled&&!!kinds;
+ planningCoverage.kind=kinds?.includes(kind)?kind:null;
+ renderPlanningCoverageControls();
+}
+function setPlanningCoverageRadius(value){
+ const n=Number(value);if(!Number.isFinite(n))return false;
+ planningCoverage.radius=Math.max(5,Math.min(60,Math.round(n/5)*5));
+ const slider=$('planningCoverageRadius'),valueLabel=$('planningCoverageValue');
+ if(slider)slider.value=String(planningCoverage.radius);
+ if(valueLabel)valueLabel.textContent=planningCoverage.radius+' ช่อง';
+ return true;
+}
+function planningCoverageData(visualHover=null){
+ const allowed=BUILD_DOCK_KINDS[category];
+ if(!planningCoverage.enabled||!allowed)return null;
+ const kinds=planningCoverage.kind&&allowed.includes(planningCoverage.kind)?[planningCoverage.kind]:allowed;
+ const key=[category,kinds.join(','),planningCoverage.radius,state.buildings.size,state.buildingVisualVersion||0,movingBuildingId??''].join(':');
+ if(planningCoverageCache?.state!==state||planningCoverageCache.key!==key){
+  const targets=[],homes=[];
+  for(const b of state.buildings.values()){
+   const t=CATALOG[b.key];if(!t)continue;
+   const bounds=buildingBounds(b),record={id:b.id,x:b.x+bounds.w/2,z:b.y+bounds.h/2,w:bounds.w,h:bounds.h};
+   if(t.residents>0)homes.push(record);
+   if(kinds.includes(t.kind)&&b.id!==movingBuildingId)targets.push(record);
+  }
+  planningCoverageCache={state,key,data:{radius:planningCoverage.radius,targets,homes}};
+ }
+ let preview=null;
+ if(visualHover&&CATALOG[tool]&&kinds.includes(CATALOG[tool].kind)){
+  const ghost={key:tool,x:visualHover.x,y:visualHover.y,rotation:visualHover.placement?.rotation||0};
+  const bounds=buildingBounds(ghost);
+  preview={x:ghost.x+bounds.w/2,z:ghost.y+bounds.h/2};
+ }
+ return {data:planningCoverageCache.data,preview};
+}
+function positionPlanningCoverageControls(){
+ const panel=$('planningCoverageControls');if(!panel||panel.hidden)return;
+ const command=$('cityCommandBar')?.getBoundingClientRect?.(),popup=$('buildVariantPopup');
+ let top=Number.isFinite(command?.top)?command.top:innerHeight-160;
+ if(popup&&!popup.hidden){const rect=popup.getBoundingClientRect?.();if(Number.isFinite(rect?.top))top=Math.min(top,rect.top);}
+ const bottom=Math.max(12,Math.min(innerHeight-120,innerHeight-top+10));
+ panel.style.bottom=bottom+'px';
+}
+function renderPlanningCoverageControls(){
+ const panel=$('planningCoverageControls');if(!panel)return;
+ const visible=planningCoverage.enabled&&!!BUILD_DOCK_KINDS[category];
+ panel.hidden=!visible;if(!visible){planningCoveragePanelKey='';return;}
+ const title=planningCoverage.kind?KINDS[planningCoverage.kind].name:(categories.find(([key])=>key===category)?.[1]||'อาคาร');
+ const label=$('planningCoverageTitle');if(label)label.textContent=title;
+ setPlanningCoverageRadius(planningCoverage.radius);
+ const key=[category,planningCoverage.kind,openBuildingKind,openLandscapeGroup,innerWidth,innerHeight,$('buildDock')?.classList.contains('is-collapsed')].join(':');
+ if(key!==planningCoveragePanelKey){planningCoveragePanelKey=key;positionPlanningCoverageControls();}
+}
+function drawPlanningCoverage2D(coverage){
+ if(!coverage)return;
+ const {data,preview}=coverage;
+ ctx.save();
+ const ring=(p,ghost=false)=>{
+  const at=screen(p.x,p.z),rx=Math.abs(T*cam.z*data.radius),ry=rx*.78;
+  ctx.beginPath();ctx.ellipse(at[0],at[1],rx,ry,0,0,Math.PI*2);
+  ctx.fillStyle=ghost?'rgba(49,130,255,.075)':'rgba(49,130,255,.025)';ctx.fill();
+  ctx.strokeStyle=ghost?'#91c4ff':'#398bff';ctx.lineWidth=ghost?2:1.5;
+  ctx.setLineDash(ghost?[6,4]:[]);ctx.stroke();ctx.setLineDash([]);
+ };
+ const plot=(p,home=false)=>{
+  const pts=[[p.x-p.w/2,p.z-p.h/2],[p.x+p.w/2,p.z-p.h/2],[p.x+p.w/2,p.z+p.h/2],[p.x-p.w/2,p.z+p.h/2]].map(([x,z])=>screen(x,z));
+  ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(...q):ctx.moveTo(...q));ctx.closePath();
+  ctx.fillStyle=home?'rgba(42,225,139,.17)':'rgba(49,130,255,.13)';ctx.fill();
+  ctx.strokeStyle=home?'#36e58c':'#5da6ff';ctx.lineWidth=2;ctx.stroke();
+ };
+ for(const p of data.targets)ring(p);
+ for(const p of data.targets)plot(p);
+ for(const p of data.homes)plot(p,true);
+ if(preview)ring(preview,true);
+ ctx.restore();
+}
+
 function dockVisibleItems(group,currentCategory){
  return dockItems(currentCategory).map(item=>({...item,category:currentCategory}));
 }
@@ -5047,6 +5132,7 @@ function renderTools(){
  tray.scrollLeft=scroll;
  renderBuildingVariants();
  updateCityQuickModes();
+ renderPlanningCoverageControls();
 }
 // The building/control dock is presentation-only; selected tools and the
 // simulation remain untouched while the dock is folded.
@@ -5060,8 +5146,9 @@ function setDockCollapsed(collapsed){
  button.setAttribute('aria-label',collapsed?'กางแถบเครื่องมือ':'หุบแถบเครื่องมือ');
  if(icon)icon.textContent=collapsed?'⌃':'⌄';
  if(label)label.textContent=collapsed?'กางเครื่องมือ':'หุบเครื่องมือ';
+ planningCoveragePanelKey='';renderPlanningCoverageControls();
 }
-function selectTool(t,existingBuilding=null){landscapeQuickAnchor=null;if(t.startsWith('tree:')&&t.slice(5)!==currentTreeKind)landscapeRotation=0;if(landscapeQuickActions)landscapeQuickActions.hidden=true;if(t==='hand')closeBuildingVariants();movingLandscape=null;const quota=buildingQuotaStatus(t);if(quota.locked&&!(existingBuilding&&state.buildings.get(existingBuilding.id)===existingBuilding&&existingBuilding.key===t)){showBuildingQuotaWarning(t);$('hint').textContent=quota.message;return false;}movingBuildingId=null;$('cancelMoveBuilding').hidden=true;if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · เกมช่วยจัดตำแหน่งติดถนนใกล้เมาส์หรือนิ้ว`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'วางต้นไม้ได้ทุกตำแหน่งในแผนที่ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลัก · รถบนถนนที่รื้อจะกลับเข้าเมืองใหม่':t==='erase'?'แตะตึกเพื่อรื้อ หรือลากตามถนนเพื่อลบต่อเนื่อง · ยืนยันก่อนรื้อทุกครั้ง':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูPerformance ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถแล้วกด ดูข้อมูล · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}if(t.startsWith('tree:')){const p=hover?[hover.rawX??hover.x,hover.rawY??hover.y]:[cam.x,cam.y];hover={x:Math.floor(p[0]),y:Math.floor(p[1]),rawX:p[0],rawY:p[1],snap:landscapeSnap,decorationRotation:landscapeRotation};$('inspector').classList.add('hidden');updateLandscapeQuickActions();}}
+function selectTool(t,existingBuilding=null){setPlanningCoverage(CATALOG[t]?.kind,!!CATALOG[t]);landscapeQuickAnchor=null;if(t.startsWith('tree:')&&t.slice(5)!==currentTreeKind)landscapeRotation=0;if(landscapeQuickActions)landscapeQuickActions.hidden=true;if(t==='hand')closeBuildingVariants();movingLandscape=null;const quota=buildingQuotaStatus(t);if(quota.locked&&!(existingBuilding&&state.buildings.get(existingBuilding.id)===existingBuilding&&existingBuilding.key===t)){showBuildingQuotaWarning(t);$('hint').textContent=quota.message;return false;}movingBuildingId=null;$('cancelMoveBuilding').hidden=true;if(t.startsWith('tree:'))currentTreeKind=t.slice(5);tool=t;trackingAt=-Infinity;if(t==='citizenDashboard')showCitizenDashboard();else hideCitizenDashboard();if(t==='touristDashboard')showTouristDashboard();else hideTouristDashboard();if(trackingLayer)trackingLayer.style.display=t==='tracking'?'block':'none';renderTools();$('hint').textContent=ROADS[t]?`ลากจากถนนเดิมไปยังจุดที่ต้องการ · ${ROADS[t].name} ${ROADS[t].lanes} เลน · กด Esc เพื่อยกเลิก`:CATALOG[t]?`${CATALOG[t].name} · แปลง ${CATALOG[t].plotWidth}×${CATALOG[t].plotHeight} · ที่จอด ${CATALOG[t].parkingCapacity} คัน · ${money(CATALOG[t].cost)} · ค่าดูแล ${money(CATALOG[t].maint)} / วัน · เกมช่วยจัดตำแหน่งติดถนนใกล้เมาส์หรือนิ้ว`:t.startsWith('tree:')||t==='treeRow'||t==='treeBrush'?'วางต้นไม้ได้ทุกตำแหน่งในแผนที่ · ปลูกเป็นแนวหรือกลุ่มด้วยการลาก':t==='eraseTree'?'แตะต้นไม้เพื่อเอาออก · ไม่กระทบอาคารและถนน':t==='eraseRoad'?'ลากผ่านถนนที่จะรื้อ · ยืนยันครั้งเดียว · ข้ามถนนหลัก · รถบนถนนที่รื้อจะกลับเข้าเมืองใหม่':t==='erase'?'แตะตึกเพื่อรื้อ หรือลากตามถนนเพื่อลบต่อเนื่อง · ยืนยันก่อนรื้อทุกครั้ง':t==='tracking'?'โหมดติดตาม · เส้นสีจากรถไปตามเลนถึงปลายทาง · แตะรถดูรายละเอียด · Esc หรือแตะสองครั้งเพื่อปิด':t==='signalManage'?'โหมดไฟจราจร · คลิกที่ทางแยกเพื่อควบคุมไฟเอง หรือปรับค่าเริ่มต้นของทั้งเมือง':t==='citizenDashboard'?'โหมดประชาชน · ดูPerformance ปัญหา และกิจวัตรทั้งเมือง · กดรายชื่อเพื่อดูรายละเอียด':t==='hand'?'ลากแผนที่เพื่อเลื่อน · คลิกอาคารหรือรถแล้วกด ดูข้อมูล · หมุนล้อเพื่อซูม':'เลือกสิ่งที่ต้องการรื้อ · ระบบจะแสดงค่ารื้อก่อนยืนยัน';if(t==='signalManage'){selected={kind:'signals'};renderInspector();}if(t.startsWith('tree:')){const p=hover?[hover.rawX??hover.x,hover.rawY??hover.y]:[cam.x,cam.y];hover={x:Math.floor(p[0]),y:Math.floor(p[1]),rawX:p[0],rawY:p[1],snap:landscapeSnap,decorationRotation:landscapeRotation};$('inspector').classList.add('hidden');updateLandscapeQuickActions();}}
 let dialogRevision=0;
 function panelHeading(icon,title,subtitle=''){
  return '<header class="menu-heading"><span class="menu-logo" aria-hidden="true">'+icon+'</span><div><h2>'+title+'</h2>'+(subtitle?'<p class="panel-subtitle">'+subtitle+'</p>':'')+'</div></header>';
@@ -8897,6 +8984,7 @@ $('subcategories').onclick=e=>{
  const next=button.dataset.category;
  closeBuildingVariants();category=next;
  selectTool('hand');
+ setPlanningCoverage(null,!!BUILD_DOCK_KINDS[next]);
 };
 $('tools').onclick=e=>{
  const landscape=e.target.closest('[data-landscape-group]');
@@ -8908,7 +8996,10 @@ $('tools').onclick=e=>{
  const type=e.target.closest('[data-build-kind]');
  if(type){
   if(CATALOG[tool]?.kind===type.dataset.buildKind){cancelInteraction();return;}
-  openBuildingKind=openBuildingKind===type.dataset.buildKind?null:type.dataset.buildKind;
+  const kind=type.dataset.buildKind,closing=openBuildingKind===kind;
+  if(!closing)selectTool('hand');
+  openBuildingKind=closing?null:kind;
+  setPlanningCoverage(openBuildingKind,!closing);
   renderTools();
   return;
  }
@@ -8945,11 +9036,14 @@ $('buildVariantPopup').onclick=e=>{
 };
 document.addEventListener('pointerdown',e=>{
  if(!openBuildingKind&&!openLandscapeGroup)return;
- if(e.target.closest?.('#buildVariantPopup,#tools,#subcategories'))return;
+ if(e.target.closest?.('#buildVariantPopup,#tools,#subcategories,#planningCoverageControls'))return;
  closeBuildingVariants();
  renderTools();
 });
 window.addEventListener('resize',positionBuildingVariants);
+window.addEventListener('resize',()=>{planningCoveragePanelKey='';renderPlanningCoverageControls();});
+$('planningCoverageRadius').oninput=e=>setPlanningCoverageRadius(e.target.value);
+$('planningCoverageClose').onclick=()=>setPlanningCoverage(null,false);
 $('tools').addEventListener('scroll',positionBuildingVariants,{passive:true});
 $('cityQuickModes').onclick=event=>{
  const button=event.target.closest('[data-city-shortcut]');
