@@ -4005,11 +4005,11 @@ function dailyPopulationMetric(value,change){
  return fmt(value)+' <span class="metric-delta" data-change="'+(delta>0?'up':delta<0?'down':'flat')+'" title="เทียบยอดก่อน 06:00 น.">('+(delta>0?'+':'')+fmt(delta)+')</span>';
 }
 function creatorCanUseFastForward(){return window.SMGameCreatorCanOpen===true&&!!window.SMGameAccount?.user?.id;}
+function canUseTimeSpeed(speed){return speed<=5||speed===20||creatorCanUseFastForward();}
 function syncAvailableSpeeds(){
- const creator=creatorCanUseFastForward();
- if(!creator&&state.speed>5)state.speed=2;
+ if(!canUseTimeSpeed(state.speed))state.speed=2;
  for(const button of document.querySelectorAll('[data-speed]')){
-  const unavailable=+button.dataset.speed>5&&!creator;
+  const unavailable=!canUseTimeSpeed(+button.dataset.speed);
   button.hidden=unavailable;button.style.display=unavailable?'none':'';
  }
 }
@@ -8880,7 +8880,16 @@ function initCameraPitchRail(){
  $('cameraPitchReset').onclick=resetCameraAngle;syncCameraPitchRail();
 }
 initCameraPitchRail();
-function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)tick(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();syncCameraPitchRail();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
+// At 20x, keep road physics and intersections on small time slices.
+// On slower devices, slow the clock rather than skip collision checks or carry a backlog.
+function simulateFrame(dt){
+ if(state.speed!==20){tick(dt);return;}
+ const maxStepDt=.4/(state.speed*NORMAL_SPEED_SCALE);
+ const steps=Math.min(4,Math.max(1,Math.ceil(dt/maxStepDt)));
+ const safeDt=Math.min(dt,steps*maxStepDt);
+ for(let i=0;i<steps;i++)tick(safeDt/steps);
+}
+function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)simulateFrame(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();syncCameraPitchRail();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
 window.addEventListener('resize',resize);
 $('categories').onclick=()=>{}; // Redundant group row retired; construction tabs are direct.
 $('subcategories').onclick=e=>{
@@ -9016,7 +9025,7 @@ $('citizensDashboardBody').onclick=e=>{
  const jump=e.target.closest('[data-citizen-jump]');
  if(jump?.dataset.citizenJump==='issues'){citizenFilter='issues';citizenPage=0;renderCitizenDashboard(true);$('citizensDashboardBody').querySelector?.('.citizen-results')?.scrollIntoView?.({block:'nearest'});return;}
  if(e.target.closest('[data-citizen-more]')){citizenPage++;renderCitizenDashboard(true);}
-};$('pause').onclick=()=>{state.speed=state.speed?0:1;updateUI();};document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{const speed=+b.dataset.speed;if(speed>5&&!creatorCanUseFastForward())return;state.speed=speed;updateUI();});$('closeInspector').onclick=()=>{selected=null;$('inspector').classList.add('hidden');follow=null;updateBuildingQuickActions();};document.querySelectorAll('[data-inspect]').forEach(b=>b.onclick=()=>{selected={kind:b.dataset.inspect};renderInspector();});
+};$('pause').onclick=()=>{state.speed=state.speed?0:1;updateUI();};document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{const speed=+b.dataset.speed;if(!canUseTimeSpeed(speed))return;state.speed=speed;updateUI();});$('closeInspector').onclick=()=>{selected=null;$('inspector').classList.add('hidden');follow=null;updateBuildingQuickActions();};document.querySelectorAll('[data-inspect]').forEach(b=>b.onclick=()=>{selected={kind:b.dataset.inspect};renderInspector();});
 let pointers=new Map(),pinch=null,pendingTap=null,lastTap=null;
 let mouseOrbit=null,mouseChordHeld=false,mouseRightPending=false;
 // Count completed two-button mouse rotations, not frames or stationary clicks.
