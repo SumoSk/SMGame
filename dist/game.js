@@ -3820,8 +3820,8 @@ function updateAISignalPins(){
 function draw(){updateMapBuyPin();updateLandscapeQuickActions();normalizeSelectedCar();const roadPreview=getRoadPreview(),placement=hover&&CATALOG[tool]?assistedBuildingPlacement(tool,hover.x,hover.y):null,visualHover=placement?{...hover,x:placement.x,y:placement.y,placement}:hover,demolitionPreview=getDemolitionPreview();
  // An invalid active road stroke warns once; mere hovering never spams a toast.
  if(drag&&!drag.pan&&ROADS[tool]&&roadPreview?.error===HOME_SIDE_CLEARANCE_ERROR&&!drag.sideGapNoticeShown){drag.sideGapNoticeShown=true;toast(HOME_SIDE_CLEARANCE_ERROR);}
-if(renderer3d){renderer3d.render({state,cam,mapCover:mapCoverPreview(),hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible,planningCoverage:planningCoverageData(visualHover)});updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawMapCover2D(mapCoverPreview());drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
-drawPlanningCoverage2D(planningCoverageData(visualHover));
+if(renderer3d){renderer3d.render({state,cam,mapCover:mapCoverPreview(),hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible,planningCoverage:planningCoverageData(visualHover)});updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawMapCover2D(mapCoverPreview());drawPlanningCoverage2D(planningCoverageData(visualHover),'ground');drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
+drawPlanningCoverage2D(planningCoverageData(visualHover),'highlights');
  drawDemolitionPreview2D(demolitionPreview);
 if(hover&&tool!=='hand'&&!ROADS[tool]){if(CATALOG[tool])drawBuilding({key:tool,x:visualHover.x,y:visualHover.y,rotation:placement.rotation||0},true);else if(!demolitionPreview){const cells=drag?.cells||[owner(id(hover.x,hover.y))];for(const i of cells){const [x,y]=xy(i),s=screen(x,y);ctx.fillStyle=tool.startsWith('erase')?'#df7e6c99':'#fbe3989c';ctx.fillRect(s[0],s[1],T*cam.z,T*cam.z*.78);}}}
 if(state.buildings.size===0){const p=screen(154,143);ctx.fillStyle='#214c3ac9';ctx.font=`500 ${Math.max(12,14*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillText('เมืองใหม่ เริ่มจากถนนเส้นแรก',p[0],p[1]);ctx.font=`${Math.max(10,11*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillStyle='#3f6148';ctx.fillText('ถนนหลัก 8 เลนพร้อมแล้ว · เลือกถนนเล็ก แล้วลากต่อออกมา',p[0],p[1]+22*cam.z);}
@@ -4947,7 +4947,7 @@ let openLandscapeGroup=null;
 
 // Visual planning reference only; the selected radius never changes trips,
 // service reservations, job assignment, capacity, placement rules or saves.
-const planningCoverage={enabled:false,kind:null,radius:25,opacity:.45};
+const planningCoverage={enabled:false,kind:null,radius:25,opacity:.10};
 const PLANNING_COVERAGE_REFERENCE_CAPACITY=20;
 function planningCoverageCapacity(t){return Math.max(1,t?.service||t?.beds||t?.residents||t?.jobs||1);}
 function planningCoverageRadiusFor(t){
@@ -4971,7 +4971,7 @@ function setPlanningCoverageRadius(value){
 }
 function setPlanningCoverageOpacity(value){
  const n=Number(value);if(!Number.isFinite(n))return false;
- const percent=Math.max(10,Math.min(80,Math.round(n/5)*5));
+ const percent=Math.max(2,Math.min(80,Math.round(n/2)*2));
  planningCoverage.opacity=percent/100;
  const slider=$('planningCoverageOpacity'),label=$('planningCoverageOpacityValue');
  if(slider)slider.value=String(percent);
@@ -5021,9 +5021,9 @@ function renderPlanningCoverageControls(){
  const key=[category,planningCoverage.kind,openBuildingKind,openLandscapeGroup,innerWidth,innerHeight,$('buildDock')?.classList.contains('is-collapsed')].join(':');
  if(key!==planningCoveragePanelKey){planningCoveragePanelKey=key;positionPlanningCoverageControls();}
 }
-function drawPlanningCoverage2D(coverage){
+function drawPlanningCoverage2D(coverage,layer='all'){
  if(!coverage)return;
- const {data,preview}=coverage,opacity=Math.max(.1,Math.min(.8,coverage.opacity??.45));
+ const {data,preview}=coverage,opacity=Math.max(.02,Math.min(.8,coverage.opacity??.10));
  ctx.save();
  const ring=(p,ghost=false)=>{
   const at=screen(p.x,p.z),rx=Math.abs(T*cam.z*(p.radius??data.radius)),ry=rx*.78;
@@ -5038,10 +5038,15 @@ function drawPlanningCoverage2D(coverage){
   ctx.fillStyle=home?'rgba(42,225,139,.17)':'rgba(49,130,255,.13)';ctx.fill();
   ctx.strokeStyle=home?'#36e58c':'#5da6ff';ctx.lineWidth=2;ctx.stroke();
  };
- for(const p of data.targets)ring(p);
- for(const p of data.targets)plot(p);
- for(const p of data.homes)plot(p,true);
- if(preview)ring(preview,true);
+ // Paint reference discs before roads/buildings; keep locator frames separate.
+ if(layer!=='highlights'){
+  for(const p of data.targets)ring(p);
+  if(preview)ring(preview,true);
+ }
+ if(layer!=='ground'){
+  for(const p of data.targets)plot(p);
+  for(const p of data.homes)plot(p,true);
+ }
  ctx.restore();
 }
 
