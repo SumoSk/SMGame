@@ -35,22 +35,69 @@ const result={source:process.env.SMCITY_SOURCE,passed:[]};
  g.state.time=361;assert.equal(g.signalStatus(n).incoming,0);assert.equal(g.intersectionAllowed(waiter,b.pos),false);assert.equal(waiter.lastJunctionDenial.code,'conflicting_junction_lease');
  result.passed.push('live junction leases still protect an admitted car after duration edits');
 }
-{
+function aiDemand(counts){
  const n=cross();g.state.time=400;g.installAISignal(n);
- const ways=[Array.from({length:25},(_,i)=>g.id(138+i,150)),Array.from({length:25},(_,i)=>g.id(150,138+i)),Array.from({length:25},(_,i)=>g.id(162-i,150))];let vid=1;
- for(let d=0;d<3;d++)for(let k=0;k<(d===2?1:20);k++){const v=car(vid++,ways[d]);v.pos=8;v.wait=2;}
- const served={0:[],1:[],2:[]};let phase='clear',slot=-1,changedAt=400;
+ const ways=[Array.from({length:25},(_,i)=>g.id(138+i,150)),Array.from({length:25},(_,i)=>g.id(150,138+i)),Array.from({length:25},(_,i)=>g.id(162-i,150))];
+ const cars=ways.map(()=>[]);let vid=1;
+ for(let d=0;d<counts.length;d++)for(let k=0;k<counts[d];k++){const v=car(vid++,ways[d]);v.pos=8;v.wait=2;cars[d].push(v);}
+ return {n,ways,cars,nextId:vid};
+}
+{
+ const {n,cars}=aiDemand([40,4,1]);
+ const st=g.signalSettings(n);st.smartLast=st.smartLast.map(()=>-1000000);
+ for(const v of [...cars[1],...cars[2]])v.wait=500;
+ let firstGreen=null;
  for(let k=0;k<1600;k++){
-  g.state.time=400+k*.7;g.smartSignalStep();const st=g.signalSettings(n),status=g.signalStatus(n);
+  g.state.time=400+k*.7;g.smartSignalStep();
   const colors=[0,1,2,3].map(d=>g.signalColor(n,d));assert(colors.filter(c=>c==='green').length<=1);
-  if(st.smartPhase!==phase||st.smartSlot!==slot){
-   const elapsed=g.state.time-changedAt;if(phase==='green')assert(elapsed>=5-1e-6&&elapsed<=18.7+1e-6);if(phase==='yellow'||phase==='clear')assert(elapsed>=1-1e-6);
-   if(st.smartPhase==='green')served[status.incoming].push(g.state.time);
-   phase=st.smartPhase;slot=st.smartSlot;changedAt=g.state.time;
-  }
+  const status=g.signalStatus(n);
+  if(status.phase>=0&&!status.yellow){
+   assert.equal(status.incoming,0,'the dominant queue must retain green despite old minority demand');
+   firstGreen??=g.state.time;
+  }else if(firstGreen!==null)assert.fail('a dominant queue must not be interrupted by a maximum-green timer');
  }
- const gaps={};for(const d of [0,1,2]){assert(served[d].length>10,'every demanded approach must repeatedly receive green');const times=served[d];gaps[d]=Math.max(times[0]-400,...times.slice(1).map((t,i)=>t-times[i]));assert(gaps[d]<90,'maximum observed service interval must stay bounded');}
- result.fairness={minutes:1120,greenCounts:Object.fromEntries(Object.entries(served).map(([d,t])=>[d,t.length])),largestServiceIntervals:gaps};result.passed.push('sustained demand 20/20/1 gives every approach repeated green and preserves minimum/yellow/clear phases');
+ assert(firstGreen!==null);assert(g.state.time-firstGreen>1100,'green must remain continuous beyond 18, 20 and 240 game minutes');
+ result.pressurePriority={minutes:g.state.time-firstGreen,dominantCars:40,minorityCars:5,forcedTurns:0};
+ // Once the dominant queue drains, reassign to the next largest queue through
+ // the full yellow and all-red clearance, rather than keeping an empty green.
+ for(const v of cars[0])g.state.vehicles.delete(v.id);
+ let phase=st.smartPhase,changedAt=g.state.time,sawYellow=false,sawClear=false,servedNext=false;
+ for(let k=0;k<12;k++){
+  g.state.time+=.7;g.smartSignalStep();const status=g.signalStatus(n);
+  if(st.smartPhase!==phase){
+   if(phase==='yellow'||phase==='clear')assert(g.state.time-changedAt>=1-1e-6);
+   phase=st.smartPhase;changedAt=g.state.time;
+  }
+  if(st.smartPhase==='yellow')sawYellow=true;
+  if(st.smartPhase==='clear')sawClear=true;
+  if(status.phase>=0&&!status.yellow&&status.incoming===1){servedNext=true;break;}
+  assert([0,1,2,3].filter(d=>g.signalColor(n,d)==='green').length<=1);
+ }
+ assert(sawYellow&&sawClear&&servedNext,'a drained queue must yield safely to the next largest queue');
+ result.passed.push('40/4/1 demand keeps the dominant approach green for over 1100 minutes with no forced minority turn, then safely yields when it drains');
+}
+{
+ const {n}=aiDemand([10,10,0]);let first=null,since=null;
+ for(let k=0;k<400;k++){
+  g.state.time=400+k*.7;g.smartSignalStep();const st=g.signalSettings(n),status=g.signalStatus(n);
+  if(status.phase>=0&&!status.yellow){first??=status.incoming;since??=st.smartSince;assert.equal(status.incoming,first);assert.equal(st.smartSince,since);}
+  else if(first!==null)assert.fail('equal pressure must not impose a hidden maximum-green timer');
+ }
+ assert(since!==null);assert(g.state.time-since>250);
+ result.passed.push('equal live pressure retains the current green without a hidden rotation timer');
+}
+{
+ const {n,ways,nextId}=aiDemand([6,1,0]);
+ while(g.signalSettings(n).smartPhase!=='green'){g.state.time+=.7;g.smartSignalStep();}
+ const since=g.signalSettings(n).smartSince;assert.equal(g.signalStatus(n).incoming,0);
+ for(let k=0;k<20;k++){const v=car(nextId+k,ways[1]);v.pos=8;v.wait=2;}
+ g.state.time=since+4.9;g.smartSignalStep();assert.equal(g.signalSettings(n).smartPhase,'green');assert.equal(g.signalStatus(n).incoming,0);
+ g.state.time=since+5.6;g.smartSignalStep();assert.equal(g.signalSettings(n).smartPhase,'yellow');
+ g.state.time=since+6.3;g.smartSignalStep();assert.equal(g.signalSettings(n).smartPhase,'yellow');
+ g.state.time=since+7;g.smartSignalStep();assert.equal(g.signalSettings(n).smartPhase,'clear');assert.equal(g.signalStatus(n).phase,-1);
+ g.state.time=since+7.7;g.smartSignalStep();assert.equal(g.signalStatus(n).phase,-1);
+ g.state.time=since+8.4;g.smartSignalStep();assert.equal(g.signalSettings(n).smartPhase,'green');assert.equal(g.signalStatus(n).incoming,1);
+ result.passed.push('a newly heavier queue wins after minimum green, full yellow and all-red clearance');
 }
 {
  const n=cross();for(let k=0;k<320;k++){g.state.time=360+k*.1;const colors=[0,1,2,3].map(d=>g.signalColor(n,d));assert(colors.filter(c=>c==='green').length<=1);for(let d=0;d<4;d++)for(let l=0;l<4;l++)assert.equal(g.signalColor(n,d,l),colors[d]);}

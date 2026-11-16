@@ -2386,7 +2386,8 @@ function roadColor(r){return r.wait>4?'#363b38':r.wait>1?'#e36351':r.load>.75?'#
 // Split phasing: one approach is green at a time, every lane from that approach.
 const SIGNAL_YELLOW_MINUTES=1,SIGNAL_CLEAR_MINUTES=1,SIGNAL_MIN_GREEN=5,SIGNAL_MAX_GREEN=240;
 const RECOMMENDED_SIGNAL_GREEN_MINUTES=6;
-const AI_SIGNAL_PRICE=1000000,AI_MIN_GREEN=5,AI_MAX_GREEN=18,AI_POLL_MINUTES=.65,AI_FAIR_WAIT=20;
+// AI green has no maximum duration; live queue pressure decides when to yield.
+const AI_SIGNAL_PRICE=1000000,AI_MIN_GREEN=5,AI_POLL_MINUTES=.65;
 let nextAISignalPoll=-Infinity;
 // 'incoming' describes travel heading, so its source approach is opposite.
 const SIGNAL_DIRECTION_NAMES=['จากทิศตะวันตก','จากทิศเหนือ','จากทิศตะวันออก','จากทิศใต้'];
@@ -2563,6 +2564,25 @@ function aiSignalQueuePressure(){
  }
  return demands;
 }
+function aiSignalQueueScore(q){
+ // Queue volume is primary. Waiting cars add pressure, but a long-red timer
+ // never overrides a denser approach. Retain the downstream blockage penalty.
+ return q?.cars>0?Math.max(0,q.cars*4+q.queued-q.blocked*4):-Infinity;
+}
+function aiSignalQueueWinner(queues,last,lastServed){
+ let winner=-1,top=-Infinity,oldest=Infinity,nearest=Infinity;
+ for(let j=0;j<queues.length;j++){
+  if(!queues[j].cars)continue;
+  const score=aiSignalQueueScore(queues[j]),served=Number.isFinite(lastServed[j])?lastServed[j]:-Infinity;
+  const turn=(j-last+queues.length)%queues.length||queues.length;
+  // Last-service time only breaks equal-pressure ties; it cannot promote a
+  // lightly used approach over a heavier queue, regardless of how long it waits.
+  if(score>top||score===top&&(served<oldest||served===oldest&&turn<nearest)){
+   winner=j;top=score;oldest=served;nearest=turn;
+  }
+ }
+ return winner;
+}
 function smartSignalStep(){
  if(state.time<nextAISignalPoll)return;
  nextAISignalPoll=state.time+AI_POLL_MINUTES;
@@ -2575,14 +2595,12 @@ function smartSignalStep(){
   const index=Math.max(0,Math.min(slots.length-1,st.smartSlot??-1));
   if(st.smartPhase==='green'){
    const elapsed=Math.max(0,now-(st.smartSince??now));
-   const current=queues[index],otherDemand=queues.some((q,j)=>j!==index&&q.cars>0);
    if(elapsed<AI_MIN_GREEN)continue;
-   // Hold green to clear queues, but cap it so others aren't starved.
-   if(elapsed<AI_MAX_GREEN&&current?.cars>0&&
-    (!otherDemand||elapsed<AI_MIN_GREEN+Math.min(8,current.cars*.75))){
-    st.smartUntil=now+AI_POLL_MINUTES;continue;
-   }
-   if(elapsed<8&&!otherDemand&&current?.cars===0){
+   const winner=aiSignalQueueWinner(queues,index,st.smartLast),current=queues[index];
+   // Keep green for as long as this queue is heaviest. Equal pressure also
+   // keeps the current green: there is no maximum-green or forced-turn timer.
+   if(winner<0||winner===index||current?.cars>0&&
+    aiSignalQueueScore(current)>=aiSignalQueueScore(queues[winner])){
     st.smartUntil=now+AI_POLL_MINUTES;continue;
    }
    st.smartPhase='yellow';st.smartUntil=now+SIGNAL_YELLOW_MINUTES;continue;
@@ -2592,25 +2610,9 @@ function smartSignalStep(){
    st.smartPhase='clear';st.smartUntil=now+SIGNAL_CLEAR_MINUTES;continue;
   }
   if(now<st.smartUntil)continue;
-  // Favor busy and long-waiting approaches; otherwise rotate.
   const last=st.smartSlot??-1;
-  let winner=-1,top=-Infinity;
-  for(let j=0;j<slots.length;j++){
-   const q=queues[j],age=Math.max(0,now-(st.smartLast[j]??now)),rotate=(j-last+slots.length)%slots.length;
-   const score=q.cars? q.cars*3+q.queued*2+Math.min(36,age)*.42-q.blocked*4
-    : -25+rotate*.05;
-   if(score>top){top=score;winner=j;}
-  }
-  if(!queues.some(q=>q.cars))winner=(last+1)%slots.length;
-  // Once an approach is overdue, serve the oldest demand before density scores.
-  // This also applies when two busy approaches alternate winning. Ties rotate.
-  let overdue=-1,oldest=-Infinity,nearest=Infinity;
-  for(let j=0;j<slots.length;j++){
-   if(!queues[j].cars)continue;
-   const age=Math.max(0,now-(st.smartLast[j]??now)),turn=(j-last+slots.length)%slots.length||slots.length;
-   if(age>=AI_FAIR_WAIT&&(age>oldest||age===oldest&&turn<nearest)){overdue=j;oldest=age;nearest=turn;}
-  }
-  if(overdue>=0)winner=overdue;
+  let winner=aiSignalQueueWinner(queues,last,st.smartLast);
+  if(winner<0)winner=(last+1)%slots.length;
   st.smartPhase='green';st.smartSlot=winner;st.smartSince=now;
   st.smartUntil=now+AI_MIN_GREEN;st.smartLast[winner]=now;
  }
@@ -5136,7 +5138,7 @@ function signalInspector(i){
   <label for="signalNS">ทิศแนวตั้ง <span><input class="signal-minutes" id="signalNS" type="number" min="5" max="240" value="${setting.northSouth}"> นาที</span></label></div>
   <p class="signal-note">เปิดเขียวทีละทิศ ทุกเลนออกพร้อมกัน · เหลือง ${SIGNAL_YELLOW_MINUTES} นาที · แดงเคลียร์ ${SIGNAL_CLEAR_MINUTES} นาที · รอบ ${signalCycle(i)} นาทีเกม</p>`+
   (smart?'':action('บันทึกเวลาไฟแยกนี้','signal-save',i))+'</div></details>'+
-  (smart?'<p class="signal-note">AI ตรวจคิวรถอัตโนมัติ · เขียวครั้งละ 5–18 นาทีเกม · ยังคงไฟเหลืองและช่วงเคลียร์แยก</p>':
+  (smart?'<p class="signal-note">AI ให้ฝั่งรถติดมากไปก่อน · ถือเขียวต่อขณะคิวหนักกว่า · คงไฟเหลืองและช่วงเคลียร์แยก</p>':
    action('AI + อัปเกรดแยก · ฿1,000,000','signal-ai-buy',i))+
   (smart?'':manual?`<div class="signal-manual">${action('สลับไป '+signalSlotName(next),'signal-switch',i)}${action('กลับสู่ระบบอัตโนมัติ','signal-auto',i)}</div>`:
    action('ควบคุมไฟเอง','signal-manual',i))+
