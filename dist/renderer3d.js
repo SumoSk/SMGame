@@ -469,13 +469,16 @@ function mountainHeight(x,z){
  return h;
 }
 
-// SMCITY premium car visuals 2026-10-25.
+// SMCITY modern luxury fleet 2026-11-17.
 // Eight original citizen vehicle classes + one dedicated VISUAL taxi variant.
 // Citizen trait weights are intentionally untouched; tourist taxi is not a
 // ninth random citizen class.
 const VEHICLE_TYPES=['compact','sedan','pickup','suv','premium','sport','luxury','van','touristTaxi','f1','truck6','truck8','roadTrain'];
 // Render-only scaling for all moving/parked cars and LOD models. No physics changes.
-const VEHICLE_VISUAL_SCALE=.80;
+// Increase the existing 80% models by exactly 20%; every fleet/LOD shares this scale.
+const VEHICLE_VISUAL_SCALE=.96;
+// Keep model detail 25% farther out before a distance-based LOD downgrade.
+const CAR_LOD_DISTANCE_SCALE=1.25;
 const VEHICLE_WEIGHTS=[[26,36,20,10,4,1,1,2],[11,16,42,20,5,1,1,4],[7,12,11,24,33,6,5,2],[2,4,5,10,25,24,28,2]];
 const VEHICLE_STYLES=[
  [.49,.238,.125,-.028,.303,.118], // compact hatchback
@@ -495,14 +498,14 @@ const VEHICLE_STYLES=[
  [.615,.274,.133,-.042,.337,.135] // low-poly yellow taxi sedan with roof sign
 ];
 const VEHICLE_PALETTES=[
- ['#ffa52e','#27b8e5','#ff6470','#9bdc4e','#f7f8f5','#9774f0'],
- ['#f3f7fa','#2475d4','#e64651','#314a67','#e6b76a','#26a6a6'],
- ['#f26c3f','#2188c4','#fcf7ef','#304963','#e3b13c','#28a76c'],
- ['#f28d33','#2c85ce','#edf7fa','#485d89','#46b77b','#b45cc9'],
- ['#164576','#f3f5f6','#303c53','#89b6d1','#922d4a','#bdccd9'],
- ['#ff303f','#ffd02b','#176fdc','#ffffff','#ff702c','#8246f4'],
- ['#172137','#f6f1e7','#273a5b','#b99b6d','#651f39','#c4dbe7'],
- ['#f4f5ee','#387fc0','#f2e1d0','#d95846','#6eafbb','#304867'],
+ ['#eff2ec','#344c63','#a7b4bd','#263039','#a92f3d','#ceb993'],
+ ['#f0f3f3','#243b53','#394650','#a4b1b8','#c8b99d','#5e7377'],
+ ['#edece5','#25343e','#73848c','#344f66','#b5a082','#3e5e50'],
+ ['#e7edf0','#263440','#70858f','#9d9890','#354c42','#633f49'],
+ ['#173e58','#edf1f0','#303941','#a8bdc5','#812c3c','#b5bec6'],
+ ['#f3343d','#efbd37','#255cb5','#f4f4ee','#ed6b2f','#343d49'],
+ ['#202c39','#f0eee5','#354252','#b9a78a','#592d3d','#b7c9d1'],
+ ['#edeeea','#28343f','#a4adb1','#bcb4a6','#4c6570','#354250'],
  ['#ffd127'], // Bangkok-style yellow taxi van: tourists only.
  ['#fc442a','#fd7129','#fb5727'], // three red-orange F1 finishes
  ['#19bac7','#f3f5ec'], // six-wheel freight
@@ -528,14 +531,26 @@ function carPaintFor(c,id,kind,fallback){
 // Shared detailed low-poly geometry is built ONCE per type and rendered via
 // instancing. Geometric details are fixed-color vertex trims; only the body
 // tint varies per citizen. No thousands of independent wheel/light meshes.
-// Four original body designs; legacy citizen classes retain their own footprint.
-// All surfaces are baked once into the existing two instanced draw batches.
-const CITIZEN_CAR_FAMILIES=[0,1,2,3,1,0,1,3];
+// Eight original modern luxury silhouettes. These are visual styles only:
+// citizen classes, trait weights and road/parking footprints remain unchanged.
+// Chamfered bodies, swept glass and alloy faces are baked once into two batches.
+const CITIZEN_CAR_FAMILIES=[0,1,2,3,4,5,6,7];
+const CITIZEN_CAR_DESIGNS=[
+ {name:'Aster GT',roof:.72,cabin:[-.425,-.255,.015,.245],pillar:-.115,tail:-.026,nose:-.036,headlamp:.169,rearWidth:.425,frontWidth:.425,grille:'gt'},
+ {name:'Regent S',roof:.73,cabin:[-.345,-.200,.055,.250],pillar:-.085,tail:-.023,nose:-.024,headlamp:.183,rearWidth:.438,frontWidth:.438,grille:'saloon'},
+ {name:'Atlas R',roof:.82,cabin:[-.085,-.025,.165,.315],pillar:.070,tail:-.010,nose:-.020,headlamp:.185,rearWidth:.460,frontWidth:.450,grille:'pickup'},
+ {name:'Summit X',roof:.82,cabin:[-.415,-.295,.080,.295],pillar:-.090,tail:-.014,nose:-.024,headlamp:.185,rearWidth:.445,frontWidth:.450,grille:'split'},
+ {name:'Vela GT',roof:.65,cabin:[-.435,-.240,.005,.245],pillar:-.130,tail:-.016,nose:-.045,headlamp:.166,rearWidth:.445,frontWidth:.420,grille:'gt'},
+ {name:'Vortex R',roof:.62,cabin:[-.275,-.145,.035,.265],pillar:-.120,tail:-.005,nose:-.055,headlamp:.146,rearWidth:.455,frontWidth:.420,grille:'exotic'},
+ {name:'Sovereign L',roof:.72,cabin:[-.385,-.255,.075,.270],pillar:-.100,tail:-.015,nose:-.021,headlamp:.185,rearWidth:.450,frontWidth:.450,grille:'flagship'},
+ {name:'Monarch V',roof:.86,cabin:[-.450,-.365,.155,.375],pillar:-.070,tail:-.010,nose:-.023,headlamp:.185,rearWidth:.455,frontWidth:.440,grille:'van'}
+];
 function citizenCarGeometries(style){
  const [length,width,height,,,cabinH]=VEHICLE_STYLES[style];
- const family=CITIZEN_CAR_FAMILIES[style],compact=family===0,sedan=family===1,pickup=family===2,suv=family===3;
- const top=.165+height*.5,belt=top-.006,roof=top+cabinH*.94;
- const radius=style===5?.069:pickup||suv?.083:.076,axle=length*.29,arch=radius+.007;
+ const family=CITIZEN_CAR_FAMILIES[style],design=CITIZEN_CAR_DESIGNS[style];
+ const compact=style===0||style===4||style===5,pickup=style===2,suv=style===3||style===7,exotic=style===5,flagship=style===6;
+ const top=.165+height*.5,belt=top-.006,roof=top+cabinH*design.roof;
+ const radius=exotic?.069:pickup||suv?.083:.076,axle=length*(flagship?.315:pickup?.305:.295),arch=radius+.007;
  const paint={p:[],n:[],c:[]},trim={p:[],n:[],c:[]},tints=new Map();
  const color=value=>{if(!tints.has(value))tints.set(value,new THREE.Color(value));return tints.get(value);};
  const tri=(parts,tint,a,b,c,out)=>{
@@ -546,7 +561,7 @@ function citizenCarGeometries(style){
   const rgb=color(tint);for(const point of [a,b,c]){parts.p.push(...point);parts.n.push(nx/magnitude,ny/magnitude,nz/magnitude);parts.c.push(rgb.r,rgb.g,rgb.b);}
  };
  const quad=(parts,tint,a,b,c,d,out)=>{tri(parts,tint,a,b,c,out);tri(parts,tint,a,c,d,out);};
- const white='#ffffff',glass='#254351',rubber='#151e25',alloy='#b8c8ce',carbon='#293b43';
+ const white='#ffffff',glass='#142833',rubber='#111820',alloy=flagship?'#d8d9ce':'#c4d1d8',carbon='#18252e';
  const box=(parts,tint,x,y,z,l,h,w)=>{
   const x0=x-l/2,x1=x+l/2,y0=y-h/2,y1=y+h/2,z0=z-w/2,z1=z+w/2;
   quad(parts,tint,[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[0,0,-1]);
@@ -558,8 +573,8 @@ function citizenCarGeometries(style){
  };
  // Crown and shoulder taper at both ends. The long hood is a surface slope,
  // rather than another cuboid sitting on a box-shaped chassis.
- const profile=[[-.5,top-(compact?.025:.020),.435],[-.455,top-.009,.475],[-.33,top,.48],
-  [.27,top,.48],[.435,top-.012,.475],[.5,top-.023,.445]];
+ const profile=[[-.5,top+design.tail,design.rearWidth],[-.455,top-.006,.475],[-.31,top+(exotic?.005:0),.490],
+  [.22,top,.485],[.435,top+design.nose*.48,.467],[.5,top+design.nose,design.frontWidth]];
  const section=x=>{
   const u=x/length;
   for(let i=1;i<profile.length;i++)if(u<=profile[i][0]+1e-7){
@@ -583,88 +598,110 @@ function citizenCarGeometries(style){
   for(const sign of [-1,1]){
    // The bottom boundary follows the wheel openings; there is no hidden
    // full-width body box crossing through the four tyres.
-   quad(paint,white,[x0,aLow,sign*a.z],[x1,bLow,sign*b.z],[x1,b.y-.018,sign*b.z],[x0,a.y-.018,sign*a.z],[0,0,sign]);
-   quad(paint,white,[x0,a.y-.018,sign*a.z],[x1,b.y-.018,sign*b.z],[x1,b.y,sign*b.z*.91],[x0,a.y,sign*a.z*.91],[0,1,sign]);
+   const ay=Math.max(aLow,a.y-.043),by=Math.max(bLow,b.y-.043);
+   quad(paint,white,[x0,aLow,sign*a.z*.91],[x1,bLow,sign*b.z*.91],[x1,by,sign*b.z],[x0,ay,sign*a.z],[0,0,sign]);
+   quad(paint,white,[x0,ay,sign*a.z],[x1,by,sign*b.z],[x1,b.y-.013,sign*b.z*.96],[x0,a.y-.013,sign*a.z*.96],[0,.2,sign]);
+   quad(paint,white,[x0,a.y-.013,sign*a.z*.96],[x1,b.y-.013,sign*b.z*.96],[x1,b.y,sign*b.z*.77],[x0,a.y,sign*a.z*.77],[0,1,sign]);
   }
-  if(!pickup||x0>=bedFront-1e-7)
-   quad(paint,white,[x0,a.y,-a.z*.91],[x1,b.y,-b.z*.91],[x1,b.y,b.z*.91],[x0,a.y,a.z*.91],[0,1,0]);
+  if(!pickup||x0>=bedFront-1e-7)for(const sign of [-1,1])
+   quad(paint,white,[x0,a.y,sign*a.z*.77],[x1,b.y,sign*b.z*.77],[x1,b.y+.004,0],[x0,a.y+.004,0],[0,1,0]);
  }
  // Local bumper fascia joins the original hood ends to the fixed night-lamp
  // locations. Two shallow chamfer rings keep the lenses attached to the body;
  // this short nose/tail addition never spans or closes a wheel opening.
  for(const sign of [-1,1]){
-  const end=sign*length*.5,s=section(end),z=s.z;
+  const end=sign*length*.5,s=section(end),z=s.z,bend=length*(sign===1?.035:.025);
   const rings=[
-   {x:end,points:[[.109,-z],[.109,z],[s.y-.018,z],[s.y,z*.91],[s.y,-z*.91],[s.y-.018,-z]]},
-   {x:end+sign*.014,points:[[.113,-z*.99],[.113,z*.99],[s.y-.018,z*.99],[s.y-.001,z*.91],[s.y-.001,-z*.91],[s.y-.018,-z*.99]]},
-   {x:end+sign*.022,points:[[.123,-z*.93],[.123,z*.93],[s.y-.020,z*.985],[s.y-.004,z*.90],[s.y-.004,-z*.90],[s.y-.020,-z*.985]]}
+   {x:end,bend:0,points:[[.109,-z],[.109,z],[s.y-.018,z],[s.y,z*.91],[s.y,-z*.91],[s.y-.018,-z]]},
+   {x:end+sign*.014,bend:bend*.45,points:[[.113,-z*.99],[.113,z*.99],[s.y-.018,z*.99],[s.y-.001,z*.91],[s.y-.001,-z*.91],[s.y-.018,-z*.99]]},
+   {x:end+sign*.022,bend,points:[[.123,-z*.93],[.123,z*.93],[s.y-.020,z*.985],[s.y-.004,z*.90],[s.y-.004,-z*.90],[s.y-.020,-z*.985]]}
   ];
   for(let k=1;k<rings.length;k++){
    const a=rings[k-1],b=rings[k];
    for(let i=0;i<6;i++){
     const next=(i+1)%6,p=a.points[i],q=a.points[next],r=b.points[next],t=b.points[i];
-    quad(paint,white,[a.x,...p],[a.x,...q],[b.x,...r],[b.x,...t],[0,p[1]-q[1],q[0]-p[0]]);
+    const at=(ring,point)=>[ring.x-sign*ring.bend*(point[1]/(width*.46))**2,...point];
+    quad(paint,white,at(a,p),at(a,q),at(b,r),at(b,t),[0,p[1]-q[1],q[0]-p[0]]);
    }
   }
   const face=rings[2],center=[face.x,(.123+s.y-.004)/2,0];
-  for(let i=0;i<6;i++)tri(paint,white,center,[face.x,...face.points[i]],
-   [face.x,...face.points[(i+1)%6]],[sign,0,0]);
+  const cap=point=>[face.x-sign*bend*(point[1]/(width*.46))**2,...point];
+  for(let i=0;i<6;i++)tri(paint,white,center,cap(face.points[i]),cap(face.points[(i+1)%6]),[sign,0,0]);
  }
  // Narrow recessed chassis: the underside does not fill the wheel openings.
  box(trim,carbon,0,.118,0,length*.78,.025,width*.57);
  const rockerLength=Math.max(.025,2*(axle-arch-.009));
  for(const sign of [-1,1])box(trim,suv||pickup?'#26343a':'#637780',0,.112,sign*width*.469,rockerLength,.014,.012);
- // Six-sided cabin, tapered in plan and section, with sloping front/rear glass.
- const shape=compact?[-.405,-.265,.055,.225]:sedan?[-.325,-.18,.045,.215]:pickup?[-.085,-.025,.168,.293]:[-.415,-.307,.105,.268];
- const [back,roofBack,roofFront,front]=shape.map(x=>x*length),roofEdge=roof-.012;
- for(const sign of [-1,1]){
-  quad(paint,white,[back,belt,sign*width*.41],[roofBack,roofEdge,sign*width*.34],
-   [roofFront,roofEdge,sign*width*.34],[front,belt,sign*width*.41],[0,0,sign]);
-  const glassBottom=belt+.014,glassTop=roofEdge-.012;
-  const side=(x,y)=>[x,y,sign*(width*(.41-.07*(y-belt)/(roofEdge-belt))+.0014)];
-  const pillar=length*(pickup?.071:suv?-.075:compact?-.08:-.075),gap=length*.012;
-  const rearBottom=back+length*.033,rearTop=roofBack+length*.017;
-  const frontTop=roofFront-length*.017,frontBottom=front-length*.037;
-  quad(trim,glass,side(rearBottom,glassBottom),side(rearTop,glassTop),side(pillar-gap,glassTop),side(pillar-gap,glassBottom),[0,0,sign]);
-  quad(trim,'#2e4e5c',side(pillar+gap,glassBottom),side(pillar+gap,glassTop),side(frontTop,glassTop),side(frontBottom,glassBottom),[0,0,sign]);
-  // Thin shoulder reflection, dark B pillar, and small flush handles.
-  quad(trim,'#8cabb4',side(rearBottom,glassBottom-.002),side(frontBottom,glassBottom-.002),side(frontBottom-.005,glassBottom+.001),side(rearBottom+.005,glassBottom+.001),[0,0,sign]);
-  if(suv){
-   const quarter=back+length*.16;
-   quad(trim,'#263943',side(quarter,glassBottom),side(quarter+.007,glassBottom),side(quarter+.007,glassTop),side(quarter,glassTop),[0,0,sign]);
-  }
-  const seamTop=top-.022,seamBottom=Math.max(.120,lower(pillar)+.004),seamZ=sign*(width*.482);
-  if(seamTop>seamBottom)quad(trim,'#4e666f',[pillar-.001,seamBottom,seamZ],[pillar+.001,seamBottom,seamZ],[pillar+.001,seamTop,seamZ],[pillar-.001,seamTop,seamZ],[0,0,sign]);
-  for(const x of [pillar-length*.075,front-length*.08])
-   box(trim,'#bbcbd0',x,top-.038,sign*width*.487,length*.044,.005,.004);
-  // A tapered little mirror, kept inside the previous mirror-width envelope.
-  const mirrorX=front-length*.038,mirrorY=belt+.025,mirrorZ=sign*width*.514;
-  box(trim,carbon,mirrorX,mirrorY-.003,sign*width*.435,length*.027,.009,width*.095);
-  box(paint,white,mirrorX,mirrorY,mirrorZ,length*.055,.019,width*.14);
-  quad(trim,'#294654',[mirrorX-length*.020,mirrorY-.005,sign*width*.586],
-   [mirrorX+length*.020,mirrorY-.005,sign*width*.586],[mirrorX+length*.020,mirrorY+.005,sign*width*.586],
-   [mirrorX-length*.020,mirrorY+.005,sign*width*.586],[0,0,sign]);
- }
- const cabFace=(base,upper,sign,tint)=>{
-  const p=(t,z,offset=0)=>[base+(upper-base)*t+sign*offset,belt+(roofEdge-belt)*t+offset*.4,width*(.41-.07*t)*z];
-  quad(paint,white,p(0,-1),p(0,1),p(1,1),p(1,-1),[sign,.4,0]);
-  quad(trim,tint,p(.12,-.91,.0012),p(.12,.91,.0012),p(.88,.91,.0012),p(.88,-.91,.0012),[sign,.4,0]);
-  if(sign===1)quad(trim,'#7898a5',p(.80,-.86,.0015),p(.80,.86,.0015),p(.845,.86,.0015),p(.845,-.86,.0015),[sign,.4,0]);
+ // A swept five-station canopy and crowned roof replace the old flat box.
+ // Glass follows the same tapered shell, including the curved roof shoulder.
+ const [back,roofBack,roofFront,front]=design.cabin.map(x=>x*length);
+ const roofMid=Math.max(roofBack+.005,Math.min(roofFront-.005,length*design.pillar));
+ const beltW=width*(suv?.405:.395),topW=width*(suv?.325:exotic?.285:.305);
+ const roofSections=[
+  {x:roofBack,y:roof-.026,z:topW*.94},
+  {x:roofMid,y:roof-.012,z:topW},
+  {x:roofFront,y:roof-.023,z:topW*.94}
+ ];
+ const roofAt=x=>{
+  const i=x<roofMid?0:1,a=roofSections[i],b=roofSections[i+1],t=Math.max(0,Math.min(1,(x-a.x)/(b.x-a.x)));
+  return {y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t};
  };
- cabFace(front,roofFront,1,'#315461');cabFace(back,roofBack,-1,'#2b4756');
- const rb=roofBack+length*.01,rf=roofFront-length*.01;
- quad(paint,white,[rb,roof,-width*.28],[rf,roof,-width*.28],[rf,roof,width*.28],[rb,roof,width*.28],[0,1,0]);
- for(const sign of [-1,1])quad(paint,white,[roofBack,roofEdge,sign*width*.34],[roofFront,roofEdge,sign*width*.34],
-  [rf,roof,sign*width*.28],[rb,roof,sign*width*.28],[0,1,sign]);
- for(const [x,inner,sign] of [[roofBack,rb,-1],[roofFront,rf,1]])quad(paint,white,
-  [x,roofEdge,-width*.34],[x,roofEdge,width*.34],[inner,roof,width*.28],[inner,roof,-width*.28],[sign,1,0]);
- if(!pickup){
-  const sunL=(rf-rb)*(suv?.75:compact?.58:.47),sunX=(rb+rf)/2;
-  quad(trim,'#293f4c',[sunX-sunL/2,roof+.001,-width*.22],[sunX+sunL/2,roof+.001,-width*.22],
-   [sunX+sunL/2,roof+.001,width*.22],[sunX-sunL/2,roof+.001,width*.22],[0,1,0]);
+ for(const sign of [-1,1]){
+  const contour=[[back,belt,beltW],...roofSections.map(p=>[p.x,p.y,p.z]),[front,belt,beltW]];
+  for(let i=1;i<contour.length;i++){
+   const a=contour[i-1],b=contour[i];
+   quad(paint,white,[a[0],belt,sign*beltW],[b[0],belt,sign*beltW],
+    [b[0],b[1],sign*b[2]],[a[0],a[1],sign*a[2]],[0,.1,sign]);
+  }
+  const side=(x,y)=>{const edge=roofAt(x),t=Math.max(0,Math.min(1,(y-belt)/(edge.y-belt)));return [x,y,sign*(beltW+(edge.z-beltW)*t+.0012)];};
+  const glassBottom=belt+.010,pillar=roofMid,gap=length*(exotic?.005:.008);
+  const rb=back+length*.035,rt=roofBack+length*.018,ft=roofFront-length*.018,fb=front-length*.037;
+  quad(trim,glass,side(rb,glassBottom),side(rt,roofAt(rt).y-.009),
+   side(pillar-gap,roofAt(pillar-gap).y-.009),side(pillar-gap,glassBottom),[0,0,sign]);
+  quad(trim,'#1d3947',side(pillar+gap,glassBottom),side(pillar+gap,roofAt(pillar+gap).y-.009),
+   side(ft,roofAt(ft).y-.009),side(fb,glassBottom),[0,0,sign]);
+  quad(trim,flagship?alloy:'#69818f',side(rb,glassBottom-.002),side(fb,glassBottom-.002),
+   side(fb-.004,glassBottom+.001),side(rb+.004,glassBottom+.001),[0,0,sign]);
+  const seamTop=top-.030,seamBottom=Math.max(.120,lower(pillar)+.004),seamZ=sign*width*.477;
+  if(!exotic&&seamTop>seamBottom)quad(trim,'#435b65',[pillar-.0008,seamBottom,seamZ],[pillar+.0008,seamBottom,seamZ],
+   [pillar+.0008,seamTop,seamZ],[pillar-.0008,seamTop,seamZ],[0,0,sign]);
+  for(const x of (exotic?[front-length*.10]:[pillar-length*.075,front-length*.08]))
+   box(trim,flagship?alloy:'#92a6b1',x,top-.035,sign*width*.481,length*.041,.003,.003);
+  if(exotic){
+   const at=(x,y)=>[x,y,sign*(section(x).z*.982+.0013)];
+   quad(trim,carbon,at(-length*.235,top-.064),at(-length*.045,top-.052),
+    at(-length*.095,top-.016),at(-length*.260,top-.024),[0,0,sign]);
+  }
+  const mirrorX=front-length*.050,mirrorY=belt+.023,mirrorZ=sign*width*.505;
+  box(trim,carbon,mirrorX,mirrorY-.002,sign*width*.435,length*.024,.006,width*.075);
+  box(paint,white,mirrorX,mirrorY,mirrorZ,length*.052,.014,width*.105);
+  box(trim,'#344f5e',mirrorX,mirrorY,sign*width*.560,length*.039,.008,.002);
  }
- if(suv)for(const sign of [-1,1])box(trim,'#a8bdc4',(rb+rf)/2,roof+.009,sign*width*.277,rf-rb,.012,.010);
- if(compact||suv)box(paint,white,roofBack+length*.008,roofEdge+.005,0,length*.047,.012,width*.69);
+ const cabFace=(base,edge,sign,tint)=>{
+  const p=(t,z,offset=0)=>[base+(edge.x-base)*t+sign*offset,belt+(edge.y-belt)*t+offset*.4,(beltW+(edge.z-beltW)*t)*z];
+  quad(paint,white,p(0,-1),p(0,1),p(1,1),p(1,-1),[sign,.4,0]);
+  quad(trim,tint,p(.10,-.94,.0012),p(.10,.94,.0012),p(.92,.94,.0012),p(.92,-.94,.0012),[sign,.4,0]);
+  quad(trim,'#5f8798',p(.83,-.89,.0015),p(.83,.89,.0015),p(.865,.89,.0015),p(.865,-.89,.0015),[sign,.4,0]);
+ };
+ cabFace(front,roofSections[2],1,'#284c5c');cabFace(back,roofSections[0],-1,'#233f50');
+ for(let i=1;i<roofSections.length;i++){
+  const a=roofSections[i-1],b=roofSections[i];
+  for(const sign of [-1,1]){
+   quad(paint,white,[a.x,a.y,sign*a.z],[b.x,b.y,sign*b.z],
+    [b.x,b.y+.009,sign*b.z*.72],[a.x,a.y+.009,sign*a.z*.72],[0,1,sign]);
+   quad(pickup?paint:trim,pickup?white:'#172e3a',[a.x,a.y+.009,sign*a.z*.72],[b.x,b.y+.009,sign*b.z*.72],
+    [b.x,b.y+.012,0],[a.x,a.y+.012,0],[0,1,0]);
+  }
+ }
+ // Close both crown ends; no floating sunroof plane is placed over the shell.
+ for(const [p,sign] of [[roofSections[0],-1],[roofSections[2],1]])for(const side of [-1,1])
+  tri(paint,white,[p.x,p.y,side*p.z],[p.x,p.y+.009,side*p.z*.72],[p.x,p.y+.012,0],[sign,.2,0]);
+ if(suv)for(const sign of [-1,1])for(let i=1;i<roofSections.length;i++){
+  const a=roofSections[i-1],b=roofSections[i],z=sign*width*.300;
+  quad(trim,'#81949f',[a.x,a.y+.005,z-.002],[b.x,b.y+.005,z-.002],
+   [b.x,b.y+.005,z+.002],[a.x,a.y+.005,z+.002],[0,1,0]);
+ }
+ if(compact||suv)box(paint,white,roofBack+length*.007,roofSections[0].y+.006,0,length*.035,.007,width*.61);
  if(pickup){
   // A genuinely open, recessed bed: no body top spans the cargo opening.
   const rear=-length*.452,bedY=.157,inner=width*.365;
@@ -681,7 +718,7 @@ function citizenCarGeometries(style){
  // Low-poly tyres with chamfered outer shoulders and five-spoke alloy faces.
  const wheelCenters=[];
  for(const sign of [-1,1])for(const x of [-axle,axle]){
-  const y=.105,z=sign*width*.51,inside=z-sign*.020,outside=z+sign*.020,rimZ=outside+sign*.001;
+  const y=.105,z=sign*width*.452,inside=z-sign*width*.037,outside=z+sign*width*.037,rimZ=outside+sign*.001;
   wheelCenters.push([x,y,z]);
   for(let i=0;i<10;i++){
    const a=-Math.PI/2+i*Math.PI/5,b=-Math.PI/2+(i+1)*Math.PI/5,point=(angle,r,zz)=>[x+Math.cos(angle)*r,y+Math.sin(angle)*r,zz];
@@ -690,11 +727,11 @@ function citizenCarGeometries(style){
    quad(trim,'#202a30',point(a,radius,outside-sign*.006),point(b,radius,outside-sign*.006),point(b,radius*.91,outside),point(a,radius*.91,outside),[mid[0],mid[1],sign]);
    tri(trim,rubber,[x,y,outside],point(a,radius*.91,outside),point(b,radius*.91,outside),[0,0,sign]);
    tri(trim,rubber,[x,y,inside],point(a,radius,inside),point(b,radius,inside),[0,0,-sign]);
-   quad(trim,alloy,point(a,radius*.64,rimZ),point(b,radius*.64,rimZ),point(b,radius*.51,rimZ),point(a,radius*.51,rimZ),[0,0,sign]);
+   quad(trim,alloy,point(a,radius*.73,rimZ),point(b,radius*.73,rimZ),point(b,radius*.59,rimZ),point(a,radius*.59,rimZ),[0,0,sign]);
   }
   for(let i=0;i<5;i++){
    const a=i*Math.PI*.4,b=a+.16,point=(angle,r)=>[x+Math.cos(angle)*r,y+Math.sin(angle)*r,rimZ+sign*.001];
-   quad(trim,'#d2dce0',point(a-.15,radius*.19),point(b-.03,radius*.57),point(b+.13,radius*.57),point(a+.15,radius*.19),[0,0,sign]);
+   quad(trim,'#aebfc9',point(a-.15,radius*.19),point(b-.03,radius*.67),point(b+.13,radius*.67),point(a+.15,radius*.19),[0,0,sign]);
    tri(trim,'#7b939e',[x,y,rimZ+sign*.002],point(a,radius*.20),point(a+Math.PI*.4,radius*.20),[0,0,sign]);
   }
   // Painted arch lips follow the actual open side boundary above the tyres.
@@ -704,25 +741,51 @@ function citizenCarGeometries(style){
    quad(paint,white,point(a,arch),point(b,arch),point(b,arch+.005),point(a,arch+.005),[0,0,sign]);
   }
  }
- // Signature lamps are solid lenses, aligned with the existing night batches.
+ // Sculpted fascias, thin LED signatures and restrained trim; no textures,
+ // separate meshes or extra runtime lights are needed for these details.
  const frontX=length*.5+.024,rearX=-length*.5-.024;
- const endQuad=(tint,x,y,z,w,h,sign,slant=0)=>quad(trim,tint,[x,y-h/2,z-w/2],[x,y-h/2,z+w/2],
-  [x,y+h/2,z+w/2-slant],[x,y+h/2,z-w/2+slant],[sign,0,0]);
- endQuad('#263a44',frontX+.0004,.154,0,width*(pickup?.65:suv?.62:.60),pickup?.063:.044,1,.006);
- if(pickup||suv){
-  for(const y of [.144,.163])endQuad('#aabdc4',frontX+.001,y,0,width*.43,.005,1);
- }else endQuad('#a9bcc3',frontX+.001,.177,0,width*.43,.004,1);
- for(const sign of [-1,1]){
-  endQuad('#263a44',frontX,.184,sign*width*.33,width*.230,.030,1,.003);
-  endQuad('#f3f2df',frontX+.001,.185,sign*width*.33,width*.206,pickup?.024:.017,1,.003);
-  endQuad('#bce2ea',frontX+.002,.197,sign*width*.33,width*.20,.005,1);
-  endQuad('#872e3c',rearX,.172,sign*width*.33,width*.24,.037,-1,.003);
-  endQuad('#e64951',rearX-.001,.170,sign*width*.33,width*.20,.023,-1,.002);
-  endQuad('#ffb9a4',rearX-.002,.178,sign*width*.33,width*.15,.005,-1);
-  if(suv||compact)endQuad('#d9464c',rearX-.001,.192,sign*width*.405,width*.044,.045,-1);
+ const endQuad=(tint,x,y,z,w,h,sign,slant=0)=>{
+  const at=(yy,zz)=>[x-sign*length*(sign===1?.035:.025)*(zz/(width*.46))**2,yy,zz];
+  quad(trim,tint,at(y-h/2,z-w/2),at(y-h/2,z+w/2),at(y+h/2,z+w/2-slant),at(y+h/2,z-w/2+slant),[sign,0,0]);
+ };
+ const grille=design.grille,headY=design.headlamp,lowerY=exotic?.129:style===4?.141:style===0?.144:.150;
+ if(grille==='split'){
+  for(const side of [-1,1]){
+   endQuad(alloy,frontX+.0005,.153,side*width*.105,width*.195,.061,1,.004);
+   endQuad(carbon,frontX+.001,.153,side*width*.105,width*.165,.052,1,.004);
+   for(const offset of [-.06,0,.06])endQuad('#526974',frontX+.002,.153,side*width*.105+offset*width,width*.012,.044,1);
+  }
+ }else if(grille==='flagship'){
+  endQuad(alloy,frontX+.0005,.155,0,width*.40,.067,1,.003);
+  endQuad(carbon,frontX+.001,.155,0,width*.36,.057,1,.003);
+  for(let n=-3;n<=3;n++)endQuad(alloy,frontX+.002,.155,n*width*.044,width*.013,.050,1);
+ }else if(grille==='van'){
+  endQuad(carbon,frontX+.001,.148,0,width*.69,.052,1,.004);
+  for(const y of [.130,.143,.156,.169])endQuad(alloy,frontX+.002,y,0,width*.61,.0035,1,.004);
+ }else if(grille==='pickup'){
+  endQuad(carbon,frontX+.001,.157,0,width*.58,.056,1,.004);
+  for(const y of [.145,.165])endQuad(alloy,frontX+.002,y,0,width*.49,.004,1);
+ }else{
+  endQuad(carbon,frontX+.001,lowerY,0,width*(exotic?.76:.62),exotic?.020:.030,1,.006);
+  if(grille==='saloon')for(const y of [.143,.156])endQuad(alloy,frontX+.002,y,0,width*.48,.003,1);
+  else for(const side of [-1,1])endQuad('#4c6470',frontX+.002,lowerY,side*width*.19,width*.009,exotic?.014:.022,1);
  }
- endQuad('#d9dfe0',frontX+.003,.134,0,width*.17,.016,1);
- endQuad('#d5ddde',rearX-.003,.141,0,width*.17,.014,-1);
+ for(const sign of [-1,1]){
+  // The opaque lenses stay aligned with the existing instanced night lamps.
+  endQuad('#192c36',frontX+.001,headY,sign*width*.31,width*.21,.021,1,.004);
+  endQuad('#eff7f5',frontX+.002,headY,sign*width*.31,width*.18,.010,1,.003);
+  endQuad('#bde5ec',frontX+.003,headY+.006,sign*width*.31,width*.185,.0035,1);
+  endQuad(carbon,frontX+.001,exotic?.126:.134,sign*width*.32,width*.11,exotic?.009:.012,1,.002);
+  endQuad('#742532',rearX-.001,.170,sign*width*.33,width*.23,.023,-1,.003);
+  endQuad('#f1565d',rearX-.002,.173,sign*width*.33,width*.205,.009,-1,.002);
+  endQuad('#c4cdd1',rearX-.001,.129,sign*width*.29,width*.11,.008,-1);
+ }
+ // The uninterrupted tail signature is part of the same two baked meshes.
+ endQuad('#8b2e3b',rearX-.0005,.179,0,width*.74,.009,-1);
+ endQuad('#f56d70',rearX-.0015,.180,0,width*.70,.003,-1);
+ endQuad(carbon,rearX-.001,.123,0,width*.57,.012,-1);
+ if(!exotic)endQuad('#d3dcdd',frontX+.004,.126,0,width*.16,.010,1);
+ endQuad('#d0dbdf',rearX-.004,.143,0,width*.16,.011,-1);
  const bake=parts=>{
   const geo=new THREE.BufferGeometry();
   geo.setAttribute('position',new THREE.Float32BufferAttribute(parts.p,3));
@@ -732,7 +795,10 @@ function citizenCarGeometries(style){
  };
  const model={body:bake(paint),trim:bake(trim)};
  model.tyreBottom=model.trim.boundingBox.min.y;
- Object.defineProperties(model,{family:{value:family},wheelRadius:{value:radius},wheelCenters:{value:wheelCenters}});
+ const proxyTop=.163+height*.41;
+ const lodCabin={x:(back+front)*.5,y:(proxyTop+roof)*.5,length:(front-back)*.82,height:roof-proxyTop,width:width*.74};
+ const lamps={side:width*.31,front:{x:frontX-length*.035*(.31/.46)**2,y:headY},rear:{x:rearX+length*.025*(.33/.46)**2,y:.170}};
+ Object.defineProperties(model,{lamps:{value:lamps},family:{value:family},design:{value:design.name},wheelRadius:{value:radius},wheelCenters:{value:wheelCenters},lodCabin:{value:lodCabin}});
  return model;
 }
 
@@ -9248,7 +9314,7 @@ export class TrafficRenderer{
   this.carModels=VEHICLE_TYPES.map((_,i)=>carGeometries(i));
   this.carSets=new Map();this.carDummy=new THREE.Object3D();this.carLightDummy=new THREE.Object3D();this.carTint=new THREE.Color();
   this.carContactShadowMesh=null;this.carContactShadowPoses=[];
-  // Medium: silhouette + glass cabin. Far: one tinted box. Only the near set uses detailed meshes and lights.
+  // Medium: silhouette + glass cabin. Far/Low: one tinted box; detailed models stay instanced.
   this.carLODSets=new Map();
   this.carViewMatrix=new THREE.Matrix4();this.carViewFrustum=new THREE.Frustum();this.carViewPoint=new THREE.Vector3();
   this.carLODStats={near:0,medium:0,far:0,culled:0};
@@ -9414,9 +9480,10 @@ export class TrafficRenderer{
      dummy.position.set(car.x,(top+bottom)*.5*VEHICLE_VISUAL_SCALE+base,car.z);dummy.scale.set(length*VEHICLE_VISUAL_SCALE,(top-bottom)*VEHICLE_VISUAL_SCALE,width*.96*VEHICLE_VISUAL_SCALE);dummy.updateMatrix();
      set.body.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.body.instanceMatrix,i);
      if(set.roof){
-      const cos=Math.cos(car.angle),sin=Math.sin(car.angle);
-      dummy.position.set(car.x+cabinX*VEHICLE_VISUAL_SCALE*cos,(.165+height*.5+cabinH*.39)*VEHICLE_VISUAL_SCALE+base,car.z+cabinX*VEHICLE_VISUAL_SCALE*sin);
-      dummy.scale.set(cabinL*VEHICLE_VISUAL_SCALE,cabinH*.78*VEHICLE_VISUAL_SCALE,width*.80*VEHICLE_VISUAL_SCALE);dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
+      const cos=Math.cos(car.angle),sin=Math.sin(car.angle),silhouette=this.carModels[car.kind].lodCabin;
+      const cx=silhouette?.x??cabinX,cy=silhouette?.y??(.165+height*.5+cabinH*.39);
+      dummy.position.set(car.x+cx*VEHICLE_VISUAL_SCALE*cos,cy*VEHICLE_VISUAL_SCALE+base,car.z+cx*VEHICLE_VISUAL_SCALE*sin);
+      dummy.scale.set((silhouette?.length??cabinL)*VEHICLE_VISUAL_SCALE,(silhouette?.height??cabinH*.78)*VEHICLE_VISUAL_SCALE,(silhouette?.width??width*.80)*VEHICLE_VISUAL_SCALE);dummy.updateMatrix();set.roof.setMatrixAt(i,dummy.matrix);this.dirtyCarInstances(set.roof.instanceMatrix,i);
      }
     }
    }
@@ -9486,12 +9553,12 @@ export class TrafficRenderer{
    // Low uses the cheapest proxy at every distance, while preserving car picking.
    level=v?.kind==='intercity'&&this.graphicQuality==='low'?'roadTrainLow':
     kind===8&&this.graphicQuality==='low'?'taxiLow':
-    kind===8&&this.graphicQuality==='medium'&&distance>65?'taxiLow':
+    kind===8&&this.graphicQuality==='medium'&&distance>65*CAR_LOD_DISTANCE_SCALE?'taxiLow':
     kind===8?'near':
-    v?.kind==='intercity'&&distance<135?'near':v?.kind==='delivery'&&distance<70?'near':upgraded?'near':this.graphicQuality==='veryHigh'?'near':
+    v?.kind==='intercity'&&distance<135*CAR_LOD_DISTANCE_SCALE?'near':v?.kind==='delivery'&&distance<70*CAR_LOD_DISTANCE_SCALE?'near':upgraded?'near':this.graphicQuality==='veryHigh'?'near':
     this.graphicQuality==='low'?'far':
-    apparentLength>=22&&distance<=Math.max(24,12/Math.max(.1,cam?.z??1))
-     ?'near':apparentLength>=10?'medium':'far';
+    apparentLength>=22/CAR_LOD_DISTANCE_SCALE&&distance<=Math.max(24,12/Math.max(.1,cam?.z??1))*CAR_LOD_DISTANCE_SCALE
+     ?'near':apparentLength>=10/CAR_LOD_DISTANCE_SCALE?'medium':'far';
    if(parkedPose)this.parkedRenderCache.set(parkedPose,{view:this.cameraViewVersion,quality:this.graphicQuality,id,citizenId:c?.id,trait:c?.profile?.trait,tourist:c?.tourist,tech,vehicleKind:v?.kind,axles:v?.delivery?.axles,fallback,car,kind,distance,upgraded,level});
    }
    if(upgraded)techEffects.push({x,z,angle,altitude,tech,distance,kind,surfaceY:car.surfaceY});
@@ -9550,8 +9617,12 @@ export class TrafficRenderer{
     const [length,width]=VEHICLE_STYLES[kind],cos=Math.cos(car.angle),sin=Math.sin(car.angle);
     for(const sign of [-1,1]){
      // Car model faces +X in local space; side offsets rotate with the body.
-     const side=sign*width*.33*VEHICLE_VISUAL_SCALE;
-     for(const [mesh,localX,height] of [[set.headlights,length*.5+.024,.185],[set.taillights,-length*.5-.024,.170]]){
+     const anchors=this.carModels[kind].lamps;
+     for(const [mesh,localX,height,lateral] of [
+      [set.headlights,anchors?.front.x??length*.5+.024,anchors?.front.y??.185,anchors?.side??width*.33],
+      [set.taillights,anchors?.rear.x??-length*.5-.024,anchors?.rear.y??.170,width*.33]
+     ]){
+      const side=sign*lateral*VEHICLE_VISUAL_SCALE;
       this.carLightDummy.position.set(car.x+cos*localX*VEHICLE_VISUAL_SCALE-sin*side,height*VEHICLE_VISUAL_SCALE+base,car.z+sin*localX*VEHICLE_VISUAL_SCALE+cos*side);
       this.carLightDummy.rotation.set(0,-car.angle,0);
       this.carLightDummy.scale.set((mesh===set.headlights?.024:.018)*VEHICLE_VISUAL_SCALE,.037*VEHICLE_VISUAL_SCALE,.050*VEHICLE_VISUAL_SCALE);
