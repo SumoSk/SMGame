@@ -4947,7 +4947,13 @@ let openLandscapeGroup=null;
 
 // Visual planning reference only; the selected radius never changes trips,
 // service reservations, job assignment, capacity, placement rules or saves.
-const planningCoverage={enabled:false,kind:null,radius:25};
+const planningCoverage={enabled:false,kind:null,radius:25,opacity:.45};
+const PLANNING_COVERAGE_REFERENCE_CAPACITY=20;
+function planningCoverageCapacity(t){return Math.max(1,t?.service||t?.beds||t?.residents||t?.jobs||1);}
+function planningCoverageRadiusFor(t){
+ // Equal reference density: circle AREA, not radius, grows with capacity.
+ return planningCoverage.radius*Math.sqrt(planningCoverageCapacity(t)/PLANNING_COVERAGE_REFERENCE_CAPACITY);
+}
 let planningCoverageCache=null,planningCoveragePanelKey='';
 function setPlanningCoverage(kind=null,enabled=true){
  const kinds=BUILD_DOCK_KINDS[category];
@@ -4963,6 +4969,15 @@ function setPlanningCoverageRadius(value){
  if(valueLabel)valueLabel.textContent=planningCoverage.radius+' ช่อง';
  return true;
 }
+function setPlanningCoverageOpacity(value){
+ const n=Number(value);if(!Number.isFinite(n))return false;
+ const percent=Math.max(10,Math.min(80,Math.round(n/5)*5));
+ planningCoverage.opacity=percent/100;
+ const slider=$('planningCoverageOpacity'),label=$('planningCoverageOpacityValue');
+ if(slider)slider.value=String(percent);
+ if(label)label.textContent=percent+'%';
+ return true;
+}
 function planningCoverageData(visualHover=null){
  const allowed=BUILD_DOCK_KINDS[category];
  if(!planningCoverage.enabled||!allowed)return null;
@@ -4972,7 +4987,7 @@ function planningCoverageData(visualHover=null){
   const targets=[],homes=[];
   for(const b of state.buildings.values()){
    const t=CATALOG[b.key];if(!t)continue;
-   const bounds=buildingBounds(b),record={id:b.id,x:b.x+bounds.w/2,z:b.y+bounds.h/2,w:bounds.w,h:bounds.h};
+   const bounds=buildingBounds(b),record={id:b.id,x:b.x+bounds.w/2,z:b.y+bounds.h/2,w:bounds.w,h:bounds.h,capacity:planningCoverageCapacity(t),radius:planningCoverageRadiusFor(t)};
    if(t.residents>0)homes.push(record);
    if(kinds.includes(t.kind)&&b.id!==movingBuildingId)targets.push(record);
   }
@@ -4982,16 +4997,17 @@ function planningCoverageData(visualHover=null){
  if(visualHover&&CATALOG[tool]&&kinds.includes(CATALOG[tool].kind)){
   const ghost={key:tool,x:visualHover.x,y:visualHover.y,rotation:visualHover.placement?.rotation||0};
   const bounds=buildingBounds(ghost);
-  preview={x:ghost.x+bounds.w/2,z:ghost.y+bounds.h/2};
+  preview={x:ghost.x+bounds.w/2,z:ghost.y+bounds.h/2,radius:planningCoverageRadiusFor(CATALOG[tool]),capacity:planningCoverageCapacity(CATALOG[tool])};
  }
- return {data:planningCoverageCache.data,preview};
+ return {data:planningCoverageCache.data,preview,opacity:planningCoverage.opacity};
 }
 function positionPlanningCoverageControls(){
  const panel=$('planningCoverageControls');if(!panel||panel.hidden)return;
  const command=$('cityCommandBar')?.getBoundingClientRect?.(),popup=$('buildVariantPopup');
  let top=Number.isFinite(command?.top)?command.top:innerHeight-160;
  if(popup&&!popup.hidden){const rect=popup.getBoundingClientRect?.();if(Number.isFinite(rect?.top))top=Math.min(top,rect.top);}
- const bottom=Math.max(12,Math.min(innerHeight-120,innerHeight-top+10));
+ const height=Math.max(120,panel.offsetHeight||174);
+ const bottom=Math.max(12,Math.min(innerHeight-height-8,innerHeight-top+10));
  panel.style.bottom=bottom+'px';
 }
 function renderPlanningCoverageControls(){
@@ -5001,17 +5017,18 @@ function renderPlanningCoverageControls(){
  const title=planningCoverage.kind?KINDS[planningCoverage.kind].name:(categories.find(([key])=>key===category)?.[1]||'อาคาร');
  const label=$('planningCoverageTitle');if(label)label.textContent=title;
  setPlanningCoverageRadius(planningCoverage.radius);
+ setPlanningCoverageOpacity(planningCoverage.opacity*100);
  const key=[category,planningCoverage.kind,openBuildingKind,openLandscapeGroup,innerWidth,innerHeight,$('buildDock')?.classList.contains('is-collapsed')].join(':');
  if(key!==planningCoveragePanelKey){planningCoveragePanelKey=key;positionPlanningCoverageControls();}
 }
 function drawPlanningCoverage2D(coverage){
  if(!coverage)return;
- const {data,preview}=coverage;
+ const {data,preview}=coverage,opacity=Math.max(.1,Math.min(.8,coverage.opacity??.45));
  ctx.save();
  const ring=(p,ghost=false)=>{
-  const at=screen(p.x,p.z),rx=Math.abs(T*cam.z*data.radius),ry=rx*.78;
+  const at=screen(p.x,p.z),rx=Math.abs(T*cam.z*(p.radius??data.radius)),ry=rx*.78;
   ctx.beginPath();ctx.ellipse(at[0],at[1],rx,ry,0,0,Math.PI*2);
-  ctx.fillStyle=ghost?'rgba(49,130,255,.075)':'rgba(49,130,255,.025)';ctx.fill();
+  ctx.fillStyle='rgba(23,79,187,'+opacity+')';ctx.fill();
   ctx.strokeStyle=ghost?'#91c4ff':'#398bff';ctx.lineWidth=ghost?2:1.5;
   ctx.setLineDash(ghost?[6,4]:[]);ctx.stroke();ctx.setLineDash([]);
  };
@@ -9043,6 +9060,7 @@ document.addEventListener('pointerdown',e=>{
 window.addEventListener('resize',positionBuildingVariants);
 window.addEventListener('resize',()=>{planningCoveragePanelKey='';renderPlanningCoverageControls();});
 $('planningCoverageRadius').oninput=e=>setPlanningCoverageRadius(e.target.value);
+$('planningCoverageOpacity').oninput=e=>setPlanningCoverageOpacity(e.target.value);
 $('planningCoverageClose').onclick=()=>setPlanningCoverage(null,false);
 $('tools').addEventListener('scroll',positionBuildingVariants,{passive:true});
 $('cityQuickModes').onclick=event=>{

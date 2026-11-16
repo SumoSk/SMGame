@@ -9809,7 +9809,7 @@ export class TrafficRenderer{
    if(!this.planningCoverageGroup){this.planningCoverageGroup=new THREE.Group();this.scene.add(this.planningCoverageGroup);}
    else this.disposeGroup(this.planningCoverageGroup);
    const group=this.planningCoverageGroup,dummy=new THREE.Object3D();
-   const material=(color,opacity)=>new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthTest:false,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
+   const material=(color,opacity)=>new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthTest:false,depthWrite:false,toneMapped:false,side:THREE.DoubleSide,forceSinglePass:true});
    const disc=()=>new THREE.CircleGeometry(1,64).rotateX(-Math.PI/2);
    const circle=()=>new THREE.RingGeometry(.994,1,64).rotateX(-Math.PI/2);
    const square=()=>new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2);
@@ -9819,30 +9819,37 @@ export class TrafficRenderer{
     const mesh=new THREE.InstancedMesh(geometry,material(color,opacity),points.length);
     mesh.castShadow=false;mesh.receiveShadow=false;mesh.frustumCulled=false;mesh.renderOrder=order;
     for(let i=0;i<points.length;i++){
-     const p=points[i];dummy.position.set(p.x,.18,p.z);
-     dummy.scale.set(round?data.radius:p.w+.3,1,round?data.radius:p.h+.3);
+     const p=points[i],radius=p.radius??data.radius;dummy.position.set(p.x,.18,p.z);
+     dummy.scale.set(round?radius:p.w+.3,1,round?radius:p.h+.3);
      dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);
     }
     mesh.instanceMatrix.needsUpdate=true;group.add(mesh);
    };
-   batch(data.targets,disc(),'#3182ff',.025,40,true);
+   batch(data.targets,disc(),'#174fbb',.45,40,true);
    batch(data.targets,circle(),'#398bff',.88,41,true);
    batch(data.targets,square(),'#3182ff',.10,42);
    batch(data.targets,frame(),'#5da6ff',.92,43);
    batch(data.homes,square(),'#2ae18b',.15,44);
    batch(data.homes,frame(),'#36e58c',.90,45);
-   const previewFill=new THREE.Mesh(disc(),material('#3182ff',.075)),previewRing=new THREE.Mesh(circle(),material('#91c4ff',.95));
+   const previewFill=new THREE.Mesh(disc(),material('#174fbb',.45)),previewRing=new THREE.Mesh(circle(),material('#91c4ff',.95));
    for(const [i,mesh]of [previewFill,previewRing].entries()){
     mesh.castShadow=false;mesh.receiveShadow=false;mesh.frustumCulled=false;mesh.renderOrder=46+i;
     mesh.scale.set(data.radius,1,data.radius);mesh.visible=false;group.add(mesh);
    }
+   this.planningCoverageFillMaterials=group.children.filter(mesh=>mesh.renderOrder===40).map(mesh=>mesh.material);
+   this.planningCoverageFillMaterials.push(previewFill.material);this.planningCoverageOpacity=NaN;
    this.planningCoveragePreview=[previewFill,previewRing];this.planningCoveragePreviewKey='';
    this.planningCoverageSource=data;
   }
   this.planningCoverageGroup.visible=true;
-  const p=coverage.preview,key=p?p.x+':'+p.z:'none';
+  const opacity=Math.max(.1,Math.min(.8,Number.isFinite(coverage.opacity)?coverage.opacity:.45));
+  if(opacity!==this.planningCoverageOpacity){
+   for(const material of this.planningCoverageFillMaterials)material.opacity=opacity;
+   this.planningCoverageOpacity=opacity;
+  }
+  const p=coverage.preview,key=p?p.x+':'+p.z+':'+(p.radius??data.radius):'none';
   if(this.planningCoveragePreviewKey!==key){
-   for(const mesh of this.planningCoveragePreview){mesh.visible=!!p;if(p)mesh.position.set(p.x,.19,p.z);}
+   for(const mesh of this.planningCoveragePreview){mesh.visible=!!p;if(p){mesh.position.set(p.x,.19,p.z);const radius=p.radius??data.radius;mesh.scale.set(radius,1,radius);}}
    this.planningCoveragePreviewKey=key;
   }
  }

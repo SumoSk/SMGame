@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="th" data-ui-version="6" class="building-labels-off"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#103b39"><title>SMCITY เมืองที่การเดินทางมีความหมาย</title><meta name="description" content="สร้างเมืองไทย วางถนน และแก้ปัญหาจราจรจากชีวิตประชาชนแต่ละคน"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23103b39'/%3E%3Cpath d='M13 3h6v26h-6z' fill='%23f9c75c'/%3E%3Cpath d='M16 5v4m0 4v4m0 4v4' stroke='%23103b39' stroke-width='2'/%3E%3C/svg%3E"><meta name="apple-mobile-web-app-title" content="SMCITY"><link rel="apple-touch-icon" sizes="180x180" href="./smcity-home-180.png"><link rel="manifest" href="./smcity.webmanifest"><script>(function(){try{if(localStorage.getItem('smcity-theme-light-default-v1')==='dark')document.documentElement.classList.add('smcity-gray-ui')}catch(_){}})();</script><link rel="stylesheet" href="dist/style.css?v=smcity-v6-planning-circles-20261117"><style id="smcity-dark-mode-v242">
+<html lang="th" data-ui-version="6" class="building-labels-off"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#103b39"><title>SMCITY เมืองที่การเดินทางมีความหมาย</title><meta name="description" content="สร้างเมืองไทย วางถนน และแก้ปัญหาจราจรจากชีวิตประชาชนแต่ละคน"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23103b39'/%3E%3Cpath d='M13 3h6v26h-6z' fill='%23f9c75c'/%3E%3Cpath d='M16 5v4m0 4v4m0 4v4' stroke='%23103b39' stroke-width='2'/%3E%3C/svg%3E"><meta name="apple-mobile-web-app-title" content="SMCITY"><link rel="apple-touch-icon" sizes="180x180" href="./smcity-home-180.png"><link rel="manifest" href="./smcity.webmanifest"><script>(function(){try{if(localStorage.getItem('smcity-theme-light-default-v1')==='dark')document.documentElement.classList.add('smcity-gray-ui')}catch(_){}})();</script><link rel="stylesheet" href="dist/style.css?v=smcity-v6-capacity-blue-20261117"><style id="smcity-dark-mode-v242">
 /* SMCITY v4.2 — high-contrast BLACK interface mode.
    Keep the current theme class and localStorage key so existing choices survive.
    Only app panels, controls and dialogs are themed; never recolor the 3D world. */
@@ -1386,8 +1386,10 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
 <section id="planningCoverageControls" class="planning-coverage-controls" aria-label="วงอ้างอิงสำหรับวางอาคาร" hidden>
  <header><strong>วางแผน · <span id="planningCoverageTitle">อาคาร</span></strong><button type="button" id="planningCoverageClose" aria-label="ซ่อนวงอ้างอิง">×</button></header>
  <div class="planning-coverage-legend"><span><i class="coverage-blue" aria-hidden="true"></i>อาคารหมวดนี้</span><span><i class="coverage-green" aria-hidden="true"></i>บ้านพัก</span></div>
- <label for="planningCoverageRadius">รัศมีอ้างอิง <output id="planningCoverageValue" for="planningCoverageRadius">25 ช่อง</output></label>
- <input id="planningCoverageRadius" type="range" min="5" max="60" step="5" value="25" aria-label="รัศมีอ้างอิงสำหรับวางแผน หน่วยช่อง">
+ <label for="planningCoverageRadius" title="ขนาดวงเปลี่ยนตามจำนวนคนที่อาคารรองรับ">ระยะฐาน · 20 คน <output id="planningCoverageValue" for="planningCoverageRadius">25 ช่อง</output></label>
+ <input id="planningCoverageRadius" type="range" min="5" max="60" step="5" value="25" aria-label="ระยะฐานของวงอ้างอิงสำหรับความจุ 20 คน หน่วยช่อง">
+ <label for="planningCoverageOpacity">ความเข้มสีน้ำเงิน <output id="planningCoverageOpacityValue" for="planningCoverageOpacity">45%</output></label>
+ <input id="planningCoverageOpacity" type="range" min="10" max="80" step="5" value="45" aria-label="ความเข้มสีน้ำเงินของวงอ้างอิง เปอร์เซ็นต์">
 </section>
 <aside id="buildVariantPopup" class="build-variant-popup" hidden role="region" aria-label="เลือกขนาดอาคาร"></aside><button type="button" id="cancelMoveBuilding" class="cancel-building-move" hidden>✕ ยกเลิกย้ายอาคาร</button><div id="toast" role="status"></div><div id="cityLevelCelebration" class="city-level-celebration" role="status" aria-live="polite" aria-atomic="true" hidden></div><dialog id="dialog"><button type="button" id="dialogCloseTop" class="dialog-close-top" aria-label="ปิดหน้าต่าง" title="ปิดหน้าต่าง">×</button><div id="dialogContent"></div></dialog>
 <dialog id="memberGate" class="member-gate" role="dialog" hidden aria-modal="true" aria-label="เข้าสู่ระบบ SMGame">
@@ -1649,7 +1651,7 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
  <button id="landscapeQuickMove" type="button" data-landscape-action="move" aria-label="ย้ายของตกแต่งชิ้นนี้" title="ย้ายชิ้นที่เลือก">✥</button>
  <button id="landscapeQuickDelete" type="button" data-landscape-action="delete" class="decor-delete" aria-label="ลบของตกแต่งชิ้นนี้" title="ลบชิ้นที่เลือก">⌫</button>
 </div>
-<script type="module" src="dist/bootstrap.js?v=smcity-v6-planning-circles-20261117"></script></body></html>
+<script type="module" src="dist/bootstrap.js?v=smcity-v6-capacity-blue-20261117"></script></body></html>
 
 
 
