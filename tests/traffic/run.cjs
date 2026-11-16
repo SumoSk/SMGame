@@ -1,0 +1,4 @@
+'use strict';
+const {spawnSync}=require('node:child_process'),path=require('node:path');
+const suites=["test-fix-root.cjs","test-fix-motion.cjs","test-fix-parking.cjs","test-fix-junction.cjs","test-fix-junction-topology.cjs","motion-geometry-tests.cjs","test-fix-city-integration.cjs"];
+let failures=0;for(const suite of suites){const result=spawnSync(process.execPath,[path.join(__dirname,suite)],{cwd:path.resolve(__dirname,'../..'),encoding:'utf8',env:{...process.env,SMCITY_SOURCE:path.resolve(__dirname,'../../dist/game.js')}});console.log((result.status===0?'PASS ':'FAIL ')+suite);if(result.status!==0){failures++;console.error(result.stderr||result.stdout||result.error);}}console.log(JSON.stringify({suites:suites.length,failures}));process.exitCode=failures?1:0;
