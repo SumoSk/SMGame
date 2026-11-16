@@ -3330,17 +3330,13 @@ function syncManualIncidentLogs(){
  });
  return incidentCloudSyncing;
 }
-function writeManualIncidentLog(entry,silent=false){
+function writeManualIncidentLog(entry){
  try{
   entry.eventId=crypto.randomUUID();
   entry.userId=window.SMGameAccount?.user?.id||null;
   const list=normalizeManualIncidentLogs();list.unshift(entry);
   const saved=saveManualIncidentCache(list);
-  if(entry.userId)void syncManualIncidentLogs().then(()=>{
-   if(window.SMGameAccount?.user?.id!==entry.userId)return;
-   const synced=manualIncidentLogs().some(e=>e.eventId===entry.eventId&&e.cloudSyncedFor===entry.userId);
-   if(!silent)toast(synced?'บันทึก Log เข้า Supabase แล้ว':'ส่ง Log เข้า Supabase ไม่สำเร็จ · กดซิงก์ในดู Log เพื่อลองอีกครั้ง');
-  });
+  if(entry.userId)void syncManualIncidentLogs();
   return saved;
  }catch(error){console.warn('Local incident log:',error);return false;}
 }
@@ -3392,10 +3388,10 @@ function resolveIncident(id,automatic=false){
  const entry={format:'SMCITY-manual-incident',version:2,at:new Date().toISOString(),city:state.city,gameTime:state.time,
   eventType,automatic,award:awarded,reason:found.reason,place:found.place,vehicles:before,reservationsBefore:reservations,
   outcomes,reservationsAfter:incidentReservations(ids)};
- const stored=writeManualIncidentLog(entry,automatic);
+ writeManualIncidentLog(entry);
  if(!automatic){
   selected=null;$('inspector').classList.add('hidden');updateUI();
-  toast((eventType==='collision'?'รถชน':'รถเสีย')+' · ช่วยเหลือสำเร็จ '+ids.length+' คัน'+(awarded?' · ได้รับ '+money(awarded):reward.available?' · ไม่มีเงินรางวัล':' · ครบโควตารางวัลวันนี้แล้ว')+(entry.userId?' · กำลังส่ง Log เข้า Supabase…':stored?' · บันทึก Log ในเครื่องแล้ว':' · Log อยู่ชั่วคราวในหน้านี้ · เบราว์เซอร์ไม่อนุญาตให้บันทึก'));
+  toast((eventType==='collision'?'รถชน':'รถเสีย')+' · ช่วยเหลือสำเร็จ '+ids.length+' คัน'+(awarded?' · ได้รับ '+money(awarded):reward.available?' · ไม่มีเงินรางวัล':' · ครบโควตารางวัลวันนี้แล้ว'));
  }
  return true;
 }
