@@ -241,17 +241,26 @@ function parkingSpace(b,cid,allocate=false){
 function freeParkingSpace(b,cid){if(!b?.parkingSlots)return;const i=b.parkingSlots.indexOf(cid);if(i>=0)b.parkingSlots[i]=null;}
 function parkingFree(b){let incoming=0;for(const v of state.vehicles.values())if(v.toId===b.id&&v.citizenId)incoming++;return Math.max(0,CATALOG[b.key].parkingCapacity-b.parked.size-incoming);}
 function parkingIsMoving(cid){const c=state.citizens.get(cid),v=state.vehicles.get(c?.vehicleId);return !!v&&(!!v.lotPath||['air_lift','air_cruise','air_land','warp_charge'].includes(v.phase));}
-function parkingPose(v){if(!v.lotPath)return null;return lotPathPose(v.lotPath,v.lotDistance||0);}
+const parkingMotionPoses=new WeakMap();
+function parkingPose(v){
+ if(!v.lotPath)return null;
+ if(v.lotPath.length<2)return lotPathPose(v.lotPath,v.lotDistance||0);
+ const shape=parkingPathGeometry(v.lotPath),distance=v.lotDistance||0;let memo=parkingMotionPoses.get(v);
+ if(!memo||memo.shape!==shape||memo.distance!==distance){memo={shape,distance,pose:lotPathPose(v.lotPath,distance)};parkingMotionPoses.set(v,memo);}
+ // Callers receive their own value, as before; diagnostic or rendering code
+ // cannot mutate a cached pose used by a later physical check.
+ return {...memo.pose};
+}
 const parkingPathGeometries=new WeakMap();
 function parkingPathGeometry(points){
  let shape=parkingPathGeometries.get(points);
  if(shape&&shape.coordinates.length===points.length*2){
-  let same=true;for(let i=0;i<points.length;i++)if(shape.coordinates[i*2]!==points[i].x||shape.coordinates[i*2+1]!==points[i].y){same=false;break;}
+  let same=true;for(let i=0;i<points.length;i++)if(shape.coordinates[i*2]!==points[i].x||shape.coordinates[i*2+1]!==points[i].y||shape.tightParking[i]!==!!points[i].tightParking){same=false;break;}
   if(same)return shape;
  }
- shape={coordinates:[],lengths:[],bends:[]};
+ shape={coordinates:[],tightParking:[],lengths:[],bends:[]};
  for(let i=0;i<points.length;i++){
-  const b=points[i];shape.coordinates.push(b.x,b.y);
+  const b=points[i];shape.coordinates.push(b.x,b.y);shape.tightParking.push(!!b.tightParking);
   if(i)shape.lengths[i-1]=Math.hypot(b.x-points[i-1].x,b.y-points[i-1].y);
   if(!i||i===points.length-1)continue;
   const a=points[i-1],c=points[i+1],x=b.x-a.x,y=b.y-a.y,p=c.x-b.x,q=c.y-b.y,la=Math.hypot(x,y),lb=Math.hypot(p,q);
@@ -294,20 +303,34 @@ function lotPathPose(points,distance){
 }
 function lotPathLength(points){let n=0;for(let i=1;i<points.length;i++)n+=Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y);return n;}
 // Each car occupies its physical space; unrelated aisles remain free.
+const lotBodyAngleCache=new Map();
+function lotBodyAxes(angle){
+ const cacheable=typeof angle==='number'&&Number.isFinite(angle),key=Object.is(angle,-0)?'-0':angle;
+ if(cacheable){const saved=lotBodyAngleCache.get(key);if(saved)return saved;}
+ const heading=Math.atan2(Math.sin(angle)/.78,Math.cos(angle)),axes={c:Math.cos(heading),s:Math.sin(heading)};
+ if(cacheable){if(lotBodyAngleCache.size>=2048)lotBodyAngleCache.clear();lotBodyAngleCache.set(key,axes);}
+ return axes;
+}
+function lotBodyIntersects(dx,dy,hl,hw,aa,ba){
+ const ac=aa.c,as=aa.s,bc=ba.c,bs=ba.s;
+ // Keep the original four axes, arithmetic and rejection order without
+ // allocating an axes array for every pair. Angle values, never live poses
+ // or lot membership, are memoized; mutation cannot leave a stale body.
+ let x=ac,y=as,ra=hl*Math.abs(x*ac+y*as)+hw*Math.abs(-x*as+y*ac),rb=hl*Math.abs(x*bc+y*bs)+hw*Math.abs(-x*bs+y*bc);
+ if(Math.abs(dx*x+dy*y)>=ra+rb)return false;
+ x=-as;y=ac;ra=hl*Math.abs(x*ac+y*as)+hw*Math.abs(-x*as+y*ac);rb=hl*Math.abs(x*bc+y*bs)+hw*Math.abs(-x*bs+y*bc);
+ if(Math.abs(dx*x+dy*y)>=ra+rb)return false;
+ x=bc;y=bs;ra=hl*Math.abs(x*ac+y*as)+hw*Math.abs(-x*as+y*ac);rb=hl*Math.abs(x*bc+y*bs)+hw*Math.abs(-x*bs+y*bc);
+ if(Math.abs(dx*x+dy*y)>=ra+rb)return false;
+ x=-bs;y=bc;ra=hl*Math.abs(x*ac+y*as)+hw*Math.abs(-x*as+y*ac);rb=hl*Math.abs(x*bc+y*bs)+hw*Math.abs(-x*bs+y*bc);
+ if(Math.abs(dx*x+dy*y)>=ra+rb)return false;
+ return true;
+}
 function lotCarsOverlap(a,b,margin=.035){
  const dx=b.x-a.x,dy=b.y-a.y,hl=.285+margin,hw=.13+margin;
- // A long two-row lot can have hundreds of parked cars. Reject distant
- // objects before allocating the oriented axes and calling sin/cos.
+ // Keep this broad-phase wrapper small for distant-pair callers.
  if(dx*dx+dy*dy>4*(hl*hl+hw*hw))return false;
- const angle=p=>Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)),aa=angle(a),ba=angle(b);
- const ac=Math.cos(aa),as=Math.sin(aa),bc=Math.cos(ba),bs=Math.sin(ba);
- const axes=[[ac,as],[-as,ac],[bc,bs],[-bs,bc]];
- for(const [x,y] of axes){
-  const ra=hl*Math.abs(x*ac+y*as)+hw*Math.abs(-x*as+y*ac);
-  const rb=hl*Math.abs(x*bc+y*bs)+hw*Math.abs(-x*bs+y*bc);
-  if(Math.abs(dx*x+dy*y)>=ra+rb)return false;
- }
- return true;
+ return lotBodyIntersects(dx,dy,hl,hw,lotBodyAxes(a.angle),lotBodyAxes(b.angle));
 }
 // Starter parcels alone may share physical space inside their own lot.
 // Require the whole car footprint to stay inside the rotated parcel; the
@@ -390,6 +413,27 @@ function overlappingEntranceLeader(v,other){
  const a=v.lotPath[0],b=other.lotPath[0];
  return Math.hypot(a.x-b.x,a.y-b.y)<.24;
 }
+// The bay geometry is static, while its owner and parked membership stay live.
+// Use nearby bay indexes only as a broad phase, then keep the original parked
+// iteration order and exact physical checks for every possible blocker.
+const parkedSlotGrids=new WeakMap();
+function nearbyParkedCitizens(b,pose){
+ const slots=lotSlots(b);if(!b.parkingSlots||!slots.length)return null;
+ let memo=parkedSlotGrids.get(b);
+ if(!memo||memo.x!==b.x||memo.y!==b.y||memo.rotation!==b.rotation||memo.key!==b.key||memo.slots!==slots||memo.length!==slots.length){
+  const cells=new Map(),poses=[];
+  for(let i=0;i<slots.length;i++){
+   const p=parkingSlotPose(b,i);poses[i]=p;if(!p)continue;
+   if(!Number.isFinite(p.x)||!Number.isFinite(p.y))return null;
+   const key=Math.floor(p.x)+','+Math.floor(p.y);let cell=cells.get(key);if(!cell){cell=[];cells.set(key,cell);}cell.push(i);
+  }
+  memo={x:b.x,y:b.y,rotation:b.rotation,key:b.key,slots,length:slots.length,cells,poses};parkedSlotGrids.set(b,memo);
+ }
+ const nearby=new Set();if(!Number.isFinite(pose.x)||!Number.isFinite(pose.y))return nearby;
+ for(let x=Math.floor(pose.x-1);x<=Math.floor(pose.x+1);x++)for(let y=Math.floor(pose.y-1);y<=Math.floor(pose.y+1);y++)
+  for(const i of memo.cells.get(x+','+y)||[]){const p=memo.poses[i];if(Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1)nearby.add(b.parkingSlots[i]);}
+ return nearby;
+}
 function lotClear(v,pose,ignoreRoadTraffic=false){
  const b=state.buildings.get(v.lotBuilding);
  for(const other of parkingLotCars(v.lotBuilding)){
@@ -410,28 +454,66 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
     if(p&&Math.hypot(p.x-pose.x,p.y-pose.y)<1.1&&lotCarsOverlap(pose,p,.045))return noteParkingBlock(v,'lot_road_vehicle_overlap',{blockerVehicleId:other.id,checkedPose:pose,blockingPose:p,observedPhysical:true});
    }
  }
+ const nearbyParked=b?.parked.size?nearbyParkedCitizens(b,pose):null;
  if(b)for(const cid of b.parked){
-  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(starterLotOverlapAllowed(b,pose,p))continue;if(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1&&lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015))return noteParkingBlock(v,'lot_parked_citizen_overlap',{blockerCitizenId:cid,blockerSlot:parkingSpace(b,cid),checkedPose:pose,blockingPose:p,observedPhysical:true});
+  if(nearbyParked&&!nearbyParked.has(cid))continue;
+  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(!(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1))continue;if(starterLotOverlapAllowed(b,pose,p))continue;if(lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015))return noteParkingBlock(v,'lot_parked_citizen_overlap',{blockerCitizenId:cid,blockerSlot:parkingSpace(b,cid),checkedPose:pose,blockingPose:p,observedPhysical:true});
  }
  return true;
+}
+// Cache only pure path samples, never admission decisions or live membership.
+// Failed bay candidates are rebuilt as new arrays, so compare their values.
+const parkingForecasts=new WeakMap();
+function parkingForecastPath(v,points,building){
+ const type=CATALOG[building?.key],starter=!!type?.starterTier,width=type?.plotWidth,height=type?.plotHeight;
+ let memo=parkingForecasts.get(v);
+ if(memo&&memo.state===state&&memo.building===building&&memo.x===building?.x&&memo.y===building?.y&&memo.rotation===(building?.rotation||0)&&memo.key===building?.key&&memo.starter===starter&&memo.width===width&&memo.height===height&&memo.phase===v.phase&&memo.citizenId===v.citizenId&&memo.fromId===v.fromId&&memo.toId===v.toId&&memo.lotBuilding===v.lotBuilding&&memo.coordinates.length===points.length*2){
+  let same=true;for(let i=0;i<points.length;i++)if(memo.coordinates[i*2]!==points[i].x||memo.coordinates[i*2+1]!==points[i].y||memo.tightParking[i]!==!!points[i].tightParking){same=false;break;}
+  if(same)return memo;
+ }
+ const coordinates=[],tightParking=[];let total=0,first=0;
+ for(let i=0;i<points.length;i++){
+  coordinates.push(points[i].x,points[i].y);tightParking.push(!!points[i].tightParking);
+  if(i){const length=Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y);total+=length;if(i===1)first=length;}
+ }
+ memo={state,building,x:building?.x,y:building?.y,rotation:building?.rotation||0,key:building?.key,starter,width,height,phase:v.phase,citizenId:v.citizenId,fromId:v.fromId,toId:v.toId,lotBuilding:v.lotBuilding,coordinates,tightParking,total,mergeLength:first+.7,departure:null,upcoming:null};
+ parkingForecasts.set(v,memo);return memo;
+}
+function parkingForecastSamples(memo,points,kind,distance,limit){
+ const cached=memo[kind];if(cached&&cached.distance===distance&&cached.limit===limit)return cached;
+ const samples=[],departure=kind==='departure',end=departure?memo.mergeLength:1.5,step=departure ? .12 : .15;
+ let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+ for(let d=0;d<=end;d+=step){
+  const at=departure?Math.min(d,limit):Math.max(distance,Math.min(distance+d,limit)),pose=lotPathPose(points,at);samples.push(pose);
+  minX=Math.min(minX,pose.x);minY=Math.min(minY,pose.y);maxX=Math.max(maxX,pose.x);maxY=Math.max(maxY,pose.y);
+ }
+ return memo[kind]={distance,limit,samples,minX,minY,maxX,maxY};
+}
+// A sample-set is replaced whenever its geometry, progress or queue limit
+// changes. Reuse only the pure intersection of two unchanged sets; eligibility,
+// membership and the first live blocker are still resolved on every call.
+const parkingForecastPairs=new WeakMap();
+function parkingForecastOverlap(building,own,theirs){
+ let pairs=parkingForecastPairs.get(own);if(!pairs){pairs=new WeakMap();parkingForecastPairs.set(own,pairs);}
+ const saved=pairs.get(theirs);if(saved!==undefined)return saved;
+ const samples=own.samples,upcoming=theirs.samples;let result=null;
+ outer:for(let k=0;k<samples.length;k++)for(let n=0;n<upcoming.length;n++)
+  if(!starterLotOverlapAllowed(building,samples[k],upcoming[n])&&lotCarsOverlap(samples[k],upcoming[n],.06)){result={k,n};break outer;}
+ pairs.set(theirs,result);return result;
 }
 function canLeaveParkingSpace(v,points){
  const building=state.buildings.get(v.lotBuilding);
  // Reserve enough room to clear the bay before joining the one-way aisle.
- const mergeLength=lotPathLength(points.slice(0,2))+.7,ownLimit=starterExitQueueLimit(v,lotPathLength(points));
- const samples=[];
- for(let d=0;d<=mergeLength;d+=.12)samples.push(lotPathPose(points,Math.min(d,ownLimit)));
- const bounds=poses=>{let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;for(const p of poses){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}return{minX,minY,maxX,maxY};};
- const own=bounds(samples);
+ const memo=parkingForecastPath(v,points,building),ownLimit=starterExitQueueLimit(v,memo.total);
+ const own=parkingForecastSamples(memo,points,'departure',0,ownLimit),samples=own.samples;
  for(const other of parkingLotCars(v.lotBuilding)){
   if(other.id===v.id||other.lotBuilding!==v.lotBuilding||!other.lotPath)continue;
-  // Sample each unchanged path once, rather than once per opposing sample.
-  const upcoming=[],distance=other.lotDistance||0,limit=starterExitQueueLimit(other,lotPathLength(other.lotPath));
-  for(let ahead=0;ahead<=1.5;ahead+=.15)upcoming.push(lotPathPose(other.lotPath,Math.max(distance,Math.min(distance+ahead,limit))));
-  const theirs=bounds(upcoming);
+  const otherMemo=parkingForecastPath(other,other.lotPath,building),distance=other.lotDistance||0,limit=starterExitQueueLimit(other,otherMemo.total);
+  const theirs=parkingForecastSamples(otherMemo,other.lotPath,'upcoming',distance,limit),upcoming=theirs.samples;
   // One block exceeds the collision routine's maximum center distance at .06.
   if(own.maxX+1<theirs.minX||theirs.maxX+1<own.minX||own.maxY+1<theirs.minY||theirs.maxY+1<own.minY)continue;
-  for(let k=0;k<samples.length;k++)for(let n=0;n<upcoming.length;n++)if(!starterLotOverlapAllowed(building,samples[k],upcoming[n])&&lotCarsOverlap(samples[k],upcoming[n],.06))return noteParkingBlock(v,'bay_exit_predicted_path_conflict',{blockerVehicleId:other.id,checkedPose:samples[k],blockingPredictedPose:upcoming[n],ownLookahead:k*.12,blockerLookahead:n*.15,forecastOnly:true});
+  const hit=parkingForecastOverlap(building,own,theirs);
+  if(hit)return noteParkingBlock(v,'bay_exit_predicted_path_conflict',{blockerVehicleId:other.id,checkedPose:samples[hit.k],blockingPredictedPose:upcoming[hit.n],ownLookahead:hit.k*.12,blockerLookahead:hit.n*.15,forecastOnly:true});
  }return true;
 }
 function parkingAccess(b){
