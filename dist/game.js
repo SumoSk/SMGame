@@ -1270,6 +1270,11 @@ let bugCaptureEnabled=false;
 try{bugCaptureEnabled=localStorage.getItem(BUG_CAPTURE_STORAGE_KEY)==='on';}catch(_){}
 const runtimeErrors=[];for(const type of ['error','unhandledrejection'])window.addEventListener(type,e=>{if(!bugCaptureEnabled)return;runtimeErrors.push({at:new Date().toISOString(),message:String(e.message||e.reason?.stack||e.reason||type).slice(0,4000)});if(runtimeErrors.length>20)runtimeErrors.shift();});
 let state,cam={x:150,y:150,z:1.25,angle:Math.PI/4,elevation:Math.PI*50/180},view={w:innerWidth,h:innerHeight,dpr:1},tool='hand',category='roads',selected=null,hover=null,drag=null,pendingRoadPreview=null,pendingDemolitionPreview=null,roadPreviewCache=null,movingBuildingId=null,constructionAnchor=null,heat=false,debug=false,last=0,uiTick=0,news=[],toastTimer,follow=null;
+const SIMULATION_GAME_STEP=.08,SIMULATION_MAX_STEPS=16,SIMULATION_CPU_BUDGET_MS=12;
+const EVENT_ACTIONS_PER_MINUTE=280,EVENT_TRIPS_PER_MINUTE=112;
+const EVENT_ACTION_CAP=42,EVENT_TRIP_CAP=14;
+let simulationClock=null,eventDispatchBudget=null,eventTripSerial=0;
+function resetSimulationRuntime(){simulationClock=null;eventDispatchBudget=null;}
 const id=(x,y)=>y*W+x,xy=i=>[i%W,Math.floor(i/W)],valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function phuketCoastX(y){
  const zn=(y-150)/165,taper=10*zn*zn;
@@ -1681,16 +1686,26 @@ function refreshComplaints(force=false){
  // Closed reports are retained for one round for inspection, never unbounded.
  for(const [key,issue]of Object.entries(p.complaints))if(issue.resolvedAt!=null&&state.time-issue.resolvedAt>1440)delete p.complaints[key];
 }
+function settleExpiredMissionResults(){
+ const p=ensurePerformance();if(performanceDay()<=p.current.day)return;
+ // Finalize attendance before tax is measured, while keeping the closing-day
+ // score and the population that earned that day's income unchanged.
+ const wasClosing=p.closing;p.closing=true;
+ try{
+  for(const v of state.vehicles.values()){
+   const c=state.citizens.get(v.citizenId);
+   if(c?.resident&&!c.removed&&!v.resultDone&&v.arrivedAt==null&&['work','leisure','home'].includes(v.kind)&&Number.isFinite(v.deadline)&&v.deadline<state.time){
+    const b=state.buildings.get(v.toId),outcome=v.kind==='leisure'&&!b?'missed':arrivalOutcome(v,c,b);
+    const reason=outcome==='missed'&&v.kind==='work'?'หมดกะทำงานก่อนปิดรอบ 06:00':'เลยเวลานัดหมายก่อนปิดรอบ 06:00';
+    journeyResult(c,v,outcome,reason);
+   }
+  }
+ }finally{p.closing=wasClosing;}
+}
 function closePerformanceDay(){
  const p=ensurePerformance(),day=performanceDay();if(day<=p.current.day)return false;
  // A passed deadline is already a known failure. Unexpired trips carry on.
- p.closing=true;
- for(const v of state.vehicles.values()){
-  const c=state.citizens.get(v.citizenId);
-  if(c?.resident&&!c.removed&&!v.resultDone&&v.arrivedAt==null&&['work','leisure','home'].includes(v.kind)&&Number.isFinite(v.deadline)&&v.deadline<state.time){
-   journeyResult(c,v,'late','เลยเวลานัดหมายก่อนปิดรอบ 06:00');
-  }
- }
+ settleExpiredMissionResults();p.closing=true;
  refreshComplaints(true);p.closing=false;
  p.previous=p.current;
  if(p.previous.total)p.official=100*p.previous.ontime/p.previous.total;
@@ -1734,6 +1749,7 @@ function migratePerformance(saved){
 }
 
 function reset(city='phuket'){
+resetSimulationRuntime();
 trafficPairReset();
 dismissCityLevelCelebration();
 clearMissionMoodFlights();
@@ -2890,7 +2906,8 @@ function motionPlan(v){
  const pieces=[];
  function append(startU,endU,p0,p1,p2,p3,turn=null){
   if(endU-startU<1e-8)return;
-  if(!turn&&startU===0&&v.motionStartPose?.dx!=null){const pose=v.motionStartPose,h=Math.hypot(p1.x-p0.x,p1.y-p0.y);p1={x:p0.x+pose.dx*h,y:p0.y+pose.dy*h};}
+  const startPose=!turn&&(roadAnchor&&Math.abs(startU-roadAnchor.u)<1e-8?roadAnchor.pose:startU===0?v.motionStartPose:null);
+  if(startPose?.dx!=null){const h=Math.hypot(p1.x-p0.x,p1.y-p0.y);p1={x:p0.x+startPose.dx*h,y:p0.y+startPose.dy*h};}
   const dx=p3.x-p0.x,dy=p3.y-p0.y,length=Math.hypot(dx,dy);
   const line=!turn&&Math.abs(dx*(p1.y-p0.y)-dy*(p1.x-p0.x))<1e-8&&Math.abs(dx*(p2.y-p0.y)-dy*(p2.x-p0.x))<1e-8;
   const last=pieces[pieces.length-1];
@@ -7019,7 +7036,7 @@ function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(kin
  if(!path)return false;if(kind==='leisure'&&to.visitors.size+to.reservedService>=CATALOG[to.key].service)return false;
  const residentMission=!!(c?.resident&&!c.tourist&&['work','leisure','home'].includes(kind));
  if(residentMission){finishResidentService(c,c.serviceMission&&state.time<c.serviceMission.serviceUntil?'ออกจากสถานที่ก่อนใช้บริการครบ':null);deadline=state.time+RESIDENT_TRAVEL_MINUTES;c.lastMissionStartedAt=state.time;const step=extra.life&&c.lifeRun?.plan.steps[extra.life.index];if(step){step.destinationId=toId;step.startedAt=state.time;step.actualDeadline=deadline;}}
-const v={id:state.nextId++,trafficModel:2,noUTurnPolicy:1,citizenId:c?.id||null,kind,fromId,toId,fromGate,toGate,path:[...path],pathSet:new Set(path),pos:0,progress:0,lane:0,laneSeed:Math.abs(state.nextId)%4,speed:0,vehicleTech,phase:skyTrip?(vehicleTech==='fly'?'air_lift':'warp_charge'):from?'departing':'gate_waiting',wait:0,lastPain:0,deadline,startedAt:state.time,congestionMinutes:0,workEnd:kind==='work'?(extra.life?extra.life.day*1440+c?.lifeRun?.plan.steps[extra.life.index]?.until:c?.dailyPlan?.day*1440+c?.dailyPlan?.end):null,late:false,color:c?citizenCarColor(c.id):TRIPS[kind].color,version:state.version,life:extra.life,stay:extra.stay,closeAt:extra.closeAt,activityEnd:extra.activityEnd,serviceKind:extra.serviceKind,complaintKey:extra.complaintKey,residentReservation:kind==='moveIn',serviceReservation:kind==='leisure',retryAt:0,occKey:null,stopReason:'',routeMissing:false,routeMissingSince:null,committedJunction:null,departureRouteVersion:state.version};state.vehicles.set(v.id,v);updateParkingRoadSpatial(v);if(kind!=='intercity')missionTripStart(kind);if(kind==='moveIn')to.reservedResidents++;if(kind==='leisure')to.reservedService++;
+const v={id:state.nextId++,trafficModel:2,noUTurnPolicy:1,citizenId:c?.id||null,kind,fromId,toId,fromGate,toGate,path:[...path],pathSet:new Set(path),pos:0,progress:0,lane:0,laneSeed:Math.abs(state.nextId)%4,speed:0,vehicleTech,phase:skyTrip?(vehicleTech==='fly'?'air_lift':'warp_charge'):from?'departing':'gate_waiting',wait:0,lastPain:0,deadline,startedAt:state.time,congestionMinutes:0,workEnd:kind==='work'?(extra.life?extra.life.day*1440+c?.lifeRun?.plan.steps[extra.life.index]?.until:c?.dailyPlan?.day*1440+c?.dailyPlan?.end):null,late:false,color:c?citizenCarColor(c.id):TRIPS[kind].color,version:state.version,life:extra.life,stay:extra.stay,closeAt:extra.closeAt,activityEnd:extra.activityEnd,serviceKind:extra.serviceKind,complaintKey:extra.complaintKey,residentReservation:kind==='moveIn',serviceReservation:kind==='leisure',retryAt:0,occKey:null,stopReason:'',routeMissing:false,routeMissingSince:null,committedJunction:null,departureRouteVersion:state.version};state.vehicles.set(v.id,v);eventTripSerial++;updateParkingRoadSpatial(v);if(kind!=='intercity')missionTripStart(kind);if(kind==='moveIn')to.reservedResidents++;if(kind==='leisure')to.reservedService++;
 v.lastMovedAt=state.time;v.respawns=0;if(residentMission)v.missionRuleVersion=3;
  if(restoredWaiting){v.departureNoRoute=true;v.departureRouteVersion=-1;setRouteMissing(v,true);v.stopReason='ไม่มีเส้นทางถึงบ้าน · รอเริ่มย้ายเข้าใหม่';}
  v.travelBudget=skyTrip?{totalMinutes:vehicleTech==='warp'?20:6+Math.hypot(to.x-from.x,to.y-from.y)/2.6}:travelEstimate(path);
@@ -8284,6 +8301,42 @@ function emergencyRightReroute(v,alerts){
  v.lastMovedAt=state.time;
  return true;
 }
+// Update a road leader before its followers so one step does not depend on
+// Map insertion order. Parking and gate slots retain their existing order;
+// all movement still checks live collision, occupancy and junction leases.
+function roadMovementOrder(cars){
+ const records=new Map(),lanes=new Map(),roads=[];
+ for(const v of cars){
+  if(v.phase!=='driving'||!v.path?.length)continue;
+  const plan=motionPlan(v),s=motionDistance(v,plan),pose=vehiclePosition(v),d=motionDirection(v.path,v.pos),axis=DIR[d];
+  const record={v,plan,s,pose,d,forward:pose.x*axis[0]+pose.y*axis[1],layer:isAirTraffic(v)?1:0,leader:null};
+  records.set(v.id,record);roads.push(record);
+  const key=roadCellKey(v,v.pos),lane=lanes.get(key);if(lane)lane.push(record);else lanes.set(key,[record]);
+ }
+ if(roads.length<2)return cars;
+ roads.sort((a,b)=>a.layer-b.layer||a.d-b.d||b.forward-a.forward||a.pose.x-b.pose.x||a.pose.y-b.pose.y||a.v.id-b.v.id);
+ for(const record of roads){
+  const v=record.v,plan=record.plan;let nearest=Infinity;
+  // Index only the next four route cells; do not run a second collision
+  // simulation or copy the city. Curved leaders use the shared route lane.
+  for(let i=v.pos;i<Math.min(v.path.length,v.pos+5);i++){
+   const key=roadCellKey(v,i),span=(plan.nodes[i+1]??plan.nodes[i])-plan.nodes[i];
+   for(const leader of lanes.get(key)||[]){
+    const ahead=plan.nodes[i]+span*(leader.v.progress||0)-record.s;
+    if(leader===record||ahead<=1e-7||ahead>nearest)continue;
+    if(ahead===nearest&&leader.v.id>record.leader.v.id)continue;
+    nearest=ahead;record.leader=leader;
+   }
+  }
+ }
+ const seen=new Set(),ordered=[];
+ for(const root of roads){
+  const chain=[];let record=root;
+  while(record&&!seen.has(record.v.id)){seen.add(record.v.id);chain.push(record);record=record.leader;}
+  while(chain.length)ordered.push(chain.pop().v);
+ }
+ let next=0;return cars.map(v=>records.has(v.id)?ordered[next++]:v);
+}
 function advanceVehicles(realDt,gameDt){
  trafficWaitSerial++;
  let routeBudget=2,respawnBudget=2;const gateAttempt=new Set(),simDt=Math.max(0,realDt*state.speed);let pairedDeadlocks=null;for(const car of state.vehicles.values()){if(mutualPhysicalDeadlock(car))(pairedDeadlocks??=new Set()).add(car.id);if(['departing','gate_waiting'].includes(car.phase)){if(car.noUTurnPolicy!==1){car.departureRouteVersion=-1;car.noUTurnPolicy=1;}}else if(car.phase==='driving'||car.phase==='stuck')enforceNoUTurn(car);}const requests=[];for(const car of state.vehicles.values()){let at=null;if(car.phase==='stuck'&&recoveryDue(car))at=car.recoveryVersion!==state.version?-1:car.nextRouteRetry??-1;else if((car.phase==='gate_waiting'||car.phase==='departing'&&(car.lotReady||car.departureNoRoute||!state.buildings.has(car.fromId)))&&!(car.retryAt>state.time)&&(car.departureRouteVersion!==state.version||car.departureNoRoute&&!(car.nextDepartureRouteRetry>state.time)))at=car.departureRouteVersion!==state.version?-1:car.nextDepartureRouteRetry??-1;if(at!=null){requests.push({id:car.id,at});requests.sort((a,b)=>a.at-b.at||a.id-b.id);if(requests.length>2)requests.pop();}}const routeChecks=new Set(requests.map(r=>r.id));prepareJunctionQueues();trafficSpatial=beginTrafficSpatial();for(const car of state.vehicles.values())updateTrafficSpatial(car);
@@ -8292,7 +8345,7 @@ function advanceVehicles(realDt,gameDt){
  if(junctionTowState!==state){junctionTowState=state;junctionTowCandidates.clear();junctionTowLog.length=0;junctionTowClock=0;}
  junctionTowClock+=simDt;
  const emergencyAlerts=parkingGateAlerts();
- for(const v of [...state.vehicles.values()]){
+ for(const v of roadMovementOrder([...state.vehicles.values()])){
   try{
   if(!state.vehicles.has(v.id))continue;
   if(v.phase==='delivery_unload'){if(state.time>=(v.delivery?.until??Infinity))startDeliveryReturn(v);continue;}
@@ -8462,7 +8515,7 @@ function advanceVehicles(realDt,gameDt){
   refreshMotionReservations(v,plan,s);
   if(s-initial>1e-7)v.lastMovedAt=state.time;
   if(blocked&&s-initial<1e-7){
-   v.wait+=gameDt;v.stopReason=blocked;rememberTrafficWait(v,plan,s,blockingGate);if(bugCaptureEnabled){v.lastStoppedBarrier={gameTime:state.time,reason:blocked,node:v.path[v.pos],distance:s,limit:barrier.limit,speed:v.speed};rememberVehicleStop(v,plan,s,blocked);}state.roads.get(v.path[v.pos]).wait=Math.min(10,state.roads.get(v.path[v.pos]).wait+realDt);
+   v.wait+=gameDt;v.stopReason=blocked;rememberTrafficWait(v,plan,s,blockingGate);if(bugCaptureEnabled){v.lastStoppedBarrier={gameTime:state.time,reason:blocked,node:v.path[v.pos],distance:s,limit:barrier.limit,speed:v.speed};rememberVehicleStop(v,plan,s,blocked);}state.roads.get(v.path[v.pos]).wait=Math.min(10,state.roads.get(v.path[v.pos]).wait+simDt);
   }else{v.wait=0;v.stopReason=blocked||'';trafficWaits.delete(v);}
   updateTrafficSpatial(v);
   }finally{updateParkingRoadSpatial(v);queueVehicleApproaches(v);}
@@ -8476,6 +8529,7 @@ function daily({forfeitIncome=false}={}){
  syncCitizenVehicleTech();reconcile();
  const p=ensurePerformance(),previousFactor=p.incomeFactor;
  if(performanceDay()<=p.current.day)return;
+ settleExpiredMissionResults();
  const closedDay=Math.floor(state.time/1440)-1;
  const s=computeStats(closedDay),gross=s.tax+s.business;
  const paid=forfeitIncome?-s.maint:gross*previousFactor-s.maint;
@@ -8523,11 +8577,39 @@ function autoRescueIncidents(){
   if(respawnVehicle(root,'incident_recovery')||towVehicle(root.id,true))budget--;
  }
 }
-function tick(dt){if(!state.speed)return;const old=state.time,gameDt=dt*GAME_MINUTES_PER_SECOND*state.speed*NORMAL_SPEED_SCALE;state.time+=gameDt;smartSignalStep();if(performanceDay(old)!==performanceDay())daily();let count=0,trips=0;while(state.events.length&&state.events[0].at<=state.time&&count<42&&trips<14){const e=eventPop(),c=state.citizens.get(e.citizenId);runAction(c,e.action,e);count++;trips++;}
+function eventCanStartTrip(c,e){
+ if(!c||c.removed||c.vehicleId||!c.resident&&!c.tourist)return false;
+ if(e.action==='lifeNext')return false;
+ if(!e.life&&e.action==='home'&&c.locationId===c.homeId)return false;
+ if(!e.life&&e.action==='work'&&c.workId!=null&&c.locationId===c.workId&&state.buildings.get(c.workId)?.workers.has(c.id))return false;
+ return true;
+}
+function dispatchDueEvents(gameDt,oldTime){
+ // Credits follow elapsed game time, not render callbacks. Idle credit is
+ // capped so a saved/quiet city cannot later release an unlimited trip burst.
+ if(!eventDispatchBudget||eventDispatchBudget.owner!==state||Math.abs(eventDispatchBudget.time-oldTime)>1e-7)
+  eventDispatchBudget={owner:state,time:oldTime,actions:0,trips:0};
+ const budget=eventDispatchBudget;
+ budget.time=state.time;
+ budget.actions=Math.min(EVENT_ACTION_CAP,budget.actions+gameDt*EVENT_ACTIONS_PER_MINUTE);
+ budget.trips=Math.min(EVENT_TRIP_CAP,budget.trips+gameDt*EVENT_TRIPS_PER_MINUTE);
+ const deferred=[];let scanned=0,actions=0,trips=0;
+ while(state.events.length&&state.events[0].at<=state.time&&scanned<EVENT_ACTION_CAP&&actions<EVENT_ACTION_CAP&&trips<EVENT_TRIP_CAP&&budget.actions>=1-1e-9){
+  const e=eventPop(),c=state.citizens.get(e.citizenId);scanned++;
+  if(eventCanStartTrip(c,e)&&(budget.trips<1-1e-9||trips>=EVENT_TRIP_CAP)){deferred.push(e);continue;}
+  const before=eventTripSerial;
+  runAction(c,e.action,e);
+  const started=Math.max(0,eventTripSerial-before);
+  budget.actions=Math.max(0,budget.actions-1);budget.trips=Math.max(0,budget.trips-started);
+  actions++;trips+=started;
+ }
+ for(const e of deferred)eventPush(e);
+}
+function tick(dt){if(!state.speed)return;const old=state.time,gameDt=dt*GAME_MINUTES_PER_SECOND*state.speed*NORMAL_SPEED_SCALE;state.time+=gameDt;smartSignalStep();if(performanceDay(old)!==performanceDay())daily();dispatchDueEvents(gameDt,old);
 if(state.time-state.lastImmigration>=1){state.lastImmigration=state.time;immigration();}
 if(Math.floor(old/2)!==Math.floor(state.time/2)){let n=0;for(const c of state.citizens.values()){if(c.pending&&!c.pending.life&&c.pending.next<=state.time&&n++<80){const p=c.pending;if(p.expires<state.time){c.pending=null;continue;}runAction(c,p.action,p);}}}
 if(state.time-state.lastPass>=90){state.lastPass=state.time;if(computeStats().pop<1200&&state.vehicles.size<3600){const index=Math.floor(state.time/90)%4;createTrip(null,'pass',null,null,state.gates[index],state.gates[(index+2)%4],null);}}
-updateIntercityFreight();updateNightDeliveries();advanceVehicles(dt*NORMAL_SPEED_SCALE,gameDt);updateTourism(gameDt);updateCityActivity();refreshComplaints();scanIncidents();autoRescueIncidents();trafficPairCollect();const loadDecay=Math.pow(.90,dt*4),waitDecay=Math.pow(.72,dt*4);for(const r of state.roads.values()){if(r.load>.001)r.load*=loadDecay;if(r.wait>.001)r.wait*=waitDecay;}if(state.stats.happy<70&&state.time-(state.lastHappyAlert||0)>180){addNews('คนใหม่หยุดย้ายเข้า ช่วยแก้ปัญหาให้ Performance ตั้งแต่ 70%');state.lastHappyAlert=state.time;}}
+updateIntercityFreight();updateNightDeliveries();advanceVehicles(dt*NORMAL_SPEED_SCALE,gameDt);updateTourism(gameDt);updateCityActivity();refreshComplaints();scanIncidents();autoRescueIncidents();trafficPairCollect();const decayDt=gameDt/(GAME_MINUTES_PER_SECOND*NORMAL_SPEED_SCALE),loadDecay=Math.pow(.90,decayDt*4),waitDecay=Math.pow(.72,decayDt*4);for(const r of state.roads.values()){if(r.load>.001)r.load*=loadDecay;if(r.wait>.001)r.wait*=waitDecay;}if(state.stats.happy<70&&state.time-(state.lastHappyAlert||0)>180){addNews('คนใหม่หยุดย้ายเข้า ช่วยแก้ปัญหาให้ Performance ตั้งแต่ 70%');state.lastHappyAlert=state.time;}}
 function lineCells(a,b){let [x,y]=xy(a),[u,v]=xy(b),dx=u-x,dy=v-y;const horizontal=Math.abs(dx)>=Math.abs(dy);if(horizontal)v=y;else u=x;
  // Snap an unfinished end by one tile along the stroke, preserving its axis.
  const sx=Math.sign(u-x),sy=Math.sign(v-y);
@@ -8987,16 +9069,31 @@ function initCameraPitchRail(){
  $('cameraPitchReset').onclick=resetCameraAngle;syncCameraPitchRail();
 }
 initCameraPitchRail();
-// At 20x, keep road physics and intersections on small time slices.
-// On slower devices, slow the clock rather than skip collision checks or carry a backlog.
+// Every speed consumes the same game-time quantum. Retain only a fractional
+// quantum between frames; on slow devices discard excess wall time rather
+// than skipping collision checks or accumulating an unlimited catch-up debt.
 function simulateFrame(dt){
- if(state.speed!==20){tick(dt);return;}
- const maxStepDt=.4/(state.speed*NORMAL_SPEED_SCALE);
- const steps=Math.min(4,Math.max(1,Math.ceil(dt/maxStepDt)));
- const safeDt=Math.min(dt,steps*maxStepDt);
- for(let i=0;i<steps;i++)tick(safeDt/steps);
+ if(!(state.speed>0)){resetSimulationRuntime();return;}
+ if(!simulationClock||simulationClock.owner!==state||Math.abs(simulationClock.time-state.time)>1e-7){
+  simulationClock={owner:state,time:state.time,minutes:0};eventDispatchBudget=null;
+ }
+ const clock=simulationClock,rate=GAME_MINUTES_PER_SECOND*state.speed*NORMAL_SPEED_SCALE;
+ const accepted=Math.min(Math.max(0,Number.isFinite(dt)?dt:0)*rate,SIMULATION_GAME_STEP*SIMULATION_MAX_STEPS);
+ clock.minutes+=accepted;
+ const steps=Math.min(SIMULATION_MAX_STEPS,Math.floor((clock.minutes+1e-9)/SIMULATION_GAME_STEP));
+ const started=performance.now();let completed=0;
+ for(;completed<steps;){
+  tick(SIMULATION_GAME_STEP/rate);completed++;
+  // Check between complete safe steps. One heavy step may itself exceed the
+  // budget; never skip its collision/lease checks or advance an unrun clock.
+  if(performance.now()-started>=SIMULATION_CPU_BUDGET_MS)break;
+ }
+ clock.minutes=Math.max(0,clock.minutes-completed*SIMULATION_GAME_STEP);
+ if(clock.minutes>=SIMULATION_GAME_STEP)clock.minutes%=SIMULATION_GAME_STEP;
+ if(clock.minutes<1e-9||SIMULATION_GAME_STEP-clock.minutes<1e-9)clock.minutes=0;
+ clock.time=state.time;
 }
-function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)simulateFrame(dt);if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();syncCameraPitchRail();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
+function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)simulateFrame(dt);else resetSimulationRuntime();if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();syncCameraPitchRail();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
 window.addEventListener('resize',resize);
 $('categories').onclick=()=>{}; // Redundant group row retired; construction tabs are direct.
 $('subcategories').onclick=e=>{
@@ -9645,7 +9742,7 @@ function advanceLoadedCityToMorning(){
  for(const c of state.citizens.values()){
   if(c.removed||!c.resident)continue;
   c.vehicleId=null;c.pending=null;c.queued=null;c.lifeRun=null;
-  c.activityUntil=null;c.sleepUntil=null;c.dailyPlan=null;
+  c.activityUntil=null;c.sleepUntil=null;c.dailyPlan=null;c.serviceMission=null;
   c.scheduled=new Set();c.lifePlans={};
   c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';
   c.lastTax=workTax(c,day-1);
