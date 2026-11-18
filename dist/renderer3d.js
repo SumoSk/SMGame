@@ -1863,7 +1863,7 @@ export class TrafficRenderer{
   const noise=this.landscapeNoiseMap,clock=this.landscapeClock;
   const grass=landscapeMaterial(city,'grass',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform);
   const water=new THREE.Mesh(new THREE.PlaneGeometry(3200,3200),landscapeWater(city,false,noise,clock));
-  water.rotation.x=-Math.PI/2;water.position.set(150,-.26,150);water.receiveShadow=true;water.renderOrder=-4;
+  water.rotation.x=-Math.PI/2;water.position.set(150,-.26,150);water.receiveShadow=true;water.renderOrder=1;
   this.scene.add(water);this.terrainGroup.push(water);
   const strip=(points,a,b,material,y)=>this.groundShape([...points.map(([x,z])=>[x+a,z]),...points.slice().reverse().map(([x,z])=>[x+b,z])],material,y);
   if(city==='phuket'){
@@ -3063,6 +3063,46 @@ export class TrafficRenderer{
     Math.sin(a)*ring,.070,.065,.075,a);
   }
  }
+ // Split only the static far forest into spatial batches. Every instance keeps
+ // its original geometry, material, transform and picking ID. Bounds include
+ // the full transformed geometry, so trees remain visible at chunk edges.
+ chunkTreeFarGroup(group,cellSize=54){
+  const matrix=new THREE.Matrix4();
+  for(const mesh of [...group.children]){
+   if(mesh.userData.farTreePartition||!mesh.isInstancedMesh||mesh.count<2||(Array.isArray(mesh.material)?mesh.material:[mesh.material]).some(material=>material.transparent))continue;
+   const cells=new Map(),array=mesh.instanceMatrix.array;
+   for(let i=0;i<mesh.count;i++){
+    const key=Math.floor(array[i*16+12]/cellSize)+':'+Math.floor(array[i*16+14]/cellSize);
+    let indices=cells.get(key);if(!indices)cells.set(key,indices=[]);indices.push(i);
+   }
+   if(cells.size<2)continue;
+   mesh.userData.farTreePartition='bulk';mesh.userData.farTreeOriginalVisible=mesh.visible;
+   for(const indices of cells.values()){
+    const chunk=new THREE.InstancedMesh(mesh.geometry,mesh.material,indices.length);
+    chunk.name=mesh.name;chunk.position.copy(mesh.position);chunk.quaternion.copy(mesh.quaternion);chunk.scale.copy(mesh.scale);
+    chunk.matrix.copy(mesh.matrix);chunk.matrixWorld.copy(mesh.matrixWorld);chunk.matrixAutoUpdate=mesh.matrixAutoUpdate;chunk.matrixWorldAutoUpdate=mesh.matrixWorldAutoUpdate;
+    chunk.layers.mask=mesh.layers.mask;chunk.visible=mesh.visible;chunk.castShadow=mesh.castShadow;chunk.receiveShadow=mesh.receiveShadow;chunk.frustumCulled=mesh.frustumCulled;chunk.renderOrder=mesh.renderOrder;
+    chunk.userData={...mesh.userData,farTreePartition:'chunks',ids:indices.map(i=>mesh.userData.ids?.[i]??null)};
+    chunk.instanceMatrix.setUsage(mesh.instanceMatrix.usage);
+    for(let n=0;n<indices.length;n++){mesh.getMatrixAt(indices[n],matrix);chunk.setMatrixAt(n,matrix);}
+    if(mesh.instanceColor){
+     const colors=new Float32Array(indices.length*mesh.instanceColor.itemSize);
+     for(let n=0;n<indices.length;n++)colors.set(mesh.instanceColor.array.subarray(indices[n]*mesh.instanceColor.itemSize,(indices[n]+1)*mesh.instanceColor.itemSize),n*mesh.instanceColor.itemSize);
+     chunk.instanceColor=new THREE.InstancedBufferAttribute(colors,mesh.instanceColor.itemSize,mesh.instanceColor.normalized);chunk.instanceColor.setUsage(mesh.instanceColor.usage);
+    }
+    chunk.computeBoundingSphere();group.add(chunk);
+   }
+  }
+  return group;
+ }
+ // Distant views retain the original draw-call count. Switch the existing
+ // static buffers only when the detail mode changes, without rebuilding trees.
+ updateTreeFarMode(group,zoomedIn){
+  if(!group||group.userData.farTreeZoomedIn===zoomedIn)return;
+  group.userData.farTreeZoomedIn=zoomedIn;
+  const partition=zoomedIn?'chunks':'bulk';
+  for(const mesh of group.children)if(mesh.userData.farTreePartition)mesh.visible=!!mesh.userData.farTreeOriginalVisible&&mesh.userData.farTreePartition===partition;
+ }
  // Keep the distant forest on the GPU. Camera movement rebuilds only nearby detail.
  trees(state,cam){
  const baseKey=[state.version,this.buildKey,state.city,state.landscapeVersion||0,this.graphicQuality].join(':');
@@ -3106,13 +3146,14 @@ export class TrafficRenderer{
    const scale=t.kind==='shrub'?.72:t.kind==='banyan'?1.30:['oak','rain','willow','cherry','maple','jacaranda'].includes(t.kind)?1.24:['cedar','cypress'].includes(t.kind)?1.20:t.kind==='palm'?1.12:1.04;
    add({x:t.x,z:t.y,kind:t.kind,scale,rotation:t.rotation||0,item:t});
   }
-  this.treeFarGroup=b.build();this.treeDetailGroup=new THREE.Group();this.treeGroup.add(this.treeFarGroup,this.treeDetailGroup);
+  this.treeFarGroup=this.chunkTreeFarGroup(b.build());this.treeDetailGroup=new THREE.Group();this.treeGroup.add(this.treeFarGroup,this.treeDetailGroup);
   for(const mesh of this.treeFarGroup.children){
    mesh.userData.farTreeMatrices=mesh.instanceMatrix.array.slice();
    mesh.userData.ids.forEach((id,index)=>{if(id==null)return;let entries=this.farTreeInstances.get(id);if(!entries)this.farTreeInstances.set(id,entries=[]);entries.push({mesh,index});});
   }
  }
- const zoomedIn=(cam.z??1)>=.75,cellX=zoomedIn?Math.floor(cam.x/18):'all',cellZ=zoomedIn?Math.floor(cam.y/18):'all';
+ const zoomedIn=(cam.z??1)>=.75;this.updateTreeFarMode(this.treeFarGroup,zoomedIn);
+ const cellX=zoomedIn?Math.floor(cam.x/18):'all',cellZ=zoomedIn?Math.floor(cam.y/18):'all';
  const key=[baseKey,cellX,cellZ].join(':');if(key===this.treeKey)return;this.treeKey=key;
  const near=[],radius=this.graphicQuality==='veryHigh'?42:27;
  if(zoomedIn){
@@ -3162,6 +3203,7 @@ export class TrafficRenderer{
   // A single prop can create dozens of primitive intersections: de-duplicate
   // by the original saved item, not by InstancedMesh or surface triangle.
   for(const hit of this.ray.intersectObjects(this.treeGroup.children,true)){
+   if(hit.object.userData.farTreePartition&&hit.object.visible===false)continue;
    const choice=this.landscapePicks.get(hit.object.userData.ids?.[hit.instanceId]);
    if(!choice)continue;
    if(blocker&&blocker.distance<hit.distance-.01&&!choice.item)continue;
