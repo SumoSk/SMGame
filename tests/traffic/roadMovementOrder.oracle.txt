@@ -1,0 +1,33 @@
+function roadMovementOrder(cars){
+ const records=new Map(),lanes=new Map(),roads=[];
+ for(const v of cars){
+  if(v.phase!=='driving'||!v.path?.length)continue;
+  const plan=motionPlan(v),s=motionDistance(v,plan),pose=vehiclePosition(v),d=motionDirection(v.path,v.pos),axis=DIR[d];
+  const record={v,plan,s,pose,d,forward:pose.x*axis[0]+pose.y*axis[1],layer:isAirTraffic(v)?1:0,leader:null};
+  records.set(v.id,record);roads.push(record);
+  const key=roadCellKey(v,v.pos),lane=lanes.get(key);if(lane)lane.push(record);else lanes.set(key,[record]);
+ }
+ if(roads.length<2)return cars;
+ roads.sort((a,b)=>a.layer-b.layer||a.d-b.d||b.forward-a.forward||a.pose.x-b.pose.x||a.pose.y-b.pose.y||a.v.id-b.v.id);
+ for(const record of roads){
+  const v=record.v,plan=record.plan;let nearest=Infinity;
+  // Index only the next four route cells; do not run a second collision
+  // simulation or copy the city. Curved leaders use the shared route lane.
+  for(let i=v.pos;i<Math.min(v.path.length,v.pos+5);i++){
+   const key=roadCellKey(v,i),span=(plan.nodes[i+1]??plan.nodes[i])-plan.nodes[i];
+   for(const leader of lanes.get(key)||[]){
+    const ahead=plan.nodes[i]+span*(leader.v.progress||0)-record.s;
+    if(leader===record||ahead<=1e-7||ahead>nearest)continue;
+    if(ahead===nearest&&leader.v.id>record.leader.v.id)continue;
+    nearest=ahead;record.leader=leader;
+   }
+  }
+ }
+ const seen=new Set(),ordered=[];
+ for(const root of roads){
+  const chain=[];let record=root;
+  while(record&&!seen.has(record.v.id)){seen.add(record.v.id);chain.push(record);record=record.leader;}
+  while(chain.length)ordered.push(chain.pop().v);
+ }
+ let next=0;return cars.map(v=>records.has(v.id)?ordered[next++]:v);
+}
