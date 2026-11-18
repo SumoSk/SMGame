@@ -5892,12 +5892,16 @@ function chooseCityOuting(c,requests=new Map()){
  const hour=(state.time%1440)/60,origin=state.buildings.get(c.locationId);if(!origin)return{reason:'ไม่มีอาคารต้นทาง'};
  const allowed=hour>=18||hour<3?['restaurant','pub','casino','shop','mall']:['restaurant','shop','mall','park','casino'];
  const kinds=allowed.filter(k=>serviceWindow(k,state.time)).sort((a,b)=>citizenServicePreference(c,b)-citizenServicePreference(c,a));
- let exists=false,space=false;
+ let exists=false,space=false,incoming=null;
  for(const kind of kinds){
   const win=serviceWindow(kind,state.time),duration=Math.round(SERVICE_STAY[kind][0]+habitRandom(c.id,Math.floor(state.time/15),183)*30);
   const choices=[...state.buildings.values()].filter(b=>b.id!==origin.id&&CATALOG[b.key].kind===kind).sort((a,b)=>distance(id(a.x,a.y),id(origin.x,origin.y))+destinationRoadPenalty(a)-distance(id(b.x,b.y),id(origin.x,origin.y))-destinationRoadPenalty(b));
   for(const b of choices){exists=true;const held=requests.get(b.id)||0;
-   if(b.visitors.size+b.reservedService+held>=CATALOG[b.key].service||parkingFree(b)<=held)continue;space=true;
+   if(b.visitors.size+b.reservedService+held>=CATALOG[b.key].service)continue;
+   // This synchronous search cannot retarget vehicles. Count them only when
+   // capacity first matters, and keep each destination's parked count live.
+   if(!incoming){incoming=new Map();for(const v of state.vehicles.values()){const toId=v.toId;if(v.citizenId&&toId===toId)incoming.set(toId,(incoming.get(toId)||0)+1);}}
+   if(Math.max(0,CATALOG[b.key].parkingCapacity-b.parked.size-(incoming.get(b.id)||0))<=held)continue;space=true;
    const path=tripRoute(origin.id,b.id,null,null,c.id);if(!path)continue;
    let length=0;for(let k=1;k<path.length;k++)length+=distance(path[k-1],path[k]);const eta=travelEstimate(path).totalMinutes;
    const day=Math.floor(state.time/1440),workPlans=[lifePlan(c,day),lifePlan(c,day+1)].filter(Boolean);
@@ -7685,31 +7689,35 @@ function prepareJunctionQueues(){
 }
 function removeVehicleApproaches(v,pos=null){
  const entries=junctionQueueMembership.get(v);if(!entries)return;
- const keep=[];
- for(const {key,request} of entries){
-  if(pos!=null&&request.pos!==pos){keep.push({key,request});continue;}
+ let keep=null;
+ for(const entry of entries){
+  const {key,request}=entry;
+  if(pos!=null&&request.pos!==pos){(keep??=[]).push(entry);continue;}
   const queue=state.junctionQueues?.get(key),index=queue?.indexOf(request)??-1;
   if(index>=0){queue.splice(index,1);queue._index=null;if(!queue.length)state.junctionQueues.delete(key);}
  }
- if(keep.length)junctionQueueMembership.set(v,keep);else junctionQueueMembership.delete(v);
+ if(keep)junctionQueueMembership.set(v,keep);else junctionQueueMembership.delete(v);
 }
 function queueVehicleApproaches(v){
  removeVehicleApproaches(v);
  if(state.vehicles.get(v.id)!==v||v.phase!=='driving'||!v.path?.length)return;
- const plan=motionPlan(v),s=motionDistance(v,plan),activeKeys=new Set(),entries=[];
+ const plan=motionPlan(v);
  v.junctionQueueSince??={};
+ // Plans without junctions still retire old waiting ages.
+ if(!plan.junctions.length){for(const key of Object.keys(v.junctionQueueSince))delete v.junctionQueueSince[key];return;}
+ const s=motionDistance(v,plan);let activeKeys=null,entries=null;
  for(const g of plan.junctions){
-  if(ownsJunctionPass(v,g.pos)||s>=g.entry||g.stop-s>2.5)continue;
-  const sinceKey=g.pos+':'+g.node;activeKeys.add(sinceKey);
+  if(s>=g.entry||g.stop-s>2.5||ownsJunctionPass(v,g.pos))continue;
+  const sinceKey=g.pos+':'+g.node;(activeKeys??=new Set()).add(sinceKey);
   if(v.junctionQueueSince[sinceKey]==null)v.junctionQueueSince[sinceKey]=state.time;
   if(!isAirTraffic(v)&&signalRequired(g.node)&&!signalAllows(g.node,motionDirection(v.path,g.pos-1)))continue;
   const key=trafficQueueKey(v,g.node),request={id:v.id,pos:g.pos,path:v.path,
    at:v.junctionQueueSince[sinceKey],distance:g.stop-s,connector:junctionConnector(v,g.pos)};
   let queue=state.junctionQueues.get(key);if(!queue)state.junctionQueues.set(key,queue=[]);
-  queue.push(request);queue._index=null;entries.push({key,request});
+  queue.push(request);queue._index=null;(entries??=[]).push({key,request});
  }
- for(const key of Object.keys(v.junctionQueueSince))if(!activeKeys.has(key))delete v.junctionQueueSince[key];
- if(entries.length)junctionQueueMembership.set(v,entries);
+ for(const key of Object.keys(v.junctionQueueSince))if(!activeKeys?.has(key))delete v.junctionQueueSince[key];
+ if(entries)junctionQueueMembership.set(v,entries);
 }
 function junctionPriority(request,node){
  if(isLargeRoadBend(node))return -1; // First-arrived receives priority at an unsigned bend.
@@ -8163,7 +8171,14 @@ function physicalTrafficLimit(v,plan,s,lookahead){
 function computePhysicalTrafficLimit(v,plan,s,lookahead){
  v.lastPhysicalBlock=null;
  if(!trafficSpatial)return Infinity;const end=Math.min(plan.total,s+lookahead),origin=positionOnMotion(plan,s),x=Math.floor(origin.x/2),y=Math.floor(origin.y/2),prefix=trafficSpatialPrefix(v),radius=Math.max(2,Math.ceil((lookahead+.7)/2)),key=prefix+x+':'+y+':'+radius;let cached=trafficSpatial.candidates.get(v.id),candidates=cached?.key===key&&cached.epoch===trafficSpatial.epoch?cached.ids:null;
- if(!candidates){candidates=[];for(let dx=-radius;dx<=radius;dx++)for(let dy=-radius;dy<=radius;dy++)for(const other of trafficSpatial.cells.get(prefix+(x+dx)+':'+(y+dy))?.values()||[])if(other.id!==v.id)candidates.push(other.id);trafficSpatial.candidates.set(v.id,{key,epoch:trafficSpatial.epoch,ids:candidates});}
+ if(!candidates){
+  candidates=[];
+  for(let dx=-radius;dx<=radius;dx++)for(let dy=-radius;dy<=radius;dy++){
+   const cell=trafficSpatial.cells.get(prefix+(x+dx)+':'+(y+dy));if(!cell)continue;
+   for(const other of cell.values())if(other.id!==v.id)candidates.push(other.id);
+  }
+  trafficSpatial.candidates.set(v.id,{key,epoch:trafficSpatial.epoch,ids:candidates});
+ }
  if(!candidates.length)return Infinity;
  let lo=0,hi=plan.pieces.length-1;
  while(lo<hi){const mid=(lo+hi)>>1;if(plan.pieces[mid].endDistance<s)lo=mid+1;else hi=mid;}
@@ -8387,13 +8402,13 @@ function emergencyRightReroute(v,alerts){
 // Map insertion order. Parking and gate slots retain their existing order;
 // all movement still checks live collision, occupancy and junction leases.
 function roadMovementOrder(cars){
- const records=new Map(),lanes=new Map(),roads=[];
+ const records=new Set(),lanes=new Map(),roads=[];
  for(const v of cars){
   if(v.phase!=='driving'||!v.path?.length)continue;
   const plan=motionPlan(v),s=motionDistance(v,plan),pose=vehiclePosition(v),d=motionDirection(v.path,v.pos),axis=DIR[d];
   const record={v,plan,s,pose,d,forward:pose.x*axis[0]+pose.y*axis[1],layer:isAirTraffic(v)?1:0,leader:null};
-  records.set(v.id,record);roads.push(record);
-  const key=roadCellKey(v,v.pos),lane=lanes.get(key);if(lane)lane.push(record);else lanes.set(key,[record]);
+  records.add(v.id);roads.push(record);
+  const key=trafficCellKey(v,v.path[v.pos],d,plan.lanes[v.pos]??0),lane=lanes.get(key);if(lane)lane.push(record);else lanes.set(key,[record]);
  }
  if(roads.length<2)return cars;
  roads.sort((a,b)=>a.layer-b.layer||a.d-b.d||b.forward-a.forward||a.pose.x-b.pose.x||a.pose.y-b.pose.y||a.v.id-b.v.id);
@@ -8402,8 +8417,9 @@ function roadMovementOrder(cars){
   // Index only the next four route cells; do not run a second collision
   // simulation or copy the city. Curved leaders use the shared route lane.
   for(let i=v.pos;i<Math.min(v.path.length,v.pos+5);i++){
-   const key=roadCellKey(v,i),span=(plan.nodes[i+1]??plan.nodes[i])-plan.nodes[i];
-   for(const leader of lanes.get(key)||[]){
+   const key=trafficCellKey(v,v.path[i],motionDirection(v.path,i),plan.lanes[i]??0),span=(plan.nodes[i+1]??plan.nodes[i])-plan.nodes[i],lane=lanes.get(key);
+   if(!lane)continue;
+   for(const leader of lane){
     const ahead=plan.nodes[i]+span*(leader.v.progress||0)-record.s;
     if(leader===record||ahead<=1e-7||ahead>nearest)continue;
     if(ahead===nearest&&leader.v.id>record.leader.v.id)continue;
@@ -8411,9 +8427,9 @@ function roadMovementOrder(cars){
    }
   }
  }
- const seen=new Set(),ordered=[];
+ const seen=new Set(),ordered=[],chain=[];
  for(const root of roads){
-  const chain=[];let record=root;
+  let record=root;
   while(record&&!seen.has(record.v.id)){seen.add(record.v.id);chain.push(record);record=record.leader;}
   while(chain.length)ordered.push(chain.pop().v);
  }
