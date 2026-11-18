@@ -9526,6 +9526,11 @@ export class TrafficRenderer{
   for(const items of [medium,far,roadTrainLow,taxiLow,indicators,techEffects,warpPoints,contactShadows])items.length=0;
   this.parkedRenderCache??=new WeakMap();
   const frustum=this.carViewFrustum,point=this.carViewPoint,cam=this.cam;
+  // Full detail for small fleets, including parked cars. Stop counting as soon
+  // as the normal LOD policy applies; explicit Low quality keeps its own policy.
+  let detailCount=state.vehicles.size;
+  if(detailCount<100&&this.graphicQuality!=='low')for(const b of state.buildings.values()){detailCount+=b.parked.size;if(detailCount>=100)break;}
+  const smallFleet=detailCount<100&&this.graphicQuality!=='low';
   if(this.carFrustumVersion!==this.cameraViewVersion||!this.carFrustumReady){
   frustum.setFromProjectionMatrix(this.carViewMatrix.multiplyMatrices(
    this.camera.projectionMatrix,this.camera.matrixWorldInverse));
@@ -9537,7 +9542,7 @@ export class TrafficRenderer{
    const tech=v?.vehicleTech??c?.vehicleTech??'normal';
    const cached=parkedPose&&this.parkedRenderCache.get(parkedPose);
    let car,kind,distance,upgraded,level;
-   if(cached&&cached.view===this.cameraViewVersion&&cached.quality===this.graphicQuality&&cached.id===id&&cached.citizenId===c?.id&&cached.trait===c?.profile?.trait&&cached.tourist===c?.tourist&&cached.tech===tech&&cached.vehicleKind===v?.kind&&cached.axles===v?.delivery?.axles&&cached.fallback===fallback&&cached.car.x===x&&cached.car.z===z&&cached.car.angle===angle&&cached.car.altitude===altitude){
+   if(cached&&cached.view===this.cameraViewVersion&&cached.quality===this.graphicQuality&&cached.smallFleet===smallFleet&&cached.id===id&&cached.citizenId===c?.id&&cached.trait===c?.profile?.trait&&cached.tourist===c?.tourist&&cached.tech===tech&&cached.vehicleKind===v?.kind&&cached.axles===v?.delivery?.axles&&cached.fallback===fallback&&cached.car.x===x&&cached.car.z===z&&cached.car.angle===angle&&cached.car.altitude===altitude){
     ({car,kind,distance,upgraded,level}=cached);
    }else{
    point.set(x,.22+altitude,z);
@@ -9551,7 +9556,8 @@ export class TrafficRenderer{
    distance=Math.hypot(x-(cam?.x??0),z-(cam?.y??0));
    // Very high never downgrades a visible car; medium downgrades sooner than v3.0.
    // Low uses the cheapest proxy at every distance, while preserving car picking.
-   level=v?.kind==='intercity'&&this.graphicQuality==='low'?'roadTrainLow':
+   level=smallFleet?'near':
+    v?.kind==='intercity'&&this.graphicQuality==='low'?'roadTrainLow':
     kind===8&&this.graphicQuality==='low'?'taxiLow':
     kind===8&&this.graphicQuality==='medium'&&distance>65*CAR_LOD_DISTANCE_SCALE?'taxiLow':
     kind===8?'near':
@@ -9559,7 +9565,7 @@ export class TrafficRenderer{
     this.graphicQuality==='low'?'far':
     apparentLength>=22/CAR_LOD_DISTANCE_SCALE&&distance<=Math.max(24,12/Math.max(.1,cam?.z??1))*CAR_LOD_DISTANCE_SCALE
      ?'near':apparentLength>=10/CAR_LOD_DISTANCE_SCALE?'medium':'far';
-   if(parkedPose)this.parkedRenderCache.set(parkedPose,{view:this.cameraViewVersion,quality:this.graphicQuality,id,citizenId:c?.id,trait:c?.profile?.trait,tourist:c?.tourist,tech,vehicleKind:v?.kind,axles:v?.delivery?.axles,fallback,car,kind,distance,upgraded,level});
+   if(parkedPose)this.parkedRenderCache.set(parkedPose,{view:this.cameraViewVersion,quality:this.graphicQuality,smallFleet,id,citizenId:c?.id,trait:c?.profile?.trait,tourist:c?.tourist,tech,vehicleKind:v?.kind,axles:v?.delivery?.axles,fallback,car,kind,distance,upgraded,level});
    }
    if(upgraded)techEffects.push({x,z,angle,altitude,tech,distance,kind,surfaceY:car.surfaceY});
    if(level==='near'){groups[kind].push(car);if(this.graphicQuality!=='low'&&altitude<.3)contactShadows.push(car);}
