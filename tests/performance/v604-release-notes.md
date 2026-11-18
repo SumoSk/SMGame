@@ -1,0 +1,9 @@
+# v6.0.4: small-fleet presentation
+
+With fewer than 100 active plus parked cars, visible vehicles retain their full models at every distance (explicit Low settings retain the existing policy). Frustum culling, model geometry, screen resolution, effects and the LOD policy for fleets of 100 or more remain unchanged. Counting stops as soon as 100 is reached. Parked-car caches include this detail context.
+
+At 1x and 2x in small fleets, presentation samples the existing route/parking curve between the last two completed safe simulation states. This removes 20 Hz position stepping without increasing simulation work frequency or changing collision, lane, junction, admission or event rules. Camera follow, picking and visual anchors use the presented position. No future pose is predicted. History is runtime-only, bounded below 100 cars, and discarded on lifecycle/geometry changes. Cold motion plans are never constructed early for a visual snapshot. Empty scenes, heat mode, larger fleets and 5x/20x skip this work.
+
+Validation: 720 frames compared with the former scheduler in following-car scenes at 1x/2x and 60/120 callbacks; exact saved game state, claims and events remain equal. Raw 1x positions change at 20 Hz while presentation changes with 60/120 callbacks in the deterministic harness. Curve, air, lifecycle, cold-plan, reused-ID, 99/100 and CPU cap cases pass. LOD decision/culling/cache tests pass 3,277 assertions. Existing frame/event, motion consistency and 1,000-resident city integration (peak 576 vehicles, four game hours, rebuild and save/load) tests pass. These harness callback rates are not measured player FPS.
+
+The small-fleet-qa page uses memory-only storage and a seeded starter city to compare v6.0.3/v6.0.4 with normal Medium graphics. It contains no account code or private save. Browser results, once collected, are environment-specific and do not guarantee a frame rate on every device.

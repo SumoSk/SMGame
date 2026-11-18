@@ -1,0 +1,23 @@
+if(!window.__SMCITY_PERF_STORAGE_READY__)throw new Error('Test storage isolation failed.');
+const variant=new URL(location.href).searchParams.get('variant')==='after'?'after':'before';
+const {TrafficRenderer}=await import('./renderer-'+variant+'.js?v=small-fleet-604');
+let game,renderer,samples=null;
+window.createTrafficRenderer=canvas=>{renderer=new TrafficRenderer(canvas);const render=renderer.render;renderer.render=function(frame){const start=performance.now();if(samples){for(const v of frame.state.vehicles.values()){if(v.phase!=='driving'||v.vehicleTech==='fly'||!v.path?.length)continue;const raw=game.vehiclePosition(v),visual=frame.vehiclePosition(v);if(raw&&visual)samples.poses.push({id:v.id,raw:[raw.x,raw.y],visual:[visual.x,visual.y]});break;}}try{return render.call(this,frame);}finally{samples?.cpu.push(performance.now()-start);}};return renderer;};
+window.__TRAFFIC_TEST_HARNESS__=g=>game=g;
+const panel=document.createElement('section');panel.style.cssText='position:fixed;right:8px;top:8px;z-index:100000;background:white;color:#123;padding:12px;width:340px;font:14px sans-serif;border:3px solid #168;border-radius:8px';panel.innerHTML='<b>Small fleet QA — '+variant+'</b><p id="qa-status">Preparing starter city…</p><button id="qa-run" disabled>Run 8-second test</button><pre id="qa-results" style="white-space:pre-wrap;font-size:12px"></pre>';document.body.append(panel);
+await import('./game-'+variant+'.js?v=small-fleet-604');
+const originalRandom=Math.random;let randomState=0x604bab1e;Math.random=()=>{randomState=(Math.imul(randomState,1664525)+1013904223)>>>0;return randomState/4294967296;};
+document.getElementById('smcityWelcome')?.remove();game.startNewCity('phuket');game.state.speed=0;
+game.state.events=[];game.state.lastImmigration=1e9;game.state.lastPass=1e9;game.state.nextActivityCheck=1e9;game.state.nextTouristAt=1e9;game.state.morningPlanningDay=0;
+for(const c of game.state.citizens.values())if(c.workId)game.runAction(c,'work',{});
+game.state.speed=1;for(let i=0;i<80;i++){game.state.time+=.08;game.advanceVehicles(.1,.08);}game.state.speed=0;game.state.events=[];Math.random=originalRandom;
+const signature=JSON.stringify({time:game.state.time,citizens:[...game.state.citizens],vehicles:[...game.state.vehicles],occ:[...game.state.occ],parked:[...game.state.buildings].map(([id,b])=>[id,[...b.parked],b.parkingSlots])});let fingerprint=2166136261;for(let i=0;i<signature.length;i++)fingerprint=Math.imul(fingerprint^signature.charCodeAt(i),16777619);
+await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+document.getElementById('qa-status').textContent='Ready: '+game.state.citizens.size+' people, '+game.state.vehicles.size+' active vehicles. Medium graphics; isolated storage.';document.getElementById('qa-run').disabled=false;
+document.getElementById('qa-run').onclick=()=>{
+ document.getElementById('qa-run').disabled=true;samples={cpu:[],poses:[]};const start=performance.now(),at=game.state.time,intervals=[];let last=start;game.state.speed=1;
+ const quantile=(a,q)=>{const b=[...a].sort((x,y)=>x-y);return b.length?b[Math.min(b.length-1,Math.ceil(q*b.length)-1)]:0;};
+ const frame=now=>{intervals.push(now-last);last=now;if(now-start<8000){requestAnimationFrame(frame);return;}game.state.speed=0;const elapsed=(performance.now()-start)/1000;let matched=0,rawChanged=0,visualChanged=0;for(let i=1;i<samples.poses.length;i++){const a=samples.poses[i-1],b=samples.poses[i];if(a.id!==b.id)continue;matched++;if(a.raw.some((x,j)=>x!==b.raw[j]))rawChanged++;if(a.visual.some((x,j)=>x!==b.visual[j]))visualChanged++;}
+ const result={variant,fixtureFingerprint:(fingerprint>>>0).toString(16).padStart(8,'0'),population:game.state.citizens.size,graphics:game.graphicQuality,viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},hostSeconds:+elapsed.toFixed(3),advancedGameMinutes:+(game.state.time-at).toFixed(3),rafCallbacks:intervals.length,rafP50Ms:+quantile(intervals,.5).toFixed(2),rafP95Ms:+quantile(intervals,.95).toFixed(2),renderCpuP50Ms:+quantile(samples.cpu,.5).toFixed(2),renderCpuP95Ms:+quantile(samples.cpu,.95).toFixed(2),matchedDrivingSamples:matched,rawPoseChangedFrames:rawChanged,visualPoseChangedFrames:visualChanged,carLODStats:renderer.carLODStats,note:'Seeded starter scene, rendering enabled. Callback cadence is environment-specific; not a guaranteed player FPS.'};samples=null;document.getElementById('qa-results').textContent=JSON.stringify(result,null,2);document.getElementById('qa-status').textContent='Completed. Game paused.';
+ };requestAnimationFrame(frame);
+};

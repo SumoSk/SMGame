@@ -1356,7 +1356,8 @@ const SIMULATION_GAME_STEP=.08,SIMULATION_MAX_STEPS=16,SIMULATION_CPU_BUDGET_MS=
 const EVENT_ACTIONS_PER_MINUTE=280,EVENT_TRIPS_PER_MINUTE=112;
 const EVENT_ACTION_CAP=42,EVENT_TRIP_CAP=14;
 let simulationClock=null,eventDispatchBudget=null,eventTripSerial=0;
-function resetSimulationRuntime(){simulationClock=null;eventDispatchBudget=null;}
+let vehicleRenderHistory=null;
+function resetSimulationRuntime(){simulationClock=null;eventDispatchBudget=null;vehicleRenderHistory=null;}
 const id=(x,y)=>y*W+x,xy=i=>[i%W,Math.floor(i/W)],valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function phuketCoastX(y){
  const zn=(y-150)/165,taper=10*zn*zn;
@@ -2843,7 +2844,7 @@ function drawTouristTaxiShape(x,y,angle,z){
 }
 function drawVehicles(){for(const v of state.vehicles.values()){
  if(v.phase==='gate_waiting'||v.phase==='departing'&&!v.lotPath)continue;
- const pos=vehiclePosition(v);if(!pos)continue;
+ const pos=visualVehiclePosition(v);if(!pos)continue;
  const p=screen(pos.x,pos.y,(pos.altitude||0)*6.5);
  if(p[0]<-20||p[0]>view.w+20||p[1]<-20||p[1]>view.h+20)continue;
  if(v.phase==='warp_charge')for(const point of [v.airFrom,v.airTo]){
@@ -3105,6 +3106,60 @@ function computeVehiclePosition(v){
  
  if(v.vehicleTech==='fly'&&v.phase==='departing'){const b=state.buildings.get(v.fromId);const p=b?parkingSlotPose(b,parkingSpace(b,v.citizenId)):null;return p?{...p,altitude:4}:null;}
  if(v.lotPath){const p=parkingPose(v);return v.vehicleTech==='fly'&&p?{...p,altitude:4}:p;}if(v.phase==='departing'){const b=state.buildings.get(v.fromId);return b?parkingSlotPose(b,parkingSpace(b,v.citizenId)):null;}if(v.phase==='stuck'&&v.heldPose)return v.vehicleTech==='fly'?{...v.heldPose,altitude:5}:v.heldPose;const ground=v.path?.length?positionOnMotion(motionPlan(v),motionDistance(v)):null;return v.vehicleTech==='fly'&&ground?{...ground,altitude:5}:ground;}
+// Small fleets keep the safe fixed simulation step, but present motion between
+// completed steps. This history is visual only and is never serialized.
+function smallFleetVisualMotion(){
+ if(heat||!state.vehicles.size||!(state.speed>0&&state.speed<=2)||state.vehicles.size>=100)return false;
+ let count=state.vehicles.size;
+ for(const b of state.buildings.values()){count+=b.parked.size;if(count>=100)return false;}
+ return true;
+}
+function vehicleVisualSample(v){
+ let pose,geometry=null,distance=0;
+ if(v.vehicleTech==='fly'&&v.airFrom&&v.airTo&&['air_lift','air_cruise','air_land'].includes(v.phase))pose=computeVehiclePosition(v);
+ else if(v.lotPath&&['departing','parking_in','parking_out'].includes(v.phase)){
+  geometry=parkingPathGeometry(v.lotPath);distance=v.lotDistance||0;
+  pose=lotPathPose(v.lotPath,distance);if(v.vehicleTech==='fly'&&pose)pose={...pose,altitude:4};
+ }else if(v.phase==='driving'){
+  // A cold motionPlan selects lanes from live traffic. Never create one early
+  // for a rendering snapshot: wait until the normal simulation has built it.
+  geometry=motionPlans.get(v);
+  if(!geometry||geometry.path!==v.path||geometry.version!==state.version)return null;
+  distance=motionDistance(v,geometry);pose=positionOnMotion(geometry,distance);
+  if(v.vehicleTech==='fly'&&pose)pose={...pose,altitude:5};
+ }else return null;
+ if(!pose||![pose.x,pose.y,pose.angle,pose.altitude||0].every(Number.isFinite))return null;
+ return {phase:v.phase,tech:v.vehicleTech,path:v.path,lotPath:v.lotPath,airFrom:v.airFrom,airTo:v.airTo,geometry,distance,pose:{...pose}};
+}
+function captureVehicleVisualStep(){
+ if(!smallFleetVisualMotion())return null;
+ const samples=new Map();for(const v of state.vehicles.values()){const sample=vehicleVisualSample(v);if(sample)samples.set(v,sample);}
+ return {owner:state,version:state.version,speed:state.speed,samples};
+}
+function finishVehicleVisualStep(before){
+ if(!before||before.owner!==state||before.version!==state.version||before.speed!==state.speed||!smallFleetVisualMotion()){vehicleRenderHistory=null;return;}
+ const pairs=new Map();
+ for(const [v,a]of before.samples){
+  if(state.vehicles.get(v.id)!==v)continue;
+  const b=vehicleVisualSample(v);
+  if(!b||a.phase!==b.phase||a.tech!==b.tech||a.path!==b.path||a.lotPath!==b.lotPath||a.geometry!==b.geometry||a.airFrom!==b.airFrom||a.airTo!==b.airTo||b.distance<a.distance)continue;
+  pairs.set(v,{a,b});
+ }
+ vehicleRenderHistory={owner:state,version:state.version,speed:state.speed,time:state.time,pairs};
+}
+function visualVehiclePosition(v){
+ const actual=vehiclePosition(v),history=vehicleRenderHistory,clock=simulationClock;
+ if(!actual||!history||!clock||history.owner!==state||history.version!==state.version||history.speed!==state.speed||history.time!==state.time||clock.time!==state.time||!(state.speed>0)||state.vehicles.size>=100||state.vehicles.get(v.id)!==v)return actual;
+ const pair=history.pairs.get(v);if(!pair)return actual;const {a,b}=pair;
+ if(v.phase!==b.phase||v.vehicleTech!==b.tech||v.path!==b.path||v.lotPath!==b.lotPath||v.airFrom!==b.airFrom||v.airTo!==b.airTo||actual.x!==b.pose.x||actual.y!==b.pose.y||actual.angle!==b.pose.angle||(actual.altitude||0)!==(b.pose.altitude||0))return actual;
+ if(b.geometry&&(b.lotPath?parkingPathGeometry(b.lotPath)!==b.geometry:motionPlans.get(v)!==b.geometry))return actual;
+ const alpha=Math.max(0,Math.min(1,clock.minutes/SIMULATION_GAME_STEP)),distance=a.distance+(b.distance-a.distance)*alpha;
+ let pose;
+ if(b.geometry)pose=b.lotPath?lotPathPose(b.lotPath,distance):positionOnMotion(b.geometry,distance);
+ else{const angle=a.pose.angle+Math.atan2(Math.sin(b.pose.angle-a.pose.angle),Math.cos(b.pose.angle-a.pose.angle))*alpha;pose={x:a.pose.x+(b.pose.x-a.pose.x)*alpha,y:a.pose.y+(b.pose.y-a.pose.y)*alpha,angle};}
+ if(a.pose.altitude!=null||b.pose.altitude!=null)pose.altitude=(a.pose.altitude||0)+((b.pose.altitude||0)-(a.pose.altitude||0))*alpha;
+ return pose;
+}
 // Visual trip status only: never changes deadlines, happiness or vehicle motion.
 const CAR_STATUS_COLORS={green:'#64c887',orange:'#efa54d',red:'#e36b6b'};
 const CAR_STATUS_EMOJI={orange:'😥',red:'😡'};
@@ -3149,14 +3204,14 @@ function drawCarIndicators2D(){
   ctx.save();ctx.font=size+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(emoji,x,y);ctx.restore();
   canvasCarMarkerHits.push({x,y,selection:v?{kind:'vehicle',id:v.id,citizenId:v.citizenId}:{kind:'parked',id:cid,buildingId}});
  };
- for(const v of state.vehicles.values())if(['driving','stuck','parking_in','parking_out','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)||v.phase==='departing'&&v.lotPath)add(vehiclePosition(v),v,v.citizenId);
+ for(const v of state.vehicles.values())if(['driving','stuck','parking_in','parking_out','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)||v.phase==='departing'&&v.lotPath)add(visualVehiclePosition(v),v,v.citizenId);
  for(const b of state.buildings.values())for(const cid of b.parked)if(!parkingIsMoving(cid)){const index=b.parkingSlots.indexOf(cid);if(index>=0)add(parkingSlotPose(b,index),state.vehicles.get(state.citizens.get(cid)?.vehicleId),cid,b.id);}
 }
 // Read-only overlay: sample the same lane plan used by vehicle movement.
 const trackingSamples=new WeakMap();
 function trackingRoute(v){
  if(v?.airFrom&&v?.airTo){
-  const at=vehiclePosition(v)||v.airFrom;
+  const at=visualVehiclePosition(v)||v.airFrom;
   return [at,v.airTo];
  }
  if(!v?.path?.length||missingRoute(v))return [];
@@ -3166,7 +3221,7 @@ function trackingRoute(v){
   for(let d=start;d<total;d+=.14)lot.push(lotPathPose(v.lotPath,d));lot.push(lotPathPose(v.lotPath,total));
   if(v.phase==='parking_in')return lot;
  }
- const plan=motionPlan(v),start=motionDistance(v,plan),pose=vehiclePosition(v);if(!pose)return lot;
+ const plan=motionPlan(v),start=motionDistance(v,plan),pose=visualVehiclePosition(v);if(!pose)return lot;
  let samples=trackingSamples.get(plan);
  if(!samples){samples=[];for(let s=0;s<plan.total;s+=.4)samples.push({s,...positionOnMotion(plan,s)});samples.push({s:plan.total,...positionOnMotion(plan,plan.total)});trackingSamples.set(plan,samples);}
  if(lot.length)return [...lot,positionOnMotion(plan,0),...samples.filter(p=>p.s>0)];
@@ -3690,7 +3745,7 @@ function updateBuildingQuickActions(){
   point=screen(model.x+t.size/2,model.y+t.size/2,roof*.60);
   label=t.name;
  }else if(kind==='vehicle'){
-  const v=state.vehicles.get(selected.id),p=v&&vehiclePosition(v);
+  const v=state.vehicles.get(selected.id),p=v&&visualVehiclePosition(v);
   if(!p){layer.hidden=true;return;}
   const c=state.citizens.get(v.citizenId);
   label=c?'รถของ '+citizenName(c):'รถ #'+v.id;
@@ -3919,7 +3974,7 @@ function updateAISignalPins(){
 function draw(){updateMapBuyPin();updateLandscapeQuickActions();normalizeSelectedCar();const roadPreview=getRoadPreview(),placement=hover&&CATALOG[tool]?assistedBuildingPlacement(tool,hover.x,hover.y):null,visualHover=placement?{...hover,x:placement.x,y:placement.y,placement}:hover,demolitionPreview=getDemolitionPreview();
  // An invalid active road stroke warns once; mere hovering never spams a toast.
  if(drag&&!drag.pan&&ROADS[tool]&&roadPreview?.error===HOME_SIDE_CLEARANCE_ERROR&&!drag.sideGapNoticeShown){drag.sideGapNoticeShown=true;toast(HOME_SIDE_CLEARANCE_ERROR);}
-if(renderer3d){renderer3d.render({state,cam,mapCover:mapCoverPreview(),hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible,planningCoverage:planningCoverageData(visualHover)});updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawMapCover2D(mapCoverPreview());drawPlanningCoverage2D(planningCoverageData(visualHover),'ground');drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
+if(renderer3d){renderer3d.render({state,cam,mapCover:mapCoverPreview(),hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition:visualVehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible,planningCoverage:planningCoverageData(visualHover)});updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawMapCover2D(mapCoverPreview());drawPlanningCoverage2D(planningCoverageData(visualHover),'ground');drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
 drawPlanningCoverage2D(planningCoverageData(visualHover),'highlights');
  drawDemolitionPreview2D(demolitionPreview);
 if(hover&&tool!=='hand'&&!ROADS[tool]){if(CATALOG[tool])drawBuilding({key:tool,x:visualHover.x,y:visualHover.y,rotation:placement.rotation||0},true);else if(!demolitionPreview){const cells=drag?.cells||[owner(id(hover.x,hover.y))];for(const i of cells){const [x,y]=xy(i),s=screen(x,y);ctx.fillStyle=tool.startsWith('erase')?'#df7e6c99':'#fbe3989c';ctx.fillRect(s[0],s[1],T*cam.z,T*cam.z*.78);}}}
@@ -9045,7 +9100,7 @@ function inspectAt(x,y){
  let closest=null,best=15;
  for(const v of state.vehicles.values()){
   if(!['driving','stuck','parking_in','parking_out','air_lift','air_cruise','air_land','warp_charge'].includes(v.phase)&&!(v.phase==='departing'&&v.lotPath))continue;
-  const p=vehiclePosition(v);if(!p)continue;
+  const p=visualVehiclePosition(v);if(!p)continue;
   const a=screen(p.x-(renderer3d?.5:0),p.y-(renderer3d?.5:0)),dist=Math.hypot(a[0]-x,a[1]-y);
   if(dist<best){best=dist;closest=v;}
  }
@@ -9173,15 +9228,18 @@ initCameraPitchRail();
 function simulateFrame(dt){
  if(!(state.speed>0)){resetSimulationRuntime();return;}
  if(!simulationClock||simulationClock.owner!==state||Math.abs(simulationClock.time-state.time)>1e-7){
-  simulationClock={owner:state,time:state.time,minutes:0};eventDispatchBudget=null;
+  simulationClock={owner:state,time:state.time,minutes:0};eventDispatchBudget=null;vehicleRenderHistory=null;
  }
+ if(!smallFleetVisualMotion())vehicleRenderHistory=null;
  const clock=simulationClock,rate=GAME_MINUTES_PER_SECOND*state.speed*NORMAL_SPEED_SCALE;
  const accepted=Math.min(Math.max(0,Number.isFinite(dt)?dt:0)*rate,SIMULATION_GAME_STEP*SIMULATION_MAX_STEPS);
  clock.minutes+=accepted;
  const steps=Math.min(SIMULATION_MAX_STEPS,Math.floor((clock.minutes+1e-9)/SIMULATION_GAME_STEP));
  const started=performance.now();let completed=0;
  for(;completed<steps;){
+  const visualBefore=captureVehicleVisualStep();
   tick(SIMULATION_GAME_STEP/rate);completed++;
+  if(visualBefore)finishVehicleVisualStep(visualBefore);else vehicleRenderHistory=null;
   // Check between complete safe steps. One heavy step may itself exceed the
   // budget; never skip its collision/lease checks or advance an unrun clock.
   if(performance.now()-started>=SIMULATION_CPU_BUDGET_MS)break;
@@ -9191,7 +9249,7 @@ function simulateFrame(dt){
  if(clock.minutes<1e-9||SIMULATION_GAME_STEP-clock.minutes<1e-9)clock.minutes=0;
  clock.time=state.time;
 }
-function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)simulateFrame(dt);else resetSimulationRuntime();if(follow){const v=state.vehicles.get(follow);if(v){const p=vehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();syncCameraPitchRail();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
+function frame(ts){const dt=Math.min(.08,(ts-last)/1000||0);last=ts;if(cameraJoystickHold&&Date.now()-cameraJoystickHold.started>260)nudgeCamera(cameraJoystickHold.direction,dt*3);if(!$('dialog').open&&!window.SMGameAuthLocked)simulateFrame(dt);else resetSimulationRuntime();if(follow){const v=state.vehicles.get(follow);if(v){const p=visualVehiclePosition(v);if(p){cam.x+=(p.x-cam.x)*.06;cam.y+=(p.y-cam.y)*.06;}}else follow=null;}draw();syncCameraPitchRail();uiTick+=dt;if(uiTick>.75){uiTick=0;updateUI();}requestAnimationFrame(frame);}
 window.addEventListener('resize',resize);
 $('categories').onclick=()=>{}; // Redundant group row retired; construction tabs are direct.
 $('subcategories').onclick=e=>{
