@@ -1,4 +1,4 @@
-import { TrafficRenderer } from './renderer3d.js?v=smcity-v605-visible-scene-20261118';
+import { TrafficRenderer } from './renderer3d.js?v=smcity-v605-cyber-signals-20261118';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
 await import('./game.js?v=smcity-v605-visible-scene-20261118');
 await import('./member.js?v=4ed815769287');

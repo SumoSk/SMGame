@@ -1,8 +1,9 @@
 import * as THREE from './vendor/three.module.js';
 
 const BOX=new THREE.BoxGeometry(1,1,1),CYL=new THREE.CylinderGeometry(1,1,1,10),CYL_SMOOTH=new THREE.CylinderGeometry(1,1,1,32),CONE=new THREE.ConeGeometry(1,1,6),LEAF=new THREE.IcosahedronGeometry(1,1),BALL=new THREE.SphereGeometry(1,12,8);
-// Eight-sided shared geometry for the premium octagonal signal, visible from all directions.
+// Shared eight-sided housing and bevel for the AI beacon.
 const SIGNAL_OCT_GEO=new THREE.CylinderGeometry(1,1,1,8);
+const SIGNAL_BEVEL_GEO=new THREE.CylinderGeometry(.79,1,1,8);
 // A closed roof prism avoids intersecting roof planes at rotated plots.
 const PITCHED_ROOF=(()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([-.5,0,-.5,-.5,0,.5,-.5,1,0,.5,0,-.5,.5,0,.5,.5,1,0],3));g.setIndex([0,1,2,3,5,4,0,2,5,0,5,3,2,1,4,2,4,5,0,3,4,0,4,1]);const flat=g.toNonIndexed();flat.computeVertexNormals();g.dispose();return flat;})();
 // Shared landscape primitives are GPU-instanced, never created for individual trees.
@@ -146,7 +147,7 @@ const SOFT_LIGHT_BILLBOARD=new THREE.PlaneGeometry(1,1);
 // Tiny lamp lenses keep their smooth normals without the full building-sphere
 // tessellation. More poles still use fewer total lamp triangles than before.
 const STREET_LAMP_LENS=new THREE.SphereGeometry(1,10,5);
-const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,SIGNAL_OCT_GEO,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry,SOFT_LIGHT_GROUND,SOFT_LIGHT_BILLBOARD,STREET_LAMP_LENS];
+const SHARED_RENDER_GEOMETRIES=[BOX,CYL,CYL_SMOOTH,CONE,LEAF,BALL,SIGNAL_OCT_GEO,SIGNAL_BEVEL_GEO,PITCHED_ROOF,LEAF_FINE,TWIG,PINE_FINE,HEDGE_LEAF,FLOWER_PETAL,PALM_FROND,APPLE_MALL_MARK.fruit,APPLE_MALL_MARK.leaf,SHOP_SIGN_FACE.geometry,SOFT_LIGHT_GROUND,SOFT_LIGHT_BILLBOARD,STREET_LAMP_LENS];
 // Generate a monochrome falloff in the shader. Never sample RGB from a canvas
 // glow image: texture colour variation must not become coloured road speckles.
 // The billboard variant also keeps camera motion off the CPU instance buffers.
@@ -1288,6 +1289,63 @@ class Batch{
   material.customProgramCacheKey=()=>finish==='bark'?'landscape-bark-v1':'landscape-foliage-v1';
  }
  const mesh=new THREE.InstancedMesh(geo,material,items.length);const isMallAppleLogo=finish==='mall-sign'&&geo.type==='ShapeGeometry';if(isMallAppleLogo){material.side=THREE.DoubleSide;material.emissive.set(color);material.emissiveIntensity=1.15;material.toneMapped=false;}if(glow&&(finish.startsWith('factory-night-')||finish.startsWith('mall-night-')||finish.startsWith('shop-night-')))mesh.renderOrder=2;mesh.castShadow=shadow&&!glow&&finish!=='shop-sign-face'&&!finish.startsWith('retail-window-');mesh.receiveShadow=!glow&&finish!=='shop-sign-face';mesh.userData.ids=[];mesh.userData.nightGlow=!!glow;mesh.userData.fineBuildingDetail=!!fine;mesh.userData.isBuildingTree=this.detailGroups&&(finish==='foliage'||finish==='bark');mesh.userData.baseColor=color;mesh.userData.mallAppleLogo=isMallAppleLogo;mesh.userData.buildingSurface=!!this.detailGroups&&!glow&&!['foliage','bark','shop-sign-face'].includes(finish);mesh.userData.nightRole=finish.startsWith('night-')?finish.slice(6):null;mesh.userData.factoryNightTier=finish.startsWith('factory-night-')?finish.slice(14):null;mesh.userData.mallNightTier=finish.startsWith('mall-night-')?finish.slice(11):null;mesh.userData.shopNightTier=finish.startsWith('shop-night-')?finish.slice(11):null;if(glow)mesh.visible=false;items.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.userData.ids.push(p.buildingId);});mesh.computeBoundingSphere();this.group.add(mesh);}return this.group;}
+}
+
+const CLASSIC_SIGNAL_COLORS={red:'#ff6855',yellow:'#ffd56b',green:'#9eeb96'};
+const CLASSIC_SIGNAL_DIM={red:'#4d302e',yellow:'#494230',green:'#2b473f'};
+const AI_SIGNAL_COLORS={red:'#ff1745',yellow:'#ffb51f',green:'#36f655'};
+
+function addClassicSignal(batch,group,x,z,vx,vz){
+ const yaw=Math.atan2(vx,vz);
+ batch.box('#c9c8b5',x,.115,z,.26,.12,.26);
+ batch.add(CYL,'#3e5356',x,.85,z,.038,1.5,.038);
+ batch.add(CYL,'#a8b8ae',x,.23,z,.053,.16,.053);
+ batch.add(CYL,'#e5dfc9',x,.49,z,.042,.085,.042);
+ batch.box('#d0ae64',x,1.57,z,.29,.69,.105,yaw);
+ batch.box('#203337',x+vx*.018,1.57,z+vz*.018,.245,.64,.14,yaw);
+ const bulbs={};
+ for(const [phase,y] of [['red',1.76],['yellow',1.57],['green',1.38]]){
+  batch.box('#17292e',x+vx*.1,y+.067,z+vz*.1,.16,.035,.14,yaw);
+  const bulb=new THREE.Mesh(STREET_LAMP_LENS,new THREE.MeshBasicMaterial({color:CLASSIC_SIGNAL_DIM[phase]}));
+  bulb.scale.set(.057,.057,.026);
+  bulb.rotation.y=yaw;
+  bulb.position.set(x+vx*.099,y,z+vz*.099);
+  group.add(bulb);
+  bulbs[phase]=bulb;
+ }
+ return bulbs;
+}
+
+function addCyberSignal(batch,group,x,z,armX,armZ){
+ const graphite='#292d3b',armor='#414759';
+ // Faceted base with a yellow stripe, a narrow post, and a cyan collar at the joint.
+ batch.add(SIGNAL_OCT_GEO,graphite,x,.095,z,.172,.085,.172);
+ batch.add(SIGNAL_BEVEL_GEO,armor,x,.197,z,.147,.122,.147);
+ batch.add(SIGNAL_OCT_GEO,'#eab538',x,.224,z,.128,.035,.128);
+ batch.add(SIGNAL_BEVEL_GEO,graphite,x,.875,z,.076,1.27,.076);
+ batch.add(SIGNAL_OCT_GEO,armor,x,1.475,z,.106,.13,.106);
+ batch.add(SIGNAL_OCT_GEO,'#45e7fb',x,1.489,z,.109,.034,.109);
+
+ // A short rising arm carries the beacon towards the road, with the post on the verge.
+ const reach=.228,rise=.156,armAngle=Math.atan2(reach,rise);
+ batch.add(BOX,graphite,x+armX*reach*.5,1.475+rise*.5,z+armZ*reach*.5,
+  .094,Math.hypot(reach,rise)+.05,.094,armZ*armAngle,0,-armX*armAngle);
+ const headX=x+armX*reach,headZ=z+armZ*reach,bandY=1.8;
+ batch.add(SIGNAL_BEVEL_GEO,graphite,headX,bandY-.104,headZ,.285,.084,.285,Math.PI);
+ batch.add(SIGNAL_OCT_GEO,graphite,headX,bandY+.075,headZ,.285,.027,.285);
+ batch.add(SIGNAL_BEVEL_GEO,armor,headX,bandY+.121,headZ,.285,.075,.285);
+ for(const [bx,bz] of [[1,0],[0,1],[-1,0],[0,-1]]){
+  batch.box(armor,headX+bx*.266,bandY,headZ+bz*.266,.039,.168,.035,Math.atan2(bx,bz));
+ }
+
+ const beacon=new THREE.Mesh(SIGNAL_OCT_GEO,new THREE.MeshStandardMaterial({
+  color:'#241c2a',emissive:AI_SIGNAL_COLORS.red,emissiveIntensity:1.24,
+  roughness:.38,toneMapped:false
+ }));
+ beacon.position.set(headX,bandY,headZ);
+ beacon.scale.set(.261,.14,.261);
+ group.add(beacon);
+ return beacon;
 }
 
 // Scale only the requested two old decoration categories: paths/fences and street furniture.
@@ -3281,54 +3339,15 @@ export class TrafficRenderer{
  for(let stripe=-across+.09;stripe<across;stripe+=.23){
   line.box(premiumLayout?PREMIUM_LANE:'#f1eddb',x+vx*crossAt+px*stripe,.12,z+vz*crossAt+pz*stripe,.38,.01,.12,-Math.atan2(vz,vx));
  }
- // Octagonal three-zone signal, one pole on the verge for each incoming direction.
- // Scale the standard model uniformly to 70%; AI keeps its full size and position.
  const sx=x+vx*offset+px*(ww/2+.3),sz=z+vz*offset+pz*(ww/2+.3);
- const isSmart=state.signals.get(i)?.mode==='smart';
- const poleScale=isSmart?1:.70;
- const poleY=y=>.05+(y-.05)*poleScale;
- const poleSize=v=>v*poleScale;
- const accent=isSmart?'#4bdcf3':'#bb9968';
- const darkMetal=isSmart?'#253945':'#394348';
- const headRadius=poleSize(isSmart?.183:.153),headBottom=poleY(isSmart?1.56:1.47);
- // Faceted low-poly pedestal and sculpted, gently tapered roadside post.
- batch.add(SIGNAL_OCT_GEO,darkMetal,sx,poleY(.143),sz,poleSize(isSmart?.176:.143),poleSize(.186),poleSize(isSmart?.176:.143));
- batch.add(SIGNAL_OCT_GEO,accent,sx,poleY(.247),sz,poleSize(isSmart?.159:.126),poleSize(.018),poleSize(isSmart?.159:.126));
- batch.add(TWIG,isSmart?'#304852':'#526066',sx,poleY(.866),sz,poleSize(isSmart?.117:.091),poleSize(1.213),poleSize(isSmart?.117:.091));
- batch.add(SIGNAL_OCT_GEO,'#77858b',sx,poleY(1.444),sz,poleSize(isSmart?.115:.092),poleSize(.078),poleSize(isSmart?.115:.092));
- // Fine vertical inlays: standard bronze; AI cyan. Only scale the standard version.
- for(const side of [-1,1]){
-  batch.box(accent,sx+side*poleSize(isSmart?.106:.081),poleY(.87),sz,poleSize(.014),poleSize(.53),poleSize(.026));
-  batch.box(accent,sx,poleY(.87),sz+side*poleSize(isSmart?.106:.081),poleSize(.026),poleSize(.53),poleSize(.014));
+ const incoming=(port.dir+2)%4;
+ if(state.signals.get(i)?.mode==='smart'){
+  const beacon=addCyberSignal(batch,this.signalGroup,sx,sz,-px,-pz);
+  this.signals.push({node:i,incoming,beacon});
+ }else{
+  const bulbs=addClassicSignal(batch,this.signalGroup,sx,sz,vx,vz);
+  this.signals.push({node:i,incoming,bulbs});
  }
- if(isSmart){
-  // AI identity remains unchanged at full size.
-  batch.add(SIGNAL_OCT_GEO,'#23c4df',sx,.286,sz,.154,.022,.154);
-  batch.add(SIGNAL_OCT_GEO,'#4fd8f0',sx,1.38,sz,.116,.025,.116);
- }
- // Three 360-degree lenses, each retaining its real incoming approach traffic phase.
- const segments={};
- const levels=[['green',0],['yellow',1],['red',2]];
- const lensHeight=poleSize(.230),step=poleSize(.252);
- for(const [name,index]of levels){
-  const lens=new THREE.Mesh(SIGNAL_OCT_GEO,new THREE.MeshStandardMaterial({
-   color:'#323a39',emissive:'#101416',emissiveIntensity:.025,
-   roughness:.27,metalness:.09
-  }));
-  lens.scale.set(headRadius,lensHeight,headRadius);
-  lens.position.set(sx,headBottom+lensHeight*.5+index*step,sz);
-  this.signalGroup.add(lens);
-  segments[name]=lens;
- }
- for(const index of [0,1,2,3]){
-  const yy=headBottom-poleSize(.016)+index*step;
-  batch.add(SIGNAL_OCT_GEO,'#24333a',sx,yy,sz,headRadius*1.14,poleSize(.028),headRadius*1.14);
-  batch.add(SIGNAL_OCT_GEO,accent,sx,yy+poleSize(.018),sz,headRadius*1.11,poleSize(.012),headRadius*1.11);
- }
- const crownY=headBottom+3*step+poleSize(.013);
- batch.add(SIGNAL_OCT_GEO,darkMetal,sx,crownY,sz,headRadius*1.12,poleSize(.058),headRadius*1.12);
- batch.add(TWIG,isSmart?'#596c76':'#657075',sx,crownY+poleSize(.047),sz,headRadius*1.06,poleSize(.048),headRadius*1.06);
- this.signals.push({segments,node:i,incoming:(port.dir+2)%4});
  }
  }else{const junctionWidth=Math.max(w,...[...r.links].map(n=>roadWidths[state.roads.get(n)?.type]||w));batch.box(r.type==='large'?PREMIUM_CONCRETE:'#47565c',x,.081,z,junctionWidth,.055,junctionWidth);}}
 
@@ -3521,17 +3540,16 @@ export class TrafficRenderer{
  }
 
  updateSignals(signalColor){
-  const on={red:'#ff5554',yellow:'#ffd25d',green:'#58ee91'};
-  const off={red:'#563537',yellow:'#554d35',green:'#365447'};
   for(const signal of this.signals||[]){
    const active=signalColor(signal.node,signal.incoming);
-   if(signal.renderedSegments===signal.segments&&signal.renderedColor===active)continue;
-   signal.renderedSegments=signal.segments;signal.renderedColor=active;
-   for(const [name,lens]of Object.entries(signal.segments)){
-    const lit=active===name;
-    lens.material.color.set(lit?on[name]:off[name]);
-    lens.material.emissive.set(lit?on[name]:'#0e1517');
-    lens.material.emissiveIntensity=lit?1.5:.025;
+   if(signal.renderedColor===active)continue;
+   signal.renderedColor=active;
+   if(signal.beacon){
+    signal.beacon.material.emissive.set(AI_SIGNAL_COLORS[active]);
+   }else{
+    for(const [phase,bulb] of Object.entries(signal.bulbs)){
+     bulb.material.color.set(phase===active?CLASSIC_SIGNAL_COLORS[phase]:CLASSIC_SIGNAL_DIM[phase]);
+    }
    }
   }
  }
