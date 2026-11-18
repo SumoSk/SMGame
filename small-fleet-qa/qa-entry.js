@@ -1,7 +1,8 @@
 if(!window.__SMCITY_PERF_STORAGE_READY__)throw new Error('Test storage isolation failed.');
 const variant=new URL(location.href).searchParams.get('variant')==='after'?'after':'before';
-const rendererVariant=new URL(location.href).searchParams.get('renderer')==='water'?'water':variant;
-const {TrafficRenderer}=await import('./renderer-'+rendererVariant+'.js?v=small-fleet-605-water');
+const requestedRenderer=new URL(location.href).searchParams.get('renderer');
+const rendererVariant=['water','chunks'].includes(requestedRenderer)?requestedRenderer:variant;
+const {TrafficRenderer}=await import('./renderer-'+rendererVariant+'.js?v=small-fleet-605-chunks');
 let game,renderer,samples=null;
 window.createTrafficRenderer=canvas=>{renderer=new TrafficRenderer(canvas);const render=renderer.render;renderer.render=function(frame){const start=performance.now();if(samples){for(const v of frame.state.vehicles.values()){if(v.phase!=='driving'||v.vehicleTech==='fly'||!v.path?.length)continue;const raw=game.vehiclePosition(v),visual=frame.vehiclePosition(v);if(raw&&visual)samples.poses.push({id:v.id,raw:[raw.x,raw.y],visual:[visual.x,visual.y]});break;}}try{return render.call(this,frame);}finally{samples?.cpu.push(performance.now()-start);}};return renderer;};
 window.__TRAFFIC_TEST_HARNESS__=g=>game=g;
