@@ -25,6 +25,7 @@ let firstBlockerComparisons=0,blockedQueries=0;const fixtureSummaries=[];
 for(const g of [oldGame,newGame]){
  const {b,v}=fixture(g,'home_grand',0);
  g.state.vehicles.clear();
+ g.state.vehicles.set(v.id,v);
  b.parked=new Set([702,701]);
  b.parkingSlots.fill(null);
  b.parkingSlots[3]=701;
