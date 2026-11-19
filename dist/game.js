@@ -414,8 +414,7 @@ function overlappingEntranceLeader(v,other){
  return Math.hypot(a.x-b.x,a.y-b.y)<.24;
 }
 // The bay geometry is static, while its owner and parked membership stay live.
-// Use nearby bay indexes only as a broad phase, then keep the original parked
-// iteration order and exact physical checks for every possible blocker.
+// Index each bay in the query cells that can reach it within one tile.
 const parkedSlotGrids=new WeakMap();
 function nearbyParkedCitizens(b,pose){
  const slots=lotSlots(b);if(!b.parkingSlots||!slots.length)return null;
@@ -425,14 +424,41 @@ function nearbyParkedCitizens(b,pose){
   for(let i=0;i<slots.length;i++){
    const p=parkingSlotPose(b,i);poses[i]=p;if(!p)continue;
    if(!Number.isFinite(p.x)||!Number.isFinite(p.y))return null;
-   const key=Math.floor(p.x)+','+Math.floor(p.y);let cell=cells.get(key);if(!cell){cell=[];cells.set(key,cell);}cell.push(i);
+   const cx=Math.floor(p.x),cy=Math.floor(p.y);
+   for(let x=cx-1;x<=cx+1;x++)for(let y=cy-1;y<=cy+1;y++){
+    const key=x+','+y;let cell=cells.get(key);
+    if(!cell){cell=[];cells.set(key,cell);}
+    cell.push(i);
+   }
   }
   memo={x:b.x,y:b.y,rotation:b.rotation,key:b.key,slots,length:slots.length,cells,poses};parkedSlotGrids.set(b,memo);
  }
  const nearby=new Set();if(!Number.isFinite(pose.x)||!Number.isFinite(pose.y))return nearby;
- for(let x=Math.floor(pose.x-1);x<=Math.floor(pose.x+1);x++)for(let y=Math.floor(pose.y-1);y<=Math.floor(pose.y+1);y++)
-  for(const i of memo.cells.get(x+','+y)||[]){const p=memo.poses[i];if(Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1)nearby.add(b.parkingSlots[i]);}
+ const cell=memo.cells.get(Math.floor(pose.x)+','+Math.floor(pose.y));
+ if(cell)for(const i of cell){
+  const p=memo.poses[i];
+  if(Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1)nearby.add(b.parkingSlots[i]);
+ }
  return nearby;
+}
+function firstParkedBlocker(b,v,pose){
+ const nearby=nearbyParkedCitizens(b,pose);
+ let first,overlaps;
+ for(const cid of nearby??b.parked){
+  if((nearby&&!b.parked.has(cid))||cid===v.citizenId||parkingIsMoving(cid))continue;
+  const p=parkingSlotPose(b,parkingSpace(b,cid));
+  if(!p||!(Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1)||starterLotOverlapAllowed(b,pose,p))continue;
+  if(!lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015))continue;
+  if(!nearby)return cid;
+  if(first===undefined)first=cid;
+  else{
+   overlaps??=new Set([first]);
+   overlaps.add(cid);
+  }
+ }
+ // A bay can overlap several cars. Resolve that tie in live parking order.
+ if(overlaps)for(const cid of b.parked)if(overlaps.has(cid))return cid;
+ return first;
 }
 function lotClear(v,pose,ignoreRoadTraffic=false){
  const b=state.buildings.get(v.lotBuilding);
@@ -454,10 +480,12 @@ function lotClear(v,pose,ignoreRoadTraffic=false){
     if(p&&Math.hypot(p.x-pose.x,p.y-pose.y)<1.1&&lotCarsOverlap(pose,p,.045))return noteParkingBlock(v,'lot_road_vehicle_overlap',{blockerVehicleId:other.id,checkedPose:pose,blockingPose:p,observedPhysical:true});
    }
  }
- const nearbyParked=b?.parked.size?nearbyParkedCitizens(b,pose):null;
- if(b)for(const cid of b.parked){
-  if(nearbyParked&&!nearbyParked.has(cid))continue;
-  if(cid===v.citizenId||parkingIsMoving(cid))continue;const p=parkingSlotPose(b,parkingSpace(b,cid));if(!(p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1))continue;if(starterLotOverlapAllowed(b,pose,p))continue;if(lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015))return noteParkingBlock(v,'lot_parked_citizen_overlap',{blockerCitizenId:cid,blockerSlot:parkingSpace(b,cid),checkedPose:pose,blockingPose:p,observedPhysical:true});
+ if(b?.parked.size){
+  const cid=firstParkedBlocker(b,v,pose);
+  if(cid!==undefined){
+   const slot=parkingSpace(b,cid);
+   return noteParkingBlock(v,'lot_parked_citizen_overlap',{blockerCitizenId:cid,blockerSlot:slot,checkedPose:pose,blockingPose:parkingSlotPose(b,slot),observedPhysical:true});
+  }
  }
  return true;
 }
