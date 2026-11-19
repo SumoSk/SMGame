@@ -441,24 +441,34 @@ function nearbyParkedCitizens(b,pose){
  }
  return nearby;
 }
+function parkedSlotBlocks(b,slot,pose){
+ const p=parkingSlotPose(b,slot);
+ return p&&Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1&&
+  !starterLotOverlapAllowed(b,pose,p)&&lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015);
+}
 function firstParkedBlocker(b,v,pose){
  const nearby=nearbyParkedCitizens(b,pose);
- let first,overlaps;
- for(const cid of nearby??b.parked){
-  if((nearby&&!b.parked.has(cid))||cid===v.citizenId||parkingIsMoving(cid))continue;
-  const p=parkingSlotPose(b,parkingSpace(b,cid));
-  if(!p||!(Math.abs(p.x-pose.x)<1&&Math.abs(p.y-pose.y)<1)||starterLotOverlapAllowed(b,pose,p))continue;
-  if(!lotCarsOverlap(pose,p,CATALOG[b.key].dualParking?0:.015))continue;
-  if(!nearby)return cid;
-  if(first===undefined)first=cid;
-  else{
-   overlaps??=new Set([first]);
-   overlaps.add(cid);
+ if(nearby){
+  const index=parkingIndexCache.get(b);
+  let first,needsParkingOrder=false;
+  for(const cid of nearby){
+   if(!b.parked.has(cid)||cid===v.citizenId||parkingIsMoving(cid))continue;
+   const slot=index?.indexes.get(cid);
+   // A lookup may refresh assignments after a move or in a legacy save.
+   // Only the ordered scan may refresh them or break a tie between blockers.
+   if(index?.slots!==b.parkingSlots||slot==null||b.parkingSlots[slot]!==cid){
+    needsParkingOrder=true;break;
+   }
+   if(!parkedSlotBlocks(b,slot,pose))continue;
+   if(first!==undefined){needsParkingOrder=true;break;}
+   first=cid;
   }
+  if(!needsParkingOrder)return first;
  }
- // A bay can overlap several cars. Resolve that tie in live parking order.
- if(overlaps)for(const cid of b.parked)if(overlaps.has(cid))return cid;
- return first;
+ for(const cid of b.parked){
+  if((nearby&&!nearby.has(cid))||cid===v.citizenId||parkingIsMoving(cid))continue;
+  if(parkedSlotBlocks(b,parkingSpace(b,cid),pose))return cid;
+ }
 }
 function lotClear(v,pose,ignoreRoadTraffic=false){
  const b=state.buildings.get(v.lotBuilding);

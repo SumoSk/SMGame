@@ -20,6 +20,23 @@ function game(useBaseline){process.env.SMCITY_SOURCE=candidatePath;const g=requi
 const oldGame=game(true),newGame=game(false);
 function fixture(g,key,rotation){g.reset('london');g.state.buildings.clear();g.state.citizens.clear();g.state.vehicles.clear();g.state.occ.clear();g.state.reservations.clear();g.setBugCaptureEnabled(true);const t=g.CATALOG[key],b={id:10,key,x:160,y:130,rotation,parked:new Set(),parkingSlots:Array(t.parkingCapacity).fill(null),queue:[],visitors:new Set(),residents:new Set(),workers:new Set(),access:[]};g.state.buildings.set(b.id,b);for(let i=0;i<b.parkingSlots.length;i++){const id=100+i;b.parkingSlots[i]=id;b.parked.add(id);g.state.citizens.set(id,{id,vehicleId:null});}const p=g.parkingSlotPose(b,0),v={id:10000,citizenId:100,lotBuilding:10,fromId:10,toId:null,phase:'departing',lotPath:[{...p},{x:p.x+.7,y:p.y+.4}],lotDistance:.1,path:[g.id(160,150),g.id(161,150)],pos:0,progress:0};g.state.vehicles.set(v.id,v);g.state.citizens.get(100).vehicleId=v.id;const others=[];for(let i=0;i<Math.min(6,b.parkingSlots.length-1);i++){const q=g.parkingSlotPose(b,(i*3+1)%b.parkingSlots.length),o={id:11000+i,citizenId:101+i,lotBuilding:10,fromId:10,phase:i%2?'parking_in':'parking_out',lotPath:[{...q},{x:q.x+.9,y:q.y-.4},{x:q.x+1.2,y:q.y+.2}],lotDistance:i*.11,path:[g.id(160,150),g.id(161,150)],pos:0,progress:0};g.state.vehicles.set(o.id,o);g.state.citizens.get(o.citizenId).vehicleId=o.id;others.push(o);}const road={id:20000,phase:'stuck',vehicleTech:'normal',heldPose:{x:p.x+5,y:p.y+5,angle:0},path:[g.id(160,150),g.id(161,150)],pos:0,progress:0};g.state.vehicles.set(road.id,road);return {g,b,v,others,road};}
 let firstBlockerComparisons=0,blockedQueries=0;const fixtureSummaries=[];
+// Older assignments can name one owner in two bays. The first uncached
+// owner in parking order refreshes the slot index before the next lookup.
+for(const g of [oldGame,newGame]){
+ const {b,v}=fixture(g,'home_grand',0);
+ g.state.vehicles.clear();
+ b.parked=new Set([702,701]);
+ b.parkingSlots.fill(null);
+ b.parkingSlots[3]=701;
+ assert.equal(g.parkingSpace(b,701),3);
+ b.parkingSlots[0]=701;
+ b.parkingSlots[4]=702;
+ assert.equal(g.lotClear(v,g.parkingSlotPose(b,3),true),true,'stale duplicate bay is clear');
+ assert.equal(g.lotClear(v,g.parkingSlotPose(b,0),true),false,'refreshed bay remains occupied');
+ const block=g.testParkingBlock(v);
+ assert.equal(block.blockerCitizenId,701);
+ assert.equal(block.blockerSlot,0);
+}
 for(const key of ['home_starter','home_large','home_dual','home_grand','home_mahanakhon_compact'])for(let rotation=0;rotation<4;rotation++){
  const a=fixture(oldGame,key,rotation),b=fixture(newGame,key,rotation),capacity=a.b.parkingSlots.length;
  for(let i=0;i<500;i++){
