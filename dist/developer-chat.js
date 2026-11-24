@@ -19,7 +19,7 @@
  #developerChatDialog[open]{display:flex;flex-direction:column;animation:dc-pop .16s ease-out}
  @keyframes dc-pop{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
  @media(prefers-reduced-motion:reduce){#developerChatDialog[open]{animation:none}}
- #developerChatDialog::backdrop{background:transparent}
+ #developerChatDialog::backdrop{background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
  #developerChatDialog header{display:flex;align-items:center;gap:9px;padding:8px 12px;border-bottom:1px solid var(--dc-line);flex:none;min-width:0}
  #developerChatDialog .dc-avatar{display:grid;place-items:center;width:32px;height:32px;flex:none;border-radius:50%;background:var(--dc-blue);color:#fff;font-size:16px}
  #developerChatDialog .dc-heading{display:flex;flex-direction:column;flex:1;min-width:0}
@@ -48,6 +48,7 @@
  #dcMessages .dc-bubble small{color:inherit;opacity:.9;padding:0;margin-top:3px}
  #dcMessages img{display:block;width:auto;max-width:100%;max-height:180px;object-fit:contain;border-radius:10px;margin:3px 0}
  #dcInbox button{display:block;width:100%;text-align:left;margin:0 0 5px;padding:10px;border-radius:10px;font-size:12px}
+ #dcInbox button.dc-unread{font-weight:700;border-left:3px solid var(--dc-blue)}
  #developerChatDialog #dcMore{align-self:center;color:var(--dc-blue);background:transparent;font-size:10px;padding:2px 8px;flex:none}
  #dcForm{display:flex;flex-direction:column;gap:4px;padding:5px 9px 7px;border-top:1px solid var(--dc-line);flex:none}
  .dc-options,.dc-compose{display:flex;align-items:center;gap:5px;min-width:0}
@@ -71,6 +72,14 @@
  function positionChat(){if(!dialog.open)return;const rect=bar.getBoundingClientRect(),vv=window.visualViewport,top=vv?.offsetTop||0,bottom=Math.min(rect.top-6,top+(vv?.height||innerHeight)-8);const available=bottom-top-8;const end=available>=210?bottom:top+(vv?.height||innerHeight)-8;dialog.style.setProperty('--dc-bottom',Math.max(0,innerHeight-end)+'px');dialog.style.setProperty('--dc-room',Math.max(80,end-top-8)+'px');}
  function resizeText(){const t=$('dcText');t.style.height='auto';t.style.height=Math.min(76,Math.max(34,t.scrollHeight))+'px';}
  const status=t=>{$('dcStatus').textContent=t||'';};
+ const launcherText=button.querySelector('.city-advisor-text');
+ function updateRole(isDeveloper){
+  dev=isDeveloper===true;
+  const label=dev?'กล่องข้อความผู้พัฒนา':'พิมพ์ข้อความถึงผู้พัฒนา…';
+  if(launcherText)launcherText.textContent=label;
+  button.setAttribute('aria-label',dev?'เปิดกล่องข้อความผู้พัฒนา':'เปิดแชทกับผู้พัฒนา');
+  button.title=label;
+ }
  const updateBadge=n=>{const x=Math.max(0,Number(n)||0);badge.hidden=!x;badge.textContent=x>99?'99+':String(x);};
  async function request(action,fields={}){
   const session=token();if(!session)throw Error('กรุณาเข้าสู่ระบบ');
@@ -85,8 +94,8 @@
  async function unread(){
   if(document.hidden||polling)return;
   const session=token();
-  if(!session){updateBadge(0);dev=false;return;}
-  polling=true;try{const d=await request('unread');dev=d.developer===true;updateBadge(d.unread);if(dialog.open)$('dcAdmin').hidden=!dev||mode!=='player';}catch{}finally{polling=false;}
+  if(!session){updateBadge(0);updateRole(false);return;}
+  polling=true;try{const d=await request('unread');updateRole(d.developer===true);updateBadge(d.unread);if(dialog.open)$('dcAdmin').hidden=!dev||mode!=='player';}catch{}finally{polling=false;}
  }
  function switchMode(next,id=null){if(dialog.open)saveDraft();mode=next;peer=id;cursor=null;revision++;$('dcMessages').replaceChildren();$('dcInbox').replaceChildren();$('dcMore').hidden=true;$('dcInbox').hidden=next!=='inbox';$('dcMessages').hidden=next==='inbox';$('dcForm').hidden=next==='inbox';$('dcCategory').hidden=next==='admin';$('dcBack').hidden=next!=='admin'&&next!=='inbox';$('dcBack').textContent=next==='inbox'?'‹ แชทของฉัน':'‹ กล่องข้อความ';$('dcAdmin').hidden=!(dev&&next==='player');$('dcResolve').hidden=next!=='admin';$('dcTitle').textContent=next==='inbox'?'กล่องข้อความผู้พัฒนา':'แชทกับผู้พัฒนา';$('dcText').value='';$('dcImage').value='';$('dcAttachment').textContent='';$('dcRemoveImage').hidden=true;attachment=null;sendId=null;restoreDraft();resizeText();}
  function scope(){return mode==='admin'?{admin:true,accountId:peer}:{};}
@@ -107,7 +116,7 @@
   try{
    const d=await request('read',{...scope(),...(older&&cursor?{before:cursor}:{})});
    if(rev!==revision||session!==token()||!dialog.open)return;
-   dev=d.developer===true;threadStatus=d.status;$('dcAdmin').hidden=!(dev&&mode==='player');
+   updateRole(d.developer===true);threadStatus=d.status;$('dcAdmin').hidden=!(dev&&mode==='player');
    $('dcResolve').textContent=threadStatus==='resolved'?'เปิดเรื่องอีกครั้ง':'ทำเครื่องหมายว่าแก้ไขแล้ว';
    const rows=d.messages||[],box=$('dcMessages'),oldHeight=box.scrollHeight;
    const frag=document.createDocumentFragment();for(const m of [...rows].reverse())frag.append(message(m));
@@ -126,7 +135,7 @@
   try{
    const d=await request('inbox',{page});if(rev!==revision||!dialog.open)return;
    inboxPage=page;const box=$('dcInbox');box.replaceChildren();
-   for(const t of d.threads||[]){const b=document.createElement('button');b.type='button';b.textContent=t.username+' · '+(t.status==='resolved'?'แก้ไขแล้ว':'เปิดอยู่')+(t.unread?' · ใหม่ '+t.unread:'');b.onclick=()=>{if(working)return;switchMode('admin',t.account_id);$('dcTitle').textContent=t.username;void read();};box.append(b);}
+   for(const t of d.threads||[]){const b=document.createElement('button');b.type='button';if(t.unread)b.className='dc-unread';b.textContent=t.username+' · '+(t.status==='resolved'?'แก้ไขแล้ว':'เปิดอยู่')+(t.unread?' · ใหม่ '+t.unread:'');b.onclick=()=>{if(working)return;switchMode('admin',t.account_id);$('dcTitle').textContent=t.username;void read();};box.append(b);}
    for(const [show,label,p] of [[page>0,'‹ ก่อนหน้า',page-1],[d.more,'ถัดไป ›',page+1]])if(show){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>void inbox(p);box.append(b);}
    status(d.threads?.length?'':'ยังไม่มีข้อความจากผู้เล่น');
   }catch(e){if(rev===revision)status(e.message||'โหลดไม่สำเร็จ');}finally{working=false;}
@@ -134,7 +143,18 @@
  async function open(){
   if(!token()){window.SMGameAccount?.openSignIn?.();return;}
   if(working)return;
-  if(lastToken!==token())drafts.clear();lastToken=token();switchMode('player');if(!dialog.open)dialog.showModal();positionChat();resizeText();button.setAttribute('aria-expanded','true');$('dcText').focus({preventScroll:true});await read();
+  const session=token();
+  if(lastToken!==session){drafts.clear();updateRole(false);}lastToken=session;
+  working=true;button.setAttribute('aria-busy','true');
+  try{
+   const result=await request('unread');if(token()!==session)return;
+   updateRole(result.developer===true);updateBadge(result.unread);
+  }catch(e){if(token()!==session)return;}
+  finally{working=false;button.removeAttribute('aria-busy');}
+  if(token()!==session)return;
+  switchMode(dev?'inbox':'player');if(!dialog.open)dialog.showModal();positionChat();resizeText();button.setAttribute('aria-expanded','true');
+  if(dev){$('dcRefresh').focus({preventScroll:true});await inbox(0);}
+  else{$('dcText').focus({preventScroll:true});await read();}
  }
  button.onclick=()=>void open();
  function collapse(){if(!dialog.open)return;saveDraft();dialog.close();}
@@ -180,8 +200,17 @@
   finally{working=false;$('dcSend').disabled=false;}
   if(rev===revision)void read();
  });
+ // Refresh the launcher immediately when the existing game login changes.
+ const previousAuthChanged=window.SMGameOnAuthChanged;
+ window.SMGameOnAuthChanged=function(...args){
+  try{return previousAuthChanged?.apply(this,args);}
+  finally{
+   if(token()!==lastToken){if(dialog.open)dialog.close();drafts.clear();lastToken=token();updateBadge(0);updateRole(false);}
+   void unread();
+  }
+ };
  const timer=setInterval(()=>{
-  if(token()!==lastToken){if(dialog.open)dialog.close();drafts.clear();lastToken=token();updateBadge(0);dev=false;}
+  if(token()!==lastToken){if(dialog.open)dialog.close();drafts.clear();lastToken=token();updateBadge(0);updateRole(false);}
   void unread();
  },60000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void unread();});
