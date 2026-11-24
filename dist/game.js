@@ -2319,6 +2319,36 @@ function isLargeRoadBend(i){
 }
 function trafficConflictNode(i){return junction(i)>=3||isLargeRoadBend(i);}
 junction.details=junctionDetails;
+
+ // Real visible one-arm tips only: not gates, isolated tiles or hidden junction stubs.
+ const turnaroundCache=new WeakMap();
+ function turnaroundEnds(roadState=state,layoutFor=junctionDetails){
+  const cached=turnaroundCache.get(roadState);
+  if(cached&&cached.version===roadState.version&&cached.roads===roadState.roads&&cached.size===roadState.roads.size)return cached.ends;
+  const roads=roadState.roads,gates=new Set(roadState.gates||[]),hidden=new Set(),ends=new Map();
+  for(const [node,r]of roads)if(r.links.size>=3){
+   for(const [a,b]of layoutFor(node)?.hiddenEdges||[]){if(roads.get(a)?.links.size===1)hidden.add(a);if(roads.get(b)?.links.size===1)hidden.add(b);}
+  }
+  for(const [node,r]of roads){
+   if(r.links.size!==1||gates.has(node)||hidden.has(node))continue;
+   const neighbor=r.links.values().next().value,other=roads.get(neighbor);
+   if(!other?.links.has(node))continue;
+   const [x,y]=xy(node),[nx,ny]=xy(neighbor);
+   if(x!==nx&&y!==ny)continue;
+   if(other.links.size>=3){const port=layoutFor(neighbor)?.ports.find(p=>p.node===node);if(port&&distance(neighbor,node)<=port.extent)continue;}
+   const direction=dir(neighbor,node),width=roadVisualWidth(r.type);
+   ends.set(node,{node,neighbor,x,y,direction,width,depth:Math.min(.44,width*.5)});
+  }
+  turnaroundCache.set(roadState,{version:roadState.version,roads,size:roads.size,ends});return ends;
+ }
+ function isTurnaround(node){return turnaroundEnds().has(node);}
+ function turnaroundArc(end,margin=0){
+  const [dx,dy]=DIR[end.direction],radius=end.width*.5+margin,depth=end.depth+margin,points=[];
+  for(let k=0;k<=24;k++){const a=-Math.PI*.5+k*Math.PI/24;points.push([end.x+dx*Math.cos(a)*depth-dy*Math.sin(a)*radius,end.y+dy*Math.cos(a)*depth+dx*Math.sin(a)*radius]);}
+  return points;
+ }
+
+junction.turnarounds=turnaroundEnds;junctionDetails.turnarounds=turnaroundEnds;
 // Shared visual-only streetscape: no road graph, lanes, plots or prices change.
 const roadsideVisualCache=new WeakMap();
 function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
@@ -2458,11 +2488,13 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
  const layouts=new Map(),nearby=new Map(),hidden=new Set(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
  for(const [node]of state.roads){const layout=roadDetails(node);for(const [a,b]of layout.hiddenEdges)hidden.add(edgeKey(a,b));if(layout.arms.length>=3||layout.bend)layouts.set(node,layout);}
  for(const l of layouts.values())for(let yy=Math.floor(l.y-l.halfY-2);yy<=Math.ceil(l.y+l.halfY+2);yy++)for(let xx=Math.floor(l.x-l.halfX-2);xx<=Math.ceil(l.x+l.halfX+2);xx++){const key=id(xx,yy);if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(l);}
+ const ends=roadDetails.turnarounds?.(state,roadDetails)||new Map();
  const segments=[];
  for(const [i,r]of state.roads)for(const n of r.links){if(n<i||hidden.has(edgeKey(i,n)))continue;const [x,y]=xy(i),[nx,ny]=xy(n),dx=nx-x,dy=ny-y,length=Math.hypot(dx,dy),other=state.roads.get(n);let wa=roadVisualWidth(r.type),wb=roadVisualWidth(other?.type),intervals=[[0,1]];
  for(const l of new Set([...(nearby.get(i)||[]),...(nearby.get(n)||[])])){const horizontal=Math.abs(dx)>Math.abs(dy),d=horizontal?((x+nx)/2>=l.x?0:2):((y+ny)/2>=l.y?1:3),arm=l.arms.find(a=>a.dir===d);if(!arm||(horizontal?Math.abs(y-l.y):Math.abs(x-l.x))>.01)continue;wa=wb=arm.width;let lo=0,hi=1;for(const [start,delta,min,max]of [[x,dx,l.x-l.halfX,l.x+l.halfX],[y,dy,l.y-l.halfY,l.y+l.halfY]]){if(Math.abs(delta)<1e-9){if(start<min||start>max)hi=-1;}else{const a=(min-start)/delta,b=(max-start)/delta;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}}if(hi>lo){const next=[];for(const [a,b]of intervals){if(hi<=a||lo>=b)next.push([a,b]);else{if(lo>a)next.push([a,lo]);if(hi<b)next.push([hi,b]);}}intervals=next;}}
  const px=-dy/length,py=dx/length,point=(t,off)=>[x+dx*t+px*off,y+dy*t+py*off];segments.push({r,other,x,y,dx,dy,length,wa,wb,intervals,point});
  for(const [lo,hi]of intervals)for(const border of [.14,0]){const a=wa+(wb-wa)*lo,b=wa+(wb-wa)*hi;poly([point(lo,-a/2-border),point(hi,-b/2-border),point(hi,b/2+border),point(lo,a/2+border)].map(([x,y])=>screen(x+.5,y+.5)),border?'#c9c8b5':heat?roadColor(r):r.type==='large'&&other?.type==='large'?PREMIUM_CONCRETE:'#47565c');}}
+ for(const [node,end]of ends){if(!state.roads.has(node))continue;const r=state.roads.get(node);for(const margin of [.08,0])poly(turnaroundArc(end,margin).map(([x,y])=>screen(x+.5,y+.5)),margin?'#c9c8b5':heat?roadColor(r):r.type==='large'?PREMIUM_CONCRETE:'#47565c');}
  for(const l of layouts.values())poly(l.polygon.map(([x,y])=>screen(l.x+.5+x,l.y+.5+y)),!heat&&l.arms.length>=2&&l.arms.every(a=>Math.abs(a.width-ROADS.large.visualWidth)<.02)?PREMIUM_CONCRETE:'#47565c');
  // Purchased AI: illuminate only that intersection's center in 2D fallback.
  for(const [node,l]of layouts)if(state.signals.get(node)?.mode==='smart'){
@@ -2482,6 +2514,7 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
   }
  }
  const stroke=(points,color,width=.025,dashed=false)=>{if(points.length<2)return;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(...screen(x+.5,y+.5)):ctx.moveTo(...screen(x+.5,y+.5)));ctx.strokeStyle=color;ctx.lineWidth=Math.max(.55,width*T*cam.z);ctx.lineJoin='round';ctx.lineCap='butt';ctx.setLineDash(dashed?[.45*T*cam.z,.55*T*cam.z]:[]);ctx.stroke();ctx.setLineDash([]);};
+ for(const [node,end]of ends)if(state.roads.has(node))stroke(turnaroundArc(end),state.roads.get(node).type==='large'?PREMIUM_EDGE:'#dce3d8',.025);
  // Match 3D concrete joints without a texture or an extra road tile.
  if(!heat)for(const s of segments){
   if(s.r.type!=='large'||s.other?.type!=='large'||s.intervals.length!==1||
@@ -3003,7 +3036,7 @@ function motionPlan(v){
     radius=Math.min(radius,.98*(inMargin+outMargin+Math.sqrt(2*inMargin*outMargin)));
    }
   }
-  if(c.turn===2){cutIn=cutOut=radius;}else{cutIn=radius-dot(outgoing,c.incoming);cutOut=radius+dot(incoming,c.outgoing);}
+  if(c.turn===2){c.deadEnd=isTurnaround(path[i]);c.terminalShape=c.deadEnd||roadAnchor?.terminalPos===i;if(c.terminalShape)radius=Math.max(.2,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*.5);cutIn=cutOut=c.terminalShape?.12:radius;}else{cutIn=radius-dot(outgoing,c.incoming);cutOut=radius+dot(incoming,c.outgoing);}
   // Closely spaced junctions share their available corridor. Scale the lane
   // offsets too, so a constrained turn never doubles back to reach its exit.
   const before=k?c.u-corners[k-1].u:Infinity,after=k+1<corners.length?corners[k+1].u-c.u:Infinity;
@@ -3013,14 +3046,14 @@ function motionPlan(v){
   if(c.turn===2){
    c.p0=shift({x:center.x+incoming.x,y:center.y+incoming.y},c.incoming,-cutIn);
    c.p3=shift({x:center.x+outgoing.x,y:center.y+outgoing.y},c.outgoing,cutOut);
-   const handle=Math.max(.4,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*2/3)*fit;
+   const handle=c.terminalShape?Math.min(.48,Math.max(.28,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*2/3))*fit:Math.max(.4,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*2/3)*fit;
    c.p1=shift(c.p0,c.incoming,handle);c.p2=shift(c.p3,c.outgoing,-handle);
   }else{
    const crossing={x:center.x+incoming.x+outgoing.x,y:center.y+incoming.y+outgoing.y};
    c.p0=shift(crossing,c.incoming,-radius);c.p3=shift(crossing,c.outgoing,radius);
    c.p1=shift(c.p0,c.incoming,radius*.5522847498);c.p2=shift(c.p3,c.outgoing,-radius*.5522847498);
   }
-  c.radius=radius;c.rawStart=c.u-cutIn;c.rawEnd=c.u+cutOut;
+  c.radius=radius;c.node=path[i];c.rawStart=c.u-cutIn;c.rawEnd=c.u+cutOut;
   c.startU=Math.max(0,c.rawStart);c.endU=Math.min(route[n-1],c.rawEnd);
  }
  if(v.motionStartPose&&corners[0]?.startU<=1e-8){const c=corners[0],p=v.motionStartPose,h=Math.max(.2,Math.hypot(c.p3.x-p.x,c.p3.y-p.y)/3);c.p0={x:p.x,y:p.y};c.p1={x:p.x+(p.dx??DIR[c.incoming][0])*h,y:p.y+(p.dy??DIR[c.incoming][1])*h};c.rawStart=c.startU=0;}
@@ -3106,7 +3139,7 @@ function motionPlan(v){
    stop:Math.max(0,start-TRAFFIC_RULES.vehicleHalfLength-.1-(v.kind==='intercity'?ROAD_TRAIN_SIGNAL_BUFFER:0)),
    clear:end+TRAFFIC_RULES.vehicleHalfLength});
  }
- const plan={path,version:state.version,lanes,route,nodes,pieces,turns:roadAnchor?corners.filter(c=>c.endU>roadAnchor.u):corners,junctions,total,anchorPose:roadAnchor?.pose};return rememberMotionPlan(v,plan);
+ const plan={path,version:state.version,lanes,route,nodes,pieces,turns:roadAnchor?corners.filter(c=>c.endU>roadAnchor.u):corners,junctions,total,deadEndTurns:corners.filter(c=>c.deadEnd&&(!roadAnchor||c.endU>roadAnchor.u)),anchorPose:roadAnchor?.pose};return rememberMotionPlan(v,plan);
 }
 function motionDistance(v,plan=motionPlan(v)){const i=Math.max(0,Math.min(v.pos,plan.nodes.length-1));return plan.nodes[i]+Math.max(0,Math.min(1,v.progress||0))*((plan.nodes[i+1]??plan.nodes[i])-plan.nodes[i]);}
 function positionOnMotion(plan,s,out=null){
@@ -3780,7 +3813,7 @@ function routeWarningPosition(v){
 // Detect unfinished joins from the live road graph, independent of building labels.
 let roadJoinWarnings=null,roadJoinLayer=null;
 function findRoadJoinWarnings(roads,gates,layoutFor=junctionDetails){
- const gateNodes=new Set(gates),hiddenEnds=new Set(),points=[];
+ const gateNodes=new Set(gates),hiddenEnds=new Set(),points=[],ends=turnaroundEnds(roads===state.roads?state:{roads,gates,version:0},layoutFor);
  for(const [node,road] of roads){
   if(road.links.size<3)continue;
   for(const [a,b] of layoutFor(node).hiddenEdges){
@@ -3789,7 +3822,7 @@ function findRoadJoinWarnings(roads,gates,layoutFor=junctionDetails){
   }
  }
  for(const [node,road] of roads){
-  if(road.main||gateNodes.has(node)||hiddenEnds.has(node)||road.links.size>1)continue;
+  if(road.main||gateNodes.has(node)||hiddenEnds.has(node)||road.links.size>1||ends.has(node))continue;
   const [neighbor]=road.links;
   if(neighbor!==undefined&&(roads.get(neighbor)?.links.size??0)>=3){
    const port=layoutFor(neighbor).ports.find(p=>p.node===node);
@@ -3811,7 +3844,7 @@ function updateRoadJoinWarnings(){
   }
   if(roadJoinLayer)roadJoinLayer.replaceChildren(...points.map(()=>{
    const sign=document.createElement('div');
-   sign.textContent='⚠ เชื่อมถนนก่อน - ไม่มีที่กลับรถ รถไม่ผ่านทั้งเส้น';
+   sign.textContent='⚠ ถนนยังไม่เชื่อม';
    Object.assign(sign.style,{position:'absolute',transform:'translate(-50%,-100%)',whiteSpace:'nowrap',padding:'4px 7px',borderRadius:'7px',background:'#552716',border:'1px solid #ffad65',color:'#fff3d9',font:'bold 11px/1.4 Tahoma,sans-serif',boxShadow:'0 2px 6px #0006'});
    return sign;
   }));
@@ -5609,7 +5642,7 @@ else if(selected.kind==='building'){
 }
 else if(selected.kind==='citizen'||selected.kind==='vehicle'){const v=selected.kind==='vehicle'?state.vehicles.get(selected.id):null,c=selected.kind==='citizen'?state.citizens.get(selected.id):v?.citizenId?state.citizens.get(v.citizenId):null;if(!c&&!v){html='<h2>เดินทางถึงจุดหมายแล้ว</h2><p>รถคันนี้เดินทางเสร็จแล้ว เลือกอาคารปลายทางเพื่อดูประชาชนต่อค่ะ</p>';}else if(c?.tourist){html=touristInspector(c);}else if(c){const cv=state.vehicles.get(c.vehicleId);html=`<span class="tag">ชีวิตประชาชน #${c.id}</span><h2>${citizenName(c)}</h2>`+row('บุคลิก',CITIZEN_TRAITS[c.profile.trait])+row('รูปแบบชีวิตวันนี้',lifestyleName(c.dailyPlan))+row('สถานะ',c.state)+row('Performance',Math.round(personalPerformance(c))+'%')+row('ผลทริปรอบนี้',(c.performance?.current?.ontime||0)+' / '+(c.performance?.current?.total||0))+row('ภาษีวันนี้',money(workTax(c)))+row('บ้าน',buildingName(c.homeId))+row('งาน',c.profile.trait===3?'ไม่ต้องทำงาน':buildingName(c.workId))+row('ปัญหาล่าสุด',c.problem||'ยังไม่มีปัญหา');if(cv)html+=row('การเดินทาง',TRIPS[cv.kind].name)+row('จุดหมาย',cv.toId?buildingName(cv.toId):'ประตูเมือง')+row('เวลารอ',Math.floor(cv.wait)+' นาที')+action(follow===cv.id?'หยุดติดตามรถ':'ติดตามรถและเส้นทาง','follow',cv.id)+vehicleRecoveryActions(cv);html+='<h3>ตารางชีวิต</h3>'+row('ออกทำงานวันนี้',c.dailyPlan?.works?timeText(c.dailyPlan.day*1440+c.dailyPlan.leave):'—')+row('เลิกงานวันนี้',c.dailyPlan?.works?timeText(c.dailyPlan.day*1440+c.dailyPlan.end):'—')+row('ปรับออกเร็วขึ้น',Math.round(c.routine?.advance||0)+' นาที')+row('กิจกรรมโปรด',KINDS[c.profile.leisure]?.name||'กลับบ้าน');if(c.dailyPlan?.steps?.length)html+='<h3>แผนกิจกรรมวันนี้</h3><p>'+c.dailyPlan.steps.map(s=>timeText(c.dailyPlan.day*1440+(s.estimatedAt??s.at))+' '+lifestyleStepName(s)+((s.estimatedAt??s.at)>=1440?' (วันถัดไป)':'')).join('<br>')+'</p><p>เวลาโดยประมาณ ปรับตามการเดินทางและเวลาถึงจริง</p>';if(c.lifeRun&&c.lifeRun.day!==c.dailyPlan?.day)html+=row('กิจกรรมต่อจากวันก่อน',lifestyleStepName(c.lifeRun.plan.steps[c.lifeRun.index]));if(c.history.length)html+='<h3>การเดินทางล่าสุด</h3><p>'+c.history.slice(-4).reverse().join('<br>')+'</p>';}
 else html='<span class="tag">รถภายนอก</span><h2>เดินทางผ่านเมือง</h2><p>รถจากประตูเมืองหนึ่งไปอีกประตูเมืองหนึ่ง ไม่มีประชาชนเจ้าของในเมืองนี้</p>'+action('ติดตามเส้นทาง','follow',v.id)+vehicleRecoveryActions(v);}
-else if(selected.kind==='road'){const r=state.roads.get(selected.id);if(!r){$('inspector').classList.add('hidden');return;}const t=ROADS[r.type],j=junction(selected.id);html='<span class="tag">โครงข่ายจราจร</span><h2>'+t.name+'</h2>'+row('จำนวนเลน',t.lanes+' เลน')+row('ความจุจริง',t.lanes+' คัน / ช่อง')+row('รถในช่องนี้',occupancy(selected.id)+' คัน')+row('ค่าดูแล / วัน',r.main?'ฟรี':money(t.maint))+row('ทางแยก',j===4?'สี่แยก · ไฟจราจร':j===3?'สามแยก · ไฟจราจร':j===1?'ทางตัน · กลับรถไม่ได้':'ถนนต่อเนื่อง')+'<p>'+(r.main?'ถนนหลักเริ่มต้นของเมือง รื้อไม่ได้':'รถขับชิดซ้ายและใช้เลนตามเส้นทาง เมื่อเต็มจะรอคิว')+'</p>';if(j>=3){const heading=html.match(/^[\s\S]*?<\/h2>/)?.[0]||'';html=heading+signalInspector(selected.id)+inspectorDisclosure('ข้อมูลถนนที่แยกนี้',html.slice(heading.length),'junction-road');}}
+else if(selected.kind==='road'){const r=state.roads.get(selected.id);if(!r){$('inspector').classList.add('hidden');return;}const t=ROADS[r.type],j=junction(selected.id);html='<span class="tag">โครงข่ายจราจร</span><h2>'+t.name+'</h2>'+row('จำนวนเลน',t.lanes+' เลน')+row('ความจุจริง',t.lanes+' คัน / ช่อง')+row('รถในช่องนี้',occupancy(selected.id)+' คัน')+row('ค่าดูแล / วัน',r.main?'ฟรี':money(t.maint))+row('ทางแยก',j===4?'สี่แยก · ไฟจราจร':j===3?'สามแยก · ไฟจราจร':j===1?(isTurnaround(selected.id)?'ปลายถนน · กลับรถได้':'ทางตัน · ยังเชื่อมไม่สมบูรณ์'):'ถนนต่อเนื่อง')+'<p>'+(r.main?'ถนนหลักเริ่มต้นของเมือง รื้อไม่ได้':'รถขับชิดซ้ายและใช้เลนตามเส้นทาง เมื่อเต็มจะรอคิว')+'</p>';if(j>=3){const heading=html.match(/^[\s\S]*?<\/h2>/)?.[0]||'';html=heading+signalInspector(selected.id)+inspectorDisclosure('ข้อมูลถนนที่แยกนี้',html.slice(heading.length),'junction-road');}}
 else if(selected.kind==='money')html='<span class="tag">การคลังเมือง</span><h2>งบประมาณ</h2>'+row('เงินคงเหลือ',money(state.money))+row('ภาษีประชาชน / วัน',money(s.tax))+row('ภาษีธุรกิจ / วัน',money(s.business))+row('ท่องเที่ยวรับจริงวันนี้',money(tourismLedger().fees-tourismLedger().refunds))+row('ค่าดูแลทั้งหมด / วัน',money(s.maint))+row('สุทธิ / วัน',money(s.net))+'<p>ภาษีปกติ 500 บาท ทำงานสาย 400 บาท พลาดงาน 250 บาท กิจกรรมอื่นไม่ลดภาษี ถนนหลักไม่มีค่าดูแล</p>';
 else if(selected.kind==='tourists')html='<span class="tag">การท่องเที่ยว</span><h2>นักท่องเที่ยว</h2>'+touristSummaryMarkup()+action('ดูรายชื่อนักท่องเที่ยว','tourist-dashboard');
 else if(selected.kind==='population')html='<span class="tag">ผู้คนในเมือง</span><h2>ประชากร '+s.pop+' คน</h2>'+row('กำลังย้ายเข้า',[...state.citizens.values()].filter(c=>!c.resident&&!c.removed&&!c.tourist).length+' คน')+row('ที่ว่างในบ้าน',s.freeHomes+' คน')+row('ตำแหน่งงานทั้งหมด',s.jobs)+row('ว่างงาน',s.unemployed+' คน')+'<p>มีบ้านว่าง เส้นทางจากประตูเมือง และPerformanceตั้งแต่ 70% จึงจะมีคนย้ายเข้า คนจะนับเป็นประชากรเมื่อเดินทางถึงบ้านจริง</p><div class="inspect-list">'+[...state.citizens.values()].filter(c=>c.resident&&!c.removed).slice(0,40).map(c=>action(citizenName(c),'citizen',c.id)).join('')+'</div>';
@@ -5719,7 +5752,7 @@ const heap=new Heap(),g=new Map(),came=new Map(),origin=`${start}:${previousNode
 // state space. Only an exhausted heap proves unreachability; a work quota must
 // never be cached as a missing connection.
 while(heap.length){const cur=heap.pop();if(cur.g!==g.get(cur.key))continue;if(cur.node===end&&cur.key!==origin&&(!finalPrev||finalPrev.includes(cur.prev))){const path=[];let key=cur.key;while(key){path.push(+key.split(':')[0]);key=came.get(key);}path.reverse();return rememberRoute(cacheKey,path);}
-const r=state.roads.get(cur.node);for(const n of r.links){if(!state.roads.has(n)||cur.key===origin&&firstNext&&!firstNext.includes(n))continue;if(n===cur.prev)continue;const key=`${n}:${cur.node}`,cost=cur.g+distance(cur.node,n)*roadWeight(n);if(cost>=(g.get(key)??Infinity))continue;g.set(key,cost);came.set(key,cur.key);heap.push({node:n,prev:cur.node,key,g:cost,f:cost+heuristic(n)});}}
+const r=state.roads.get(cur.node);for(const n of r.links){if(!state.roads.has(n)||cur.key===origin&&firstNext&&!firstNext.includes(n))continue;const reverse=n===cur.prev;if(reverse&&(cur.key===origin||!isTurnaround(cur.node)))continue;const key=`${n}:${cur.node}`,cost=cur.g+distance(cur.node,n)*roadWeight(n)+(reverse?3:0);if(cost>=(g.get(key)??Infinity))continue;g.set(key,cost);came.set(key,cur.key);heap.push({node:n,prev:cur.node,key,g:cost,f:cost+heuristic(n)});}}
 return rememberRoute(cacheKey,null);
 }
 // A driveway starts in the outer-left lane. If the first intersection is too close
@@ -7394,7 +7427,7 @@ function removeCitizen(c,completedEmigration=false){
  if(c.tourist){if(c.enteredAt!=null)missionCount('touristsOut');releaseHotel(c);}else if(c.resident)missionCount('populationOut');if(c.vehicleId)cancelVehicle(state.vehicles.get(c.vehicleId));for(const b of state.buildings.values()){b.residents.delete(c.id);b.workers.delete(c.id);b.visitors.delete(c.id);b.parked.delete(c.id);freeParkingSpace(b,c.id);}c.resident=false;c.removed=true;c.vehicleId=null;c.pending=null;c.queued=null;state.events=state.events.filter(e=>e.citizenId!==c.id);eventHeapify();state.citizens.delete(c.id);}
 function cancelVehicle(v){if(!v)return;trafficPairFinalize(v);removeVehicleApproaches(v);trafficWaits.delete(v);if(travelRecording)travelLogEvent('cancel',travelLogVehicle(v));release(v);cleanupParkingVehicle(v);const b=state.buildings.get(v.toId),from=state.buildings.get(v.fromId);if(b&&v.residentReservation)b.reservedResidents=Math.max(0,b.reservedResidents-1);if(b&&v.serviceReservation)b.reservedService=Math.max(0,b.reservedService-1);if(from)from.queue=from.queue.filter(i=>i!==v.id);forgetTurnLaneVehicle(v);state.vehicles.delete(v.id);updateTrafficSpatial(v);const c=state.citizens.get(v.citizenId);if(c)c.vehicleId=null;}
 // Route recovery is bounded per simulation step and respects the current heading.
-function remainingRouteValid(v){for(let k=v.pos;k<v.path.length;k++)if(!state.roads.has(v.path[k])||k+1<v.path.length&&!state.roads.get(v.path[k]).links.has(v.path[k+1]))return false;return true;}
+function remainingRouteValid(v){for(let k=v.pos;k<v.path.length;k++){if(!state.roads.has(v.path[k])||k+1<v.path.length&&!state.roads.get(v.path[k]).links.has(v.path[k+1]))return false;if(k>v.pos&&k+1<v.path.length&&v.path[k-1]===v.path[k+1]&&!isTurnaround(v.path[k])){const old=motionPlans.get(v),active=old?.path===v.path&&old.turns?.find(t=>t.terminalShape&&t.pos===k&&motionDistance(v,old)>=t.startDistance&&motionDistance(v,old)<t.endDistance);if(!active)return false;}}return true;}
 function strandVehicle(v,reason){const pose=vehiclePosition(v);release(v);v.phase='stuck';v.heldPose=pose;v.speed=0;v.stopReason=reason;setRouteMissing(v,true);v.nextRouteRetry=state.time;v.recoveryVersion=-1;if(state.roads.has(v.path[v.pos]))occupy(v,v.pos);}
 function recoveryDue(v){return v.recoveryVersion!==state.version||!(v.nextRouteRetry>state.time);}
 function recoverVehicle(v,force=false){
@@ -8370,6 +8403,35 @@ function physicalTrafficLimit(v,plan,s,lookahead){
  const limit=computePhysicalTrafficLimit(v,plan,s,lookahead);
  memo.queries.set(lookahead,{limit,block:v.lastPhysicalBlock});return limit;
 }
+
+ function activeTerminalTurn(plan,s){return plan.deadEndTurns?.find(t=>s>=t.startDistance-1e-7&&s<=t.endDistance+1e-7)||null;}
+ function terminalTurnPhase(t,s){return (s-t.startDistance)/Math.max(1e-7,t.endDistance-t.startDistance);}
+ function terminalTurnLocal(t,pose){
+  const [x,y]=xy(t.node),axis=DIR[t.incoming],dx=pose.x-x-.5,dy=pose.y-y-.5,along=dx*axis[0]+dy*axis[1];
+  return along>=-.36&&along<=.45&&Math.abs(dx*axis[1]-dy*axis[0])<=roadVisualWidth(state.roads.get(t.node)?.type)*.5+.03;
+ }
+ function terminalTurnOther(car){
+  if(car.phase!=='driving'||!car.path?.length)return null;
+  const i=car.pos,p=car.path;
+  if(!(i>0&&p[i-1]===p[i+1])&&!(p[i+2]!=null&&p[i]===p[i+2]))return null;
+  const plan=motionPlan(car),s=motionDistance(car,plan),turn=activeTerminalTurn(plan,s);
+  return turn?{turn,s}:null;
+ }
+ // Shared turnaround lane: preserve FIFO arc spacing even when the two halves face opposite ways.
+ function terminalTurnPair(a,as,ap,b,bs,bp){
+  const t=a||b;if(!t||!terminalTurnLocal(t,ap)||!terminalTurnLocal(t,bp))return 0;
+  if(a&&b){
+   if(a.node!==b.node||a.incoming!==b.incoming)return 0;
+   const pa=terminalTurnPhase(a,as),pb=terminalTurnPhase(b,bs);
+   const gap=(pb-pa)*Math.min(a.endDistance-a.startDistance,b.endDistance-b.startDistance);
+   if(gap>=0&&gap<.65)return -1;
+   return (pa<.5)!==(pb<.5)?1:0;
+  }
+  const axis=DIR[t.incoming],phase=terminalTurnPhase(t,a?as:bs),turnDirection=phase<.5?1:-1;
+  const p=a?bp:ap,heading=(p.dx??0)*axis[0]+(p.dy??0)*axis[1];
+  return turnDirection*heading<-.6?1:0;
+ }
+
 function computePhysicalTrafficLimit(v,plan,s,lookahead){
  v.lastPhysicalBlock=null;
  if(!trafficSpatial)return Infinity;const end=Math.min(plan.total,s+lookahead),origin=positionOnMotion(plan,s),x=Math.floor(origin.x/2),y=Math.floor(origin.y/2),prefix=trafficSpatialPrefix(v),radius=Math.max(2,Math.ceil((lookahead+.7)/2)),key=prefix+x+':'+y+':'+radius;let cached=trafficSpatial.candidates.get(v.id),candidates=cached?.key===key&&cached.epoch===trafficSpatial.epoch?cached.ids:null;
@@ -8384,7 +8446,7 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
  if(!candidates.length)return Infinity;
  let lo=0,hi=plan.pieces.length-1;
  while(lo<hi){const mid=(lo+hi)>>1;if(plan.pieces[mid].endDistance<s)lo=mid+1;else hi=mid;}
- const at=plan.pieces[lo],piece=at?.line&&at.startDistance<=s&&at.endDistance>=end?at:null,near=[],nearIds=[];let mergeLimit=Infinity,mergeBlock=null;
+ const at=plan.pieces[lo],piece=at?.line&&at.startDistance<=s&&at.endDistance>=end?at:null,near=[],nearIds=[],nearTurns=[];const terminalNearby=plan.deadEndTurns?.some(t=>t.endDistance>=s&&t.startDistance<=end);let mergeLimit=Infinity,mergeBlock=null;
  for(const id of candidates){
   const otherCar=state.vehicles.get(id);
   // Road cars ghost through parked, departing and route-stuck vehicles, not through moving same-lane leaders.
@@ -8395,11 +8457,11 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
   const record=trafficSpatial.cars.get(id);if(!record)continue;
   const p=record.pose,x=p.x-origin.x,y=p.y-origin.y;
   if(x*x+y*y>(lookahead+.7)*(lookahead+.7))continue;
-  const merge=convergingLanePair(v,otherCar,plan,s,p,origin);
+  const peerTurn=terminalTurnOther(otherCar),merge=convergingLanePair(v,otherCar,plan,s,p,origin);
   if(merge&&!merge.wins&&merge.stop<mergeLimit){mergeLimit=merge.stop;mergeBlock={gameTime:state.time,ownerId:id,distance:merge.stop,reason:'lane_merge_priority'};}
   // Only lateral crossings may ghost. Existing overlaps are released in
   // front-to-back order instead of forcing every vehicle to stop forever.
-  if(reciprocalLaneSwap(v,otherCar,plan,s,p,origin)
+  if((!terminalNearby&&!peerTurn&&reciprocalLaneSwap(v,otherCar,plan,s,p,origin))
    ||overlapEscapePriority(v,otherCar,plan,s,p,merge,origin))continue;
   if(piece&&origin.dx!=null&&p.dx!=null&&Math.abs(origin.dx*p.dy-origin.dy*p.dx)<.01){
    const across=Math.abs(x*origin.dy-y*origin.dx);
@@ -8407,11 +8469,11 @@ function computePhysicalTrafficLimit(v,plan,s,lookahead){
    if(motionDirection(v.path,v.pos)===motionDirection(otherCar.path,otherCar.pos)&&plannedLane(v,v.pos)!==plannedLane(otherCar,otherCar.pos)&&across>=.32)continue;
    if(across>=.32)continue;
   }
-  near.push(p);nearIds.push(id);
+  near.push(p);nearIds.push(id);nearTurns.push(peerTurn);
  }
  if(!near.length){v.lastPhysicalBlock=mergeBlock;return mergeLimit;}let safe=s;
  const sample={};
- for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along,sample);for(let j=0;j<near.length;j++)if(capsulesOverlap(p,near[j])){v.lastPhysicalBlock={gameTime:state.time,ownerId:nearIds[j],distance:along,reason:'physical_capsule_overlap',...(bugCaptureEnabled?{ownerPose:near[j]}:{})};const physicalLimit=Math.max(s,safe-.025);if(mergeLimit<=physicalLimit)v.lastPhysicalBlock=mergeBlock;return Math.min(mergeLimit,physicalLimit);}safe=along;if(along===end)break;}
+ for(let next=s+.1;next<=end+.099;next+=.1){const along=Math.min(end,next),p=positionOnMotion(plan,along,sample),turn=terminalNearby?activeTerminalTurn(plan,along):null;for(let j=0;j<near.length;j++){const peer=nearTurns[j],decision=turn||peer?terminalTurnPair(turn,along,p,peer?.turn,peer?.s,near[j]):0;if(decision<0||decision===0&&capsulesOverlap(p,near[j])){v.lastPhysicalBlock={gameTime:state.time,ownerId:nearIds[j],distance:along,reason:'physical_capsule_overlap',...(bugCaptureEnabled?{ownerPose:near[j]}:{})};const physicalLimit=Math.max(s,safe-.025);if(mergeLimit<=physicalLimit)v.lastPhysicalBlock=mergeBlock;return Math.min(mergeLimit,physicalLimit);}}safe=along;if(along===end)break;}
  v.lastPhysicalBlock=mergeBlock;return mergeLimit;
 }
 function motionBarrier(v,plan,s,budget=-1){
@@ -8451,7 +8513,7 @@ function motionBarrier(v,plan,s,budget=-1){
 }
 function enforceNoUTurn(v){
  if(v.noUTurnPolicy===1||!v.path?.length)return;
- const plan=motionPlan(v),s=motionDistance(v,plan),turn=plan.turns.find(t=>t.turn===2&&t.endDistance>s);
+ const plan=motionPlan(v),s=motionDistance(v,plan),turn=plan.turns.find(t=>t.turn===2&&!t.deadEnd&&t.endDistance>s);
  if(!turn){v.noUTurnPolicy=1;return;}
  const pose=vehiclePosition(v),current=v.path[v.pos],previous=v.pos?v.path[v.pos-1]:null,next=v.path[v.pos+1],target=state.buildings.get(v.toId);let replacement=null;
  if(s<=turn.startDistance+1e-6)for(const access of target?.access||[{node:v.toGate,prev:null}]){replacement=route(current,access.node,next==null?null:[next],access.prev,previous);if(replacement)break;}
@@ -8482,7 +8544,7 @@ function laneChangeCorridorClear(v,plan,distance=ADAPTIVE_LANE_RULES.sweep){
 function commitSafeLaneChange(v,newLane,reason,newRoute=null){
  if(v.phase!=='driving'||v.mergeExitActive||v.parkingEscapeFor||v.path?.[v.pos+2]==null)return false;
  const oldPlan=motionPlan(v),oldDistance=motionDistance(v,oldPlan);
- if(oldPlan.junctions.some(g=>oldDistance>=g.entry-.4&&oldDistance<g.clear+.4))return false;
+ if(oldPlan.junctions.some(g=>oldDistance>=g.entry-.4&&oldDistance<g.clear+.4)||oldPlan.deadEndTurns?.some(t=>oldDistance>=t.startDistance-4&&oldDistance<t.endDistance+.8))return false;
  if(state.time<(v.adaptiveLaneUntil||0))return false;
  const direction=motionDirection(v.path,v.pos),oldLane=plannedLane(v,v.pos);
  if(Math.abs(newLane-oldLane)!==1||newLane<0||newLane>=laneCapacity(v.path[v.pos],direction))return false;
@@ -8967,12 +9029,13 @@ function getRoadPreview(){
  const live=state,roads=new Map(live.roads),xs=cells.map(i=>i%300),ys=cells.map(i=>Math.floor(i/300));
  for(const i of cells){const r=roads.get(i);roads.set(i,r?{...r,links:new Set(r.links)}:{type,main:false,links:new Set(),load:0,wait:0});if(ROADS[type].lanes>ROADS[roads.get(i).type].lanes)roads.get(i).type=type;}
  for(let k=1;k<cells.length;k++){roads.get(cells[k-1]).links.add(cells[k]);roads.get(cells[k]).links.add(cells[k-1]);}
- const planned={...live,roads,junctionCache:new Map(),junctionLayoutCache:new Map(),gates:[]},layouts=new Map(),counts=new Map();
+ const planned={...live,roads,junctionCache:new Map(),junctionLayoutCache:new Map(),gates:live.gates},layouts=new Map(),counts=new Map();
  const minX=Math.min(...xs)-8,maxX=Math.max(...xs)+8,minY=Math.min(...ys)-8,maxY=Math.max(...ys)+8,local=new Map();
  try{state=planned;for(const [i,r]of roads){const x=i%300,y=Math.floor(i/300);if(x<minX||x>maxX||y<minY||y>maxY)continue;local.set(i,r);layouts.set(i,junctionDetails(i));counts.set(i,junction(i));}}finally{state=live;}
  // Layouts use the full graph; clip only boundary links in the local drawing.
  for(const [i,r]of local)local.set(i,{...r,links:new Set([...r.links].filter(n=>local.has(n)))});
  const junctionPreview=i=>counts.get(i)||0;junctionPreview.details=i=>layouts.get(i);
+ const previewEnds=turnaroundEnds(planned,i=>layouts.get(i));junctionPreview.turnarounds=()=>previewEnds;junctionPreview.details.turnarounds=()=>previewEnds;
  const plan={key,state:{...planned,roads:local},junction:junctionPreview,error:checkRoad(cells,type).error,cells,type};
  roadPreviewCache={source:live,key,plan};return plan;
 }
@@ -8987,7 +9050,7 @@ function roadChanged(cells,removedRoads=null){
   const plan=motionPlans.get(v);if(!plan||plan.path!==v.path)continue;
   const s=motionDistance(v,plan),pose=positionOnMotion(plan,s),piece=plan.pieces.find(p=>s<=p.endDistance+1e-8);
   const u=piece?piece.startU+Math.max(0,Math.min(1,(s-piece.startDistance)/Math.max(1e-10,piece.length)))*(piece.endU-piece.startU):plan.route[v.pos]||0;
-  anchors.push({v,path:v.path,pos:v.pos,u,pose});
+  anchors.push({v,path:v.path,pos:v.pos,u,pose,terminalPos:plan.turns.find(t=>t.terminalShape&&s>=t.startDistance&&s<t.endDistance)?.pos});
  }
  state.version++;roadPreviewCache=null;renderer3d?.invalidateRoads?.();state.routeCache.clear();state.junctionCache.clear();state.junctionLayoutCache?.clear();state.signalSlotCache?.clear();for(const node of state.signals.keys())if(junction(node)<3)state.signals.delete(node);nextAISignalPoll=-Infinity;rebuildFootprint();for(const b of state.buildings.values())b.access=accessFor(b);
  for(const node of previousAISlots.keys())normalizeAISignalTopology(node,previousAISlots.get(node));
