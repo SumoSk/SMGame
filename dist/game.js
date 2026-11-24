@@ -3288,14 +3288,17 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
  }
  function capacityMoodSprite(kind){
   if(capacityMoodSprites.has(kind))return capacityMoodSprites.get(kind);
-  const sprite=document.createElement('canvas');sprite.width=192;sprite.height=154;
+  const sprite=document.createElement('canvas');sprite.width=240;sprite.height=104;
   const c=sprite.getContext('2d');if(!c)return null;
-  c.font='116px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-  c.textAlign='center';c.textBaseline='middle';c.fillText(BUILDING_CAPACITY_EMOJIS[kind],96,57);
-  c.fillStyle='#e53935';c.strokeStyle='#fff5f5';c.lineWidth=3;
-  c.beginPath();c.roundRect(84,116,24,32,7);c.fill();c.stroke();
-  c.strokeStyle='#ffffff99';c.lineWidth=2;
-  for(const y of [126,135]){c.beginPath();c.moveTo(90,y);c.lineTo(102,y);c.stroke();}
+  // Compact, high-contrast speech bubble; one cached bitmap per category.
+  c.fillStyle='#d92335';c.strokeStyle='#fff5f5';c.lineWidth=4;c.lineJoin='round';
+  c.beginPath();c.roundRect(5,5,230,76,17);c.fill();c.stroke();
+  c.beginPath();c.moveTo(102,79);c.lineTo(120,99);c.lineTo(138,79);c.closePath();c.fill();
+  c.beginPath();c.moveTo(102,81);c.lineTo(120,99);c.lineTo(138,81);c.stroke();
+  c.textAlign='center';c.textBaseline='middle';
+  c.font='62px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  c.fillText(BUILDING_CAPACITY_EMOJIS[kind],48,44);
+  c.fillStyle='#ffffff';c.font='bold 47px Arial, sans-serif';c.fillText('FULL',151,45);
   capacityMoodSprites.set(kind,sprite);return sprite;
  }
  function updateBuildingCapacityMood(){
@@ -3332,8 +3335,8 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
   }
   if(!capacityMoodPoints.length){layer.hidden=true;return;}
   layer.hidden=false;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,view.w,view.h);
-  const size=Math.min(18,Math.max(12,cam.z*12))*(renderer3d?1.55:1.25),bounce=(1+Math.sin(now*.005))*1.1;
-  for(const p of capacityMoodPoints){const sprite=capacityMoodSprite(p.kind);if(sprite){const w=size*2,h=size*154/96;c.drawImage(sprite,p.x-w/2,p.y-h-2-bounce,w,h);}}
+  const badgeW=Math.min(76,Math.max(60,60+(cam.z-.55)*10)),badgeH=badgeW*104/240,bounce=(1+Math.sin(now*.005))*1.1;
+  for(const p of capacityMoodPoints){const sprite=capacityMoodSprite(p.kind);if(sprite)c.drawImage(sprite,p.x-badgeW/2,p.y-badgeH-2-bounce,badgeW,badgeH);}
  }
 
 function drawCarIndicators2D(){
