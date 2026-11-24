@@ -10373,9 +10373,6 @@ function repairLegacyPhuketConnection(s){
  if(!groups.length)return {...s,entryConnectionV2:true};
  const city=groups[0],gateHasOld=legacyNodes.some(n=>gateSet.has(n));
  if(gateHasOld&&score(gateNodes)>=city.score&&gateNodes.length>=city.nodes.length)return {...s,entryConnectionV2:true};
- const sources=gateNodes.filter(n=>n!==gate&&roads.get(n).links.size===1&&!isPhuketWaterTile(...xy(n)));
- if(!sources.length)return s;
- const targets=city.nodes.filter(n=>roads.get(n).type!=='small'&&roads.get(n).links.size<=2&&!isPhuketWaterTile(...xy(n))&&!accessCounts.has(n));
  const live=state,allSheets=new Set();
  for(let y=0;y<MAP_SHEET_COLUMNS;y++)for(let x=0;x<MAP_SHEET_COLUMNS;x++)allSheets.add(mapSheetId(x,y));
  const temporary={...live,roads,buildings:new Map(s.buildings),footprint:new Int32Array(W*H).fill(-1),buildGrid:new Int32Array(W*H).fill(-1),homeSideRoadFootprint:new Uint8Array(W*H),mapExpansion:{opened:allSheets},money:Number.MAX_SAFE_INTEGER};
@@ -10391,7 +10388,6 @@ function repairLegacyPhuketConnection(s){
   if(dx&&dy)return [];
   return Array.from({length:Math.max(Math.abs(u-x),Math.abs(v-y))+1},(_,k)=>id(x+k*dx,y+k*dy));
  };
- const joinPath=(a,b,c)=>[...line(a,b),...line(b,c).slice(1)];
  const fits=(path,type)=>{
   if(path.length<2||new Set(path).size!==path.length)return false;
   // Do not convert any existing street, touch the water, buildings or planted
@@ -10446,26 +10442,8 @@ function repairLegacyPhuketConnection(s){
   }
   coastal.sort((a,b)=>a.cost-b.cost);
   for(const {path} of coastal)if(fits(path,'large')){chosen={path,type:'large'};break;}
-  const pairs=[];
-  for(const a of sources)for(const b of targets){
-   const [x,y]=xy(a),[u,v]=xy(b);
-   pairs.push({a,b,d:Math.abs(x-u)+Math.abs(y-v)});
-  }
-  pairs.sort((a,b)=>a.d-b.d||a.a-b.a||a.b-b.b);
-  for(const {a,b} of chosen?[]:pairs){
-   const [x,y]=xy(a),[u,v]=xy(b);
-   const paths=x===u||y===v?[line(a,b)]:[joinPath(a,id(x,v),b),joinPath(a,id(u,y),b)];
-   for(const path of paths){
-    const straight=x===u||y===v;
-    // Preserve eight lanes on a straight highway-to-highway connection;
-    // use medium roads for bends or smaller compatible destinations.
-    for(const type of straight?['large','medium']:['medium']){
-     if(fits(path,type)){chosen={path,type};break;}
-    }
-    if(chosen)break;
-   }
-   if(chosen)break;
-  }
+  // No inland shortcut: if the coastal corridor is blocked, preserve the
+  // saved city and let the player decide where to connect it.
  }finally{state=live;}
  if(!chosen)return s;
  const {path,type}=chosen;
