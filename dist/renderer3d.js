@@ -1619,6 +1619,13 @@ export class TrafficRenderer{
   }
  }
  screen(x,z,height=0){this.point.set(x,height/18,z).project(this.camera);return[(this.point.x+1)*this.w/2,(1-this.point.y)*this.h/2];}
+ projectCapacityAnchor(x,z,height){
+  this.point.set(x,height/18,z).applyMatrix4(this.camera.matrixWorldInverse);
+  if(this.point.z>=-this.camera.near||this.point.z< -this.camera.far)return null;
+  this.point.applyMatrix4(this.camera.projectionMatrix);
+  if(!Number.isFinite(this.point.z)||this.point.z< -1||this.point.z>1||Math.abs(this.point.x)>1||Math.abs(this.point.y)>1)return null;
+  return[(this.point.x+1)*this.w/2,(1-this.point.y)*this.h/2];
+ }
  world(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const p=new THREE.Vector3();this.ray.ray.intersectPlane(this.ground,p);return[p.x,p.z];}
  pickBuilding(x,y){this.ndc.set(x/this.w*2-1,1-y/this.h*2);this.ray.setFromCamera(this.ndc,this.camera);const hits=this.ray.intersectObjects(this.buildingGroup.children,true);for(const h of hits){const id=h.object.userData.ids?.[h.instanceId];if(id!=null)return id;}return null;}
  coast(z){
@@ -9421,10 +9428,34 @@ export class TrafficRenderer{
   for(const mesh of[fx.steam,fx.sparks,fx.parts]){mesh.visible=mesh.count>0;mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;}
  }
 
+ // Read the real, final architecture batch, after model offsets and rotations.
+ // Run once per building rebuild (not once per rendered frame).
+ rebuildCapacityAnchors(batch,state,CATALOG){
+  const anchors=new Map(),dummy=new THREE.Object3D(),bounds=new THREE.Box3();
+  const eligible=new Set([...state.buildings.values()].filter(b=>['office','factory','shop','restaurant','mall','park','pub','casino','hotel'].includes(CATALOG[b.key]?.kind)).map(b=>b.id));
+  for(const {geo,glow,items} of batch.data.values()){
+   if(glow)continue;
+   for(const p of items){
+    if(!eligible.has(p.buildingId))continue;
+    if(!geo.boundingBox)geo.computeBoundingBox();
+    if(!geo.boundingBox||geo.boundingBox.isEmpty())continue;
+    const old=anchors.get(p.buildingId);
+    // A cheap upper bound avoids transforming most low components.
+    const g=geo.boundingBox,rx=Math.max(Math.abs(g.min.x),Math.abs(g.max.x))*Math.abs(p.sx),ry=Math.max(Math.abs(g.min.y),Math.abs(g.max.y))*Math.abs(p.sy),rz=Math.max(Math.abs(g.min.z),Math.abs(g.max.z))*Math.abs(p.sz);
+    if(old&&p.y+Math.hypot(rx,ry,rz)<old.y)continue;
+    dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,p.rz);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();
+    bounds.copy(g).applyMatrix4(dummy.matrix);
+    if(!Number.isFinite(bounds.max.y))continue;
+    if(!old||bounds.max.y>old.y)anchors.set(p.buildingId,{x:(bounds.min.x+bounds.max.x)*.5,y:bounds.max.y,z:(bounds.min.z+bounds.max.z)*.5});
+   }
+  }
+  this.buildingCapacityAnchors=anchors;this.capacityAnchorVersion=(this.capacityAnchorVersion||0)+1;
+ }
  makeBuildings(state,CATALOG,KINDS){
   this.disposeGroup(this.buildingGroup);
   const batch=new Batch({detailGroups:true,lowDetail:this.graphicQuality==='low'});this.grandSignalLights=[];
   for(const building of state.buildings.values())this.building(batch,building,CATALOG,KINDS);
+  this.rebuildCapacityAnchors(batch,state,CATALOG);
   this.buildingGroup.add(batch.build());
   this.factoryNightPulseMeshes=[];
   this.buildingGroup.traverse(mesh=>{

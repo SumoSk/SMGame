@@ -1890,6 +1890,7 @@ function migratePerformance(saved){
 }
 
 function reset(city='phuket',legacy=false){
+hideBuildingCapacityMood();
 roadDrawAnchor=null;
 resetSimulationRuntime();
 trafficPairReset();
@@ -3463,9 +3464,22 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
  // One transparent canvas and eight reusable sprites: no per-building DOM or 3D meshes.
  let capacityMoodLayer=null,capacityMoodContext=null,capacityMoodOwner=null,capacityMoodAt=-Infinity,capacityMoodLayout='',capacityMoodAnchors=[],capacityMoodProjection='',capacityMoodPoints=[];
  const capacityMoodSprites=new Map();
+ function clearCapacityMoodLayer(){
+  if(!capacityMoodLayer)return;
+  const layer=capacityMoodLayer,c=capacityMoodContext;
+  if(c){c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,layer.width,layer.height);}
+  // Global canvas display:block overrides the browser's [hidden] rule.
+  layer.hidden=true;layer.style.display='none';
+ }
  function hideBuildingCapacityMood(){
-  if(capacityMoodLayer)capacityMoodLayer.hidden=true;
-  capacityMoodAt=-Infinity;
+  clearCapacityMoodLayer();
+  capacityMoodOwner=null;capacityMoodAt=-Infinity;capacityMoodLayout='';
+  capacityMoodAnchors=[];capacityMoodPoints=[];capacityMoodProjection='';
+ }
+ function buildingCapacityIsFull(b,t,kind){
+  const capacity=kind==='hotel'?t.beds:kind==='work'?t.jobs:t.service;
+  const used=kind==='hotel'?(b.guests?.size||0):kind==='work'?(b.workers?.size||0):(b.visitors?.size||0)+(b.reservedService||0);
+  return capacity>0&&used>=capacity;
  }
  function capacityMoodSprite(kind){
   if(capacityMoodSprites.has(kind))return capacityMoodSprites.get(kind);
@@ -3484,25 +3498,27 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
  }
  function updateBuildingCapacityMood(){
   if(!carStatusDiamondsVisible||heat||typeof document.createElement!=='function'){hideBuildingCapacityMood();return;}
-  const now=performance.now(),layout=(state.buildingVisualVersion||0)+':'+state.buildings.size;
+  const now=performance.now(),layout=[state.buildingVisualVersion||0,state.buildings.size,renderer3d?.capacityAnchorVersion||0].join(':');
   if(capacityMoodOwner!==state||capacityMoodLayout!==layout||now-capacityMoodAt>=180){
    capacityMoodOwner=state;capacityMoodLayout=layout;capacityMoodAt=now;
    const full=shortageBuildingCapacityKinds(state.buildings.values(),CATALOG,state.citizens,state.vehicles,state.performance?.complaints,state.time,kind=>!!serviceWindow(kind,state.time)),anchors=[];
    if(full.size)for(const b of state.buildings.values()){
-    const t=CATALOG[b.key],kind=capacityMoodKind(t?.kind);if(!t||!full.has(kind))continue;
+    const t=CATALOG[b.key],kind=capacityMoodKind(t?.kind);if(!t||!full.has(kind)||!buildingCapacityIsFull(b,t,kind))continue;
     const m=lotModel(b),size=m.visualSize||t.size;
     let x=m.x+size/2,z=m.y+size/2;
     let height=renderer3d?(t.kind==='office'?t.size*1.15+.7:t.kind==='park'?.85:t.kind==='home'?t.size*.62+1.2:t.size*.55+1)*18:t.kind==='office'?size*8+4:t.kind==='park'?12:t.kind==='home'?size*4+11:t.kind==='mall'?size*4+4:t.kind==='factory'?size*3.5+12:['restaurant','pub'].includes(t.kind)?size*3.5+8:size*3.5+4;
-    anchors.push({x,z,height,kind});
+    const roof=renderer3d?.buildingCapacityAnchors?.get(b.id);
+    if(roof){x=roof.x;z=roof.z;height=roof.y*18;}
+    anchors.push({id:b.id,x,z,height,kind});
    }
    capacityMoodAnchors=anchors;capacityMoodProjection='';
   }
-  if(!capacityMoodAnchors.length){if(capacityMoodLayer)capacityMoodLayer.hidden=true;return;}
+  if(!capacityMoodAnchors.length){clearCapacityMoodLayer();return;}
   if(!capacityMoodLayer){
    const layer=document.createElement('canvas'),context=layer.getContext('2d');if(!context)return;
    layer.setAttribute('aria-hidden','true');
-   Object.assign(layer.style,{position:'absolute',inset:'0',width:'100%',height:'100%',pointerEvents:'none'});
-   canvas.insertAdjacentElement('afterend',layer);capacityMoodLayer=layer;capacityMoodContext=context;
+   Object.assign(layer.style,{position:'absolute',inset:'0',width:'100%',height:'100%',pointerEvents:'none',display:'none'});
+   layer.id='buildingCapacityMood';canvas.insertAdjacentElement('afterend',layer);capacityMoodLayer=layer;capacityMoodContext=context;
   }
   const layer=capacityMoodLayer,c=capacityMoodContext,dpr=Math.min(1.5,view.dpr||1),w=Math.round(view.w*dpr),h=Math.round(view.h*dpr);
   if(layer.width!==w||layer.height!==h){layer.width=w;layer.height=h;}
@@ -3510,14 +3526,21 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
   if(key!==capacityMoodProjection){
    capacityMoodProjection=key;capacityMoodPoints=[];
    for(const a of capacityMoodAnchors){
-    const p=screen(a.x,a.z,a.height);
-    if(Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=-40&&p[0]<=view.w+40&&p[1]>=-32&&p[1]<=view.h+64)capacityMoodPoints.push({x:p[0],y:p[1],kind:a.kind});
+    const p=renderer3d?renderer3d.projectCapacityAnchor(a.x,a.z,a.height):screen(a.x,a.z,a.height);
+    if(p&&Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=0&&p[0]<=view.w&&p[1]>=0&&p[1]<=view.h)capacityMoodPoints.push({x:p[0],y:p[1],kind:a.kind,id:a.id});
    }
   }
-  if(!capacityMoodPoints.length){layer.hidden=true;return;}
-  layer.hidden=false;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,view.w,view.h);
-  const badgeW=Math.min(76,Math.max(60,60+(cam.z-.55)*10)),badgeH=badgeW*104/240,bounce=(1+Math.sin(now*.005))*1.1;
-  for(const p of capacityMoodPoints){const sprite=capacityMoodSprite(p.kind);if(sprite)c.drawImage(sprite,p.x-badgeW/2,p.y-badgeH-2-bounce,badgeW,badgeH);}
+  if(!capacityMoodPoints.length){clearCapacityMoodLayer();return;}
+  layer.hidden=false;layer.style.display='block';c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,view.w,view.h);
+  const badgeW=Math.min(76,Math.max(48,60+(cam.z-.55)*10)),badgeH=badgeW*104/240;
+  // Keep the tip fixed to the roof; avoid unreadable overlapping labels.
+  const drawn=[];
+  for(const p of capacityMoodPoints.slice().sort((a,b)=>b.y-a.y||a.id-b.id)){
+   if(p.y<badgeH+2||p.x<badgeW/2||p.x>view.w-badgeW/2)continue;
+   if(drawn.some(q=>Math.abs(q.x-p.x)<badgeW+3&&Math.abs(q.y-p.y)<badgeH+3))continue;
+   const sprite=capacityMoodSprite(p.kind);if(sprite){c.drawImage(sprite,p.x-badgeW/2,p.y-badgeH-1,badgeW,badgeH);drawn.push(p);}
+  }
+  if(!drawn.length)clearCapacityMoodLayer();
  }
 
 function drawCarIndicators2D(){
