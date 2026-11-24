@@ -9076,7 +9076,32 @@ function lineCells(a,b){let [x,y]=xy(a),[u,v]=xy(b),dx=u-x,dy=v-y;const horizont
   if(!state.roads.has(id(u,v))&&valid(u+sx,v+sy)&&state.roads.has(id(u+sx,v+sy))){u+=sx;v+=sy;}
  }
  const steps=Math.max(Math.abs(u-x),Math.abs(v-y)),result=[];for(let n=0;n<=steps;n++){const xx=Math.round(x+(u-x)*(steps?n/steps:0)),yy=Math.round(y+(v-y)*(steps?n/steps:0));if(!valid(xx,yy))continue;const raw=id(xx,yy),snapped=owner(raw),point=xy(snapped),aligned=horizontal?point[1]===y:point[0]===x,p=aligned?snapped:raw;if(result[result.length-1]!==p)result.push(p);}return result;}
-function checkRoad(cells,type){let cost=0;const t=ROADS[type];if(!cells.length)return{error:'เลือกตำแหน่งถนนบนแผนที่'};const centerline=new Set(cells);for(const i of cells)if(!state.roads.has(i)&&state.footprint[i]>=0&&!centerline.has(state.footprint[i]))return{error:'แนวถนนซ้อนขอบถนนเดิม ลากให้เชื่อมตรงกลางหรือขยับแนวถนนค่ะ'};const newRoadSideTiles=new Set();
+// Validate the final road classes before construction or widening. Existing
+// legacy links are not modified; only newly created incompatible links fail.
+const ROAD_SIZE_CONNECTION_ERROR='ถนนเล็กต้องต่อกับถนนกลางเท่านั้น · ไม่สามารถเชื่อมกับถนนใหญ่โดยตรงได้';
+function roadSizeConnectionError(roads,cells,type){
+ const selected=new Set(cells),kind=node=>{
+  const old=roads.get(node)?.type;
+  return selected.has(node)&&(!old||ROADS[type].lanes>ROADS[old].lanes)?type:old;
+ };
+ const forbidden=(a,b)=>(a==='small'&&b==='large')||(a==='large'&&b==='small');
+ // Existing links can become invalid when one of their endpoints is widened.
+ for(const node of selected){
+  const old=roads.get(node);
+  if(!old||old.type===kind(node))continue;
+  for(const next of old.links){
+   if(forbidden(kind(node),kind(next))&&!forbidden(old.type,roads.get(next)?.type))return ROAD_SIZE_CONNECTION_ERROR;
+  }
+ }
+ // Check each newly drawn connection in either drag direction.
+ for(let i=1;i<cells.length;i++){
+  const a=cells[i-1],b=cells[i];
+  if(a===b||!forbidden(kind(a),kind(b)))continue;
+  if(!roads.get(a)?.links.has(b)||!forbidden(roads.get(a)?.type,roads.get(b)?.type))return ROAD_SIZE_CONNECTION_ERROR;
+ }
+ return null;
+}
+function checkRoad(cells,type){let cost=0;const t=ROADS[type];if(!cells.length)return{error:'เลือกตำแหน่งถนนบนแผนที่'};const sizeError=roadSizeConnectionError(state.roads,cells,type);if(sizeError)return{error:sizeError};const centerline=new Set(cells);for(const i of cells)if(!state.roads.has(i)&&state.footprint[i]>=0&&!centerline.has(state.footprint[i]))return{error:'แนวถนนซ้อนขอบถนนเดิม ลากให้เชื่อมตรงกลางหรือขยับแนวถนนค่ะ'};const newRoadSideTiles=new Set();
 for(const i of cells){
  const [x,y]=xy(i),r=state.roads.get(i),w=Math.max(roadClearanceWidth(t),r?roadClearanceWidth(ROADS[r.type]):0),lo=Math.floor(w/2);
  if((!r||ROADS[type].lanes>ROADS[r.type].lanes)&&roadVisualCoveredCells(i,type).some(j=>{const [xx,yy]=xy(j);return !sheetUnlocked(xx,yy);}))return{error:MAP_SHEET_LOCK_MESSAGE};
