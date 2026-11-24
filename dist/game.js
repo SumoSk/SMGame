@@ -2337,18 +2337,34 @@ junction.details=junctionDetails;
    if(x!==nx&&y!==ny)continue;
    if(other.links.size>=3){const port=layoutFor(neighbor)?.ports.find(p=>p.node===node);if(port&&distance(neighbor,node)<=port.extent)continue;}
    const direction=dir(neighbor,node),width=roadVisualWidth(r.type);
-   ends.set(node,{node,neighbor,x,y,direction,width,depth:Math.min(.44,width*.5)});
+   const lanes=Math.min(ROADS[r.type].lanes,ROADS[other.type].lanes)/2,laneWidth=width/ROADS[r.type].lanes;
+   const reach=lanes>1?Math.max(.12,(lanes-.5)*laneWidth-.12):.12;
+   const e={node,neighbor,x,y,direction,width,lanes,reach,depth:Math.min(.44,width*.5),paint:[],paintCuts:new Map()};
+   if(lanes>1&&r.type===other.type){
+    const [dx,dy]=DIR[direction],point=(along,across)=>[x+dx*along-dy*across,y+dy*along+dx*across];
+    for(let k=1;k<lanes;k++){
+     const radius=k*laneWidth,guide=[];
+     for(let j=0;j<=28;j++){const t=j/28,u=1-t;guide.push(point(-reach+4*radius*u*t,radius*(1-6*t*t+4*t*t*t)));}
+     e.paint.push(guide);
+    }
+    let a=node,prev=null,left=reach;
+    while(left>1e-8){const next=[...(roads.get(a)?.links||[])].find(n=>n!==prev&&dir(n,a)===direction&&roads.get(n)?.type===r.type);if(next==null)break;
+     const length=distance(a,next),cut=Math.min(1,left/length);e.paintCuts.set(a<next?a+':'+next:next+':'+a,a<next?[0,cut]:[1-cut,1]);left-=length;prev=a;a=next;}
+   }
+   ends.set(node,e);
   }
   turnaroundCache.set(roadState,{version:roadState.version,roads,size:roads.size,ends});return ends;
  }
  function isTurnaround(node){return turnaroundEnds().has(node);}
+ function turnaroundPaintCuts(ends){const cuts=new Map();for(const e of ends.values())for(const [key,cut]of e.paintCuts||[]){const list=cuts.get(key)||[];list.push(cut);cuts.set(key,list);}return cuts;}
+ function trimTurnaroundPaint(lo,hi,cuts){let ranges=[[lo,hi]];for(const [a,b]of cuts||[]){const next=[];for(const [x,y]of ranges){if(b<=x||a>=y)next.push([x,y]);else{if(a>x)next.push([x,a]);if(b<y)next.push([b,y]);}}ranges=next;}return ranges;}
  function turnaroundArc(end,margin=0){
   const [dx,dy]=DIR[end.direction],radius=end.width*.5+margin,depth=end.depth+margin,points=[];
   for(let k=0;k<=24;k++){const a=-Math.PI*.5+k*Math.PI/24;points.push([end.x+dx*Math.cos(a)*depth-dy*Math.sin(a)*radius,end.y+dy*Math.cos(a)*depth+dx*Math.sin(a)*radius]);}
   return points;
  }
 
-junction.turnarounds=turnaroundEnds;junctionDetails.turnarounds=turnaroundEnds;
+junction.turnarounds=turnaroundEnds;junctionDetails.turnarounds=turnaroundEnds;junction.turnaroundPaintCuts=turnaroundPaintCuts;junction.trimTurnaroundPaint=trimTurnaroundPaint;
 // Shared visual-only streetscape: no road graph, lanes, plots or prices change.
 const roadsideVisualCache=new WeakMap();
 function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
@@ -2488,11 +2504,11 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
  const layouts=new Map(),nearby=new Map(),hidden=new Set(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
  for(const [node]of state.roads){const layout=roadDetails(node);for(const [a,b]of layout.hiddenEdges)hidden.add(edgeKey(a,b));if(layout.arms.length>=3||layout.bend)layouts.set(node,layout);}
  for(const l of layouts.values())for(let yy=Math.floor(l.y-l.halfY-2);yy<=Math.ceil(l.y+l.halfY+2);yy++)for(let xx=Math.floor(l.x-l.halfX-2);xx<=Math.ceil(l.x+l.halfX+2);xx++){const key=id(xx,yy);if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(l);}
- const ends=roadDetails.turnarounds?.(state,roadDetails)||new Map();
+ const ends=roadDetails.turnarounds?.(state,roadDetails)||new Map(),paintCuts=turnaroundPaintCuts(ends);
  const segments=[];
  for(const [i,r]of state.roads)for(const n of r.links){if(n<i||hidden.has(edgeKey(i,n)))continue;const [x,y]=xy(i),[nx,ny]=xy(n),dx=nx-x,dy=ny-y,length=Math.hypot(dx,dy),other=state.roads.get(n);let wa=roadVisualWidth(r.type),wb=roadVisualWidth(other?.type),intervals=[[0,1]];
  for(const l of new Set([...(nearby.get(i)||[]),...(nearby.get(n)||[])])){const horizontal=Math.abs(dx)>Math.abs(dy),d=horizontal?((x+nx)/2>=l.x?0:2):((y+ny)/2>=l.y?1:3),arm=l.arms.find(a=>a.dir===d);if(!arm||(horizontal?Math.abs(y-l.y):Math.abs(x-l.x))>.01)continue;wa=wb=arm.width;let lo=0,hi=1;for(const [start,delta,min,max]of [[x,dx,l.x-l.halfX,l.x+l.halfX],[y,dy,l.y-l.halfY,l.y+l.halfY]]){if(Math.abs(delta)<1e-9){if(start<min||start>max)hi=-1;}else{const a=(min-start)/delta,b=(max-start)/delta;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}}if(hi>lo){const next=[];for(const [a,b]of intervals){if(hi<=a||lo>=b)next.push([a,b]);else{if(lo>a)next.push([a,lo]);if(hi<b)next.push([hi,b]);}}intervals=next;}}
- const px=-dy/length,py=dx/length,point=(t,off)=>[x+dx*t+px*off,y+dy*t+py*off];segments.push({r,other,x,y,dx,dy,length,wa,wb,intervals,point});
+ const px=-dy/length,py=dx/length,point=(t,off)=>[x+dx*t+px*off,y+dy*t+py*off];segments.push({r,other,x,y,dx,dy,length,wa,wb,intervals,point,paintCuts:paintCuts.get(edgeKey(i,n))});
  for(const [lo,hi]of intervals)for(const border of [.14,0]){const a=wa+(wb-wa)*lo,b=wa+(wb-wa)*hi;poly([point(lo,-a/2-border),point(hi,-b/2-border),point(hi,b/2+border),point(lo,a/2+border)].map(([x,y])=>screen(x+.5,y+.5)),border?'#c9c8b5':heat?roadColor(r):r.type==='large'&&other?.type==='large'?PREMIUM_CONCRETE:'#47565c');}}
  for(const [node,end]of ends){if(!state.roads.has(node))continue;const r=state.roads.get(node);for(const margin of [.08,0])poly(turnaroundArc(end,margin).map(([x,y])=>screen(x+.5,y+.5)),margin?'#c9c8b5':heat?roadColor(r):r.type==='large'?PREMIUM_CONCRETE:'#47565c');}
  for(const l of layouts.values())poly(l.polygon.map(([x,y])=>screen(l.x+.5+x,l.y+.5+y)),!heat&&l.arms.length>=2&&l.arms.every(a=>Math.abs(a.width-ROADS.large.visualWidth)<.02)?PREMIUM_CONCRETE:'#47565c');
@@ -2529,9 +2545,7 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
   const premium=seg.r.type==='large'&&seg.other?.type==='large'&&
     Math.abs(seg.wa-ROADS.large.visualWidth)<.02&&Math.abs(seg.wb-ROADS.large.visualWidth)<.02;
   for(const [lo,hi]of seg.intervals){
-   const guide=(oa,ob,color,dashed=false)=>stroke(
-    [seg.point(lo,oa+(ob-oa)*lo),seg.point(hi,oa+(ob-oa)*hi)],color,
-    color==='#ead78c'||color===PREMIUM_CENTER?.018:.025,dashed);
+   const guide=(oa,ob,color,dashed=false)=>{const edge=Math.abs(oa-seg.wa/2)<1e-7||Math.abs(oa+seg.wa/2)<1e-7;for(const [a,b]of edge?[[lo,hi]]:trimTurnaroundPaint(lo,hi,seg.paintCuts))stroke([seg.point(a,oa+(ob-oa)*a),seg.point(b,oa+(ob-oa)*b)],color,color==='#ead78c'||color===PREMIUM_CENTER?.018:.025,dashed);};
    for(const sign of [-1,1]){
     guide(.035*sign,.035*sign,premium?PREMIUM_CENTER:'#ead78c');
     guide(seg.wa/2*sign,seg.wb/2*sign,premium?PREMIUM_EDGE:'#dce3d8');
@@ -2542,6 +2556,7 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
    }
   }
  }
+ for(const [node,e]of ends)if(state.roads.has(node))for(const guide of e.paint||[])stroke(guide,state.roads.get(node).type==='large'?PREMIUM_LANE:'#dce3d8',.025,true);
  for(const l of layouts.values()){
  const premiumLayout=l.arms.length>=2&&l.arms.every(a=>Math.abs(a.width-ROADS.large.visualWidth)<.02);
  for(const edge of l.borders){const points=edge.map(([x,y])=>[l.x+x,l.y+y]);stroke(points,'#c9c8b5',.28);stroke(points,premiumLayout?PREMIUM_EDGE:'#dce3d8');}
@@ -2966,12 +2981,12 @@ function turnLanePeers(node,incoming,turn){
 function rememberMotionPlan(v,plan){motionPlans.set(v,plan);if(turnLaneIndex)indexTurnLaneVehicle(v,plan);return plan;}
 function turnLanePair(v,c,rank){
  const a=laneCapacity(v.path[c.pos-1],c.incoming),b=laneCapacity(v.path[c.pos+1],c.outgoing);
- if(c.turn===2)return{incoming:0,outgoing:0};
+ if(c.laneLocked){const max=Math.min(a,b,laneCapacity(v.path[c.pos],c.incoming),laneCapacity(v.path[c.pos],c.outgoing))-1,lane=Math.max(0,Math.min(max,rank||0));return{incoming:lane,outgoing:lane};}if(c.turn===2)return{incoming:0,outgoing:0};
  const count=Math.min(2,a,b),r=Math.max(0,Math.min(count-1,rank));
  return c.turn===1?{incoming:r,outgoing:r}:{incoming:a-count+r,outgoing:b-count+r};
 }
 function chooseTurnLane(v,c){
- if(c.turn===2)return 0;
+ if(c.laneLocked||c.turn===2)return 0;
  const count=Math.min(2,laneCapacity(v.path[c.pos-1],c.incoming),laneCapacity(v.path[c.pos+1],c.outgoing));
  const scores=Array(count).fill(0),node=v.path[c.pos];
  for(const other of turnLanePeers(node,c.incoming,c.turn)){
@@ -2991,19 +3006,25 @@ function motionPlan(v){
  const path=v.path,n=path.length,lanes=new Uint8Array(n),route=new Float64Array(n),corners=[];
  const savedAnchor=roadEditAnchors.get(v),roadAnchor=savedAnchor?.path===path?savedAnchor:null;
  for(let i=1;i<n;i++)route[i]=route[i-1]+distance(path[i-1],path[i]);
- for(let i=1;i<n-1;i++){const incoming=motionDirection(path,i-1),outgoing=motionDirection(path,i),turn=(outgoing-incoming+4)%4;if(turn)corners.push({pos:i,incoming,outgoing,turn,u:route[i]});}
+ for(let i=1;i<n-1;i++){const incoming=motionDirection(path,i-1),outgoing=motionDirection(path,i),turn=(outgoing-incoming+4)%4;if(turn){const terminal=turn===2&&(isTurnaround(path[i])||roadAnchor?.terminalPos===i),bend=turn!==2&&junctionDetails(path[i]).bend===true,locked=terminal||bend;corners.push({pos:i,incoming,outgoing,turn,u:route[i],laneLocked:locked,terminalMulti:terminal&&Math.min(laneCapacity(path[i-1],incoming),laneCapacity(path[i],outgoing),laneCapacity(path[i+1],outgoing))>1,bendLocked:bend});}}
  const legacy=v.trafficModel===1;
- if(!legacy){if(!v.turnLanes)v.turnLanes={};for(const c of corners){const key=c.pos+':'+path[c.pos]+':'+c.turn;const earlyLeft=state.buildings.has(v.fromId)&&c.turn===3&&c.u<9;if(earlyLeft)v.turnLanes[key]=Math.min(2,laneCapacity(path[c.pos-1],c.incoming),laneCapacity(path[c.pos+1],c.outgoing))-1;else if(v.turnLanes[key]==null)v.turnLanes[key]=chooseTurnLane(v,c);c.lanePair=turnLanePair(v,c,v.turnLanes[key]);}}
+ if(!legacy){if(!v.turnLanes)v.turnLanes={};for(const c of corners){const key=c.pos+':'+path[c.pos]+':'+c.turn;if(c.laneLocked){c.lanePair=turnLanePair(v,c,0);continue;}const earlyLeft=state.buildings.has(v.fromId)&&c.turn===3&&c.u<9;if(earlyLeft)v.turnLanes[key]=Math.min(2,laneCapacity(path[c.pos-1],c.incoming),laneCapacity(path[c.pos+1],c.outgoing))-1;else if(v.turnLanes[key]==null)v.turnLanes[key]=chooseTurnLane(v,c);c.lanePair=turnLanePair(v,c,v.turnLanes[key]);}}
  let previousLane=Math.max(0,Math.floor(v.motionSeedLane??v.laneSeed??v.lane??v.id??0));
+ if(corners[0]?.laneLocked){if(state.buildings.has(v.fromId))previousLane=laneCapacity(path[0],motionDirection(path,0))-1;if(v.emergencyInitialLane!=null)previousLane=Math.max(0,v.emergencyInitialLane);}
  let lastCorner=null,nextIndex=0,previousCap=laneCapacity(path[0],motionDirection(path,0));
  for(let i=0;i<n;i++){
   while(nextIndex<corners.length&&corners[nextIndex].pos<=i)lastCorner=corners[nextIndex++];
   const next=corners[nextIndex],cap=laneCapacity(path[i],motionDirection(path,i));
+  const atLocked=lastCorner?.laneLocked&&lastCorner.pos===i;
+  if(atLocked){const key=lastCorner.pos+':'+path[lastCorner.pos]+':'+lastCorner.turn,rank=roadAnchor?.terminalPos===i?v.turnLanes?.[key]??previousLane:previousLane;lastCorner.lanePair=turnLanePair(v,lastCorner,rank);(v.turnLanes??={})[key]=lastCorner.lanePair.incoming;}
   const hold=lastCorner&&route[i]-lastCorner.u<=Math.min(1.8,next?(next.u-lastCorner.u)*.3:1.8);
   // Choose a turn lane well before the stop line. Keep the final approach straight.
   const prepare=next&&(!lastCorner||next.u-route[i]<=Math.max(7,Math.min(13,4+cap*2)));
   const turn=hold?lastCorner.turn:prepare?next.turn:0;
-  lanes[i]=legacy?(turn===1?0:turn===3?cap-1:Math.min(cap-1,Math.floor((previousLane+.5)*cap/previousCap))):hold?Math.min(cap-1,lastCorner.lanePair.outgoing):prepare?Math.min(cap-1,next.lanePair.incoming):Math.min(cap-1,Math.floor((previousLane+.5)*cap/previousCap));
+  const normal=Math.min(cap-1,Math.floor((previousLane+.5)*cap/previousCap));
+  if(atLocked||lastCorner?.laneLocked&&i===lastCorner.pos+1)lanes[i]=Math.min(cap-1,lastCorner.lanePair.outgoing);
+  else if(prepare&&next.laneLocked&&!hold)lanes[i]=turnLanePair(v,next,normal).incoming;
+  else lanes[i]=legacy?(turn===1?0:turn===3?cap-1:normal):hold?Math.min(cap-1,lastCorner.lanePair.outgoing):prepare?Math.min(cap-1,next.lanePair.incoming):normal;
   if(roadAnchor&&i===roadAnchor.pos)lanes[i]=Math.min(cap-1,roadAnchor.lane);
   previousLane=lanes[i];previousCap=cap;
  }
@@ -3017,7 +3038,7 @@ function motionPlan(v){
  const shift=(p,d,a)=>({x:p.x+DIR[d][0]*a,y:p.y+DIR[d][1]*a});
  for(let k=0;k<corners.length;k++){
   const c=corners[k],i=c.pos,p=xy(path[i]),center={x:p[0]+.5,y:p[1]+.5};
-  const incoming=laneOffset(path[i-1],c.incoming,lanes[i-1]),outgoing=laneOffset(path[i+1],c.outgoing,lanes[i+1]);
+  const incoming=laneOffset(path[i-1],c.incoming,c.laneLocked?c.lanePair.incoming:lanes[i-1]),outgoing=laneOffset(path[i+1],c.outgoing,c.laneLocked?c.lanePair.outgoing:lanes[i+1]);
   const width=Math.min(roadVisualWidth(state.roads.get(path[i-1])?.type),roadVisualWidth(state.roads.get(path[i+1])?.type));
   let radius=Math.max(.75,width*.33),cutIn,cutOut;
   if(!legacy&&c.turn===1)radius+=(Math.hypot(incoming.x,incoming.y)+Math.hypot(outgoing.x,outgoing.y))*.5;
@@ -3036,17 +3057,17 @@ function motionPlan(v){
     radius=Math.min(radius,.98*(inMargin+outMargin+Math.sqrt(2*inMargin*outMargin)));
    }
   }
-  if(c.turn===2){c.deadEnd=isTurnaround(path[i]);c.terminalShape=c.deadEnd||roadAnchor?.terminalPos===i;if(c.terminalShape)radius=Math.max(.2,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*.5);cutIn=cutOut=c.terminalShape?.12:radius;}else{cutIn=radius-dot(outgoing,c.incoming);cutOut=radius+dot(incoming,c.outgoing);}
+  if(c.turn===2){c.deadEnd=isTurnaround(path[i]);c.terminalShape=c.deadEnd||roadAnchor?.terminalPos===i;if(c.terminalShape)radius=Math.max(.2,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*.5);const laneWidth=width/(2*Math.min(laneCapacity(path[i-1],c.incoming),laneCapacity(path[i+1],c.outgoing)));const reach=Math.max(.12,width*.5-laneWidth*.5-.12);cutIn=cutOut=c.terminalMulti?Math.min(reach,c.u,route[n-1]-c.u):c.terminalShape?.12:radius;}else if(c.bendLocked&&laneCapacity(path[i-1],c.incoming)>1&&state.roads.get(path[i-1])?.type===state.roads.get(path[i+1])?.type){const layout=junctionDetails(path[i]),boundary=Math.min(layout.halfX,layout.halfY),offset=Math.hypot(incoming.x,incoming.y);radius=Math.max(.2,boundary+(c.turn===1?offset:-offset));cutIn=radius-dot(outgoing,c.incoming);cutOut=radius+dot(incoming,c.outgoing);}else{cutIn=radius-dot(outgoing,c.incoming);cutOut=radius+dot(incoming,c.outgoing);}
   // Closely spaced junctions share their available corridor. Scale the lane
   // offsets too, so a constrained turn never doubles back to reach its exit.
   const before=k?c.u-corners[k-1].u:Infinity,after=k+1<corners.length?corners[k+1].u-c.u:Infinity;
   const fit=Math.min(1,before*.46/Math.max(.05,cutIn),after*.46/Math.max(.05,cutOut));
   radius*=fit;cutIn*=fit;cutOut*=fit;
-  incoming.x*=fit;incoming.y*=fit;outgoing.x*=fit;outgoing.y*=fit;
+  if(!c.terminalMulti){incoming.x*=fit;incoming.y*=fit;outgoing.x*=fit;outgoing.y*=fit;}
   if(c.turn===2){
    c.p0=shift({x:center.x+incoming.x,y:center.y+incoming.y},c.incoming,-cutIn);
    c.p3=shift({x:center.x+outgoing.x,y:center.y+outgoing.y},c.outgoing,cutOut);
-   const handle=c.terminalShape?Math.min(.48,Math.max(.28,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*2/3))*fit:Math.max(.4,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*2/3)*fit;
+   const handle=c.terminalMulti?Math.min((Math.min(cutIn,cutOut)+.12)*4/3,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*2/3):c.terminalShape?Math.min(.48,Math.max(.28,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*2/3))*fit:Math.max(.4,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*2/3)*fit;
    c.p1=shift(c.p0,c.incoming,handle);c.p2=shift(c.p3,c.outgoing,-handle);
   }else{
    const crossing={x:center.x+incoming.x+outgoing.x,y:center.y+incoming.y+outgoing.y};
@@ -8408,12 +8429,12 @@ function physicalTrafficLimit(v,plan,s,lookahead){
  function terminalTurnPhase(t,s){return (s-t.startDistance)/Math.max(1e-7,t.endDistance-t.startDistance);}
  function terminalTurnLocal(t,pose){
   const [x,y]=xy(t.node),axis=DIR[t.incoming],dx=pose.x-x-.5,dy=pose.y-y-.5,along=dx*axis[0]+dy*axis[1];
-  return along>=-.36&&along<=.45&&Math.abs(dx*axis[1]-dy*axis[0])<=roadVisualWidth(state.roads.get(t.node)?.type)*.5+.03;
+  return along>=-Math.max(.36,(t.u-t.rawStart||.12)+.24)&&along<=.45&&Math.abs(dx*axis[1]-dy*axis[0])<=roadVisualWidth(state.roads.get(t.node)?.type)*.5+.03;
  }
  function terminalTurnOther(car){
   if(car.phase!=='driving'||!car.path?.length)return null;
   const i=car.pos,p=car.path;
-  if(!(i>0&&p[i-1]===p[i+1])&&!(p[i+2]!=null&&p[i]===p[i+2]))return null;
+  let nearby=false;for(let k=Math.max(1,i-3);k<=Math.min(p.length-2,i+4);k++)if(p[k-1]===p[k+1]){nearby=true;break;}if(!nearby)return null;
   const plan=motionPlan(car),s=motionDistance(car,plan),turn=activeTerminalTurn(plan,s);
   return turn?{turn,s}:null;
  }
@@ -8423,9 +8444,11 @@ function physicalTrafficLimit(v,plan,s,lookahead){
   if(a&&b){
    if(a.node!==b.node||a.incoming!==b.incoming)return 0;
    const pa=terminalTurnPhase(a,as),pb=terminalTurnPhase(b,bs);
+   const sameLane=(a.lanePair?.incoming??0)===(b.lanePair?.incoming??0);
    const gap=(pb-pa)*Math.min(a.endDistance-a.startDistance,b.endDistance-b.startDistance);
-   if(gap>=0&&gap<.65)return -1;
-   return (pa<.5)!==(pb<.5)?1:0;
+   if(sameLane&&gap>=0&&gap<.65)return -1;
+   if(sameLane)return (pa<.5)!==(pb<.5)?1:0;
+   return (ap.dx??0)*(bp.dx??0)+(ap.dy??0)*(bp.dy??0)<-.5?1:0;
   }
   const axis=DIR[t.incoming],phase=terminalTurnPhase(t,a?as:bs),turnDirection=phase<.5?1:-1;
   const p=a?bp:ap,heading=(p.dx??0)*axis[0]+(p.dy??0)*axis[1];
@@ -8544,7 +8567,7 @@ function laneChangeCorridorClear(v,plan,distance=ADAPTIVE_LANE_RULES.sweep){
 function commitSafeLaneChange(v,newLane,reason,newRoute=null){
  if(v.phase!=='driving'||v.mergeExitActive||v.parkingEscapeFor||v.path?.[v.pos+2]==null)return false;
  const oldPlan=motionPlan(v),oldDistance=motionDistance(v,oldPlan);
- if(oldPlan.junctions.some(g=>oldDistance>=g.entry-.4&&oldDistance<g.clear+.4)||oldPlan.deadEndTurns?.some(t=>oldDistance>=t.startDistance-4&&oldDistance<t.endDistance+.8))return false;
+ if(oldPlan.junctions.some(g=>oldDistance>=g.entry-.4&&oldDistance<g.clear+.4)||oldPlan.turns.some(t=>t.laneLocked&&oldDistance>=t.startDistance-4&&oldDistance<t.endDistance+.8))return false;
  if(state.time<(v.adaptiveLaneUntil||0))return false;
  const direction=motionDirection(v.path,v.pos),oldLane=plannedLane(v,v.pos);
  if(Math.abs(newLane-oldLane)!==1||newLane<0||newLane>=laneCapacity(v.path[v.pos],direction))return false;
@@ -8559,6 +8582,7 @@ function commitSafeLaneChange(v,newLane,reason,newRoute=null){
   motionStartPose:{...actual},motionSeedLane:newLane,emergencyInitialLane:newLane,
   turnLanes:{},junctionPasses:[],junctionQueueSince:{},committedJunction:null};
  const plan=motionPlan(proposal);
+ if(plan.turns.some(t=>t.laneLocked&&t.startDistance<4))return false;
  if(plan.lanes[0]!==newLane||plan.lanes[1]!==newLane||plan.total<1)return false;
  const forward=DIR[direction],ahead=positionOnMotion(plan,Math.min(1,plan.total));
  if((ahead.x-actual.x)*forward[0]+(ahead.y-actual.y)*forward[1]<.05)return false;
@@ -9035,7 +9059,7 @@ function getRoadPreview(){
  // Layouts use the full graph; clip only boundary links in the local drawing.
  for(const [i,r]of local)local.set(i,{...r,links:new Set([...r.links].filter(n=>local.has(n)))});
  const junctionPreview=i=>counts.get(i)||0;junctionPreview.details=i=>layouts.get(i);
- const previewEnds=turnaroundEnds(planned,i=>layouts.get(i));junctionPreview.turnarounds=()=>previewEnds;junctionPreview.details.turnarounds=()=>previewEnds;
+ const previewEnds=turnaroundEnds(planned,i=>layouts.get(i));junctionPreview.turnarounds=()=>previewEnds;junctionPreview.details.turnarounds=()=>previewEnds;junctionPreview.turnaroundPaintCuts=turnaroundPaintCuts;junctionPreview.trimTurnaroundPaint=trimTurnaroundPaint;
  const plan={key,state:{...planned,roads:local},junction:junctionPreview,error:checkRoad(cells,type).error,cells,type};
  roadPreviewCache={source:live,key,plan};return plan;
 }
