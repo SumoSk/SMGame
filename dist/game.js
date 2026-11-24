@@ -25,7 +25,7 @@ const ROAD_TRAIN_SIGNAL_BUFFER=.12; // only intercity road trains need extra int
 const ADAPTIVE_LANE_RULES={minWait:2,obstacleAhead:2.2,turnBuffer:9,junctionBuffer:5,cooldown:8,sweep:3.1};
 const GAME_MINUTES_PER_SECOND=.8;
 const NORMAL_SPEED_SCALE=2; // UI 1x runs at the former 2x simulation speed.
-const CITIES={phuket:{name:'ภูเก็ต',en:'PHUKET ISLAND',sub:'เกาะเล็ก ๆ กับความเป็นไปได้ที่ยิ่งใหญ่',terrain:'island'},bangkok:{name:'กรุงเทพฯ',en:'BANGKOK METROPOLIS',sub:'เชื่อมสองฝั่งเมือง ให้ทุกชีวิตไปต่อ',terrain:'river'},chiangmai:{name:'เชียงใหม่',en:'CHIANG MAI',sub:'เมืองเหนือที่เติบโต ในจังหวะของคุณ',terrain:'mountain'},korat:{name:'โคราช',en:'NAKHON RATCHASIMA',sub:'ประตูสู่อีสาน ทุกเส้นทางเริ่มที่นี่',terrain:'through'},london:{name:'ลอนดอน',en:'LONDON SHOWCASE',sub:'เมืองตัวอย่าง ลอนดอน · ประชาชน 1,000 คน',terrain:'through'}};
+const CITIES={phuket:{name:'ภูเก็ต',en:'PHUKET ISLAND',sub:'เกาะเล็ก ๆ กับความเป็นไปได้ที่ยิ่งใหญ่',terrain:'island'}};
 const KINDS={civic:{name:'พื้นที่เดิมจากเซฟเก่า',icon:'▫',color:'#c8d4df',roof:'#516783'},casino:{name:'คาสิโน',icon:'♠',color:'#6250ac',roof:'#20223f'},hotel:{name:'โรงแรม',icon:'▣',color:'#b8dfe9',roof:'#4f93ad'},home:{name:'บ้าน',icon:'⌂',color:'#e9b871',roof:'#db8558'},shop:{name:'ร้านค้า',icon:'▤',color:'#f4c76c',roof:'#d79c3e'},restaurant:{name:'ร้านอาหาร',icon:'♨',color:'#eaa080',roof:'#c76251'},mall:{name:'ห้าง',icon:'▥',color:'#cee7db',roof:'#5d9c98'},office:{name:'สำนักงาน',icon:'▥',color:'#b9d5da',roof:'#4f8598'},factory:{name:'โรงงาน',icon:'⚙',color:'#c4c9b4',roof:'#7d8c81'},park:{name:'สวน',icon:'♧',color:'#8aba70',roof:'#5b9658'},pub:{name:'ผับ',icon:'♫',color:'#bfa6c8',roof:'#88618e'}};
 const CATALOG={};
 const catalogData={casino:[[4,90000,900,0,6,16],[5,200000,2000,0,12,32],[6,420000,4200,0,24,64]],hotel:[[2,3000,20,0,0,0,2],[3,17500,100,0,0,0,10],[4,65000,350,0,0,0,30]],home:[[2,6000,20,2],[3,35000,100,10],[4,130000,350,30]],shop:[[2,8000,100,0,3,12],[3,24000,250,0,8,35],[4,70000,650,0,18,80]],restaurant:[[3,12000,180,0,5,18],[4,35000,450,0,14,50],[5,85000,900,0,30,95]],mall:[[4,45000,450,0,12,45],[5,95000,1100,0,30,100],[6,190000,2300,0,65,180]],office:[[3,18000,250,0,18],[4,60000,700,0,50],[5,120000,1300,0,90]],factory:[[4,22000,450,0,25],[5,70000,1300,0,65],[6,140000,2400,0,110]],park:[[3,6000,40,0,1,20],[4,18000,140,0,3,60],[5,45000,350,0,8,130]],pub:[[3,14000,200,0,5,18],[4,38000,550,0,13,45],[5,85000,1200,0,28,85]]};
@@ -1901,126 +1901,12 @@ movingLandscape=null;parkingMerges=[];oppositeExitPairSince.clear();incidentCase
 nextAISignalPoll=-Infinity;
 state={city,mapExpansion:newMapExpansion(city,!legacy),buildingQuota:{},demandNotices:{pending:{},acknowledged:{}},money:500000,cityLevel:newCityLevel(),deliveryRun:null,intercityHour:null,intercityRouteCache:null,vehicleTechLevels:freshVehicleTechLevels(),time:360,incidentRewards:{day:0,count:0},speed:1,roads:new Map(),buildings:new Map(),citizens:new Map(),vehicles:new Map(),signals:new Map(),signalDefaults:{eastWest:6,northSouth:6},footprint:new Int32Array(W*H).fill(-1),buildGrid:new Int32Array(W*H).fill(-1),nextId:1,profileSeq:0,version:0,routeCache:new Map(),occ:new Map(),reservations:new Map(),events:[],lastMinute:359,lastDay:0,lastImmigration:0,lastPass:0,stats:{},alerts:[],roadChanges:[],activeTraffic:new Set(),junctionCache:new Map(),skip:false};
 ensurePerformance();state.plantedTrees=[];state.hiddenAutoTrees=[];state.landscapeVersion=0;missionAutoClose();state.missionStats=newMissionStats();
-const initial=initialRoadGraph(city,legacy);state.roads=initial.roads;state.gates=initial.gates;state.entryLayout=initial.entryLayout;rebuildFootprint();cam={x:149,y:149,z:innerWidth<700?.94:1.24,angle:Math.PI/4,elevation:Math.PI*50/180};selected=null;follow=null;news=[];tool='hand';movingBuildingId=null;$('cancelMoveBuilding').hidden=true;hideCitizenDashboard();hideTouristDashboard();touristSearch='';touristPage=0;touristDashboardAt=0;touristFilter='all';citizenFilter='all';citizenSearch='';citizenPage=0;if($('citizenSearch'))$('citizenSearch').value='';$('inspector').classList.add('hidden');$('cityName').textContent=CITIES[city].name;$('citySub').textContent=CITIES[city].sub;$('mapLabel').innerHTML=CITIES[city].en+'<small>'+(city==='london'?'UNITED KINGDOM':'THAILAND')+' · สร้างเมืองในแบบคุณ</small>';addNews('เริ่มเมืองใหม่ เชื่อมถนน สร้างบ้าน และสร้างงาน');updateUI();renderTools();}
+const initial=initialRoadGraph(city,legacy);state.roads=initial.roads;state.gates=initial.gates;state.entryLayout=initial.entryLayout;rebuildFootprint();cam={x:149,y:149,z:innerWidth<700?.94:1.24,angle:Math.PI/4,elevation:Math.PI*50/180};selected=null;follow=null;news=[];tool='hand';movingBuildingId=null;$('cancelMoveBuilding').hidden=true;hideCitizenDashboard();hideTouristDashboard();touristSearch='';touristPage=0;touristDashboardAt=0;touristFilter='all';citizenFilter='all';citizenSearch='';citizenPage=0;if($('citizenSearch'))$('citizenSearch').value='';$('inspector').classList.add('hidden');$('cityName').textContent=CITIES[city].name;$('citySub').textContent=CITIES[city].sub;$('mapLabel').innerHTML=CITIES[city].en+'<small>'+'THAILAND'+' · สร้างเมืองในแบบคุณ</small>';addNews('เริ่มเมืองใหม่ เชื่อมถนน สร้างบ้าน และสร้างงาน');updateUI();renderTools();}
 // Independent opt-in showcase: do not alter existing city presets or saves.
-function startLondonShowcase(){
- const previous={state,cam,news};
- try{
-  reset('london');
-  state.money=99000000;
-  const roadLine=(x0,y0,x1,y1,type)=>{
-   const dx=Math.sign(x1-x0),dy=Math.sign(y1-y0),count=Math.abs(x1-x0)+Math.abs(y1-y0);
-   if(dx&&dy)throw Error('Non-orthogonal London road');
-   let last=null;
-   for(let n=0;n<=count;n++){
-    const x=x0+dx*n,y=y0+dy*n,node=id(x,y);
-    if(!valid(x,y))throw Error('Invalid London road coordinate');
-    const old=state.roads.get(node);
-    if(!old)state.roads.set(node,{type,main:false,links:new Set(),load:0,wait:0});
-    else if(!old.main&&ROADS[type].lanes>ROADS[old.type].lanes)old.type=type;
-    if(last!==null)link(last,node);
-    last=node;
-   }
-  };
-  // West End business quarter, eastern housing districts and Hyde Park garden.
-  const eastX=[168,204,240,276],eastY=[35,62,89,116,143,166,193,220,247,274];
-  const westX=[33,69,105,141],westY=[35,62,89,116,143];
-  for(const x of eastX)roadLine(x,35,x,274,x===168||x===240?'medium':'small');
-  for(const y of eastY)roadLine(168,y,276,y,'small');
-  for(const x of westX)roadLine(x,35,x,143,x===141?'medium':'small');
-  for(const y of westY)roadLine(33,y,150,y,'small');
-  roadChanged([]);
-  for(const chain of Object.values(BUILDING_CHAINS))for(const key of chain.slice(1))state.buildingQuota[key]=128;
-  const north=[
-   ['mall_large','office_large','hotel_large'],
-   ['home_grand','home_grand','home_grand'],
-   ['home_grand','home_grand','home_grand'],
-   ['home_grand','home_grand','home_grand']
-  ],south=[
-   ['home_grand','home_grand','home_grand'],
-   ['home_grand','home_grand','home_grand'],
-   ['home_grand','home_dual','restaurant_large'],
-   ['park_large','pub_large','shop_large']
-  ],west=[
-   ['office_large','factory_large','office_large'],
-   ['factory_large','office_large','factory_large'],
-   ['office_large','factory_large','office_large'],
-   ['factory_large','office_large','factory_large']
-  ];
-  const homes=[];
-  const district=(xs,ys,layout)=>{
-   for(let row=0;row<layout.length;row++)for(let col=0;col<layout[row].length;col++){
-    const key=layout[row][col],t=CATALOG[key],x=xs[col]+Math.floor((xs[col+1]-xs[col]-t.plotWidth)/2),y=ys[row+1]-t.plotHeight-1;
-    const blocked=[];for(let yy=y;yy<y+t.plotHeight;yy++)for(let xx=x;xx<x+t.plotWidth;xx++){const i=id(xx,yy);if(state.footprint[i]>=0||state.buildGrid[i]>=0)blocked.push([xx,yy,state.footprint[i],state.buildGrid[i]]);}
-    const b=buildBuilding(key,x,y,true,0);
-    if(!b||b.access.length<2)throw Error('London placement: '+key+' ('+x+','+y+') size '+t.plotWidth+'x'+t.plotHeight+' / '+JSON.stringify(checkParkingBuilding(key,x,y,null,0))+' / collision '+JSON.stringify(blocked.slice(0,8)));
-    if(t.kind==='home')homes.push(b);
-   }
-  };
-  district(eastX,eastY.slice(0,5),north);
-  district(eastX,eastY.slice(5),south);
-  district(westX,westY,west);
-  if(homes.reduce((n,b)=>n+CATALOG[b.key].residents,0)!==1000)throw Error('London housing capacity is not 1000');
-  for(const home of homes)for(let n=0;n<CATALOG[home.key].residents;n++){
-   const c=newCitizen(home);
-   c.resident=true;c.arrivedAt=state.time;c.locationId=home.id;c.location='home';c.state='อยู่บ้าน';
-   home.residents.add(c.id);home.parked.add(c.id);assignJob(c);
-  }
-  if(computeStats().pop!==1000)throw Error('London initial population differs from 1000');
-  for(const c of state.citizens.values()){scheduleDay(c,0);scheduleDay(c,1);}
-  syncParkingSlots();
-  // Standard saved decorations: formal gardens, oak trees, fountains and lamps.
-  const seen=new Set(),decorate=(x,y,kind)=>{
-   x=Math.floor(x);y=Math.floor(y);
-   if(!valid(x,y))return;
-   const at=id(x,y);
-   if(state.footprint[at]>=0||state.buildGrid[at]>=0||seen.has(at))return;
-   if(state.plantedTrees.length>=4000)return;
-   seen.add(at);state.plantedTrees.push({x:x+.5,y:y+.5,kind});
-  };
-  for(let y=171;y<=265;y+=9)for(let x=42;x<=135;x+=9){
-   if(Math.abs(x-91)<11||Math.abs(y-220)<11)continue;
-   decorate(x,y,(x+y)%4?'oak':'cypress');
-  }
-  for(let d=-42;d<=42;d+=6){
-   decorate(91+d,198,'hedge');decorate(91+d,244,'hedge');
-   decorate(69,220+d/2,'hedge');decorate(113,220+d/2,'hedge');
-  }
-  for(const [x,y,kind] of [[91,220,'fountain'],[91,213,'statue'],[91,227,'flowers_ring'],
-   [91,200,'flag'],[91,240,'flag'],[71,220,'garden_lamp'],[111,220,'garden_lamp'],
-   [83,212,'flowers_white'],[99,212,'flowers_red'],[83,228,'lavender'],[99,228,'topiary_spiral']])decorate(x,y,kind);
-  for(const xs of [eastX,westX])for(const x of xs)for(let y=40;y<=137;y+=13){
-   decorate(x+3,y,'street_lamp');decorate(x-4,y+3,'oak');
-  }
-  for(const x of eastX)for(let y=172;y<=267;y+=13){
-   decorate(x+3,y,'street_lamp');decorate(x-4,y+3,'oak');
-  }
-  state.landscapeVersion++;
-  state.buildingQuota=restoreBuildingQuota(null);
-  state.money=12000000;state.missionStats=newMissionStats();
-  state.lastImmigration=state.time;state.lastPass=state.time;
-  state.speed=0; // Inspect the large sample first; Play resumes normal routines.
-  cam={x:204,y:145,z:innerWidth<700?.76:innerWidth<1100?1.0:1.20,
-   angle:Math.PI/4,elevation:Math.PI*53/180};
-  renderer3d?.updateCamera(cam);
-  news=[];
-  addNews('เมืองตัวอย่าง ลอนดอน · ประชาชน 1,000 คน · ย่านสำนักงาน ถนน และสวนอังกฤษพร้อมแล้ว กด ▶ เพื่อเล่น');
-  renderTools();updateUI();return state;
- }catch(error){
-  state=previous.state;cam=previous.cam;news=previous.news;
-  renderer3d?.updateCamera(cam);
-  if(state){
-   $('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;
-   $('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+(state.city==='london'?'UNITED KINGDOM':'THAILAND')+' · สร้างเมืองในแบบคุณ</small>';
-   renderTools();updateUI();
-  }
-  throw error;
- }
-}
 // New-city preset only. reset() remains the empty simulation initializer used
 // by save loading; saved roads, buildings, citizens and camera are restored as-is.
 function startNewCity(city='phuket'){
- if(city==='london')return startLondonShowcase();
+ if(city!=='phuket')throw Error('ปัจจุบันเปิดให้เล่นเฉพาะแผนที่ภูเก็ต');
  reset(city);
  // Preserve the starter village; the single northern highway feeds its collector.
  // One continuous medium (4-lane) collector connects the main road to the village.
@@ -2113,14 +1999,9 @@ const MAP_SHEET_LOCK_MESSAGE='พื้นที่ยังไม่เปิ�
 const mapSheetId=(tx,ty)=>tx+':'+ty;
 function defaultMapSheets(city,nearEntry=false){
  const opened=new Set();
- if(city==='london'){
-  // Full-scale London showcase already contains infrastructure across the board.
-  for(let ty=0;ty<MAP_SHEET_COLUMNS;ty++)for(let tx=0;tx<MAP_SHEET_COLUMNS;tx++)opened.add(mapSheetId(tx,ty));
- }else{
-  // Six complimentary sheets include every building of the starter village.
-  const start=city==='phuket'&&nearEntry?0:4;
-  for(let ty=start;ty<=start+2;ty++)for(let tx=6;tx<=7;tx++)opened.add(mapSheetId(tx,ty));
- }
+ // Six complimentary sheets include every building of the starter village.
+ const start=nearEntry?0:4;
+ for(let ty=start;ty<=start+2;ty++)for(let tx=6;tx<=7;tx++)opened.add(mapSheetId(tx,ty));
  return opened;
 }
 function newMapExpansion(city,nearEntry=false){return{opened:defaultMapSheets(city,nearEntry),purchased:0,revision:0};}
@@ -10157,6 +10038,7 @@ function validateSave(s){
  if(s.mapExpansion!==undefined){const m=s.mapExpansion;if(!m||!Array.isArray(m.opened)||m.opened.length>MAP_SHEET_COLUMNS**2||new Set(m.opened).size!==m.opened.length||m.opened.some(k=>typeof k!=='string'||!/^\d{1,2}:\d{1,2}$/.test(k)||k.split(':').some(n=>+n>=MAP_SHEET_COLUMNS))||!Number.isSafeInteger(m.purchased)||m.purchased<0||m.purchased>MAP_SHEET_COLUMNS**2)throw Error('Invalid map expansion');}
  if(s.buildingQuota!=null&&(typeof s.buildingQuota!=='object'||Array.isArray(s.buildingQuota)||Object.values(s.buildingQuota).some(n=>!Number.isSafeInteger(n)||n<0)))throw Error('Invalid building quota');
  if(s.entryLayout!==undefined&&!['north-single-v1','legacy-four'].includes(s.entryLayout))throw Error('Invalid city entrance layout');
+ if(s.city!=='phuket')throw Error('ปัจจุบันเปิดให้เล่นเฉพาะแผนที่ภูเก็ต · เซฟเมืองอื่นยังถูกเก็บไว้');
  if(!CITIES[s.city]||!Number.isFinite(s.time)||!Number.isFinite(s.money)||!Number.isInteger(s.nextId)||!Array.isArray(s.events))throw Error('Invalid save');
  if(s.signalDefaults!==undefined){const d=s.signalDefaults;if(!d||!Number.isInteger(d.eastWest)||d.eastWest<SIGNAL_MIN_GREEN||d.eastWest>SIGNAL_MAX_GREEN||!Number.isInteger(d.northSouth)||d.northSouth<SIGNAL_MIN_GREEN||d.northSouth>SIGNAL_MAX_GREEN)throw Error('Invalid default signal setting');}
  if(s.plantedTrees!==undefined&&(!Array.isArray(s.plantedTrees)||s.plantedTrees.length>4000||s.plantedTrees.some(t=>!t||!Number.isFinite(t.x)||!Number.isFinite(t.y)||!valid(Math.floor(t.x),Math.floor(t.y))||(!LANDSCAPE_KINDS.some(k=>k.key===t.kind)&&!RETIRED_DECOR_KINDS.includes(t.kind))||(t.rotation!==undefined&&(!Number.isInteger(t.rotation)||t.rotation<0||t.rotation>3)))))throw Error('Invalid planted trees');
@@ -10413,7 +10295,7 @@ function loadGame(silent=false,slotId=null,rawOverride=null){const previous={sta
   ensureRoutine(c);
   if(!c.dailyPlan||!Number.isFinite(c.dailyPlan.day))c.dailyPlan=planForDay(c,Math.floor(state.time/1440));
  }
- syncCitizenVehicleTech();migratePerformance(s.performance);migrateTravelPlanning();advanceLoadedCityToMorning();state.speed=0;scanIncidents(true);renderTools();updateUI();if(!silent)toast('โหลดเซฟแล้ว · เริ่มวันใหม่ 06:00 กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+(state.city==='london'?'UNITED KINGDOM':'THAILAND')+' · สร้างเมืองในแบบคุณ</small>';renderTools();updateUI();if(!silent)toast(e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
+ syncCitizenVehicleTech();migratePerformance(s.performance);migrateTravelPlanning();advanceLoadedCityToMorning();state.speed=0;scanIncidents(true);renderTools();updateUI();if(!silent)toast('โหลดเซฟแล้ว · เริ่มวันใหม่ 06:00 กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+'THAILAND'+' · สร้างเมืองในแบบคุณ</small>';renderTools();updateUI();if(!silent)toast(e.message?.includes('เฉพาะแผนที่ภูเก็ต')?e.message:e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
 // A developer can load a copy into the current session; no other user's save is changed.
 window.SMGameLoadCreatorSave=(raw,name)=>{
  if(!window.SMGameCreatorCanOpen||!window.SMGameAccount?.user||typeof raw!=='string'||!raw)return false;
@@ -10430,7 +10312,7 @@ function saveSlotSummary(slot){try{const s=JSON.parse(slot.data);return escapeSa
 function saveSlotRows(slots,mode){return slots.map((slot,i)=>`<div style="padding:10px 0;border-bottom:1px solid #dce4de"><strong style="overflow-wrap:anywhere">${escapeSaveText(slot.name)}</strong><p style="margin:4px 0">${saveSlotSummary(slot)}</p><div class="actions"><button id="slotAction${i}">${mode==='save'?'เขียนทับเซฟนี้':'โหลดเซฟนี้'}</button></div></div>`).join('');}
 async function openSaveDialog(){
  let slots;try{slots=await readDurableSaveSlots();}catch{toast('อ่านรายการเซฟไม่ได้ ข้อมูลเดิมยังเก็บอยู่ค่ะ');return;}
- modal(`<span class="eyebrow">SAVE CITY</span><h2>บันทึกเมือง</h2><label for="saveName">ชื่อเซฟ</label><input id="saveName" maxlength="80" autocomplete="off" style="display:block;box-sizing:border-box;width:100%;margin:8px 0" value="${escapeSaveText((state.city==='london'?'เมืองตัวอย่าง ลอนดอน':CITIES[state.city].name+' วันที่ '+(Math.floor(state.time/1440)+1)))}"><p id="saveError" role="status" aria-live="polite" style="overflow-wrap:anywhere"></p><div class="actions"><button id="createSave" class="primary">บันทึกเป็นเซฟใหม่</button><button id="saveClose">กลับไปเล่น</button></div>${slots.length?'<h3>เซฟที่มีอยู่</h3>'+saveSlotRows(slots,'save'):''}`);
+ modal(`<span class="eyebrow">SAVE CITY</span><h2>บันทึกเมือง</h2><label for="saveName">ชื่อเซฟ</label><input id="saveName" maxlength="80" autocomplete="off" style="display:block;box-sizing:border-box;width:100%;margin:8px 0" value="${escapeSaveText((CITIES[state.city].name+' วันที่ '+(Math.floor(state.time/1440)+1)))}"><p id="saveError" role="status" aria-live="polite" style="overflow-wrap:anywhere"></p><div class="actions"><button id="createSave" class="primary">บันทึกเป็นเซฟใหม่</button><button id="saveClose">กลับไปเล่น</button></div>${slots.length?'<h3>เซฟที่มีอยู่</h3>'+saveSlotRows(slots,'save'):''}`);
  $('saveClose').onclick=closeModal;
  $('createSave').onclick=()=>{const name=$('saveName').value.trim();if(!name){toast('ใส่ชื่อเซฟก่อนค่ะ');$('saveName').focus();return;}const slotId='save-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);return commitDialogSave(name,slotId,$('createSave'));};
  slots.forEach((slot,i)=>$('slotAction'+i).onclick=()=>{closeModal();confirmAction('เขียนทับ “'+escapeSaveText(slot.name)+'”','ข้อมูลในเซฟนี้จะเปลี่ยนเป็นเมืองที่กำลังเล่น',()=>{modal('<h2>บันทึกเมือง</h2><p id="saveError" role="status" aria-live="polite"></p><div class="actions"><button id="retrySave">ลองอีกครั้ง</button><button id="saveBack">กลับไปเล่น</button></div>');$('saveBack').onclick=closeModal;$('retrySave').onclick=()=>commitDialogSave(slot.name,slot.id,$('retrySave'));commitDialogSave(slot.name,slot.id,$('retrySave'));});});
@@ -10520,7 +10402,7 @@ async function openCloudSaveDialog(){
    '<details class="save-slot-more"><summary aria-label="จัดการเซฟ '+escapeSaveText(slot.name)+'" title="จัดการเซฟ">⋯</summary>'+
    '<div class="save-slot-actions"><button type="button" id="onlineOverwrite'+i+'">เขียนทับ</button><button type="button" class="danger" id="onlineDelete'+i+'">ลบเซฟ</button></div></details></div></article>';
  }).join('');
- const defaultName=state.city==='london'?'เมืองตัวอย่าง ลอนดอน':CITIES[state.city].name+' วันที่ '+(Math.floor(state.time/1440)+1);
+ const defaultName=CITIES[state.city].name+' วันที่ '+(Math.floor(state.time/1440)+1);
  modal('<div class="save-workspace save-compact"><header class="save-panel-head"><div><h2>เซฟเกม</h2><p>บันทึกและโหลดเมืองของคุณ</p></div></header>'+
   '<section class="save-create-compact"><label for="onlineSaveName">บันทึกเมืองปัจจุบัน</label>'+
   '<div class="save-create-row"><input id="onlineSaveName" maxlength="80" autocomplete="off" value="'+escapeSaveText(defaultName)+'">'+
@@ -10574,29 +10456,9 @@ async function openCloudSaveDialog(){
  });
 }
 function openNewCityDialog(){
- modal(`<span class="eyebrow">NEW CITY</span><h2>เริ่มเมืองใหม่</h2>
-  <p>เลือกเมืองที่ต้องการเริ่มเล่น เมืองปัจจุบันจะยังอยู่จนกว่าจะกดยืนยันค่ะ</p>
-  <label for="citySelect">เลือกเมือง</label>
-  <select id="citySelect">${Object.entries(CITIES).map(([k,c])=>`<option value="${k}" ${k===state.city?'selected':''}>${c.name}</option>`).join('')}</select>
-  <div class="actions"><button id="newCity" class="primary">เริ่มเมืองใหม่</button><button id="newCityCancel">ยกเลิก</button></div>`);
+ modal('<span class="eyebrow">NEW CITY</span><h2>เริ่มเมืองใหม่ · ภูเก็ต</h2><p>เริ่มเมืองบนเกาะภูเก็ต พร้อมหมู่บ้านเริ่มต้นและเงิน 500,000 บาท</p><div class="actions"><button id="newCity" class="primary">เริ่มเมืองใหม่</button><button id="newCityCancel">ยกเลิก</button></div>');
  $('newCityCancel').onclick=closeModal;
- $('newCity').onclick=()=>{
-  const key=$('citySelect').value;
-  const london=key==='london';
-  confirmAction('เริ่มเมืองใหม่',london
-   ?'สร้างเมืองตัวอย่าง ลอนดอน ประชาชน 1,000 คน มีอาคาร ถนน และสวนตกแต่งครบ เมืองปัจจุบันที่ยังไม่ได้บันทึกจะถูกแทนที่'
-   :'เมืองปัจจุบันที่ยังไม่ได้บันทึกจะหายไป เริ่มเมืองใหม่พร้อมหมู่บ้านเริ่มต้นและเงิน 500,000 บาท',()=>{
-   try{
-    startNewCity(key);
-    if(london){
-     if(window.SMGameAccount?.user){
-      const slot='cloud-london-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
-      void saveCloudCity('เมืองตัวอย่าง ลอนดอน',slot);
-     }else toast('เมืองลอนดอนพร้อมแล้ว · เข้าสู่ระบบและกด เซป/โหลด เพื่อบันทึกออนไลน์ค่ะ');
-    }
-   }catch(error){console.error('London preset creation failed:',error);toast('สร้างเมืองตัวอย่างไม่สำเร็จ · เมืองเดิมยังอยู่ค่ะ');}
-  });
- };
+ $('newCity').onclick=()=>confirmAction('เริ่มเมืองใหม่','เมืองปัจจุบันที่ยังไม่ได้บันทึกจะหายไป เซฟเดิมที่บันทึกไว้ไม่เปลี่ยนแปลง',()=>startNewCity('phuket'));
 }
 function openAccountDialog(){
  const api=window.SMGameAccount;

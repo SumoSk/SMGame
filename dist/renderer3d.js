@@ -1764,6 +1764,40 @@ export class TrafficRenderer{
    for(let lane=1;lane<4;lane++)for(let z=-17.7;z<0;z++)details.box('#f0ede4',x+side*lane*3.72/8,.118,z,.025,.012,.45);
    details.box('#cfd0ca',x+side*1.86,.118,-9,.025,.012,18);
   }
+  this.addNorthBridgeTowers(details,start,end);
+ }
+ addNorthBridgeTowers(details,start,end){
+  // Three signature Chino-Portuguese towers with cable fans, fitted to the
+  // shorter north-facing strait. No collision geometry or road edits.
+  const x=195,span=end-start;
+  for(const [idx,fraction] of [[0,.22],[1,.50],[2,.78]]){
+   const center=idx===1,z=start+span*fraction,h=center?4.25:3.55,w=center?1.8:1.45;
+   const reach=Math.min(span*.13,2.5);
+   details.box('#e6f4f1',x,-.246,z,7.2,.028,w+.45);
+   details.box('#8e9f9d',x,-.188,z,6.9,.17,w);
+   for(const side of [-1,1]){
+    const tx=x+side*2.78;
+    details.box('#e8e2d4',tx,.13,z,1.45,.26,w);
+    details.box('#d8a84e',tx+side*.62,.28,z,.08,.06,w);
+    details.box('#f4efe2',tx,h*.5+.12,z,.92,h,.92);
+    details.box('#215260',tx,h*.5+.12,z,.34,h-.22,.98);
+    details.box('#d9a448',tx,h+.22,z,1.14,.18,1.14);
+    details.add(PITCHED_ROOF,'#c97338',tx,h+.56,z,1.52,.62,1.52);
+    if(center){details.add(PITCHED_ROOF,'#e0a94c',tx,h+.98,z,1.02,.45,1.02);details.add(CONE,'#f5d278',tx,h+1.36,z,.14,.48,.14);}
+    for(const [fraction,top] of [[-1,h-.25],[-.58,h-.85],[.58,h-.85],[1,h-.25]]){
+     const dz=reach*fraction,bottom=.32,dy=top-bottom;
+     // Cylinder local Y axis follows the line from deck attachment to tower.
+     details.add(CYL,'#e6ecee',tx,(top+bottom)*.5,z+dz*.5,.04,Math.hypot(dz,dy),.04,-Math.atan2(dz,dy),0,0);
+    }
+    details.add(CYL,'#2a5563',x+side*2.32,1.02,z+reach,.042,1.25,.042);
+    details.add(BALL,'#fff4d2',x+side*2.32,1.68,z+reach,.13,.13,.13,0,0,0,null,true);
+   }
+   details.box('#204c59',x,h-.02,z,6.35,.30,.82);
+   details.box('#f4efe2',x,h+.22,z,6.15,.22,.72);
+   details.box('#d9a448',x,h+.38,z,6.45,.11,.88);
+   details.add(PITCHED_ROOF,'#c97338',x,h+.68,z,1.35,.54,3.15,0,0,0);
+   if(center){details.add(PITCHED_ROOF,'#e0a94c',x,h+1.08,z,.92,.42,2.10);details.add(CONE,'#f5d278',x,h+1.45,z,.15,.52,.15);}
+  }
  }
  buildPhuketSeaBridge(details){
   // Bridge meets the small Phang Nga landfall; the main road continues to the west gate at x=0.
