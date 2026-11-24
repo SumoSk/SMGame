@@ -4314,8 +4314,10 @@ window.SMGameDemandNotices={observe:observeDemandNotices,list:demandNoticeList};
 function toast(text){const notice=$('toast');notice.textContent=text;
  if(text===HOME_SIDE_CLEARANCE_ERROR)notice.classList.add('home-side-gap');
  else notice.classList.remove('home-side-gap');
+ const roadSizeWarning=text===ROAD_SIZE_CONNECTION_ERROR;
+ notice.classList.toggle('road-size-warning',roadSizeWarning);
  notice.classList.add('show');clearTimeout(toastTimer);
- toastTimer=setTimeout(()=>notice.classList.remove('show'),3800);}
+ toastTimer=setTimeout(()=>notice.classList.remove('show'),roadSizeWarning?5200:3800);}
 
 // Counts represent unique citizens with an active unmet request, never building quotas.
 function cityDemand(){

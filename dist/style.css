@@ -7902,3 +7902,7 @@ html body #inspector .sm-inspector-heading .tag{opacity:1!important;color:#bce3c
 @media(max-width:600px){#planningCoverageControls{right:8px;width:216px;padding:8px 10px;border-radius:11px;font-size:11px}#planningCoverageControls header{margin-bottom:5px}#planningCoverageControls header strong{font-size:11px}#planningCoverageControls .planning-coverage-legend{gap:12px;margin-bottom:7px;font-size:10px}#planningCoverageControls label{font-size:10px}}
 
 #planningCoverageControls label[for="planningCoverageOpacity"]{margin-top:7px}
+
+/* Prominent warning for the prohibited small-to-large road connection only. */
+#toast.road-size-warning{zoom:1!important;box-sizing:border-box!important;top:110px!important;width:max-content!important;min-width:0!important;max-width:calc(100vw - 32px)!important;padding:18px 26px!important;border:2px solid #ffc96e!important;border-radius:14px!important;background:#382517f5!important;color:#fff6e4!important;box-shadow:0 8px 28px #1017128c!important;font-size:24px!important;font-weight:800!important;line-height:1.55!important;text-align:center!important;white-space:normal!important;z-index:3000!important;}
+@media(max-width:700px){#toast.road-size-warning{top:76px!important;font-size:20px!important;padding:14px 18px!important;}}
