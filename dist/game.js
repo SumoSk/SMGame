@@ -3067,24 +3067,12 @@ function motionPlan(v){
    }
   }
   if(c.turn===2){c.deadEnd=isTurnaround(path[i]);c.terminalShape=c.deadEnd||roadAnchor?.terminalPos===i;if(c.terminalShape)radius=Math.max(.2,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*.5);const laneWidth=width/(2*Math.min(laneCapacity(path[i-1],c.incoming),laneCapacity(path[i+1],c.outgoing)));const reach=Math.max(.12,width*.5-laneWidth*.5-.12);cutIn=cutOut=c.terminalMulti?Math.min(reach,c.u,route[n-1]-c.u):c.terminalShape?.12:radius;}else if(c.bendLocked&&laneCapacity(path[i-1],c.incoming)>1&&state.roads.get(path[i-1])?.type===state.roads.get(path[i+1])?.type){const layout=junctionDetails(path[i]),boundary=Math.min(layout.halfX,layout.halfY),offset=Math.hypot(incoming.x,incoming.y);radius=Math.max(.2,boundary+(c.turn===1?offset:-offset));cutIn=radius-dot(outgoing,c.incoming);cutOut=radius+dot(incoming,c.outgoing);}else{cutIn=radius-dot(outgoing,c.incoming);cutOut=radius+dot(incoming,c.outgoing);}
-  // Closely spaced junctions share their available corridor. Keep full lane
-  // spacing on wide bends whenever the innermost radius remains feasible.
+  // Closely spaced junctions share their available corridor. Scale the lane
+  // offsets too, so a constrained turn never doubles back to reach its exit.
   const before=k?c.u-corners[k-1].u:Infinity,after=k+1<corners.length?corners[k+1].u-c.u:Infinity;
   const fit=Math.min(1,before*.46/Math.max(.05,cutIn),after*.46/Math.max(.05,cutOut));
-  // An eight-lane bend must keep its full lane spacing when the shared
-  // tangent corridor is shortened. Fit the common centerline, not each
-  // lane's lateral offset; otherwise adjacent connectors claim each other.
-  const fittedBoundary=Math.min(cutIn,cutOut)*fit;
-  const fullLargeBend=c.bendLocked&&isLargeRoadBend(path[i])&&
-   state.roads.get(path[i-1])?.type==='large'&&state.roads.get(path[i+1])?.type==='large';
-  const maxLargeOffset=ROADS.large.visualWidth*7/16;
-  if(fullLargeBend&&fittedBoundary>=maxLargeOffset+.2){
-   cutIn=cutOut=fittedBoundary;
-   radius=fittedBoundary+(c.turn===1?1:-1)*Math.hypot(incoming.x,incoming.y);
-  }else{
-   radius*=fit;cutIn*=fit;cutOut*=fit;
-   if(!c.terminalMulti){incoming.x*=fit;incoming.y*=fit;outgoing.x*=fit;outgoing.y*=fit;}
-  }
+  radius*=fit;cutIn*=fit;cutOut*=fit;
+  if(!c.terminalMulti){incoming.x*=fit;incoming.y*=fit;outgoing.x*=fit;outgoing.y*=fit;}
   if(c.turn===2){
    c.p0=shift({x:center.x+incoming.x,y:center.y+incoming.y},c.incoming,-cutIn);
    c.p3=shift({x:center.x+outgoing.x,y:center.y+outgoing.y},c.outgoing,cutOut);
