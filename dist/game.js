@@ -18,6 +18,7 @@ function applyGraphicQuality(value){
 }
 const W=300,H=300,T=18,DIR=[[1,0],[0,1],[-1,0],[0,-1]],fmt=n=>Math.round(n).toLocaleString('th-TH'),money=n=>'฿'+fmt(n);
 const ROADS={small:{name:'ถนนเล็ก',lanes:2,cost:50,maint:.5,speed:3,width:1,clearanceWidth:2,visualWidth:1.175},medium:{name:'ถนนกลาง',lanes:4,cost:150,maint:1,speed:4.5,width:2,visualWidth:2.35},large:{name:'ถนนใหญ่',lanes:8,cost:600,maint:5,speed:6,width:4,visualWidth:3.72}};
+const CAR_SPINE_HALF=.16,CAR_BODY_WIDTH=.32;
 const TRAFFIC_RULES={stopLineOffset:.52,vehicleHalfLength:.28,maxIntersectionLookahead:3,maxIntersectionReservation:3};
 const ROAD_TRAIN_SIGNAL_BUFFER=.12; // only intercity road trains need extra intersection clearance
 // Never change lanes just because one is a little faster. Only react to real
@@ -2221,8 +2222,6 @@ function junctionDetails(i){
  if(!state.junctionLayoutCache)state.junctionLayoutCache=new Map();state.junctionLayoutCache.set(i,result);state.junctionCache.set(i,arms.length);return result;
 }
 function junction(i){return state.junctionCache.has(i)?state.junctionCache.get(i):junctionDetails(i).arms.length;}
-// An eight-lane 90-degree two-arm bend has crossing physical trajectories
-// even though it is not a signalized intersection. Narrow roads keep their rules.
 function isLargeRoadBend(i){
  const road=state.roads.get(i);
  if(road?.type!=='large')return false;
@@ -2230,7 +2229,48 @@ function isLargeRoadBend(i){
  return layout.bend===true&&layout.arms.length===2&&
   layout.arms.every(arm=>arm.width>=ROADS.large.visualWidth-.01);
 }
-function trafficConflictNode(i){return junction(i)>=3||isLargeRoadBend(i);}
+// All routes through a plain bend use the same tangent points. A road edit
+// replaces its cached layout, including its lane curves. Complex approaches keep
+// the usual junction checks.
+function parallelBendProfile(i){
+ if(!isLargeRoadBend(i))return null;
+ const layout=junctionDetails(i);
+ if(layout.parallelProfile!==undefined)return layout.parallelProfile;
+ layout.parallelProfile=null;
+ const boundary=Math.min(layout.halfX,layout.halfY);
+ let radius=boundary;
+ const road=state.roads.get(i);
+ if(road.links.size!==2)return null;
+ for(const arm of layout.arms){
+  let previous=i,current=arm.node;
+  while(distance(i,current)<2*boundary){
+   const nextRoad=state.roads.get(current);
+   if(nextRoad?.type!=='large'||nextRoad.links.size!==2)return null;
+   const next=[...nextRoad.links].find(n=>n!==previous);
+   if(dir(current,next)!==arm.dir){
+    if(!isLargeRoadBend(current))return null;
+    radius=Math.min(radius,distance(i,current)/2);
+    break;
+   }
+   previous=current;current=next;
+  }
+ }
+ const lanes=ROADS.large.lanes/2,laneWidth=ROADS.large.visualWidth/(2*lanes);
+ const offsets=Array.from({length:lanes},(_,lane)=>(lane+.5)*laneWidth);
+ if(radius-offsets[lanes-1]<.2){
+  // Pack the inner arcs from the curb outward. A rotating capsule sweeps
+  // farther than its centerline by the length of its straight spine.
+  let innerRadius=.18;
+  for(let lane=lanes-1;lane>=0;lane--){
+   offsets[lane]=radius-innerRadius;
+   innerRadius=Math.hypot(innerRadius,CAR_SPINE_HALF)+CAR_BODY_WIDTH+.024;
+  }
+  if(offsets[0]*2<CAR_BODY_WIDTH+.024)return null;
+ }
+ return layout.parallelProfile={radius,offsets,curves:new Map()};
+}
+function laneChangeBoundary(i){return junction(i)>=3||isLargeRoadBend(i);}
+function trafficConflictNode(i){return junction(i)>=3||isLargeRoadBend(i)&&!parallelBendProfile(i);}
 junction.details=junctionDetails;
 
  // Real visible one-arm tips only: not gates, isolated tiles or hidden junction stubs.
@@ -3047,6 +3087,24 @@ function motionPlan(v){
  const shift=(p,d,a)=>({x:p.x+DIR[d][0]*a,y:p.y+DIR[d][1]*a});
  for(let k=0;k<corners.length;k++){
   const c=corners[k],i=c.pos,p=xy(path[i]),center={x:p[0]+.5,y:p[1]+.5};
+  const profile=c.bendLocked&&parallelBendProfile(path[i]);
+  if(profile){
+   const lane=c.lanePair.incoming,key=c.incoming*4+lane;
+   let curve=profile.curves.get(key);
+   if(!curve){
+    const offset=profile.offsets[lane],radius=profile.radius+(c.turn===1?offset:-offset);
+    const a=DIR[c.incoming],b=DIR[c.outgoing];
+    const crossing={x:center.x+(a[1]+b[1])*offset,y:center.y-(a[0]+b[0])*offset};
+    const p0=shift(crossing,c.incoming,-radius),p3=shift(crossing,c.outgoing,radius);
+    curve={radius,p0,p1:shift(p0,c.incoming,radius*.5522847498),p2:shift(p3,c.outgoing,-radius*.5522847498),p3};
+    profile.curves.set(key,curve);
+   }
+   c.p0=curve.p0;c.p1=curve.p1;c.p2=curve.p2;c.p3=curve.p3;
+   c.radius=curve.radius;c.sharedBend=curve;c.node=path[i];
+   c.rawStart=c.u-profile.radius;c.rawEnd=c.u+profile.radius;
+   c.startU=Math.max(0,c.rawStart);c.endU=Math.min(route[n-1],c.rawEnd);
+   continue;
+  }
   const incoming=laneOffset(path[i-1],c.incoming,c.laneLocked?c.lanePair.incoming:lanes[i-1]),outgoing=laneOffset(path[i+1],c.outgoing,c.laneLocked?c.lanePair.outgoing:lanes[i+1]);
   const width=Math.min(roadVisualWidth(state.roads.get(path[i-1])?.type),roadVisualWidth(state.roads.get(path[i+1])?.type));
   let radius=Math.max(.75,width*.33),cutIn,cutOut;
@@ -3067,8 +3125,8 @@ function motionPlan(v){
    }
   }
   if(c.turn===2){c.deadEnd=isTurnaround(path[i]);c.terminalShape=c.deadEnd||roadAnchor?.terminalPos===i;if(c.terminalShape)radius=Math.max(.2,Math.hypot(outgoing.x-incoming.x,outgoing.y-incoming.y)*.5);const laneWidth=width/(2*Math.min(laneCapacity(path[i-1],c.incoming),laneCapacity(path[i+1],c.outgoing)));const reach=Math.max(.12,width*.5-laneWidth*.5-.12);cutIn=cutOut=c.terminalMulti?Math.min(reach,c.u,route[n-1]-c.u):c.terminalShape?.12:radius;}else if(c.bendLocked&&laneCapacity(path[i-1],c.incoming)>1&&state.roads.get(path[i-1])?.type===state.roads.get(path[i+1])?.type){const layout=junctionDetails(path[i]),boundary=Math.min(layout.halfX,layout.halfY),offset=Math.hypot(incoming.x,incoming.y);radius=Math.max(.2,boundary+(c.turn===1?offset:-offset));cutIn=radius-dot(outgoing,c.incoming);cutOut=radius+dot(incoming,c.outgoing);}else{cutIn=radius-dot(outgoing,c.incoming);cutOut=radius+dot(incoming,c.outgoing);}
-  // Closely spaced junctions share their available corridor. Scale the lane
-  // offsets too, so a constrained turn never doubles back to reach its exit.
+  // Concentric lanes share a center and tangent boundaries even when two
+  // bends meet. Only the fallback geometry scales a lane's lateral offset.
   const before=k?c.u-corners[k-1].u:Infinity,after=k+1<corners.length?corners[k+1].u-c.u:Infinity;
   const fit=Math.min(1,before*.46/Math.max(.05,cutIn),after*.46/Math.max(.05,cutOut));
   radius*=fit;cutIn*=fit;cutOut*=fit;
@@ -3100,7 +3158,17 @@ function motionPlan(v){
    if(lx*dx+ly*dy>0&&Math.abs(lx*dy-ly*dx)<1e-8){last.endU=endU;last.p3=p3;last.length+=length;return;}
   }
   const piece={startU,endU,p0,p1,p2,p3,line,turn,length,arc:null};
-  if(!line){const arc=new Float64Array(129);let prev=p0;for(let k=1;k<129;k++){const p=bezierPoint(p0,p1,p2,p3,k/128);arc[k]=arc[k-1]+Math.hypot(p.x-prev.x,p.y-prev.y);prev=p;}piece.arc=arc;piece.length=arc[128];}
+  if(!line){
+   const shared=turn?.sharedBend;
+   const full=shared&&turn.p0===shared.p0&&startU===turn.rawStart&&endU===turn.rawEnd&&!(roadAnchor&&Math.abs(startU-roadAnchor.u)<1e-8);
+   let arc=full&&shared.arc;
+   if(!arc){
+    arc=new Float64Array(129);let prev=p0;
+    for(let k=1;k<arc.length;k++){const p=bezierPoint(p0,p1,p2,p3,k/128);arc[k]=arc[k-1]+Math.hypot(p.x-prev.x,p.y-prev.y);prev=p;}
+    if(full)shared.arc=arc;
+   }
+   piece.arc=arc;piece.length=arc[128];
+  }
   pieces.push(piece);
  }
  function straight(startU,endU,start,end){
@@ -7631,6 +7699,8 @@ function mutualLargeBendDeadlock(v){
  if(peer?.reason!=='physical_capsule_overlap'||peer.ownerId!==v.id||
    state.time-(peer.gameTime??-Infinity)>1)return false;
  const a=motionPlan(v),b=motionPlan(other),as=motionDistance(v,a),bs=motionDistance(other,b);
+ const inBend=(turn,d)=>turn.sharedBend&&d>=turn.startDistance-.5&&d<turn.endDistance+.5;
+ if(a.turns.some(t=>inBend(t,as)&&b.turns.some(u=>u.node===t.node&&inBend(u,bs))))return true;
  return a.junctions.some(g=>isLargeRoadBend(g.node)&&as>=g.entry-.5&&as<g.clear+.5&&
    b.junctions.some(h=>h.node===g.node&&bs>=h.entry-.5&&bs<h.clear+.5));
 }
@@ -8359,11 +8429,11 @@ function maneuverRetryDue(v,kind){
  memo[kind]=state.time+.5+Math.abs(v.id%4)*.05;
  return true;
 }
-function capsule(p){const dx=p.dx??Math.cos(Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle))),dy=p.dy??Math.sin(Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)));return [{x:p.x-dx*.16,y:p.y-dy*.16},{x:p.x+dx*.16,y:p.y+dy*.16}];}
+function capsule(p){const dx=p.dx??Math.cos(Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle))),dy=p.dy??Math.sin(Math.atan2(Math.sin(p.angle)/.78,Math.cos(p.angle)));return [{x:p.x-dx*CAR_SPINE_HALF,y:p.y-dy*CAR_SPINE_HALF},{x:p.x+dx*CAR_SPINE_HALF,y:p.y+dy*CAR_SPINE_HALF}];}
 function capsulesOverlap(p,q){
  const x=q.x-p.x,y=q.y-p.y;if(Math.abs(x)>.65||Math.abs(y)>.65)return false;
- if(p.dx!=null&&q.dx!=null&&Math.abs(p.dx*q.dy-p.dy*q.dx)<.01){const along=Math.abs(x*p.dx+y*p.dy),across=Math.abs(x*p.dy-y*p.dx);return Math.hypot(Math.max(0,along-.32),across)<.32;}
- const [a,b]=capsule(p),[c,d]=capsule(q);const cross=(p,q,r)=>(q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x);if(cross(a,b,c)*cross(a,b,d)<0&&cross(c,d,a)*cross(c,d,b)<0)return true;return Math.min(pointSegmentDistance(a,c,d),pointSegmentDistance(b,c,d),pointSegmentDistance(c,a,b),pointSegmentDistance(d,a,b))<.32;
+ if(p.dx!=null&&q.dx!=null&&Math.abs(p.dx*q.dy-p.dy*q.dx)<.01){const along=Math.abs(x*p.dx+y*p.dy),across=Math.abs(x*p.dy-y*p.dx);return Math.hypot(Math.max(0,along-2*CAR_SPINE_HALF),across)<CAR_BODY_WIDTH;}
+ const [a,b]=capsule(p),[c,d]=capsule(q);const cross=(p,q,r)=>(q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x);if(cross(a,b,c)*cross(a,b,d)<0&&cross(c,d,a)*cross(c,d,b)<0)return true;return Math.min(pointSegmentDistance(a,c,d),pointSegmentDistance(b,c,d),pointSegmentDistance(c,a,b),pointSegmentDistance(d,a,b))<CAR_BODY_WIDTH;
 }
 function updateTrafficSpatial(v){
  indexParkingLotCar(v);updateParkingRoadSpatial(v);
@@ -8611,8 +8681,8 @@ function commitSafeLaneChange(v,newLane,reason,newRoute=null){
  const path=newRoute?[...newRoute]:v.path.slice(v.pos);
  if(path.length<3||path[0]!==v.path[v.pos]||path[1]!==v.path[v.pos+1])return false;
  for(let i=0;i<3;i++)
-  if(!state.roads.has(path[i])||trafficConflictNode(path[i])||laneCapacity(path[i],direction)<=newLane)return false;
- if(trafficConflictNode(path[0])||trafficConflictNode(path[1])||!cellAvailable(path[0],direction,newLane,v.id)||!cellAvailable(path[1],direction,newLane,v.id))return false;
+  if(!state.roads.has(path[i])||laneChangeBoundary(path[i])||laneCapacity(path[i],direction)<=newLane)return false;
+ if(laneChangeBoundary(path[0])||laneChangeBoundary(path[1])||!cellAvailable(path[0],direction,newLane,v.id)||!cellAvailable(path[1],direction,newLane,v.id))return false;
  const actual=vehiclePosition(v);
  const proposal={...v,path,pos:0,progress:0,
   motionStartPose:{...actual},motionSeedLane:newLane,emergencyInitialLane:newLane,
@@ -8643,7 +8713,7 @@ function attemptAdaptiveLaneChange(v){
  if(plan.turns.some(t=>t.endDistance>s&&t.startDistance<s+ADAPTIVE_LANE_RULES.turnBuffer))return false;
  if(plan.junctions.some(g=>g.clear>s&&g.entry<s+ADAPTIVE_LANE_RULES.junctionBuffer))return false;
  for(let i=v.pos;i<Math.min(v.path.length,v.pos+5);i++)
-  if(trafficConflictNode(v.path[i])||laneCapacity(v.path[i],d)!==cap||motionDirection(v.path,i)!==d)return false;
+  if(laneChangeBoundary(v.path[i])||laneCapacity(v.path[i],d)!==cap||motionDirection(v.path,i)!==d)return false;
  const limit=physicalTrafficLimit(v,plan,s,ADAPTIVE_LANE_RULES.obstacleAhead);
  if(!Number.isFinite(limit)||limit>s+ADAPTIVE_LANE_RULES.obstacleAhead-.05)return false;
  for(const lane of [current+1,current-1])if(lane>=0&&lane<cap&&commitSafeLaneChange(v,lane,'เปลี่ยนเลนหลบคิวอย่างปลอดภัย'))return true;
