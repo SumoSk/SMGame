@@ -3231,23 +3231,24 @@ function trackingEndpoint(v,origin=false){
 let canvasCarMarkerHits=[];
 let carStatusDiamondsVisible=true;
 
-const BUILDING_CAPACITY_EMOJIS=Object.freeze({home:'🏠',office:'🏢',factory:'🏭',shop:'🛒',restaurant:'🍴',mall:'🛍️',park:'🌳',pub:'🎵',casino:'♠️',hotel:'🏨'});
+const BUILDING_CAPACITY_EMOJIS=Object.freeze({work:'💼',shop:'🛒',restaurant:'🍴',mall:'🛍️',park:'🌳',pub:'🎵',casino:'♠️',hotel:'🏨'});
+function capacityMoodKind(kind){return kind==='office'||kind==='factory'?'work':kind;}
 // Full means no unreserved capacity anywhere in the category, not just one building.
 function fullBuildingCapacityKinds(buildings,catalog){
  const totals=Object.create(null);
  for(const b of buildings){
-  const t=catalog[b.key],kind=t?.kind;
+  const t=catalog[b.key],kind=capacityMoodKind(t?.kind);
   if(!Object.hasOwn(BUILDING_CAPACITY_EMOJIS,kind))continue;
-  const capacity=kind==='home'?t.residents:kind==='hotel'?t.beds:kind==='office'||kind==='factory'?t.jobs:t.service;
+  const capacity=kind==='hotel'?t.beds:kind==='work'?t.jobs:t.service;
   if(!(capacity>0))continue;
-  const used=kind==='home'?(b.residents?.size||0)+(b.reservedResidents||0):kind==='hotel'?(b.guests?.size||0):kind==='office'||kind==='factory'?(b.workers?.size||0):(b.visitors?.size||0)+(b.reservedService||0);
+  const used=kind==='hotel'?(b.guests?.size||0):kind==='work'?(b.workers?.size||0):(b.visitors?.size||0)+(b.reservedService||0);
   const total=totals[kind]||(totals[kind]={capacity:0,used:0});
   total.capacity+=capacity;total.used+=Math.min(capacity,Math.max(0,used));
  }
  return new Set(Object.keys(totals).filter(k=>totals[k].capacity>0&&totals[k].used>=totals[k].capacity));
 }
 
- // One transparent canvas and ten reusable sprites: no per-building DOM or 3D meshes.
+ // One transparent canvas and eight reusable sprites: no per-building DOM or 3D meshes.
  let capacityMoodLayer=null,capacityMoodContext=null,capacityMoodOwner=null,capacityMoodAt=-Infinity,capacityMoodLayout='',capacityMoodAnchors=[],capacityMoodProjection='',capacityMoodPoints=[];
  const capacityMoodSprites=new Map();
  function hideBuildingCapacityMood(){
@@ -3256,14 +3257,14 @@ function fullBuildingCapacityKinds(buildings,catalog){
  }
  function capacityMoodSprite(kind){
   if(capacityMoodSprites.has(kind))return capacityMoodSprites.get(kind);
-  const sprite=document.createElement('canvas');sprite.width=sprite.height=96;
+  const sprite=document.createElement('canvas');sprite.width=192;sprite.height=154;
   const c=sprite.getContext('2d');if(!c)return null;
-  c.font='58px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-  c.textAlign='center';c.textBaseline='middle';c.fillText(BUILDING_CAPACITY_EMOJIS[kind],48,31);
+  c.font='116px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  c.textAlign='center';c.textBaseline='middle';c.fillText(BUILDING_CAPACITY_EMOJIS[kind],96,57);
   c.fillStyle='#e53935';c.strokeStyle='#fff5f5';c.lineWidth=3;
-  c.beginPath();c.roundRect(36,58,24,32,7);c.fill();c.stroke();
+  c.beginPath();c.roundRect(84,116,24,32,7);c.fill();c.stroke();
   c.strokeStyle='#ffffff99';c.lineWidth=2;
-  for(const y of [68,77]){c.beginPath();c.moveTo(42,y);c.lineTo(54,y);c.stroke();}
+  for(const y of [126,135]){c.beginPath();c.moveTo(90,y);c.lineTo(102,y);c.stroke();}
   capacityMoodSprites.set(kind,sprite);return sprite;
  }
  function updateBuildingCapacityMood(){
@@ -3273,12 +3274,11 @@ function fullBuildingCapacityKinds(buildings,catalog){
    capacityMoodOwner=state;capacityMoodLayout=layout;capacityMoodAt=now;
    const full=fullBuildingCapacityKinds(state.buildings.values(),CATALOG),anchors=[];
    if(full.size)for(const b of state.buildings.values()){
-    const t=CATALOG[b.key];if(!t||!full.has(t.kind))continue;
+    const t=CATALOG[b.key],kind=capacityMoodKind(t?.kind);if(!t||!full.has(kind))continue;
     const m=lotModel(b),size=m.visualSize||t.size;
     let x=m.x+size/2,z=m.y+size/2;
     let height=renderer3d?(t.kind==='office'?t.size*1.15+.7:t.kind==='park'?.85:t.kind==='home'?t.size*.62+1.2:t.size*.55+1)*18:t.kind==='office'?size*8+4:t.kind==='park'?12:t.kind==='home'?size*4+11:t.kind==='mall'?size*4+4:t.kind==='factory'?size*3.5+12:['restaurant','pub'].includes(t.kind)?size*3.5+8:size*3.5+4;
-    if(renderer3d&&b.key.startsWith('home_mahanakhon')){const p=lotPoint(b,t.plotWidth/2,t.plotHeight/2);x=p.x-.5;z=p.y-.5;height=11.8*18;}
-    anchors.push({x,z,height,kind:t.kind});
+    anchors.push({x,z,height,kind});
    }
    capacityMoodAnchors=anchors;capacityMoodProjection='';
   }
@@ -3296,13 +3296,13 @@ function fullBuildingCapacityKinds(buildings,catalog){
    capacityMoodProjection=key;capacityMoodPoints=[];
    for(const a of capacityMoodAnchors){
     const p=screen(a.x,a.z,a.height);
-    if(Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=-32&&p[0]<=view.w+32&&p[1]>=-32&&p[1]<=view.h+48)capacityMoodPoints.push({x:p[0],y:p[1],kind:a.kind});
+    if(Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=-40&&p[0]<=view.w+40&&p[1]>=-32&&p[1]<=view.h+64)capacityMoodPoints.push({x:p[0],y:p[1],kind:a.kind});
    }
   }
   if(!capacityMoodPoints.length){layer.hidden=true;return;}
   layer.hidden=false;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,view.w,view.h);
   const size=Math.min(18,Math.max(12,cam.z*12))*(renderer3d?1.55:1.25),bounce=(1+Math.sin(now*.005))*1.1;
-  for(const p of capacityMoodPoints){const sprite=capacityMoodSprite(p.kind);if(sprite)c.drawImage(sprite,p.x-size/2,p.y-size-2-bounce,size,size);}
+  for(const p of capacityMoodPoints){const sprite=capacityMoodSprite(p.kind);if(sprite){const w=size*2,h=size*154/96;c.drawImage(sprite,p.x-w/2,p.y-h-2-bounce,w,h);}}
  }
 
 function drawCarIndicators2D(){

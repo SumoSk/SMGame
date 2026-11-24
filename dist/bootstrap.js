@@ -1,6 +1,6 @@
 import { TrafficRenderer } from './renderer3d.js?v=smcity-v605-cyber-signals-20261118';
 window.createTrafficRenderer=canvas=>new TrafficRenderer(canvas);
-await import('./game.js?v=smcity-building-capacity-mood-20261124');
+await import('./game.js?v=smcity-building-capacity-mood-r2-20261124');
 await import('./member.js?v=4ed815769287');
 await import('./simple-account.js?v=legacy-save-off-20261110');
 await import('./save-storage.js?v=legacy-save-off-20261110');
