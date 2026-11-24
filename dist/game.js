@@ -9286,7 +9286,8 @@ function getDemolitionPreview(){
  if(building){const bounds=buildingBounds(building);return{key:'building:'+building.id+':'+building.x+':'+building.y+':'+building.rotation,roads:[],building:{...building,...bounds}};}
  if(tool==='eraseBuilding')return null;
  const cells=stroke?.cells||(hover&&valid(hover.x,hover.y)?roadEraseNodesAt(hover.rawX??hover.x,hover.rawY??hover.y):[]);
- const roads=[...new Set(cells)].filter(node=>state.roads.has(node)).map(node=>({node,type:state.roads.get(node).type,main:state.roads.get(node).main}));
+ const expanded=new Set([...cells,...roadRemovalSet(cells)]);
+ const roads=[...expanded].filter(node=>state.roads.has(node)).map(node=>({node,type:state.roads.get(node).type,main:state.roads.get(node).main}));
  return roads.length?{key:'roads:'+state.version+':'+roads.map(r=>r.node).join(','),roads,building:null}:null;
 }
 function drawDemolitionPreview2D(preview){
@@ -9366,8 +9367,26 @@ function roadEraseSegmentCells(x0,y0,x1,y1){
  for(let k=0;k<=steps;k++)for(const node of roadEraseNodesAt(x0+(x1-x0)*k/steps,y0+(y1-y0)*k/steps))found.add(node);
  return [...found];
 }
+// Remove only newly orphaned single tiles adjacent to the requested deletion.
+ // Do not sweep other disconnected streets or protected starter highways.
+function roadRemovalSet(nodes,roads=state.roads,gates=state.gates){
+ const protectedNodes=new Set(gates||[]);
+ const removing=new Set(nodes.filter(node=>roads.has(node)&&!roads.get(node).main&&!protectedNodes.has(node)));
+ if(!removing.size)return removing;
+ const neighbors=new Set();
+ for(const [node,road]of roads){
+  if(removing.has(node)){for(const next of road.links)if(roads.has(next)&&!removing.has(next))neighbors.add(next);}
+  else if([...road.links].some(next=>removing.has(next)))neighbors.add(node);
+ }
+ // Count incoming as well as outgoing surviving links, including old one-way saves.
+ const surviving=new Set();
+ for(const [node,road]of roads)if(!removing.has(node))for(const next of road.links)
+  if(next!==node&&roads.has(next)&&!removing.has(next)){if(neighbors.has(node))surviving.add(node);if(neighbors.has(next))surviving.add(next);}
+ for(const node of neighbors)if(!surviving.has(node)&&!roads.get(node).main&&!protectedNodes.has(node))removing.add(node);
+ return removing;
+}
 function removeRoadNodes(nodes){
- const removing=new Set(nodes.filter(node=>state.roads.has(node)&&!state.roads.get(node).main));
+ const removing=roadRemovalSet(nodes);
  for(const node of removing)state.roads.delete(node);
  // Old saves can contain one-way/stale links. Clear incoming links too.
  for(const road of state.roads.values())for(const next of road.links)if(removing.has(next))road.links.delete(next);
@@ -9383,18 +9402,18 @@ function appendRoadEraseStroke(d,x,y){
 }
 function roadErasePlan(cells){
  // One road per grid id. Visual widths are not additional road layers.
- const p={roads:[],fee:0,main:0,busy:0,missing:0,cars:0},seen=new Set();
+ const p={roads:[],fee:0,main:0,busy:0,missing:0,cars:0,orphans:0},seen=new Set();
  for(const node of cells||[]){
   if(!Number.isInteger(node)||seen.has(node))continue;seen.add(node);
   const road=state.roads.get(node);
   if(!road){p.missing++;continue;}
-  if(road.main){p.main++;continue;}
+  if(road.main||state.gates.includes(node)){p.main++;continue;}
   p.roads.push(node);
  }
- const removing=new Set(p.roads);
+ const removing=roadRemovalSet(p.roads);p.orphans=removing.size-p.roads.length;p.roads=[...removing];
  for(const car of state.vehicles.values()){
   if(!['driving','stuck','parking_in','parking_out'].includes(car.phase))continue;
-  const occupied=car.occKey?Number(car.occKey.split(':')[0]):null;
+  const occupied=car.occKey?Number(car.occKey.replace(/^air:/,'').split(':')[0]):null;
   if(removing.has(car.path?.[car.pos])||removing.has(occupied))p.cars++;
  }
  return p;
@@ -9406,24 +9425,16 @@ function demolishRoadStroke(cells,confirmed=false,anchor=null){
   return false;
  }
  if(!confirmed){
-  confirmDemolition('รื้อถนน '+p.roads.length+' ช่อง?',(skipped?'ข้ามถนนหลัก '+skipped+' ช่อง · ':'')+(p.cars?'รถ '+p.cars+' คันจะกลับเข้าเมืองใหม่ · ':'')+'ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoadStroke(cells,true),anchor||screen(p.roads[0]%W,Math.floor(p.roads[0]/W)));
-  pendingDemolitionPreview={cells:[...cells],eraseBuildingId:null};return true;
+  confirmDemolition('รื้อถนน '+p.roads.length+' ช่อง?',(skipped?'ข้ามถนนหลัก '+skipped+' ช่อง · ':'')+(p.orphans?'รวมเศษถนนที่หลุด '+p.orphans+' ช่อง · ':'')+(p.cars?'รถ '+p.cars+' คันจะกลับเข้าเมืองใหม่ · ':'')+'ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoadStroke(cells,true),anchor||screen(p.roads[0]%W,Math.floor(p.roads[0]/W)));
+  pendingDemolitionPreview={cells:[...cells,...p.roads],eraseBuildingId:null};return true;
  }
- removeRoadNodes(p.roads);
- state.money-=p.fee;roadChanged(p.roads,new Set(p.roads));updateUI();
- toast('รื้อถนนแล้ว '+p.roads.length+' ช่อง'+(skipped?' · ข้าม '+skipped+' ช่อง':''));
+ const removed=removeRoadNodes(p.roads);
+ state.money-=p.fee;roadChanged([...removed],removed);updateUI();
+ toast('รื้อถนนแล้ว '+removed.size+' ช่อง'+(skipped?' · ข้าม '+skipped+' ช่อง':''));
  return true;
 }
 function demolishRoad(i,confirmed=false,anchor=null){
- const plan=roadErasePlan([i]);
- if(!plan.roads.length){toast(plan.main?'ถนนหลักเริ่มต้นรื้อไม่ได้ค่ะ':'เลือกช่องที่มีถนนค่ะ');return false;}
- if(!confirmed){
-  confirmDemolition('รื้อถนน 1 ช่อง?',(plan.cars?'รถ '+plan.cars+' คันจะกลับเข้าเมืองใหม่ · ':'')+'ถนนที่ขาดอาจทำให้อาคารเข้าออกไม่ได้',()=>demolishRoad(i,true),anchor||screen(i%W,Math.floor(i/W)));
-  pendingDemolitionPreview={cells:[i],eraseBuildingId:null};return true;
- }
- const road=state.roads.get(i);if(!road||road.main)return false;
- removeRoadNodes([i]);roadChanged([i],new Set([i]));updateUI();toast('ลบถนนแล้ว 1 ช่อง');
- return true;
+ return demolishRoadStroke([i],confirmed,anchor);
 }
 // Demolition confirms at the center of the screen on every device.
 // Existing callers may still pass a pointer anchor; it is intentionally ignored.
