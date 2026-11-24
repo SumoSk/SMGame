@@ -10349,7 +10349,7 @@ function migrateLegacyPhuketEntrance(s){
 // Use the normal construction validator against a temporary graph, never move
 // a building or change money, and persist the repair marker on the next save.
 function repairLegacyPhuketConnection(s){
- if(s.entryConnectionV2===true)return s;
+ // Old V2 flags were not proof of a coastal connection. Inspect topology.
  const roads=new Map(s.roads.map(([n,r])=>[n,{...r,links:new Set(r.links)}]));
  const gate=id(PHUKET_ENTRY_X,0);
  if(!roads.has(gate))return s;
@@ -10370,9 +10370,17 @@ function repairLegacyPhuketConnection(s){
  const score=nodes=>nodes.reduce((n,k)=>n+(accessCounts.get(k)||0),0);
  for(const n of legacyNodes)if(!seen.has(n)){const nodes=component(n,seen);groups.push({nodes,score:score(nodes)});}
  groups.sort((a,b)=>b.score-a.score||b.nodes.length-a.nodes.length);
- if(!groups.length)return {...s,entryConnectionV2:true};
- const city=groups[0],gateHasOld=legacyNodes.some(n=>gateSet.has(n));
- if(gateHasOld&&score(gateNodes)>=city.score&&gateNodes.length>=city.nodes.length)return {...s,entryConnectionV2:true};
+ const gateHasOld=legacyNodes.some(n=>gateSet.has(n));
+ const gateCity={nodes:gateNodes,score:score(gateNodes)};
+ const city=gateHasOld&&(!groups.length||gateCity.score>=groups[0].score)?gateCity:groups[0];
+ if(!city)return s;
+ // Even if a previous shortcut reached the city, join the old coastal end
+ // if it is still a dead end. Never remove the player's existing shortcut.
+ const oldNorthEnds=city.nodes.filter(n=>{
+  const r=roads.get(n),[x,y]=xy(n);
+  return r.main&&r.type==='large'&&r.links.size===1&&x===150&&y<150&&!accessCounts.has(n);
+ });
+ if(!oldNorthEnds.length&&gateHasOld&&city===gateCity)return {...s,entryConnectionV2:true};
  const live=state,allSheets=new Set();
  for(let y=0;y<MAP_SHEET_COLUMNS;y++)for(let x=0;x<MAP_SHEET_COLUMNS;x++)allSheets.add(mapSheetId(x,y));
  const temporary={...live,roads,buildings:new Map(s.buildings),footprint:new Int32Array(W*H).fill(-1),buildGrid:new Int32Array(W*H).fill(-1),homeSideRoadFootprint:new Uint8Array(W*H),mapExpansion:{opened:allSheets},money:Number.MAX_SAFE_INTEGER};
@@ -10400,10 +10408,10 @@ function repairLegacyPhuketConnection(s){
   state=temporary;rebuildFootprint();
   // Prefer the old north-facing highway end. Follow the north coast on land,
   // keeping the original eight-lane width and avoiding new junctions in town.
-  const oldEnds=city.nodes.filter(n=>{
+  const oldEnds=oldNorthEnds.length?oldNorthEnds:city.nodes.filter(n=>{
    const r=roads.get(n),[x,y]=xy(n);
-   return r.main&&r.type==='large'&&r.links.size===1&&x===150&&y<150&&!accessCounts.has(n);
-  });
+   return r.main&&r.type==='large'&&x===150&&y<75&&r.links.size<=2&&!accessCounts.has(n)&&!isPhuketWaterTile(x,y);
+  }).sort((a,b)=>xy(a)[1]-xy(b)[1]).slice(0,8);
   const bridgeNodes=gateNodes.filter(n=>{
    const r=roads.get(n),[x,y]=xy(n);
    return x===PHUKET_ENTRY_X&&y>0&&r.type==='large'&&r.main&&r.links.size<=2&&!accessCounts.has(n)&&!isPhuketWaterTile(x,y);
@@ -10433,11 +10441,20 @@ function repairLegacyPhuketConnection(s){
   for(const end of oldEnds)for(const source of bridgeNodes){
    const [x,y]=xy(end),[u,v]=xy(source);
    if(x>=u)continue;
+   if(end===source)continue;
    if(y===v)addCoastal([end,source],source);
    else{
     addCoastal([end,id(u,y),source],source);
+    addCoastal([end,id(x,v),source],source);
     // Two sweeping right-angle bends approximate the north-coast contour.
     for(let mx=x+5;mx<=u-5;mx++)addCoastal([end,id(mx,y),id(mx,v),source],source);
+   }
+   // Try a deeper coastal shelf when the beach contour or existing
+   // decorations block the simplest bend. Still stay north of the city.
+   for(let cy=Math.max(y,v)+5;cy<=Math.min(75,Math.max(y,v)+20);cy+=5){
+    addCoastal([end,id(x,cy),id(u,cy),source],source);
+    for(let mx=x+5;mx<=u-10;mx+=5)
+     addCoastal([end,id(mx,y),id(mx,cy),id(u-5,cy),id(u-5,v),source],source);
    }
   }
   coastal.sort((a,b)=>a.cost-b.cost);
@@ -10449,7 +10466,8 @@ function repairLegacyPhuketConnection(s){
  const {path,type}=chosen;
  for(const n of path)if(!roads.has(n))roads.set(n,{type,main:false,links:new Set(),load:0,wait:0});
  for(let i=1;i<path.length;i++){roads.get(path[i-1]).links.add(path[i]);roads.get(path[i]).links.add(path[i-1]);}
- if(!component(gate).includes(path.at(-1)))return s;
+ const connected=component(gate);
+ if(!connected.includes(path[0])||!connected.includes(path.at(-1)))return s;
  const opened=new Set(s.mapExpansion?.opened||[]);
  for(const n of path)for(const k of roadVisualCoveredCells(n,roads.get(n).type)){
   const [x,y]=xy(k);opened.add(mapSheetId(Math.floor(x/MAP_SHEET_SIZE),Math.floor(y/MAP_SHEET_SIZE)));
