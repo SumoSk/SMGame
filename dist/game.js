@@ -10402,13 +10402,57 @@ function repairLegacyPhuketConnection(s){
  };
  try{
   state=temporary;rebuildFootprint();
+  // Prefer the old north-facing highway end. Follow the north coast on land,
+  // keeping the original eight-lane width and avoiding new junctions in town.
+  const oldEnds=city.nodes.filter(n=>{
+   const r=roads.get(n),[x,y]=xy(n);
+   return r.main&&r.type==='large'&&r.links.size===1&&x===150&&y<150&&!accessCounts.has(n);
+  });
+  const bridgeNodes=gateNodes.filter(n=>{
+   const r=roads.get(n),[x,y]=xy(n);
+   return x===PHUKET_ENTRY_X&&y>0&&r.type==='large'&&r.main&&r.links.size<=2&&!accessCounts.has(n)&&!isPhuketWaterTile(x,y);
+  });
+  const coastal=[];
+  const polyline=points=>{
+   const p=[points[0]];
+   for(let i=1;i<points.length;i++){
+    if(points[i]===points[i-1])continue;
+    const seg=line(points[i-1],points[i]);if(!seg.length)return [];
+    p.push(...seg.slice(1));
+   }
+   return p;
+  };
+  const addCoastal=(points,source)=>{
+   const compact=points.filter((n,i)=>i===0||n!==points[i-1]);
+   // Give large-road bends room for the existing rounded road renderer.
+   for(let i=1;i<compact.length;i++)if(compact.length>2&&distance(compact[i-1],compact[i])<5)return;
+   const path=polyline(compact);
+   if(path.length<2||path.length>180||new Set(path).size!==path.length)return;
+   let coastCost=0;
+   for(const n of path){const [x,y]=xy(n);coastCost+=Math.max(0,y-phuketCoastNorthY(x));}
+   // End-to-end joins are preferable to leaving a redundant approach stub.
+   const endPenalty=roads.get(source).links.size===1?0:14;
+   coastal.push({path,cost:coastCost/path.length*3+path.length*.45+endPenalty+(compact.length-2)*3});
+  };
+  for(const end of oldEnds)for(const source of bridgeNodes){
+   const [x,y]=xy(end),[u,v]=xy(source);
+   if(x>=u)continue;
+   if(y===v)addCoastal([end,source],source);
+   else{
+    addCoastal([end,id(u,y),source],source);
+    // Two sweeping right-angle bends approximate the north-coast contour.
+    for(let mx=x+5;mx<=u-5;mx++)addCoastal([end,id(mx,y),id(mx,v),source],source);
+   }
+  }
+  coastal.sort((a,b)=>a.cost-b.cost);
+  for(const {path} of coastal)if(fits(path,'large')){chosen={path,type:'large'};break;}
   const pairs=[];
   for(const a of sources)for(const b of targets){
    const [x,y]=xy(a),[u,v]=xy(b);
    pairs.push({a,b,d:Math.abs(x-u)+Math.abs(y-v)});
   }
   pairs.sort((a,b)=>a.d-b.d||a.a-b.a||a.b-b.b);
-  for(const {a,b} of pairs){
+  for(const {a,b} of chosen?[]:pairs){
    const [x,y]=xy(a),[u,v]=xy(b);
    const paths=x===u||y===v?[line(a,b)]:[joinPath(a,id(x,v),b),joinPath(a,id(u,y),b)];
    for(const path of paths){
