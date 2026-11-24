@@ -2721,6 +2721,7 @@ function normalizeAISignalTopology(node,oldSlots=null){
  const oldLast=st.smartLast||[],oldPhase=st.smartPhase,active=previous?.[st.smartSlot];
  st.smartLast=incoming.map(d=>{const i=previous?.indexOf(d)??-1;return i>=0&&Number.isFinite(oldLast[i])?oldLast[i]:state.time-12;});
  st.smartIncoming=incoming;st.smartSlot=incoming.indexOf(active);
+ delete st.smartBatch;delete st.smartYieldSlot;
  st.smartPhase='clear';st.smartSince=state.time;
  st.smartUntil=Math.max(state.time+SIGNAL_CLEAR_MINUTES,st.holdUntil||0,oldPhase==='clear'?st.smartUntil||0:0);
  return true;
@@ -2778,7 +2779,7 @@ function aiSignalQueuePressure(){
  // Time-sliced city scan, not a per-car/per-frame route search.
  const demands=new Map();
  for(const [node,setting]of state.signals)if(setting.mode==='smart'&&state.roads.has(node)&&junction(node)>=3)
-  demands.set(node,signalSlots(node).map(()=>({cars:0,queued:0,blocked:0})));
+  demands.set(node,signalSlots(node).map(()=>({cars:0,queued:0,blocked:0,approaching:0,exitDenied:false,heads:[]})));
  if(!demands.size)return demands;
  for(const v of state.vehicles.values()){
   if(!['driving','stuck','departing'].includes(v.phase)||isAirTraffic(v)||!Array.isArray(v.path)||!v.path.length)continue;
@@ -2789,6 +2790,14 @@ function aiSignalQueuePressure(){
    const incoming=motionDirection(v.path,k-1),idx=signalSlots(node).findIndex(slot=>slot.incoming===incoming);
    if(idx<0)continue;
    const q=entry[idx],distance=k-start,waiting=Number(v.wait)||0;
+   if(k>v.pos&&v.phase==='driving'){
+    q.approaching++;
+    const lane=v.lane??0,head=q.heads[lane],ahead=k-v.pos-(v.progress||0);
+    if(!head||ahead<head.ahead)q.heads[lane]={v,pos:k,ahead};
+    const denial=v.lastJunctionDenial;
+    if(waiting>0&&denial?.node===node&&denial.code==='junction_exit_blocked'&&
+       state.time-denial.gameTime<=2*AI_POLL_MINUTES)q.exitDenied=true;
+   }
    q.cars+=distance<=2?2:1;
    if(waiting>1||v.phase==='stuck')q.queued+=Math.min(8,1+waiting/4);
    const next=v.path[k+1],out=state.roads.get(next);
@@ -2803,10 +2812,11 @@ function aiSignalQueueScore(q){
  // never overrides a denser approach. Retain the downstream blockage penalty.
  return q?.cars>0?Math.max(0,q.cars*4+q.queued-q.blocked*4):-Infinity;
 }
-function aiSignalQueueWinner(queues,last,lastServed){
+function aiSignalQueueWinner(queues,last,lastServed,skip=-1,openExitOnly=false){
  let winner=-1,top=-Infinity,oldest=Infinity,nearest=Infinity;
  for(let j=0;j<queues.length;j++){
-  if(!queues[j].cars)continue;
+  if(j===skip||!queues[j].approaching)continue;
+  if(openExitOnly&&!queues[j].heads.some(h=>h&&junctionExitAvailable(h.v,h.pos)))continue;
   const score=aiSignalQueueScore(queues[j]),served=Number.isFinite(lastServed[j])?lastServed[j]:-Infinity;
   const turn=(j-last+queues.length)%queues.length||queues.length;
   // Last-service time only breaks equal-pressure ties; it cannot promote a
@@ -2816,6 +2826,29 @@ function aiSignalQueueWinner(queues,last,lastServed){
   }
  }
  return winner;
+}
+function startAIBatch(st,queue,now){
+ st.smartBatch={initial:queue.approaching,passed:0,lastPass:now};
+}
+function aiShouldChangeGreen(st,queues,index,now){
+ const current=queues[index],batch=st.smartBatch;
+ const idle=now-batch.lastPass;
+ // A verified blocked exit can yield to an approach with an open exit,
+ // even when the blocked side still has the largest queue.
+ if(current.exitDenied&&idle>=AI_MIN_GREEN&&aiSignalQueueWinner(queues,index,st.smartLast,index,true)>=0){
+  st.smartYieldSlot=index;return true;
+ }
+ const rival=aiSignalQueueWinner(queues,index,st.smartLast,index);
+ if(rival<0)return false;
+ if(!current.approaching)return true;
+ const score=aiSignalQueueScore(current),other=aiSignalQueueScore(queues[rival]);
+ if(other<=score*1.2)return false;
+ // Finish a productive batch. Allow reassignment if no car gets through
+ // for a sustained interval, or a much larger queue forms during a stall.
+ const served=batch.passed>=batch.initial||
+  batch.passed>=Math.ceil(batch.initial/2)&&idle>=SIGNAL_YELLOW_MINUTES+SIGNAL_CLEAR_MINUTES;
+ return served||idle>=2*AI_MIN_GREEN||
+  idle>=AI_MIN_GREEN&&other>2.5*score;
 }
 function smartSignalStep(){
  if(state.time<nextAISignalPoll)return;
@@ -2828,13 +2861,10 @@ function smartSignalStep(){
   if(!Array.isArray(st.smartLast)||st.smartLast.length!==slots.length)st.smartLast=slots.map(()=>now-12);
   const index=Math.max(0,Math.min(slots.length-1,st.smartSlot??-1));
   if(st.smartPhase==='green'){
+   if(!st.smartBatch||!st.smartBatch.initial&&queues[index].approaching)startAIBatch(st,queues[index],now);
    const elapsed=Math.max(0,now-(st.smartSince??now));
    if(elapsed<AI_MIN_GREEN)continue;
-   const winner=aiSignalQueueWinner(queues,index,st.smartLast),current=queues[index];
-   // Keep green for as long as this queue is heaviest. Equal pressure also
-   // keeps the current green: there is no maximum-green or forced-turn timer.
-   if(winner<0||winner===index||current?.cars>0&&
-    aiSignalQueueScore(current)>=aiSignalQueueScore(queues[winner])){
+   if(!aiShouldChangeGreen(st,queues,index,now)){
     st.smartUntil=now+AI_POLL_MINUTES;continue;
    }
    st.smartPhase='yellow';st.smartUntil=now+SIGNAL_YELLOW_MINUTES;continue;
@@ -2845,9 +2875,12 @@ function smartSignalStep(){
   }
   if(now<st.smartUntil)continue;
   const last=st.smartSlot??-1;
-  let winner=aiSignalQueueWinner(queues,last,st.smartLast);
+  let winner=st.smartYieldSlot!=null?aiSignalQueueWinner(queues,last,st.smartLast,st.smartYieldSlot,true):-1;
+  delete st.smartYieldSlot;
+  if(winner<0)winner=aiSignalQueueWinner(queues,last,st.smartLast);
   if(winner<0)winner=(last+1)%slots.length;
   st.smartPhase='green';st.smartSlot=winner;st.smartSince=now;
+  startAIBatch(st,queues[winner],now);
   st.smartUntil=now+AI_MIN_GREEN;st.smartLast[winner]=now;
  }
 }
@@ -8339,11 +8372,21 @@ function reserveIntersection(v,pos){
  for(const cell of keys)if(canHoldRoadCell(v,cell))state.reservations.set(cell,{id:v.id,until});
  removeVehicleApproaches(v,pos);v.committedJunction=node;return true;
 }
-function refreshMotionReservations(v,plan,s){
+function refreshMotionReservations(v,plan,s,previousDistance=s){
  if(!v.junctionPasses?.length)return;
   const active=v.junctionPasses.filter(p=>{
    const g=plan.junctions.find(g=>g.pos===p.pos&&g.node===p.node);
-   if(!g||s>=g.clear)return false;
+   if(!g)return false;
+   if(s>=g.clear){
+    if(previousDistance<g.clear&&!isAirTraffic(v)){
+     const st=state.signals.get(p.node);
+     if(st?.mode==='smart'&&st.smartPhase==='green'&&st.smartBatch&&
+        st.smartIncoming?.[st.smartSlot]===motionDirection(v.path,p.pos-1)){
+      st.smartBatch.passed++;st.smartBatch.lastPass=state.time;
+     }
+    }
+    return false;
+   }
    // A waiting approach must not retain a lease that blocks the car ahead.
    // Keep every lease once the owner has physically entered the junction.
    if(s<g.entry-1e-6&&trafficSpatial&&
@@ -8990,7 +9033,7 @@ function advanceVehicles(realDt,gameDt){
     if(!state.occ.has(roadKey)&&!state.reservations.has(roadKey))occupy(v,v.pos);
     transitions++;
     state.roads.get(v.path[v.pos]).load=Math.min(1.2,state.roads.get(v.path[v.pos]).load+.15);
-    refreshMotionReservations(v,plan,s);
+    refreshMotionReservations(v,plan,s,initial);
     if(v.pos===v.path.length-1){arrive(v);break;}
    }else if(step<1e-10||s>=gate.limit-1e-9){
     blocked=gate.reason;blockingGate=gate;
@@ -9004,7 +9047,7 @@ function advanceVehicles(realDt,gameDt){
    }
   }
   if(!state.vehicles.has(v.id)||v.phase==='parking_in')continue;
-  refreshMotionReservations(v,plan,s);
+  refreshMotionReservations(v,plan,s,initial);
   if(s-initial>1e-7)v.lastMovedAt=state.time;
   if(blocked&&s-initial<1e-7){
    v.wait+=gameDt;v.stopReason=blocked;rememberTrafficWait(v,plan,s,blockingGate);if(bugCaptureEnabled){v.lastStoppedBarrier={gameTime:state.time,reason:blocked,node:v.path[v.pos],distance:s,limit:barrier.limit,speed:v.speed};rememberVehicleStop(v,plan,s,blocked);}state.roads.get(v.path[v.pos]).wait=Math.min(10,state.roads.get(v.path[v.pos]).wait+simDt);
