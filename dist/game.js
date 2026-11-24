@@ -1399,7 +1399,7 @@ let simulationClock=null,eventDispatchBudget=null,eventTripSerial=0;
 let vehicleRenderHistory=null;
 function resetSimulationRuntime(){simulationClock=null;eventDispatchBudget=null;vehicleRenderHistory=null;}
 const id=(x,y)=>y*W+x,xy=i=>[i%W,Math.floor(i/W)],valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
-const PHUKET_NORTH_ENTRY='north-single-v1',PHUKET_ENTRY_X=195;
+const PHUKET_NORTH_ENTRY='north-single-v1',PHUKET_ENTRY_X=195,PHUKET_START_SHIFT=100;
 function northPhuketEntry(){return state?.city==='phuket'&&state.entryLayout===PHUKET_NORTH_ENTRY;}
 function initialRoadGraph(city,legacy=false){
  const roads=new Map(),add=(x,y)=>{const n=id(x,y);if(!roads.has(n))roads.set(n,{type:'large',main:true,links:new Set(),load:0,wait:0});return n;};
@@ -1407,8 +1407,9 @@ function initialRoadGraph(city,legacy=false){
  if(city==='phuket'&&!legacy){
   // Northern Phuket / Phang Nga is the upper-right of the default view.
   // One entry highway reaches the existing starter collector; no other edge roads.
-  segment(PHUKET_ENTRY_X,0,PHUKET_ENTRY_X,150);
-  segment(PHUKET_ENTRY_X,150,159,150);
+  const mainY=150-PHUKET_START_SHIFT;
+  segment(PHUKET_ENTRY_X,0,PHUKET_ENTRY_X,mainY);
+  segment(PHUKET_ENTRY_X,mainY,159,mainY);
   return {roads,gates:[id(PHUKET_ENTRY_X,0)],entryLayout:PHUKET_NORTH_ENTRY};
  }
  segment(150,0,150,299);segment(0,150,299,150);
@@ -1626,7 +1627,7 @@ function openAICreditInfo(){
  modal('<div class="sm-level-reward sm-ai-credit-info"><div class="sm-level-kicker">SMCITY · AI UPGRADE QUOTA</div>'+
  '<div class="sm-level-shine" aria-hidden="true">✦</div><div class="sm-level-prize" aria-hidden="true">✦</div>'+
  '<h2>โควต้าแยก AI</h2><strong class="sm-level-result-value">'+fmt(l.aiCredits)+' โควต้า</strong>'+
- '<p>ใช้ 1 โควต้าแทนเงิน 1,000,000 บาทได้ที่ทางแยกที่ยังไม่มี AI · โควต้าไม่หมดอายุ</p>'+
+ '<p>ใช้ 1 โควต้าแทนเงิน 1,000,000 บาทได้ที่ทางแยกที่ยังไม่มี AI · ถอด AI เพื่อคืนโควต้าไปติดตั้งที่แยกอื่นฟรี · โควต้าไม่หมดอายุ</p>'+
  '<div class="sm-level-actions"><button type="button" id="cityAiCreditClose" class="primary">เลือกแยกบนแผนที่</button></div></div>');
  $('cityAiCreditClose').onclick=closeModal;
 }
@@ -1897,7 +1898,7 @@ clearMissionMoodFlights();
 if(travelRecording)travelLogStop('เปลี่ยนหรือโหลดเมือง');
 movingLandscape=null;parkingMerges=[];oppositeExitPairSince.clear();incidentCases.clear();incidentForVehicle.clear();incidentScanAt=-Infinity;incidentRenderAt=0;
 nextAISignalPoll=-Infinity;
-state={city,mapExpansion:newMapExpansion(city),buildingQuota:{},demandNotices:{pending:{},acknowledged:{}},money:500000,cityLevel:newCityLevel(),deliveryRun:null,intercityHour:null,intercityRouteCache:null,vehicleTechLevels:freshVehicleTechLevels(),time:360,incidentRewards:{day:0,count:0},speed:1,roads:new Map(),buildings:new Map(),citizens:new Map(),vehicles:new Map(),signals:new Map(),signalDefaults:{eastWest:6,northSouth:6},footprint:new Int32Array(W*H).fill(-1),buildGrid:new Int32Array(W*H).fill(-1),nextId:1,profileSeq:0,version:0,routeCache:new Map(),occ:new Map(),reservations:new Map(),events:[],lastMinute:359,lastDay:0,lastImmigration:0,lastPass:0,stats:{},alerts:[],roadChanges:[],activeTraffic:new Set(),junctionCache:new Map(),skip:false};
+state={city,mapExpansion:newMapExpansion(city,!legacy),buildingQuota:{},demandNotices:{pending:{},acknowledged:{}},money:500000,cityLevel:newCityLevel(),deliveryRun:null,intercityHour:null,intercityRouteCache:null,vehicleTechLevels:freshVehicleTechLevels(),time:360,incidentRewards:{day:0,count:0},speed:1,roads:new Map(),buildings:new Map(),citizens:new Map(),vehicles:new Map(),signals:new Map(),signalDefaults:{eastWest:6,northSouth:6},footprint:new Int32Array(W*H).fill(-1),buildGrid:new Int32Array(W*H).fill(-1),nextId:1,profileSeq:0,version:0,routeCache:new Map(),occ:new Map(),reservations:new Map(),events:[],lastMinute:359,lastDay:0,lastImmigration:0,lastPass:0,stats:{},alerts:[],roadChanges:[],activeTraffic:new Set(),junctionCache:new Map(),skip:false};
 ensurePerformance();state.plantedTrees=[];state.hiddenAutoTrees=[];state.landscapeVersion=0;missionAutoClose();state.missionStats=newMissionStats();
 const initial=initialRoadGraph(city,legacy);state.roads=initial.roads;state.gates=initial.gates;state.entryLayout=initial.entryLayout;rebuildFootprint();cam={x:149,y:149,z:innerWidth<700?.94:1.24,angle:Math.PI/4,elevation:Math.PI*50/180};selected=null;follow=null;news=[];tool='hand';movingBuildingId=null;$('cancelMoveBuilding').hidden=true;hideCitizenDashboard();hideTouristDashboard();touristSearch='';touristPage=0;touristDashboardAt=0;touristFilter='all';citizenFilter='all';citizenSearch='';citizenPage=0;if($('citizenSearch'))$('citizenSearch').value='';$('inspector').classList.add('hidden');$('cityName').textContent=CITIES[city].name;$('citySub').textContent=CITIES[city].sub;$('mapLabel').innerHTML=CITIES[city].en+'<small>'+(city==='london'?'UNITED KINGDOM':'THAILAND')+' · สร้างเมืองในแบบคุณ</small>';addNews('เริ่มเมืองใหม่ เชื่อมถนน สร้างบ้าน และสร้างงาน');updateUI();renderTools();}
 // Independent opt-in showcase: do not alter existing city presets or saves.
@@ -2024,8 +2025,8 @@ function startNewCity(city='phuket'){
  // One continuous medium (4-lane) collector connects the main road to the village.
  // The remaining village streets stay small (2-lane).
  // Extend the medium approach while keeping the same village layout and building mix.
- const approachExtension=8,villageY=y=>y-approachExtension;
- if(!buildRoad(lineCells(id(164,150),id(164,villageY(132))),'medium',true))throw Error('Starter village collector could not be placed');
+ const approachExtension=8,shift=city==='phuket'?PHUKET_START_SHIFT:0,mainY=150-shift,villageY=y=>y-approachExtension-shift;
+ if(!buildRoad(lineCells(id(164,mainY),id(164,villageY(132))),'medium',true))throw Error('Starter village collector could not be placed');
  const streets=[[[164,132],[176,132]],[[176,132],[176,144]],[[176,144],[164,144]],[[164,138],[176,138]]];
  for(const [a,b] of streets)if(!buildRoad(lineCells(id(a[0],villageY(a[1])),id(b[0],villageY(b[1]))),'small',true))throw Error('Starter village road could not be placed');
  const plots=[
@@ -2053,7 +2054,7 @@ function startNewCity(city='phuket'){
  for(const c of state.citizens.values()){scheduleDay(c,0);scheduleDay(c,1);}
  // Only the primary T-junction where the eight-lane highway meets the
  // four-lane collector receives free AI. The other junctions remain normal.
- if(!installAISignal(id(164,150)))
+ if(!installAISignal(id(164,mainY)))
   throw Error('Starter main AI junction is incomplete');
  // One complimentary example of each of the four purchasable car classes.
  // Trait 0 = diligent, 1 = chill, 2 = partygoer, 3 = wealthy.
@@ -2067,7 +2068,7 @@ function startNewCity(city='phuket'){
  state.money=500000;state.missionStats=newMissionStats();state.lastImmigration=state.time;state.lastPass=state.time;
  // Keep the original zoom, angle and elevation. Pan halfway between the village
  // and main junction so that the longer approach remains visible at startup.
- const cameraFocusY=138.5-approachExtension/2;
+ const cameraFocusY=138.5-approachExtension/2-shift;
  cam={x:169.5,y:cameraFocusY,z:innerWidth<700?1.25:innerWidth<1100?1.65:2.05,angle:Math.PI/4,elevation:Math.PI*50/180};
  // Frame the village above the bottom controls rather than behind them.
  if(renderer3d)renderer3d.updateCamera(cam);
@@ -2109,18 +2110,19 @@ function distance(a,b){const p=xy(a),q=xy(b);return Math.hypot(p[0]-q[0],p[1]-q[
 const MAP_SHEET_SIZE=25,MAP_SHEET_COLUMNS=W/MAP_SHEET_SIZE,MAP_SHEET_PRICE_STEP=200000;
 const MAP_SHEET_LOCK_MESSAGE='พื้นที่ยังไม่เปิด · เลือกโหมดมือแล้วแตะแผ่นที่ดินเพื่อซื้อค่ะ';
 const mapSheetId=(tx,ty)=>tx+':'+ty;
-function defaultMapSheets(city){
+function defaultMapSheets(city,nearEntry=false){
  const opened=new Set();
  if(city==='london'){
   // Full-scale London showcase already contains infrastructure across the board.
   for(let ty=0;ty<MAP_SHEET_COLUMNS;ty++)for(let tx=0;tx<MAP_SHEET_COLUMNS;tx++)opened.add(mapSheetId(tx,ty));
  }else{
   // Six complimentary sheets include every building of the starter village.
-  for(let ty=4;ty<=6;ty++)for(let tx=6;tx<=7;tx++)opened.add(mapSheetId(tx,ty));
+  const start=city==='phuket'&&nearEntry?0:4;
+  for(let ty=start;ty<=start+2;ty++)for(let tx=6;tx<=7;tx++)opened.add(mapSheetId(tx,ty));
  }
  return opened;
 }
-function newMapExpansion(city){return{opened:defaultMapSheets(city),purchased:0,revision:0};}
+function newMapExpansion(city,nearEntry=false){return{opened:defaultMapSheets(city,nearEntry),purchased:0,revision:0};}
 function sheetAt(x,y){
  if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>=W||y>=H)return null;
  const tx=Math.floor(x/MAP_SHEET_SIZE),ty=Math.floor(y/MAP_SHEET_SIZE);
@@ -2151,7 +2153,8 @@ function mapSheetNextPrice(){return (state.mapExpansion.purchased+1)*MAP_SHEET_P
 function unlockedLegacySheets(){
  // Previous save versions had unlimited buildable land. Grandfather every
  // sheet touched by user-created roads, buildings and decorations without cost.
- const opened=defaultMapSheets(state.city),add=(x,y)=>{
+ const nearEntry=northPhuketEntry()&&state.roads.has(id(164,150-PHUKET_START_SHIFT));
+ const opened=defaultMapSheets(state.city,nearEntry),add=(x,y)=>{
   const tile=sheetAt(x,y);if(tile)opened.add(tile.id);
  };
  for(const [i,road] of state.roads)if(!road.main){
@@ -2817,12 +2820,36 @@ function buyAISignal(i,payment='cash'){
  if(payment!=='credit'&&payment!=='cash')return false;
  if(payment==='credit'&&ensureCityLevel().aiCredits<1){toast('ยังไม่มีโควต้า AI ค่ะ');return false;}
  if(payment==='cash'&&state.money<AI_SIGNAL_PRICE){toast('เงินเมืองไม่พอ ต้องมี 1,000,000 บาทเพื่อซื้อ AI ค่ะ');return false;}
- // Irreversible installation: a free credit and cash are mutually exclusive.
+ // Each installation consumes exactly one credit or one cash purchase.
  if(payment==='credit')ensureCityLevel().aiCredits--;
  else{state.money-=AI_SIGNAL_PRICE;missionMoney('aiSignalInvestment',AI_SIGNAL_PRICE);}
  installAISignal(i);
  updateUI();renderInspector(true);
  toast(payment==='credit'?'ติดตั้ง AI สำเร็จ · ใช้โควต้า 1 จุด':'ติดตั้ง AI ที่ทางแยกนี้แล้ว −฿1,000,000');
+ return true;
+}
+// Return the installed unit, not its cash price. No duplication on repeat clicks.
+function returnAISignalCredit(i){
+ if(state.signals.get(i)?.mode!=='smart')return false;
+ state.signals.delete(i);
+ ensureCityLevel().aiCredits++;
+ nextAISignalPoll=-Infinity;
+ return true;
+}
+function detachAISignal(i){
+ if(!state.roads.has(i)||junction(i)<3||state.signals.get(i)?.mode!=='smart')return false;
+ const old=state.signals.get(i),defaults=signalDefaults();
+ if(!returnAISignalCredit(i))return false;
+ // Clear the intersection before the normal controller starts serving traffic.
+ state.signals.set(i,{...defaults,eastWest:old.eastWest??defaults.eastWest,northSouth:old.northSouth??defaults.northSouth,phaseModel:'approach',holdUntil:Math.max(old.holdUntil||0,state.time+SIGNAL_YELLOW_MINUTES+SIGNAL_CLEAR_MINUTES)});
+ updateUI();renderInspector(true);
+ aiPinLast=-Infinity;updateAISignalPins();
+ toast('ถอด AI แล้ว · คืนโควต้า 1 จุด นำไปติดตั้งแยกอื่นได้ฟรี');
+ return true;
+}
+function openAISignalDetach(i){
+ if(state.signals.get(i)?.mode!=='smart'||junction(i)<3)return false;
+ confirmAction('ถอด AI จากทางแยกนี้?','คืนโควต้า AI 1 จุด เพื่อติดตั้งที่แยกอื่นฟรี · แยกเดิมกลับไปใช้ไฟอัตโนมัติ · ไม่คืนเงินสด',()=>detachAISignal(i));
  return true;
 }
 function aiSignalQueuePressure(){
@@ -4179,11 +4206,12 @@ function updateAIPinPopover(){
  const content='<header><strong>AI ทางแยก</strong><button type="button" data-ai-close aria-label="หุบรายละเอียด">−</button></header>'+
  '<p>'+(owned?'ติดตั้งแล้ว · ปรับไฟตามคิวรถ':'ปรับไฟอัตโนมัติตามคิวรถ')+'</p>'+
  (owned?'':'<div class="ai-pin-price"><span>ติดตั้ง 1 แยก</span><b>'+money(AI_SIGNAL_PRICE)+'</b></div>')+
- '<button type="button" class="ai-pin-upgrade" data-ai-upgrade>'+(owned?'ดูสถานะทางแยก':'อัปเกรด AI')+'</button>';
+ '<button type="button" class="ai-pin-upgrade" data-ai-upgrade>'+(owned?'ดูสถานะทางแยก':'อัปเกรด AI')+'</button>'+ (owned?'<button type="button" class="ai-pin-upgrade" data-ai-detach>ถอด AI · คืน 1 โควต้า</button>':'');
  if(aiPinPopover.innerHTML!==content){
   aiPinPopover.innerHTML=content;
   aiPinPopover.querySelector('[data-ai-close]').onclick=()=>{collapseAISignalPin();pin.focus?.();};
   aiPinPopover.querySelector('[data-ai-upgrade]').onclick=()=>{collapseAISignalPin();openAISignalUpgrade(node);};
+  const detach=aiPinPopover.querySelector('[data-ai-detach]');if(detach)detach.onclick=()=>{collapseAISignalPin();openAISignalDetach(node);};
  }
  aiPinPopover.hidden=false;
  const x=parseFloat(pin.style.left),y=parseFloat(pin.style.top);
@@ -5707,7 +5735,7 @@ function signalInspector(i){
   (smart?'':action('บันทึกเวลาไฟแยกนี้','signal-save',i))+'</div></details>'+
   (smart?'<p class="signal-note">AI ให้ฝั่งรถติดมากไปก่อน · ถือเขียวต่อขณะคิวหนักกว่า · คงไฟเหลืองและช่วงเคลียร์แยก</p>':
    action('AI + อัปเกรดแยก · ฿1,000,000','signal-ai-buy',i))+
-  (smart?'':manual?`<div class="signal-manual">${action('สลับไป '+signalSlotName(next),'signal-switch',i)}${action('กลับสู่ระบบอัตโนมัติ','signal-auto',i)}</div>`:
+  (smart?action('ถอด AI · คืนโควต้า 1 จุด','signal-ai-detach',i):manual?`<div class="signal-manual">${action('สลับไป '+signalSlotName(next),'signal-switch',i)}${action('กลับสู่ระบบอัตโนมัติ','signal-auto',i)}</div>`:
    action('ควบคุมไฟเอง','signal-manual',i))+
   (category==='signals'?action('ตั้งค่าไฟจราจรทั้งเมือง','signal-global',i):'')+`</section>`;
 }
@@ -9275,7 +9303,7 @@ function roadChanged(cells,removedRoads=null){
   const u=piece?piece.startU+Math.max(0,Math.min(1,(s-piece.startDistance)/Math.max(1e-10,piece.length)))*(piece.endU-piece.startU):plan.route[v.pos]||0;
   anchors.push({v,path:v.path,pos:v.pos,u,pose,terminalPos:plan.turns.find(t=>t.terminalShape&&s>=t.startDistance&&s<t.endDistance)?.pos});
  }
- state.version++;roadPreviewCache=null;buildingPlacementCache=null;renderer3d?.invalidateRoads?.();state.routeCache.clear();state.junctionCache.clear();state.junctionLayoutCache?.clear();state.signalSlotCache?.clear();for(const node of state.signals.keys())if(junction(node)<3)state.signals.delete(node);nextAISignalPoll=-Infinity;rebuildFootprint();for(const b of state.buildings.values())b.access=accessFor(b);
+ state.version++;roadPreviewCache=null;buildingPlacementCache=null;renderer3d?.invalidateRoads?.();state.routeCache.clear();state.junctionCache.clear();state.junctionLayoutCache?.clear();state.signalSlotCache?.clear();for(const node of state.signals.keys())if(junction(node)<3){if(!returnAISignalCredit(node))state.signals.delete(node);}nextAISignalPoll=-Infinity;rebuildFootprint();for(const b of state.buildings.values())b.access=accessFor(b);
  for(const node of previousAISlots.keys())normalizeAISignalTopology(node,previousAISlots.get(node));
  // Road removal is allowed under a car: transfer ONLY vehicles physically
  // occupying a deleted road tile to a city gate, keeping their destination.
@@ -10029,6 +10057,7 @@ $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)
  }
  if(a==='signal-global'){selected={kind:'signals'};renderInspector(true);return;}
  if(a==='signal-ai-buy'){if(selected?.kind==='road'&&selected.id===v)openAISignalUpgrade(v);return;}
+ if(a==='signal-ai-detach'){if(selected?.kind==='road'&&selected.id===v)openAISignalDetach(v);return;}
  if(a.startsWith('signal-')){if(selected?.kind!=='road'||selected.id!==v)return;if(a==='signal-save'){const rawEW=String($('signalEW').value).trim(),rawNS=String($('signalNS').value).trim(),eastWest=Number(rawEW),northSouth=Number(rawNS);if(!rawEW||!rawNS||!editSignal(v,{eastWest,northSouth})){toast('ตั้งเวลาไฟเขียวต่อทิศ 5–240 นาที (จำนวนเต็ม) ค่ะ');return;}toast('บันทึกเวลาไฟแยกนี้แล้วค่ะ');}else{const key=a==='signal-manual'?'manual':a==='signal-switch'?'switch':a==='signal-auto'?'auto':'';if(!controlSignal(v,key))return;toast(key==='manual'?'เปิดโหมดควบคุมไฟเองแล้วค่ะ':key==='switch'?'สลับไฟแล้ว · รอแดงทุกทิศ '+SIGNAL_CLEAR_MINUTES+' นาที':'กลับสู่ไฟอัตโนมัติแล้วค่ะ');}renderInspector(true);return;}
  if(a==='incident-resolve'){openTrafficIncident(v);return;}
  if(a==='tow'){removeSelectedVehicle(v);return;}
