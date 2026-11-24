@@ -631,6 +631,8 @@ function checkParkingBuilding(key,x,y,ignoreId=null,preferredRotation=null){
  return{error};
 }
 function markBuildingPlot(b,value){const {w,h}=buildingBounds(b);for(let yy=b.y;yy<b.y+h;yy++)for(let xx=b.x;xx<b.x+w;xx++)state.buildGrid[id(xx,yy)]=value;}
+// Rebuild occupied plots from authoritative building positions after edits.
+function rebuildBuildingGrid(){state.buildGrid.fill(-1);for(const b of state.buildings.values())if(CATALOG[b.key])markBuildingPlot(b,b.id);buildingPlacementCache=null;roadPreviewCache=null;}
 
 // Parking exit arbitration: normal movement never ghosts. A recovery permit
 // ignores exactly one mutually blocking parking car, never other road cars.
@@ -9070,14 +9072,34 @@ if(state.time-state.lastImmigration>=1){state.lastImmigration=state.time;immigra
 if(Math.floor(old/2)!==Math.floor(state.time/2)){let n=0;for(const c of state.citizens.values()){if(c.pending&&!c.pending.life&&c.pending.next<=state.time&&n++<80){const p=c.pending;if(p.expires<state.time){c.pending=null;continue;}runAction(c,p.action,p);}}}
 if(state.time-state.lastPass>=90){state.lastPass=state.time;if(computeStats().pop<1200&&state.vehicles.size<3600){const index=Math.floor(state.time/90)%4;createTrip(null,'pass',null,null,state.gates[index],state.gates[(index+2)%4],null);}}
 updateIntercityFreight();updateNightDeliveries();advanceVehicles(dt*NORMAL_SPEED_SCALE,gameDt);updateTourism(gameDt);updateCityActivity();refreshComplaints();scanIncidents();autoRescueIncidents();trafficPairCollect();const decayDt=gameDt/(GAME_MINUTES_PER_SECOND*NORMAL_SPEED_SCALE),loadDecay=Math.pow(.90,decayDt*4),waitDecay=Math.pow(.72,decayDt*4);for(const r of state.roads.values()){if(r.load>.001)r.load*=loadDecay;if(r.wait>.001)r.wait*=waitDecay;}if(state.stats.happy<70&&state.time-(state.lastHappyAlert||0)>180){addNews('คนใหม่หยุดย้ายเข้า ช่วยแก้ปัญหาให้ Performance ตั้งแต่ 70%');state.lastHappyAlert=state.time;}}
-function lineCells(a,b){let [x,y]=xy(a),[u,v]=xy(b),dx=u-x,dy=v-y;const horizontal=Math.abs(dx)>=Math.abs(dy);if(horizontal)v=y;else u=x;
- // Snap an unfinished end by one tile along the stroke, preserving its axis.
+// Road-width footprints can cover a missing centerline node. Do not snap
+// interior gaps away when rebuilding a road.
+function roadConstructionAnchor(i){
+ if(state.roads.has(i))return i;
+ const [x,y]=xy(i),has=(dx,dy)=>valid(x+dx,y+dy)&&state.roads.has(id(x+dx,y+dy));
+ if((has(-1,0)&&has(1,0))||(has(0,-1)&&has(0,1)))return i;
+ return owner(i);
+}
+function lineCells(a,b){
+ let [x,y]=xy(a),[u,v]=xy(b);
+ const horizontal=Math.abs(u-x)>=Math.abs(v-y);
+ if(horizontal)v=y;else u=x;
+ if(x===u&&y===v&&!state.roads.has(id(x,y))){
+  for(const [dx,dy]of [[1,0],[0,1]])if(valid(x-dx,y-dy)&&valid(x+dx,y+dy)&&state.roads.has(id(x-dx,y-dy))&&state.roads.has(id(x+dx,y+dy)))return[id(x-dx,y-dy),id(x,y),id(x+dx,y+dy)];
+ }
  const sx=Math.sign(u-x),sy=Math.sign(v-y);
  if(sx||sy){
-  if(!state.roads.has(id(x,y))&&valid(x-sx,y-sy)&&state.roads.has(id(x-sx,y-sy))){x-=sx;y-=sy;}
-  if(!state.roads.has(id(u,v))&&valid(u+sx,v+sy)&&state.roads.has(id(u+sx,v+sy))){u+=sx;v+=sy;}
+  const start=owner(id(x,y)),end=owner(id(u,v)),[ax,ay]=xy(start),[bx,by]=xy(end);
+  if(!state.roads.has(id(x,y))&&state.roads.has(start)&&(horizontal?ay===y&&(ax-x)*sx<0:ax===x&&(ay-y)*sy<0)){x=ax;y=ay;}
+  else if(!state.roads.has(id(x,y))&&valid(x-sx,y-sy)&&state.roads.has(id(x-sx,y-sy))){x-=sx;y-=sy;}
+  if(!state.roads.has(id(u,v))&&state.roads.has(end)&&(horizontal?by===v&&(bx-u)*sx>0:bx===u&&(by-v)*sy>0)){u=bx;v=by;}
+  else if(!state.roads.has(id(u,v))&&valid(u+sx,v+sy)&&state.roads.has(id(u+sx,v+sy))){u+=sx;v+=sy;}
  }
- const steps=Math.max(Math.abs(u-x),Math.abs(v-y)),result=[];for(let n=0;n<=steps;n++){const xx=Math.round(x+(u-x)*(steps?n/steps:0)),yy=Math.round(y+(v-y)*(steps?n/steps:0));if(!valid(xx,yy))continue;const raw=id(xx,yy),snapped=owner(raw),point=xy(snapped),aligned=horizontal?point[1]===y:point[0]===x,p=aligned?snapped:raw;if(result[result.length-1]!==p)result.push(p);}return result;}
+ const steps=Math.max(Math.abs(u-x),Math.abs(v-y)),result=[];
+ for(let n=0;n<=steps;n++){const xx=Math.round(x+(u-x)*(steps?n/steps:0)),yy=Math.round(y+(v-y)*(steps?n/steps:0));if(valid(xx,yy))result.push(id(xx,yy));}
+ return result;
+}
+function roadHoverCells(i){const a=roadConstructionAnchor(i);return lineCells(a,a);}
 // Validate the final road classes before construction or widening. Existing
 // legacy links are not modified; only newly created incompatible links fail.
 const ROAD_SIZE_CONNECTION_ERROR='ถนนเล็กไม่สามารถสร้างแยกกับถนนใหญ่ได้ โปรดเชื่อมถนนกลาง';
@@ -9131,12 +9153,12 @@ for(const i of cells){
  for(let yy=y-lo;yy<y+w-lo;yy++)for(let xx=x-lo;xx<x+w-lo;xx++){
   if(!valid(xx,yy))continue;
   const tile=id(xx,yy);
-  if(state.buildGrid[tile]>=0)return{error:'ถนนทับพื้นที่อาคาร เลือกแนวถนนใหม่ค่ะ'};
+  if(state.buildGrid[tile]>=0&&(!r||(expanding&&!(xx>=x-oldLo&&xx<x+oldWidth-oldLo&&yy>=y-oldLo&&yy<y+oldWidth-oldLo))))return{error:'ถนนทับพื้นที่อาคาร เลือกแนวถนนใหม่ค่ะ'};
   // Existing building/parking overlap uses the same legacy clearance grid.
  }
  if(expanding){
   const oldVisual=r?new Set(roadVisualCoveredCells(i,r.type)):null;
-  for(const tile of roadVisualCoveredCells(i,type))if(!oldVisual?.has(tile))newRoadSideTiles.add(tile);
+  for(const tile of roadVisualCoveredCells(i,type))if(!oldVisual?.has(tile)&&!state.homeSideRoadFootprint?.[tile])newRoadSideTiles.add(tile);
  }
  cost+=r?Math.max(0,t.cost-ROADS[r.type].cost):t.cost;
 }
@@ -9189,15 +9211,15 @@ function finishMouseRoad(d,x,y){
   return;
  }
  if(!valid(d.x,d.y))return;
- const start=owner(id(d.x,d.y));
+ const start=roadConstructionAnchor(id(d.x,d.y));
  roadDrawAnchor={state,type:tool,node:start};
  roadPreviewCache=null;$('hint').textContent=roadDrawHint(tool,true);
 }
 function getRoadPreview(){
  const anchor=activeRoadDraw(),mouseCells=anchor&&hover&&!drag?.pan?roadDrawCells(anchor,hover.x,hover.y):null;
- const request=pendingRoadPreview||(ROADS[tool]&&!drag?.pan?(mouseCells?.length?{type:tool,cells:mouseCells}:!anchor&&(drag?.cells?.length||(hover&&valid(hover.x,hover.y)))?{type:tool,cells:drag?.cells||[owner(id(hover.x,hover.y))]}:null):null);
+ const request=pendingRoadPreview||(ROADS[tool]&&!drag?.pan?(mouseCells?.length?{type:tool,cells:mouseCells}:!anchor&&(drag?.cells?.length||(hover&&valid(hover.x,hover.y)))?{type:tool,cells:drag?.cells||roadHoverCells(id(hover.x,hover.y))}:null):null);
  if(!request)return null;
- const {cells,type}=request,key=[state.version,state.buildings.size,type,cells.join(',')].join(':');
+ const {cells,type}=request,key=[state.version,state.buildings.size,state.buildingVisualVersion||0,state.mapExpansion?.revision||0,type,cells.join(',')].join(':');
  if(roadPreviewCache?.source===state&&roadPreviewCache.key===key)return roadPreviewCache.plan;
  const live=state,roads=new Map(live.roads),xs=cells.map(i=>i%300),ys=cells.map(i=>Math.floor(i/300));
  for(const i of cells){const r=roads.get(i);roads.set(i,r?{...r,links:new Set(r.links)}:{type,main:false,links:new Set(),load:0,wait:0});if(ROADS[type].lanes>ROADS[roads.get(i).type].lanes)roads.get(i).type=type;}
@@ -9209,7 +9231,8 @@ function getRoadPreview(){
  for(const [i,r]of local)local.set(i,{...r,links:new Set([...r.links].filter(n=>local.has(n)))});
  const junctionPreview=i=>counts.get(i)||0;junctionPreview.details=i=>layouts.get(i);
  const previewEnds=turnaroundEnds(planned,i=>layouts.get(i));junctionPreview.turnarounds=()=>previewEnds;junctionPreview.details.turnarounds=()=>previewEnds;junctionPreview.turnaroundPaintCuts=turnaroundPaintCuts;junctionPreview.trimTurnaroundPaint=trimTurnaroundPaint;junctionPreview.roadArtLayout=roadArtLayout;junctionPreview.roadArtBendGuide=roadArtBendGuide;junctionPreview.roadArtTerminals=roadArtTerminals;junctionPreview.roadArtTerminalArc=roadArtTerminalArc;junctionPreview.roadArtSurfaceCuts=roadArtSurfaceCuts;
- const plan={key,state:{...planned,roads:local},junction:junctionPreview,error:checkRoad(cells,type).error,cells,type};
+ const upgrading=cells.some(i=>live.roads.has(i)&&ROADS[type].lanes>ROADS[live.roads.get(i).type].lanes);
+ const plan={key,state:{...planned,roads:local},junction:junctionPreview,error:checkRoad(cells,type).error,cells,type,upgrading};
  roadPreviewCache={source:live,key,plan};return plan;
 }
 function buildRoad(cells,type,confirmed=false){const check=checkRoad(cells,type);if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+ROADS[type].name,`ความยาว ${cells.length} ช่อง · ${ROADS[type].lanes} เลน<br>ค่าก่อสร้าง ${money(check.cost)}<br>อาคารจะวางทับพื้นที่ถนนไม่ได้`,()=>buildRoad(cells,type,true));pendingRoadPreview={cells:[...cells],type};$('dialog').classList.add('road-preview-confirm');const endpoint=cells[cells.length-1];positionConstructionAtWorld(endpoint%W,Math.floor(endpoint/W));return;}const changed=[];for(const i of cells){const r=state.roads.get(i);if(!r){state.roads.set(i,{type,main:false,links:new Set(),load:0,wait:0});changed.push(i);}else if(ROADS[type].lanes>ROADS[r.type].lanes){r.type=type;changed.push(i);}}for(let k=1;k<cells.length;k++)link(cells[k-1],cells[k]);state.money-=check.cost;missionMoney('roadCost',check.cost);missionCount('roadsBuilt',changed.length);roadChanged(changed);toast('สร้างถนนแล้ว · '+money(check.cost));updateUI();return true;}
@@ -9225,7 +9248,7 @@ function roadChanged(cells,removedRoads=null){
   const u=piece?piece.startU+Math.max(0,Math.min(1,(s-piece.startDistance)/Math.max(1e-10,piece.length)))*(piece.endU-piece.startU):plan.route[v.pos]||0;
   anchors.push({v,path:v.path,pos:v.pos,u,pose,terminalPos:plan.turns.find(t=>t.terminalShape&&s>=t.startDistance&&s<t.endDistance)?.pos});
  }
- state.version++;roadPreviewCache=null;renderer3d?.invalidateRoads?.();state.routeCache.clear();state.junctionCache.clear();state.junctionLayoutCache?.clear();state.signalSlotCache?.clear();for(const node of state.signals.keys())if(junction(node)<3)state.signals.delete(node);nextAISignalPoll=-Infinity;rebuildFootprint();for(const b of state.buildings.values())b.access=accessFor(b);
+ state.version++;roadPreviewCache=null;buildingPlacementCache=null;renderer3d?.invalidateRoads?.();state.routeCache.clear();state.junctionCache.clear();state.junctionLayoutCache?.clear();state.signalSlotCache?.clear();for(const node of state.signals.keys())if(junction(node)<3)state.signals.delete(node);nextAISignalPoll=-Infinity;rebuildFootprint();for(const b of state.buildings.values())b.access=accessFor(b);
  for(const node of previousAISlots.keys())normalizeAISignalTopology(node,previousAISlots.get(node));
  // Road removal is allowed under a car: transfer ONLY vehicles physically
  // occupying a deleted road tile to a city gate, keeping their destination.
@@ -9337,8 +9360,8 @@ function moveBuilding(buildingId,x,y,confirmed=false,preferredRotation=null){
  const check=checkParkingBuilding(b.key,x,y,b.id,preferredRotation);if(check.error){toast(check.error);return false;}
  if(!confirmed){confirmAction('ย้าย'+CATALOG[b.key].name,'ย้ายอาคารพร้อมลานจอดฟรี · คงผู้อยู่อาศัย พนักงาน ผู้ใช้บริการและผู้จองเดิม',()=>moveBuilding(buildingId,x,y,true,preferredRotation));$('cancelDialog').textContent='ยกเลิกย้าย';$('cancelDialog').onclick=cancelBuildingMove;positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return true;}
  // Recheck on confirmation: the old plot is never cleared by a failed move.
- markBuildingPlot(b,-1);b.x=x;b.y=y;b.rotation=check.rotation;b.access=check.access;state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;
- b.grandSignal=null;markBuildingPlot(b,b.id);
+ b.x=x;b.y=y;b.rotation=check.rotation;b.access=check.access;state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;
+ b.grandSignal=null;rebuildBuildingGrid();
  roadChanged([]);
  for(const v of [...state.vehicles.values()]){
   if(v.fromId===b.id&&['departing','parking_out'].includes(v.phase)){
@@ -9358,7 +9381,7 @@ function moveBuilding(buildingId,x,y,confirmed=false,preferredRotation=null){
 
 function buildBuilding(key,x,y,confirmed=false,preferredRotation=null){if(buildingQuotaStatus(key).locked){showBuildingQuotaWarning(key);return false;}const check=checkParkingBuilding(key,x,y,null,preferredRotation),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true,preferredRotation));positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,shopCompactLotV1:key==='shop_large',starterCompact:key==='home_starter',starterFrontRowV2:key==='home_starter',starterParkingV3:key==='home_starter',starterCottageV4:key==='home_starter',starterCottage3x3:key==='home_starter',starterGroundV6:key==='home_starter',starterExitV1:key==='home_starter',grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,mahanakhonCompactPlotV2:key==='home_mahanakhon',mahanakhonExpandedPlotV3:key==='home_mahanakhon',compactLotV2:key==='home_dual'||!!t.dualParking,compactLotV3:key==='home_dual'||!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,moveOutCooldowns:[],queue:[],arrivals:0};state.buildings.set(b.id,b);recordBuildingQuota(key);clearDemandNoticeForBuild(t);renderTools();state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;markBuildingPlot(b,b.id);state.money-=t.cost;missionMoney('buildingCost',t.cost);missionCount('buildingsBuilt');for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
 function demolishBuilding(b,confirmed=false,anchor=null){if(!b||!state.buildings.has(b.id))return false;const t=CATALOG[b.key],fee=0;if(!confirmed){const details=t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ และการเดินทางมาที่นี่จะถูกยกเลิก';confirmDemolition('รื้อ'+t.name+'?',details,()=>demolishBuilding(b,true),anchor||screen(b.x+buildingBounds(b).w/2,b.y+buildingBounds(b).h/2));pendingDemolitionPreview={cells:[],eraseBuildingId:b.id};return true;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);resumeCancelledLife(c,v,'อาคารต้นทางหรือปลายทางถูกรื้อ');}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
-markBuildingPlot(b,-1);state.buildings.delete(b.id);state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;state.money-=fee;missionCount('buildingsRemoved');for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
+state.buildings.delete(b.id);rebuildBuildingGrid();state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;state.money-=fee;missionCount('buildingsRemoved');for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
 // Freehand demolition follows every crossed cell, even between sparse pointer samples.
 let roadErasePickCache=null;
 function roadEraseNodesAt(x,y){
@@ -9899,7 +9922,7 @@ canvas.addEventListener('pointerdown',e=>{
  const eraseBuildingId=tool==='erase'&&!pan?demolitionBuildingAt(e.clientX,e.clientY):null;
  const initialRoads=(tool==='eraseRoad'||tool==='erase')&&!pan&&eraseBuildingId==null?roadEraseSegmentCells(p[0],p[1],p[0],p[1]):null;
  drag={mouseRoad:!!ROADS[tool]&&!pan&&e.pointerType!=='touch'&&e.button===0,landscape:landscapeDrag,sx:e.clientX,sy:e.clientY,lastX:e.clientX,lastY:e.clientY,x,y,pan,moved:false,
-  cells:initialRoads!==null?initialRoads:(valid(x,y)?[owner(id(x,y))]:[]),
+  cells:initialRoads!==null?initialRoads:(valid(x,y)?(ROADS[tool]?roadHoverCells(id(x,y)):[owner(id(x,y))]):[]),
   eraseLastX:p[0],eraseLastY:p[1],eraseBuildingId,eraseSeen:new Set(initialRoads||[])};
 });
 canvas.addEventListener('pointermove',e=>{
@@ -9908,7 +9931,7 @@ canvas.addEventListener('pointermove',e=>{
   if((e.buttons&3)===3){if(!mouseOrbit){if(beginMouseOrbit(e))return;}else{e.preventDefault();moveMouseOrbit(e);return;}}
   if(mouseChordHeld){mouseOrbit=null;drag=null;if(!e.buttons){mouseChordHeld=false;mouseRightPending=false;pointers.delete(e.pointerId);}return;}
  }
- const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1]),rawX:p[0],rawY:p[1],snap:landscapeSnap,decorationRotation:landscapeRotation,landscape:movingLandscape?{...landscapeItem(movingLandscape),rotation:landscapeRotation}:null};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch){moveTouchOrbit();hover=null;return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(id(drag.x,drag.y),id(hover.x,hover.y));
+ const p=world(e.clientX,e.clientY);hover={x:Math.floor(p[0]),y:Math.floor(p[1]),rawX:p[0],rawY:p[1],snap:landscapeSnap,decorationRotation:landscapeRotation,landscape:movingLandscape?{...landscapeItem(movingLandscape),rotation:landscapeRotation}:null};if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch){moveTouchOrbit();hover=null;return;}if(!drag)return;if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>(e.pointerType==='touch'?10:5))drag.moved=true;if(drag.pan){if(renderer3d){const a=world(drag.lastX,drag.lastY),b=world(e.clientX,e.clientY);cam.x-=b[0]-a[0];cam.y-=b[1]-a[1];renderer3d.updateCamera(cam);}else{cam.x-=(e.clientX-drag.lastX)/(T*cam.z);cam.y-=(e.clientY-drag.lastY)/(T*cam.z*.78);}cam.x=Math.max(-20,Math.min(320,cam.x));cam.y=Math.max(-20,Math.min(320,cam.y));follow=null;}else if(ROADS[tool]&&valid(drag.x,drag.y)&&valid(hover.x,hover.y))drag.cells=lineCells(roadConstructionAnchor(id(drag.x,drag.y)),id(hover.x,hover.y));
  else if((tool==='eraseRoad'||tool==='erase')&&drag.eraseBuildingId==null)appendRoadEraseStroke(drag,hover.rawX,hover.rawY);
  drag.lastX=e.clientX;drag.lastY=e.clientY;});
 function finishCanvasInteraction(d,x,y,activeTool){
