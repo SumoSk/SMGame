@@ -3287,7 +3287,7 @@ export class TrafficRenderer{
  // Visual finish only; no change to lane offsets, road links or traffic logic.
  const PREMIUM_CONCRETE='#555957',CONCRETE_JOINT='#4e5250',PREMIUM_LANE='#f0ede4',PREMIUM_CENTER='#d6b36a',PREMIUM_EDGE='#cfd0ca';
  const layouts=new Map(),hidden=new Set(),nearby=new Map(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
- const rawTerminalEnds=junction.turnarounds?.(state,junction.details)||new Map(),terminalEnds=junction.roadArtTerminals?.(state,rawTerminalEnds)||rawTerminalEnds,terminalCuts=junction.turnaroundPaintCuts?.(terminalEnds)||new Map();
+ const rawTerminalEnds=junction.turnarounds?.(state,junction.details)||new Map(),terminalEnds=junction.roadArtTerminals?.(state,rawTerminalEnds)||rawTerminalEnds,terminalCuts=junction.turnaroundPaintCuts?.(terminalEnds)||new Map(),surfaceCuts=junction.roadArtSurfaceCuts?.(terminalEnds)||new Map();
  if(junction.details)for(const [node]of state.roads){const d=junction.details(node);for(const [a,b]of d.hiddenEdges)hidden.add(edgeKey(a,b));if(d.arms.length>=3||d.bend)layouts.set(node,junction.roadArtLayout?.(d)||d);}
  for(const layout of layouts.values())for(let xx=Math.floor(layout.x-layout.halfX-2);xx<=Math.ceil(layout.x+layout.halfX+2);xx++)for(let zz=Math.floor(layout.y-layout.halfY-2);zz<=Math.ceil(layout.y+layout.halfY+2);zz++){const key=zz*300+xx;if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(layout);}
  const paint=new Map();
@@ -3301,7 +3301,8 @@ export class TrafficRenderer{
 
  for(const [i,r]of state.roads){const x=i%300,z=Math.floor(i/300),w=roadWidths[r.type];if(!r.links.size)batch.box(r.type==='large'?PREMIUM_CONCRETE:'#424f55',x,.062,z,w,.12,w);for(const j of r.links){if(j<i||!state.roads.has(j)||hidden.has(edgeKey(i,j)))continue;const nx=j%300,nz=Math.floor(j/300),dx=nx-x,dz=nz-z,len=Math.hypot(dx,dz),angle=-Math.atan2(dz,dx),mx=(x+nx)/2,mz=(z+nz)/2,neighbor=state.roads.get(j),segmentWidth=Math.max(w,neighbor?roadWidths[neighbor.type]||w:w);let widthA=w,widthB=neighbor?roadWidths[neighbor.type]||w:w,intervals=[[0,1]];const around=[...new Set([...(nearby.get(i)||[]),...(nearby.get(j)||[])])];
  for(const layout of around){const axis=Math.abs(dx)>Math.abs(dz)?0:1,center=axis===0?mx-layout.x:mz-layout.y,dir=axis===0?(center>=0?0:2):(center>=0?1:3),arm=layout.arms.find(a=>a.dir===dir),aligned=axis===0?Math.abs(z-layout.y)<.01:Math.abs(x-layout.x)<.01;if(aligned&&arm){widthA=widthB=arm.width;const cut=cutInterval(x,z,dx,dz,layout);if(cut){const pieces=[];for(const [lo,hi]of intervals){if(cut[1]<=lo||cut[0]>=hi)pieces.push([lo,hi]);else{if(cut[0]>lo)pieces.push([lo,cut[0]]);if(cut[1]<hi)pieces.push([cut[1],hi]);}}intervals=pieces;}}}
- const parts=widthA===widthB?1:12;for(const [lo,hi]of intervals)for(let part=0;part<parts;part++){const a=lo+(hi-lo)*part/parts,b=lo+(hi-lo)*(part+1)/parts,t=(a+b)/2,sw=widthA+(widthB-widthA)*t,cx=x+dx*t,cz=z+dz*t,overlap=around.length?.002:.04;batch.box('#c9c8b5',cx,.015,cz,len*(b-a)+overlap,.08,sw+.28,angle);batch.box(r.type==='large'&&neighbor?.type==='large'?PREMIUM_CONCRETE:'#47565c',cx,.075,cz,len*(b-a)+overlap,.055,sw,angle);}
+ const surfaceCut=surfaceCuts.get(edgeKey(i,j));if(surfaceCut)intervals=intervals.flatMap(([lo,hi])=>junction.trimTurnaroundPaint(lo,hi,surfaceCut));
+ const parts=widthA===widthB?1:12;for(const [lo,hi]of intervals)for(let part=0;part<parts;part++){const a=lo+(hi-lo)*part/parts,b=lo+(hi-lo)*(part+1)/parts,t=(a+b)/2,sw=widthA+(widthB-widthA)*t,cx=x+dx*t,cz=z+dz*t,overlap=(around.length||surfaceCut?.length)?.002:.04;batch.box('#c9c8b5',cx,.015,cz,len*(b-a)+overlap,.08,sw+.28,angle);batch.box(r.type==='large'&&neighbor?.type==='large'?PREMIUM_CONCRETE:'#47565c',cx,.075,cz,len*(b-a)+overlap,.055,sw,angle);}
  const axisX=dx/len,axisZ=dz/len,perpX=-axisZ,perpZ=axisX,capA=Math.max(1,(Object.values(ROADS).find(t=>Math.abs((t.visualWidth||t.width)-widthA)<.01)?.lanes||ROADS[r.type].lanes)/2),capB=Math.max(1,(Object.values(ROADS).find(t=>Math.abs((t.visualWidth||t.width)-widthB)<.01)?.lanes||ROADS[neighbor.type].lanes)/2),lanes=Math.max(capA,capB);
  // Mark the surviving road intervals right up to the shared junction boundary.
  // Never suppress a whole grid link merely because it is near a junction.
@@ -3353,8 +3354,18 @@ export class TrafficRenderer{
  }else{const junctionWidth=Math.max(w,...[...r.links].map(n=>roadWidths[state.roads.get(n)?.type]||w));batch.box(r.type==='large'?PREMIUM_CONCRETE:'#47565c',x,.081,z,junctionWidth,.055,junctionWidth);}}
 
  }
- const capShape=()=>{const shape=new THREE.Shape();for(let k=0;k<=40;k++){const a=-Math.PI*.5+k*Math.PI/40,x=Math.cos(a),z=Math.sin(a);if(k===0)shape.moveTo(x,-z);else shape.lineTo(x,-z);}shape.closePath();const geo=new THREE.ShapeGeometry(shape);geo.rotateX(-Math.PI/2);return geo;};
- if(terminalEnds.size){const geo=capShape();for(const [node,e]of terminalEnds){if(!state.roads.has(node))continue;const a=e.direction*Math.PI/2,dx=Math.cos(a),dz=Math.sin(a),r=e.width*.5,large=state.roads.get(node).type==='large';batch.add(geo,'#c9c8b5',e.x,.081,e.y,e.depth+.08,1,r+.08,0,-a);batch.add(geo,large?PREMIUM_CONCRETE:'#47565c',e.x,.104,e.y,e.depth,1,r,0,-a);const arc=[];for(let k=0;k<=40;k++){const t=-Math.PI*.5+k*Math.PI/40;arc.push([e.x+dx*Math.cos(t)*e.depth-dz*Math.sin(t)*r,e.y+dz*Math.cos(t)*e.depth+dx*Math.sin(t)*r]);}ribbon(arc,large?PREMIUM_EDGE:'#dce3d8',.025);for(const guide of e.paint||[])dashedRibbon(guide,large?PREMIUM_LANE:'#dce3d8',.025);}}
+ const capGeometries=new Map();
+ if(terminalEnds.size)for(const [node,e]of terminalEnds){
+  if(!state.roads.has(node))continue;
+  const large=state.roads.get(node).type==='large',arc=junction.roadArtTerminalArc?.(e)||[];
+  if(arc.length<3)continue;
+  for(const margin of [.14,0]){
+   const key=[e.direction,e.width,e.depth,e.parallelCap?e.reach:0,margin].join(':');let geo=capGeometries.get(key);
+   if(!geo){const points=junction.roadArtTerminalArc(e,margin),shape=new THREE.Shape();points.forEach(([x,z],i)=>i?shape.lineTo(x-e.x,-(z-e.y)):shape.moveTo(x-e.x,-(z-e.y)));shape.closePath();geo=new THREE.ShapeGeometry(shape);geo.rotateX(-Math.PI/2);capGeometries.set(key,geo);}
+   batch.add(geo,margin?'#c9c8b5':large?PREMIUM_CONCRETE:'#47565c',e.x,margin?.055:.104,e.y,1,1,1);
+  }
+  ribbon(arc,large?PREMIUM_EDGE:'#dce3d8',.025);for(const guide of e.paint||[])dashedRibbon(guide,large?PREMIUM_LANE:'#dce3d8',.025);
+ }
  this.roadGroup.add(batch.build(false),line.build(false));
  // A few merged meshes keep paving/curbs cheap even along long city roads.
  const streetSurfaces=new Map(),roadside=this.parking?.roadsideVisuals?.(state,junction.details)||[];

@@ -2390,31 +2390,44 @@ function roadArtBendGuide(layout,oa,ob){
  const p=[va[0]*a.extent-va[1]*oa,va[1]*a.extent+va[0]*oa],q=[vb[0]*b.extent+vb[1]*ob,vb[1]*b.extent-vb[0]*ob],c=a.dir%2===0?[q[0],p[1]]:[p[0],q[1]];
  return roadArtQuarter(p,q,c).map(([x,y])=>[layout.x+x,layout.y+y]);
 }
+// The outer edge is a member of the same cubic family as the lane
+// markings, not an added semicircle beyond the end of the road.
+function roadArtTerminalArc(end,margin=0){
+ if(!end.parallelCap)return turnaroundArc(end,margin);
+ const [dx,dy]=DIR[end.direction],radius=end.width*.5+margin,points=[];
+ for(let j=0;j<=40;j++){
+  const t=j/40,u=1-t,along=-end.reach+4*radius*u*t,across=radius*(1-6*t*t+4*t*t*t);
+  points.push([end.x+dx*along+dy*across,end.y+dy*along-dx*across]);
+ }
+ return points;
+}
 function roadArtTerminals(roadState,ends){
  const cached=roadArtTerminalCache.get(roadState);
- const stamp=roadState.buildingVisualVersion||0;
- if(cached?.ends===ends&&cached.stamp===stamp&&cached.count===roadState.buildings.size)return cached.result;
+ if(cached?.ends===ends)return cached.result;
  const result=new Map();
  for(const [node,e]of ends){
   if(!roadState.roads.has(node))continue;
-  const [dx,dy]=DIR[e.direction],r=e.width*.5,target=Math.min(r,1.4),margin=.14;
-  let depth=target;
-  // A cap may round out only on existing clear ground. Never alter the
-  // footprint, add land, or cover another road/building to achieve a curve.
-  const alongMax=Math.ceil(target+margin+.5),acrossMax=Math.ceil(r+margin+.5);
-  for(let a=1;a<=alongMax;a++)for(let b=-acrossMax;b<=acrossMax;b++){
-   const along=Math.max(0,a-.5),across=Math.max(0,Math.abs(b)-.5);
-   if((along/(target+margin))**2+(across/(r+margin))**2>=1)continue;
-   const x=e.x+dx*a-dy*b,y=e.y+dy*a+dx*b;
-   if(x<0||x>=W||y<0||y>=H){depth=e.depth;continue;}
-   const tile=y*W+x,owner=roadState.footprint?.[tile];
-   if(roadState.buildGrid?.[tile]>=0||roadState.roads.has(tile)&&tile!==node||owner>=0&&owner!==node&&owner!==e.neighbor||roadState===state&&(!sheetUnlocked(x,y)||isPhuketWaterTile(x,y)))depth=e.depth;
+  const r=roadState.roads.get(node),half=e.width*.5;
+  let parallelCap=e.lanes>1&&e.paint?.length===e.lanes-1&&e.paintCuts?.size>0;
+  // Leave tightly packed bends, junctions and width transitions alone.
+  // Only trim an unbroken straight approach with sufficient clearance.
+  let previous=null,current=node,length=0;
+  const need=e.reach+half+.6;
+  while(parallelCap&&length<need){
+   const road=roadState.roads.get(current);
+   const next=[...(road?.links||[])].filter(n=>n!==previous&&dir(n,current)===e.direction&&roadState.roads.get(n)?.type===r.type);
+   if(next.length!==1||current!==node&&road.links.size!==2){parallelCap=false;break;}
+   length+=distance(current,next[0]);previous=current;current=next[0];
   }
-  result.set(node,{...e,depth:Math.max(e.depth,depth)});
+  result.set(node,{...e,parallelCap,depth:e.depth});
  }
- roadArtTerminalCache.set(roadState,{ends,stamp,count:roadState.buildings.size,result});return result;
+ roadArtTerminalCache.set(roadState,{ends,result});return result;
 }
-junction.roadArtLayout=roadArtLayout;junction.roadArtBendGuide=roadArtBendGuide;junction.roadArtTerminals=roadArtTerminals;
+function roadArtSurfaceCuts(ends){
+ const parallel=new Map([...ends].filter(([,e])=>e.parallelCap));
+ return turnaroundPaintCuts(parallel);
+}
+junction.roadArtLayout=roadArtLayout;junction.roadArtBendGuide=roadArtBendGuide;junction.roadArtTerminals=roadArtTerminals;junction.roadArtTerminalArc=roadArtTerminalArc;junction.roadArtSurfaceCuts=roadArtSurfaceCuts;
 
 // Shared visual-only streetscape: no road graph, lanes, plots or prices change.
 const roadsideVisualCache=new WeakMap();
@@ -2422,6 +2435,7 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
  const stamp=[roadState.version,roadState.roads.size,...[...roadState.buildings.values()].map(b=>[b.id,b.x,b.y,b.rotation].join(','))].join(':');
  const cached=roadsideVisualCache.get(roadState);if(cached?.stamp===stamp&&cached.details===roadDetails)return cached.faces;
  const faces=[],layouts=new Map(),nearby=new Map(),hidden=new Set(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
+ const artEnds=roadArtTerminals(roadState,roadDetails.turnarounds?.(roadState,roadDetails)||new Map()),surfaceCuts=roadArtSurfaceCuts(artEnds);
  faces.plants=[];
  const margin=w=>Math.abs(w-ROADS.small.visualWidth)<.01?(roadClearanceWidth(ROADS.small)-w)/2:.14;
  const blockers=new Map(),gates=[];
@@ -2511,6 +2525,7 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
    let lo=0,hi=1;for(const [start,delta,min,max] of [[x,dx,l.x-l.halfX,l.x+l.halfX],[y,dy,l.y-l.halfY,l.y+l.halfY]]){if(Math.abs(delta)<1e-9){if(start<min||start>max)hi=-1;}else{const a=(min-start)/delta,b=(max-start)/delta;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}}
    if(hi>lo){const next=[];for(const [a,b] of intervals){if(hi<=a||lo>=b)next.push([a,b]);else{if(lo>a)next.push([a,lo]);if(hi<b)next.push([hi,b]);}}intervals=next;}
   }
+  intervals=intervals.flatMap(([lo,hi])=>trimTurnaroundPaint(lo,hi,surfaceCuts.get(edgeKey(i,j))));
   const px=-dy/len,py=dx/len,p=(t,offset)=>[x+dx*t+px*offset,y+dy*t+py*offset];
   for(const [lo,hi] of intervals)for(const sign of [-1,1]){
    const inner=t=>(wa+(wb-wa)*t)/2,outer=t=>inner(t)+margin(wa)+(margin(wb)-margin(wa))*t;
@@ -2547,8 +2562,8 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
    }else{strip(points,.055,w,'#c6c9c4',.135,.045,'sidewalk');strip(points,0,.055,'#e1dfd5',.16,.065,'curb');}
   }
  }
- for(const [node,e]of roadArtTerminals(roadState,roadDetails.turnarounds?.(roadState,roadDetails)||new Map())){
-  const small=roadState.roads.get(node)?.type==='small',points=turnaroundArc(e);
+ for(const [node,e]of artEnds){
+  const small=roadState.roads.get(node)?.type==='small',points=roadArtTerminalArc(e);
   if(small){strip(points,.025,.12,'#b2b5aa',.115,.035,'sidewalk');strip(points,0,.025,'#929b87',.13,.035,'curb');}
   else{strip(points,.055,.14,'#c6c9c4',.135,.045,'sidewalk');strip(points,0,.055,'#e1dfd5',.16,.065,'curb');}
  }
@@ -2560,13 +2575,14 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
  const layouts=new Map(),nearby=new Map(),hidden=new Set(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
  for(const [node]of state.roads){const layout=roadDetails(node);for(const [a,b]of layout.hiddenEdges)hidden.add(edgeKey(a,b));if(layout.arms.length>=3||layout.bend)layouts.set(node,roadArtLayout(layout));}
  for(const l of layouts.values())for(let yy=Math.floor(l.y-l.halfY-2);yy<=Math.ceil(l.y+l.halfY+2);yy++)for(let xx=Math.floor(l.x-l.halfX-2);xx<=Math.ceil(l.x+l.halfX+2);xx++){const key=id(xx,yy);if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(l);}
- const ends=roadArtTerminals(state,roadDetails.turnarounds?.(state,roadDetails)||new Map()),paintCuts=turnaroundPaintCuts(ends);
+ const ends=roadArtTerminals(state,roadDetails.turnarounds?.(state,roadDetails)||new Map()),paintCuts=turnaroundPaintCuts(ends),surfaceCuts=roadArtSurfaceCuts(ends);
  const segments=[];
  for(const [i,r]of state.roads)for(const n of r.links){if(n<i||hidden.has(edgeKey(i,n)))continue;const [x,y]=xy(i),[nx,ny]=xy(n),dx=nx-x,dy=ny-y,length=Math.hypot(dx,dy),other=state.roads.get(n);let wa=roadVisualWidth(r.type),wb=roadVisualWidth(other?.type),intervals=[[0,1]];
  for(const l of new Set([...(nearby.get(i)||[]),...(nearby.get(n)||[])])){const horizontal=Math.abs(dx)>Math.abs(dy),d=horizontal?((x+nx)/2>=l.x?0:2):((y+ny)/2>=l.y?1:3),arm=l.arms.find(a=>a.dir===d);if(!arm||(horizontal?Math.abs(y-l.y):Math.abs(x-l.x))>.01)continue;wa=wb=arm.width;let lo=0,hi=1;for(const [start,delta,min,max]of [[x,dx,l.x-l.halfX,l.x+l.halfX],[y,dy,l.y-l.halfY,l.y+l.halfY]]){if(Math.abs(delta)<1e-9){if(start<min||start>max)hi=-1;}else{const a=(min-start)/delta,b=(max-start)/delta;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}}if(hi>lo){const next=[];for(const [a,b]of intervals){if(hi<=a||lo>=b)next.push([a,b]);else{if(lo>a)next.push([a,lo]);if(hi<b)next.push([hi,b]);}}intervals=next;}}
+ intervals=intervals.flatMap(([lo,hi])=>trimTurnaroundPaint(lo,hi,surfaceCuts.get(edgeKey(i,n))));
  const px=-dy/length,py=dx/length,point=(t,off)=>[x+dx*t+px*off,y+dy*t+py*off];segments.push({r,other,x,y,dx,dy,length,wa,wb,intervals,point,paintCuts:paintCuts.get(edgeKey(i,n))});
  for(const [lo,hi]of intervals)for(const border of [.14,0]){const a=wa+(wb-wa)*lo,b=wa+(wb-wa)*hi;poly([point(lo,-a/2-border),point(hi,-b/2-border),point(hi,b/2+border),point(lo,a/2+border)].map(([x,y])=>screen(x+.5,y+.5)),border?'#c9c8b5':heat?roadColor(r):r.type==='large'&&other?.type==='large'?PREMIUM_CONCRETE:'#47565c');}}
- for(const [node,end]of ends){if(!state.roads.has(node))continue;const r=state.roads.get(node);for(const margin of [.08,0])poly(turnaroundArc(end,margin).map(([x,y])=>screen(x+.5,y+.5)),margin?'#c9c8b5':heat?roadColor(r):r.type==='large'?PREMIUM_CONCRETE:'#47565c');}
+ for(const [node,end]of ends){if(!state.roads.has(node))continue;const r=state.roads.get(node);for(const margin of [.14,0])poly(roadArtTerminalArc(end,margin).map(([x,y])=>screen(x+.5,y+.5)),margin?'#c9c8b5':heat?roadColor(r):r.type==='large'?PREMIUM_CONCRETE:'#47565c');}
  for(const l of layouts.values())poly(l.polygon.map(([x,y])=>screen(l.x+.5+x,l.y+.5+y)),!heat&&l.arms.length>=2&&l.arms.every(a=>Math.abs(a.width-ROADS.large.visualWidth)<.02)?PREMIUM_CONCRETE:'#47565c');
  // Purchased AI: illuminate only that intersection's center in 2D fallback.
  for(const [node,l]of layouts)if(state.signals.get(node)?.mode==='smart'){
@@ -2586,7 +2602,7 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
   }
  }
  const stroke=(points,color,width=.025,dashed=false)=>{if(points.length<2)return;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(...screen(x+.5,y+.5)):ctx.moveTo(...screen(x+.5,y+.5)));ctx.strokeStyle=color;ctx.lineWidth=Math.max(.55,width*T*cam.z);ctx.lineJoin='round';ctx.lineCap='butt';ctx.setLineDash(dashed?[.45*T*cam.z,.55*T*cam.z]:[]);ctx.stroke();ctx.setLineDash([]);};
- for(const [node,end]of ends)if(state.roads.has(node))stroke(turnaroundArc(end),state.roads.get(node).type==='large'?PREMIUM_EDGE:'#dce3d8',.025);
+ for(const [node,end]of ends)if(state.roads.has(node))stroke(roadArtTerminalArc(end),state.roads.get(node).type==='large'?PREMIUM_EDGE:'#dce3d8',.025);
  // Match 3D concrete joints without a texture or an extra road tile.
  if(!heat)for(const s of segments){
   if(s.r.type!=='large'||s.other?.type!=='large'||s.intervals.length!==1||
@@ -9115,7 +9131,7 @@ function getRoadPreview(){
  // Layouts use the full graph; clip only boundary links in the local drawing.
  for(const [i,r]of local)local.set(i,{...r,links:new Set([...r.links].filter(n=>local.has(n)))});
  const junctionPreview=i=>counts.get(i)||0;junctionPreview.details=i=>layouts.get(i);
- const previewEnds=turnaroundEnds(planned,i=>layouts.get(i));junctionPreview.turnarounds=()=>previewEnds;junctionPreview.details.turnarounds=()=>previewEnds;junctionPreview.turnaroundPaintCuts=turnaroundPaintCuts;junctionPreview.trimTurnaroundPaint=trimTurnaroundPaint;junctionPreview.roadArtLayout=roadArtLayout;junctionPreview.roadArtBendGuide=roadArtBendGuide;junctionPreview.roadArtTerminals=roadArtTerminals;
+ const previewEnds=turnaroundEnds(planned,i=>layouts.get(i));junctionPreview.turnarounds=()=>previewEnds;junctionPreview.details.turnarounds=()=>previewEnds;junctionPreview.turnaroundPaintCuts=turnaroundPaintCuts;junctionPreview.trimTurnaroundPaint=trimTurnaroundPaint;junctionPreview.roadArtLayout=roadArtLayout;junctionPreview.roadArtBendGuide=roadArtBendGuide;junctionPreview.roadArtTerminals=roadArtTerminals;junctionPreview.roadArtTerminalArc=roadArtTerminalArc;junctionPreview.roadArtSurfaceCuts=roadArtSurfaceCuts;
  const plan={key,state:{...planned,roads:local},junction:junctionPreview,error:checkRoad(cells,type).error,cells,type};
  roadPreviewCache={source:live,key,plan};return plan;
 }
