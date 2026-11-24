@@ -273,7 +273,11 @@ const LANDSCAPE_GLSL=`
   float karon=4.2*exp(-pow((z-222.0)/15.0,2.0));
   float bangtao=4.8*exp(-pow((z-96.0)/18.0,2.0));
   float bays=4.2*sin(z*.046+.4)+2.8*cos(z*.092-.7)+1.6*sin(z*.15+1.1);
+  #ifdef NORTH_ENTRY
+  float bridgeCape=0.0;
+  #else
   float bridgeCape=-14.5*exp(-pow((z-150.0)/22.0,2.0));
+  #endif
   float nMargin=-6.0*exp(-pow(z/24.0,2.0));
   float sMargin=-6.0*exp(-pow((z-300.0)/24.0,2.0));
   return 84.0+taper+bays+patong+karon+bangtao+bridgeCape+nMargin+sMargin;
@@ -291,7 +295,11 @@ const LANDSCAPE_GLSL=`
  float coastNorthZ(float x){
   float xn=(x-190.0)/135.0,xn2=xn*xn;
   float arch=14.0*xn2+8.0*xn2*xn2;
+  #ifdef NORTH_ENTRY
+  float northGate=12.0*exp(-pow((x-195.0)/30.0,2.0));
+  #else
   float northGate=-8.0*exp(-pow((x-150.0)/28.0,2.0));
+  #endif
   float waves=2.4*sin(x*.042+.7)+1.4*cos(x*.088);
   return 3.0+arch+northGate+waves;
  }
@@ -315,7 +323,12 @@ const LANDSCAPE_GLSL=`
   return -12.0*pow(t,0.72);
  }
  float phangNgaOutward(vec2 p){
+  #ifdef NORTH_ENTRY
+  float t=max(0.0,1.0-pow((p.x-195.0)/32.0,2.0));
+  return max(max(p.y-(-16.0+18.0*pow(t,1.25)),(-16.0-24.0*pow(t,.72))-p.y),abs(p.x-195.0)-32.0);
+  #else
   return max(max(p.x-phangNgaShoreX(p.y),phangNgaWestX(p.y)-p.x),abs(p.y-150.0)-30.0);
+  #endif
  }
  float phuketIslandOutward(vec2 p){
   float r=22.0;
@@ -330,22 +343,22 @@ const LANDSCAPE_GLSL=`
   return min(min(island,phangNga),min(min(kohHe,kohMaprao),kohPu));
  }
 `;
-function landscapeShader(material,noise,fragment,extra='',uniforms={}){
+function landscapeShader(material,noise,fragment,extra='',uniforms={},northEntry=false){
  material.onBeforeCompile=shader=>{
   Object.assign(shader.uniforms,{landscapeNoiseMap:{value:noise}},uniforms);
   shader.vertexShader='varying vec3 vLandscapeWorld;\n'+shader.vertexShader;
   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
    '#include <begin_vertex>\nvLandscapeWorld=(modelMatrix*vec4(position,1.0)).xyz;');
-  shader.fragmentShader=LANDSCAPE_GLSL+extra+'\n'+shader.fragmentShader;
+  shader.fragmentShader=(northEntry?'#define NORTH_ENTRY\n':'')+LANDSCAPE_GLSL+extra+'\n'+shader.fragmentShader;
   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
    '#include <color_fragment>\n'+fragment);
  };
  // City and material kind are encoded in this key, so Three never reuses a
  // compiled grass program for water or a different city's palette.
- material.customProgramCacheKey=()=>fragment+extra;
+ material.customProgramCacheKey=()=>fragment+extra+(northEntry?'north':'legacy');
  return material;
 }
-function landscapeMaterial(city,kind,noise,detailUniform={value:1},mapSheetMaskUniform=null){
+function landscapeMaterial(city,kind,noise,detailUniform={value:1},mapSheetMaskUniform=null,northEntry=false){
  const palette=TERRAIN_PALETTES[city]||TERRAIN_PALETTES.korat;
  const c=hex=>{const a=new THREE.Color(hex);return `vec3(${a.r.toFixed(5)},${a.g.toFixed(5)},${a.b.toFixed(5)})`;};
  const material=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:kind==='wetSand'?.75:.97});
@@ -408,9 +421,9 @@ function landscapeMaterial(city,kind,noise,detailUniform={value:1},mapSheetMaskU
    diffuseColor.rgb=mix(diffuseColor.rgb,${c('#5f7882')},sheetLocked*0.23);
   }`;
  }
- return landscapeShader(material,noise,fragment,extra,uniforms);
+ return landscapeShader(material,noise,fragment,extra,uniforms,northEntry);
 }
-function landscapeWater(city,river,noise,clock){
+function landscapeWater(city,river,noise,clock,northEntry=false){
  const material=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:river?.36:.27,metalness:.08});
  material.userData.landscapeKind=river?'river':'sea';
  const c=hex=>{const a=new THREE.Color(hex);return `vec3(${a.r.toFixed(5)},${a.g.toFixed(5)},${a.b.toFixed(5)})`;};
@@ -425,7 +438,11 @@ function landscapeWater(city,river,noise,clock){
    water+=current;
   `:`
    float offshore=max(0.0,phuketIslandOutward(p)-2.2);
+   #ifdef NORTH_ENTRY
+   float bridgeChannel=max(abs(p.x-195.0)-3.1,max(-2.0-p.y,p.y-18.0));
+   #else
    float bridgeChannel=max(abs(p.y-150.0)-3.1,max(5.2-p.x,p.x-117.5));
+   #endif
    vec3 water=mix(${c('#86dcd0')},${c('#47b6be')},smoothstep(0.0,6.5,offshore));
    water=mix(water,${c('#2d8e9c')},smoothstep(5.5,18.0,offshore));
    water=mix(water,${c('#245d79')},smoothstep(16.0,65.0,offshore));
@@ -443,7 +460,7 @@ function landscapeWater(city,river,noise,clock){
   water*=.94+variation*.1+shimmer*.018;
   diffuseColor.rgb*=water;
  `;
- landscapeShader(material,noise,fragment,'uniform float landscapeTime;', {landscapeTime:clock});
+ landscapeShader(material,noise,fragment,'uniform float landscapeTime;', {landscapeTime:clock},northEntry);
  const compile=material.onBeforeCompile;
  material.onBeforeCompile=shader=>{
   compile(shader);
@@ -1610,7 +1627,7 @@ export class TrafficRenderer{
   const karon=4.2*Math.exp(-(((z-222)/15)**2));
   const bangtao=4.8*Math.exp(-(((z-96)/18)**2));
   const bays=4.2*Math.sin(z*.046+.4)+2.8*Math.cos(z*.092-.7)+1.6*Math.sin(z*.15+1.1);
-  const bridgeCape=-14.5*Math.exp(-(((z-150)/22)**2));
+  const bridgeCape=this.northEntry?0:-14.5*Math.exp(-(((z-150)/22)**2));
   const nMargin=-6*Math.exp(-((z/24)**2)),sMargin=-6*Math.exp(-(((z-300)/24)**2));
   return 84+taper+bays+patong+karon+bangtao+bridgeCape+nMargin+sMargin;
  }
@@ -1625,7 +1642,7 @@ export class TrafficRenderer{
  }
  coastNorth(x){
   const xn=(x-190)/135,xn2=xn*xn,arch=14*xn2+8*xn2*xn2;
-  const northGate=-8*Math.exp(-(((x-150)/28)**2));
+  const northGate=this.northEntry?12*Math.exp(-(((x-195)/30)**2)):-8*Math.exp(-(((x-150)/28)**2));
   const waves=2.4*Math.sin(x*.042+.7)+1.4*Math.cos(x*.088);
   return 3+arch+northGate+waves;
  }
@@ -1720,6 +1737,25 @@ export class TrafficRenderer{
    face.position.set(x+facing*.36,3.55,z);
    face.renderOrder=2;
    this.scene.add(face);this.terrainGroup.push(face);
+  }
+ }
+ buildNorthPhuketBridge(details){
+  const x=195,start=0,end=this.coastNorth(x)+1.5,len=end-start,mid=(start+end)/2;
+  details.box('#cad2ce',x,-.042,mid,4.68,.11,len+.4);
+  details.box('#94a4a0',x,-.115,mid,3.65,.075,len);
+  // An off-map mainland approach makes the single entry read as a continuous highway.
+  details.box('#c9c8b5',x,.015,-9,4.0,.08,18);
+  details.box('#555957',x,.075,-9,3.72,.055,18);
+  for(const side of [-1,1]){
+   details.box('#eeeae0',x+side*2.18,.118,mid,.38,.14,len+.2);
+   details.box('#1f5d6e',x+side*2.38,.058,mid,.075,.16,len+.2);
+   details.box('#d8a84e',x+side*2.38,.145,mid,.085,.035,len+.2);
+   details.box('#f7f3e8',x+side*2.28,.365,mid,.062,.048,len+.2);
+   for(let z=.4;z<end;z+=.75)details.box('#e9e5d8',x+side*2.28,.24,z,.095,.26,.10);
+   for(let z=3;z<end-1;z+=4)details.box('#a7b1ae',x+side*1.15,-.30,z,.55,.40,.65);
+   details.box('#d6b36a',x+side*.035,.118,-9,.018,.012,18);
+   for(let lane=1;lane<4;lane++)for(let z=-17.7;z<0;z++)details.box('#f0ede4',x+side*lane*3.72/8,.118,z,.025,.012,.45);
+   details.box('#cfd0ca',x+side*1.86,.118,-9,.025,.012,18);
   }
  }
  buildPhuketSeaBridge(details){
@@ -1817,7 +1853,7 @@ export class TrafficRenderer{
   let uIdx=0;
   for(let i=0;i<beachContour.length;i+=3){
    const [bx,bz]=beachContour[i];
-   if(Math.abs(bz-150)<10||Math.abs(bx-150)<10)continue;
+   if(this.northEntry?Math.abs(bx-195)<8&&bz<30:Math.abs(bz-150)<10||Math.abs(bx-150)<10)continue;
    // Favor West Andaman bays (Mai Khao, Bang Tao, Kamala, Patong, Karon, Kata) and Southeast Chalong/Panwa bays
    const isWest=bx<155;
    if(hash(i,71)<(isWest?.26:.58))continue;
@@ -1901,7 +1937,8 @@ export class TrafficRenderer{
   mesh.renderOrder=kind==='wetSand'?-3:kind==='sand'?-2:kind==='grass'?-1:0;
   this.scene.add(mesh);this.terrainGroup.push(mesh);return mesh;
  }
- terrain(city){
+ terrain(city,northEntry=false){
+  this.northEntry=!!northEntry;
   if(this.terrainGroup)for(const mesh of this.terrainGroup){
    this.scene.remove(mesh);mesh.traverse(o=>{
     if(o.geometry&&!SHARED_RENDER_GEOMETRIES.includes(o.geometry))o.geometry.dispose();
@@ -1919,19 +1956,26 @@ export class TrafficRenderer{
   }
   this.terrainGroup=[];this.city=city;this.phuketLighthouseBeacon=null;
   const noise=this.landscapeNoiseMap,clock=this.landscapeClock;
-  const grass=landscapeMaterial(city,'grass',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform);
-  const water=new THREE.Mesh(new THREE.PlaneGeometry(3200,3200),landscapeWater(city,false,noise,clock));
+  const grass=landscapeMaterial(city,'grass',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform,this.northEntry);
+  const water=new THREE.Mesh(new THREE.PlaneGeometry(3200,3200),landscapeWater(city,false,noise,clock,this.northEntry));
   water.rotation.x=-Math.PI/2;water.position.set(150,-.26,150);water.receiveShadow=true;water.renderOrder=1;
   this.scene.add(water);this.terrainGroup.push(water);
   const strip=(points,a,b,material,y)=>this.groundShape([...points.map(([x,z])=>[x+a,z]),...points.slice().reverse().map(([x,z])=>[x+b,z])],material,y);
   if(city==='phuket'){
-   const sandMat=landscapeMaterial(city,'sand',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform),wetSandMat=landscapeMaterial(city,'wetSand',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform);
+   const sandMat=landscapeMaterial(city,'sand',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform,this.northEntry),wetSandMat=landscapeMaterial(city,'wetSand',noise,this.landscapeDetailUniform,this.mapSheetMaskUniform,this.northEntry);
    const islandFn=(x,z)=>this.islandOutward(x,z);
    this.groundShape(this.contourPolygon(198,150,2.2,islandFn,420,260),wetSandMat,-.12);
    this.groundShape(this.contourPolygon(198,150,1.05,islandFn,420,260),sandMat,-.105);
    this.groundShape(this.contourPolygon(198,150,-1.6,islandFn,420,260),grass,0);
    // The west gate stays x=0. Only the scenery extends 12 units past it;
    // two coastlines close the landform naturally without a straight cut edge.
+   if(this.northEntry){
+    const xs=Array.from({length:65},(_,i)=>163+i),factor=x=>Math.max(0,1-((x-195)/32)**2);
+    const land=offset=>[...xs.map(x=>[x,-16+18*factor(x)**1.25+offset*factor(x)]),...xs.slice().reverse().map(x=>[x,-16-24*factor(x)**.72-offset*factor(x)])];
+    this.groundShape(land(2.2),wetSandMat,-.12);
+    this.groundShape(land(1.05),sandMat,-.105);
+    this.groundShape(land(-1.6),grass,0);
+   }else{
    const phangNgaCoast=[];
    for(let z=120;z<=180;z+=1)phangNgaCoast.push([this.phangNgaShoreX(z),z]);
    const phangNgaLand=(offset)=>[
@@ -1941,6 +1985,7 @@ export class TrafficRenderer{
    this.groundShape(phangNgaLand(2.2),wetSandMat,-.12);
    this.groundShape(phangNgaLand(1.05),sandMat,-.105);
    this.groundShape(phangNgaLand(-1.6),grass,0);
+   }
    // Scenic Satellite Islands off Phuket (Koh He off Chalong Bay, Koh Maprao off East Coast & Koh Pu off Kata Beach)
    const kohHeFn=(x,z)=>Math.hypot((x-214)*.9,(z-326)*1.15)-16.5+1.8*Math.sin(x*.25+z*.2);
    this.groundShape(this.contourPolygon(214,326,2.2,kohHeFn,90,34),wetSandMat,-.12);
@@ -2022,8 +2067,17 @@ export class TrafficRenderer{
    }
   }
   if(city==='phuket'){
-   this.buildPhuketSeaBridge(details);
-   this.addPhangNgaWelcomeSign(details);
+   if(this.northEntry){
+    // The short north strait separates mainland Phang Nga from Phuket.
+    this.buildNorthPhuketBridge(details);
+    const signBatch=new Batch(),first=this.terrainGroup.length;
+    this.addPhangNgaWelcomeSign(signBatch);
+    for(const face of this.terrainGroup.slice(first)){const x=face.position.x,z=face.position.z;face.position.x=345-z;face.position.z=x;face.rotation.y-=Math.PI/2;}
+    const sign=signBatch.build();sign.rotation.y=-Math.PI/2;sign.position.x=345;this.scene.add(sign);this.terrainGroup.push(sign);
+   }else{
+    this.buildPhuketSeaBridge(details);
+    this.addPhangNgaWelcomeSign(details);
+   }
    const beachContour=this.contourPolygon(198,150,.3,((x,z)=>this.islandOutward(x,z)),300,260);
    this.decoratePhuketBeaches(details,beachContour);
    // Lighthouse beam appears only after dark; it does not affect pathfinding or collisions.
@@ -2048,7 +2102,7 @@ export class TrafficRenderer{
     const idx=Math.floor(hash(n,28)*beachContour.length),pt=beachContour[idx];
     const ang=idx/beachContour.length*TAU,off=8+hash(n,72)*19;
     const x=pt[0]+Math.cos(ang)*off,z=pt[1]+Math.sin(ang)*off;
-    if(Math.abs(z-150)<16&&x<135||x>=0&&x<this.phangNgaShoreX(z)+6&&Math.abs(z-150)<31)continue;
+    if(this.northEntry?Math.abs(x-195)<36&&z<28:Math.abs(z-150)<16&&x<135||x>=0&&x<this.phangNgaShoreX(z)+6&&Math.abs(z-150)<31)continue;
     const radius=.75+hash(n,33)*1.45;
     for(let l=0;l<3;l++){
      const a=l*2.39996+hash(n,9)*TAU,dist=l===0?0:radius*(.35+.2*hash(l,n));
@@ -2066,6 +2120,7 @@ export class TrafficRenderer{
    }
    // Keep a few trees on the returned land; none blocks the west access road (z=150).
    for(let n=0;n<12;n++){
+    if(this.northEntry){const x=195+(n<6?-1:1)*(7+hash(n,43)*12),z=-13-hash(n,17)*10;this.tree(details,x,z,.72+hash(n,61)*.32,n%3?'palm':'rain','far',n%4);continue;}
     const z=n<6?130+hash(n,43)*11:159+hash(n,43)*11;
     const coast=this.phangNgaShoreX(z),x=2+hash(n,17)*Math.max(0,coast-5);
     if(x>=coast-1.7)continue;
@@ -3476,8 +3531,8 @@ export class TrafficRenderer{
   const model=new Batch(),lights=new Batch();
   for(let n=0;n<state.gates.length;n++){
    const node=state.gates[n],baseX=node%300,baseZ=Math.floor(node/300);
-   const inward=[[0,1],[-1,0],[0,-1],[1,0]][n];
-   const normal=[-inward[1],inward[0]],angle=n%2?Math.PI/2:0;
+   const inward=baseZ===0?[0,1]:baseX===299?[-1,0]:baseZ===299?[0,-1]:[1,0];
+   const normal=[-inward[1],inward[0]],angle=inward[0]?Math.PI/2:0;
    const place=(side,forward)=>({x:baseX+normal[0]*side+inward[0]*forward,
     z:baseZ+normal[1]*side+inward[1]*forward});
    const box=(batch,color,side,forward,y,width,height,depth,lit=false)=>{
@@ -9990,7 +10045,7 @@ export class TrafficRenderer{
   lines(edgePoints,'#ecf4e9',.21);
   lines(freeEdges,'#c2f4d1',.42);
  }
- render({state,cam,mapCover,hover,drag,roadPreview,demolitionPreview=null,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true,planningCoverage=null}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city);this.lastState=state;this.roadKey='';this.buildKey='';}this.updateMapCover(mapCover,state);
+ render({state,cam,mapCover,hover,drag,roadPreview,demolitionPreview=null,tool,selected,heat,debug,follow,CATALOG,ROADS,KINDS,junction,vehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking,showCarDiamonds=true,planningCoverage=null}){this.parking=parking;this.updateCamera(cam);if(this.city!==state.city||this.lastState!==state){this.terrain(state.city,state.entryLayout==='north-single-v1');this.lastState=state;this.roadKey='';this.buildKey='';}this.updateMapCover(mapCover,state);
  // Fade distant one-pixel sheet boundaries to prevent subpixel crawling.
  if(this.mapCoverGroup){const fade=.25+.75*Math.max(0,Math.min(1,(cam.z-.23)/.45));for(const line of this.mapCoverGroup.children)if(line.userData.mapCoverBaseOpacity!=null)line.material.opacity=line.userData.mapCoverBaseOpacity*fade;}
  const buildKey=state.buildings.size+':'+(state.buildingVisualVersion||0);
