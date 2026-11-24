@@ -3230,6 +3230,81 @@ function trackingEndpoint(v,origin=false){
 }
 let canvasCarMarkerHits=[];
 let carStatusDiamondsVisible=true;
+
+const BUILDING_CAPACITY_EMOJIS=Object.freeze({home:'🏠',office:'🏢',factory:'🏭',shop:'🛒',restaurant:'🍴',mall:'🛍️',park:'🌳',pub:'🎵',casino:'♠️',hotel:'🏨'});
+// Full means no unreserved capacity anywhere in the category, not just one building.
+function fullBuildingCapacityKinds(buildings,catalog){
+ const totals=Object.create(null);
+ for(const b of buildings){
+  const t=catalog[b.key],kind=t?.kind;
+  if(!Object.hasOwn(BUILDING_CAPACITY_EMOJIS,kind))continue;
+  const capacity=kind==='home'?t.residents:kind==='hotel'?t.beds:kind==='office'||kind==='factory'?t.jobs:t.service;
+  if(!(capacity>0))continue;
+  const used=kind==='home'?(b.residents?.size||0)+(b.reservedResidents||0):kind==='hotel'?(b.guests?.size||0):kind==='office'||kind==='factory'?(b.workers?.size||0):(b.visitors?.size||0)+(b.reservedService||0);
+  const total=totals[kind]||(totals[kind]={capacity:0,used:0});
+  total.capacity+=capacity;total.used+=Math.min(capacity,Math.max(0,used));
+ }
+ return new Set(Object.keys(totals).filter(k=>totals[k].capacity>0&&totals[k].used>=totals[k].capacity));
+}
+
+ // One transparent canvas and ten reusable sprites: no per-building DOM or 3D meshes.
+ let capacityMoodLayer=null,capacityMoodContext=null,capacityMoodOwner=null,capacityMoodAt=-Infinity,capacityMoodLayout='',capacityMoodAnchors=[],capacityMoodProjection='',capacityMoodPoints=[];
+ const capacityMoodSprites=new Map();
+ function hideBuildingCapacityMood(){
+  if(capacityMoodLayer)capacityMoodLayer.hidden=true;
+  capacityMoodAt=-Infinity;
+ }
+ function capacityMoodSprite(kind){
+  if(capacityMoodSprites.has(kind))return capacityMoodSprites.get(kind);
+  const sprite=document.createElement('canvas');sprite.width=sprite.height=96;
+  const c=sprite.getContext('2d');if(!c)return null;
+  c.font='58px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  c.textAlign='center';c.textBaseline='middle';c.fillText(BUILDING_CAPACITY_EMOJIS[kind],48,31);
+  c.fillStyle='#e53935';c.strokeStyle='#fff5f5';c.lineWidth=3;
+  c.beginPath();c.roundRect(36,58,24,32,7);c.fill();c.stroke();
+  c.strokeStyle='#ffffff99';c.lineWidth=2;
+  for(const y of [68,77]){c.beginPath();c.moveTo(42,y);c.lineTo(54,y);c.stroke();}
+  capacityMoodSprites.set(kind,sprite);return sprite;
+ }
+ function updateBuildingCapacityMood(){
+  if(!carStatusDiamondsVisible||heat||typeof document.createElement!=='function'){hideBuildingCapacityMood();return;}
+  const now=performance.now(),layout=(state.buildingVisualVersion||0)+':'+state.buildings.size;
+  if(capacityMoodOwner!==state||capacityMoodLayout!==layout||now-capacityMoodAt>=180){
+   capacityMoodOwner=state;capacityMoodLayout=layout;capacityMoodAt=now;
+   const full=fullBuildingCapacityKinds(state.buildings.values(),CATALOG),anchors=[];
+   if(full.size)for(const b of state.buildings.values()){
+    const t=CATALOG[b.key];if(!t||!full.has(t.kind))continue;
+    const m=lotModel(b),size=m.visualSize||t.size;
+    let x=m.x+size/2,z=m.y+size/2;
+    let height=renderer3d?(t.kind==='office'?t.size*1.15+.7:t.kind==='park'?.85:t.kind==='home'?t.size*.62+1.2:t.size*.55+1)*18:t.kind==='office'?size*8+4:t.kind==='park'?12:t.kind==='home'?size*4+11:t.kind==='mall'?size*4+4:t.kind==='factory'?size*3.5+12:['restaurant','pub'].includes(t.kind)?size*3.5+8:size*3.5+4;
+    if(renderer3d&&b.key.startsWith('home_mahanakhon')){const p=lotPoint(b,t.plotWidth/2,t.plotHeight/2);x=p.x-.5;z=p.y-.5;height=11.8*18;}
+    anchors.push({x,z,height,kind:t.kind});
+   }
+   capacityMoodAnchors=anchors;capacityMoodProjection='';
+  }
+  if(!capacityMoodAnchors.length){if(capacityMoodLayer)capacityMoodLayer.hidden=true;return;}
+  if(!capacityMoodLayer){
+   const layer=document.createElement('canvas'),context=layer.getContext('2d');if(!context)return;
+   layer.setAttribute('aria-hidden','true');
+   Object.assign(layer.style,{position:'absolute',inset:'0',width:'100%',height:'100%',pointerEvents:'none'});
+   canvas.insertAdjacentElement('afterend',layer);capacityMoodLayer=layer;capacityMoodContext=context;
+  }
+  const layer=capacityMoodLayer,c=capacityMoodContext,dpr=Math.min(1.5,view.dpr||1),w=Math.round(view.w*dpr),h=Math.round(view.h*dpr);
+  if(layer.width!==w||layer.height!==h){layer.width=w;layer.height=h;}
+  const key=[cam.x,cam.y,cam.z,cam.angle,cam.elevation,view.w,view.h,renderer3d?.cameraViewVersion].join(':');
+  if(key!==capacityMoodProjection){
+   capacityMoodProjection=key;capacityMoodPoints=[];
+   for(const a of capacityMoodAnchors){
+    const p=screen(a.x,a.z,a.height);
+    if(Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=-32&&p[0]<=view.w+32&&p[1]>=-32&&p[1]<=view.h+48)capacityMoodPoints.push({x:p[0],y:p[1],kind:a.kind});
+   }
+  }
+  if(!capacityMoodPoints.length){layer.hidden=true;return;}
+  layer.hidden=false;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,view.w,view.h);
+  const size=Math.min(18,Math.max(12,cam.z*12))*(renderer3d?1.55:1.25),bounce=(1+Math.sin(now*.005))*1.1;
+  for(const p of capacityMoodPoints){const sprite=capacityMoodSprite(p.kind);if(sprite)c.drawImage(sprite,p.x-size/2,p.y-size-2-bounce,size,size);}
+ }
+
 function drawCarIndicators2D(){
  canvasCarMarkerHits=[];
  const add=(pose,v,cid,buildingId=null)=>{
@@ -4012,7 +4087,7 @@ function updateAISignalPins(){
 function draw(){updateMapBuyPin();updateLandscapeQuickActions();normalizeSelectedCar();const roadPreview=getRoadPreview(),placement=hover&&CATALOG[tool]?assistedBuildingPlacement(tool,hover.x,hover.y):null,visualHover=placement?{...hover,x:placement.x,y:placement.y,placement}:hover,demolitionPreview=getDemolitionPreview();
  // An invalid active road stroke warns once; mere hovering never spams a toast.
  if(drag&&!drag.pan&&ROADS[tool]&&roadPreview?.error===HOME_SIDE_CLEARANCE_ERROR&&!drag.sideGapNoticeShown){drag.sideGapNoticeShown=true;toast(HOME_SIDE_CLEARANCE_ERROR);}
-if(renderer3d){renderer3d.render({state,cam,mapCover:mapCoverPreview(),hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition:visualVehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible,planningCoverage:planningCoverageData(visualHover)});updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawMapCover2D(mapCoverPreview());drawPlanningCoverage2D(planningCoverageData(visualHover),'ground');drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
+if(renderer3d){renderer3d.render({state,cam,mapCover:mapCoverPreview(),hover:visualHover,drag,roadPreview,demolitionPreview,tool,selected,heat,debug,follow:tool==='tracking'?null:follow,CATALOG,ROADS,KINDS,junction,vehiclePosition:visualVehiclePosition,vehicleTimeliness,signalColor,checkBuilding,parking:{roadsideVisuals,buildingBounds,lotPoint,lotSlots,lotModel,parkingVisuals,parkingSlotPose,parkingIsMoving,citizenCarColor},showCarDiamonds:carStatusDiamondsVisible,planningCoverage:planningCoverageData(visualHover)});updateBuildingCapacityMood();updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();return;}drawTerrain();drawMapCover2D(mapCoverPreview());drawPlanningCoverage2D(planningCoverageData(visualHover),'ground');drawPlantedTrees2D();drawRoads();if(roadPreview)drawRoads(roadPreview.state,roadPreview.junction.details);const bs=[...state.buildings.values()].sort((a,b)=>a.y-b.y||a.x-b.x);for(const b of bs)drawBuilding(b);if(!heat){drawVehicles();drawCarIndicators2D();}updateBuildingCapacityMood();updatePlaceLabels();updateRouteWarnings();updateRoadJoinWarnings();updateTrackingOverlay();updateIncidentMarkers();updateBuildingQuickActions();updateAISignalPins();
 drawPlanningCoverage2D(planningCoverageData(visualHover),'highlights');
  drawDemolitionPreview2D(demolitionPreview);
 if(hover&&tool!=='hand'&&!ROADS[tool]){if(CATALOG[tool])drawBuilding({key:tool,x:visualHover.x,y:visualHover.y,rotation:placement.rotation||0},true);else if(!demolitionPreview){const cells=drag?.cells||[owner(id(hover.x,hover.y))];for(const i of cells){const [x,y]=xy(i),s=screen(x,y);ctx.fillStyle=tool.startsWith('erase')?'#df7e6c99':'#fbe3989c';ctx.fillRect(s[0],s[1],T*cam.z,T*cam.z*.78);}}}
@@ -9403,17 +9478,17 @@ function syncCarStatusDiamondVisibility(){
  if(!button)return;
  button.classList.toggle('is-hidden',hidden);
  button.setAttribute('aria-pressed',String(carStatusDiamondsVisible));
- button.setAttribute('aria-label',hidden?'แสดงสถานะรถและเอฟเฟกต์ภารกิจ':'ซ่อนสถานะรถและเอฟเฟกต์ภารกิจ');
- button.title=hidden?'แสดงสถานะรถและหัวใจ/หน้าโกรธจากภารกิจ':'ซ่อนสถานะรถและหัวใจ/หน้าโกรธจากภารกิจ';
+ button.setAttribute('aria-label',hidden?'แสดงสถานะรถ อาคาร และเอฟเฟกต์ภารกิจ':'ซ่อนสถานะรถ อาคาร และเอฟเฟกต์ภารกิจ');
+ button.title=hidden?'แสดงสถานะรถ อาคาร และหัวใจ/หน้าโกรธจากภารกิจ':'ซ่อนสถานะรถ อาคาร และหัวใจ/หน้าโกรธจากภารกิจ';
  const caption=$('toggleCarDiamondsText');
- if(caption)caption.textContent=hidden?'สถานะรถ':'ซ่อนสถานะ';
+ if(caption)caption.textContent=hidden?'สถานะอีโมจิ':'ซ่อนสถานะ';
  // Do not change trips, tracking, incident warnings or selected car outline.
  if(renderer3d&&hidden&&renderer3d.carMarkerMesh){
   renderer3d.carMarkerMesh.count=0;
   renderer3d.carMarkerMesh.visible=false;
   renderer3d.carIndicatorHits=[];
  }
- if(hidden){canvasCarMarkerHits=[];clearMissionMoodFlights();}
+ if(hidden){canvasCarMarkerHits=[];clearMissionMoodFlights();hideBuildingCapacityMood();}
 }
 const diamondToggle=$('toggleCarDiamonds');
 if(diamondToggle){diamondToggle.onclick=toggleCarStatusDiamonds;syncCarStatusDiamondVisibility();}
