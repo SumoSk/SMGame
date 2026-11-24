@@ -1901,7 +1901,7 @@ movingLandscape=null;parkingMerges=[];oppositeExitPairSince.clear();incidentCase
 nextAISignalPoll=-Infinity;
 state={city,mapExpansion:newMapExpansion(city,!legacy),buildingQuota:{},demandNotices:{pending:{},acknowledged:{}},money:500000,cityLevel:newCityLevel(),deliveryRun:null,intercityHour:null,intercityRouteCache:null,vehicleTechLevels:freshVehicleTechLevels(),time:360,incidentRewards:{day:0,count:0},speed:1,roads:new Map(),buildings:new Map(),citizens:new Map(),vehicles:new Map(),signals:new Map(),signalDefaults:{eastWest:6,northSouth:6},footprint:new Int32Array(W*H).fill(-1),buildGrid:new Int32Array(W*H).fill(-1),nextId:1,profileSeq:0,version:0,routeCache:new Map(),occ:new Map(),reservations:new Map(),events:[],lastMinute:359,lastDay:0,lastImmigration:0,lastPass:0,stats:{},alerts:[],roadChanges:[],activeTraffic:new Set(),junctionCache:new Map(),skip:false};
 ensurePerformance();state.plantedTrees=[];state.hiddenAutoTrees=[];state.landscapeVersion=0;missionAutoClose();state.missionStats=newMissionStats();
-const initial=initialRoadGraph(city,legacy);state.roads=initial.roads;state.gates=initial.gates;state.entryLayout=initial.entryLayout;rebuildFootprint();cam={x:149,y:149,z:innerWidth<700?.94:1.24,angle:Math.PI/4,elevation:Math.PI*50/180};selected=null;follow=null;news=[];tool='hand';movingBuildingId=null;$('cancelMoveBuilding').hidden=true;hideCitizenDashboard();hideTouristDashboard();touristSearch='';touristPage=0;touristDashboardAt=0;touristFilter='all';citizenFilter='all';citizenSearch='';citizenPage=0;if($('citizenSearch'))$('citizenSearch').value='';$('inspector').classList.add('hidden');$('cityName').textContent=CITIES[city].name;$('citySub').textContent=CITIES[city].sub;$('mapLabel').innerHTML=CITIES[city].en+'<small>'+'THAILAND'+' · สร้างเมืองในแบบคุณ</small>';addNews('เริ่มเมืองใหม่ เชื่อมถนน สร้างบ้าน และสร้างงาน');updateUI();renderTools();}
+const initial=initialRoadGraph(city,legacy);state.roads=initial.roads;state.gates=initial.gates;state.entryLayout=initial.entryLayout;state.entryConnectionV2=!legacy;rebuildFootprint();cam={x:149,y:149,z:innerWidth<700?.94:1.24,angle:Math.PI/4,elevation:Math.PI*50/180};selected=null;follow=null;news=[];tool='hand';movingBuildingId=null;$('cancelMoveBuilding').hidden=true;hideCitizenDashboard();hideTouristDashboard();touristSearch='';touristPage=0;touristDashboardAt=0;touristFilter='all';citizenFilter='all';citizenSearch='';citizenPage=0;if($('citizenSearch'))$('citizenSearch').value='';$('inspector').classList.add('hidden');$('cityName').textContent=CITIES[city].name;$('citySub').textContent=CITIES[city].sub;$('mapLabel').innerHTML=CITIES[city].en+'<small>'+'THAILAND'+' · สร้างเมืองในแบบคุณ</small>';addNews('เริ่มเมืองใหม่ เชื่อมถนน สร้างบ้าน และสร้างงาน');updateUI();renderTools();}
 // Independent opt-in showcase: do not alter existing city presets or saves.
 // New-city preset only. reset() remains the empty simulation initializer used
 // by save loading; saved roads, buildings, citizens and camera are restored as-is.
@@ -9979,7 +9979,7 @@ $('inspectContent').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)
  if(a==='tow'){removeSelectedVehicle(v);return;}
 if(a==='reroute'){const car=state.vehicles.get(v),ok=car?.phase==='stuck'?recoverVehicle(car,true):car?checkDepartureRoute(car):false;toast(ok?'พบเส้นทางแล้ว จะออกเดินทางเมื่อถนนว่าง':'ยังไม่มีเส้นทางที่ไปต่อได้ค่ะ');renderInspector();}if(a==='citizen'){selected={kind:'citizen',id:v};renderInspector();}if(a==='tourist-dashboard'){category='tourists';selectTool('touristDashboard');return;}if(a==='follow'){follow=follow===v?null:v;renderInspector();}if(a==='move-building'){beginMoveBuilding(v);return;}if(a==='demolish')demolishBuilding(state.buildings.get(v));if(a==='heat')toggleTrafficHeat();};
 
-function snapshot(){return JSON.stringify({format:2,entryLayout:state.entryLayout,trafficPairStats:trafficPairSnapshot(),mapExpansion:{opened:[...state.mapExpansion.opened],purchased:state.mapExpansion.purchased},performance:ensurePerformance(),cityLevel:ensureCityLevel(),buildingQuota:state.buildingQuota,demandNotices:state.demandNotices,intercityHour:state.intercityHour,deliveryRun:state.deliveryRun,vehicleTechUnit:'cars',vehicleTechLevels:state.vehicleTechLevels,morningPlanningDay:state.morningPlanningDay,parkingVersion:PARKING_VERSION,missionStats:state.missionStats,city:state.city,money:state.money,incidentRewards:state.incidentRewards,time:state.time,nextId:state.nextId,profileSeq:state.profileSeq,tourism:state.tourism,plantedTrees:state.plantedTrees,hiddenAutoTrees:state.hiddenAutoTrees,autoTreeRotations:state.autoTreeRotations||{},nextTouristAt:state.nextTouristAt,roads:[...state.roads].map(([i,r])=>[i,{...r,links:[...r.links]}]),buildings:[...state.buildings].map(([i,b])=>[i,{...b,residents:[...b.residents],workers:[...b.workers],visitors:[...b.visitors],parked:[...b.parked],guests:[...(b.guests||[])]}]),citizens:[...state.citizens].map(([i,c])=>[i,{...c,scheduled:[...c.scheduled],failKinds:[...c.failKinds]}]),vehicles:[...state.vehicles].map(([i,v])=>[i,{...v,pathSet:[...v.pathSet]}]),signals:[...state.signals],signalDefaults:state.signalDefaults,events:state.events,cam,news});}
+function snapshot(){return JSON.stringify({format:2,entryLayout:state.entryLayout,entryConnectionV2:state.entryConnectionV2===true,trafficPairStats:trafficPairSnapshot(),mapExpansion:{opened:[...state.mapExpansion.opened],purchased:state.mapExpansion.purchased},performance:ensurePerformance(),cityLevel:ensureCityLevel(),buildingQuota:state.buildingQuota,demandNotices:state.demandNotices,intercityHour:state.intercityHour,deliveryRun:state.deliveryRun,vehicleTechUnit:'cars',vehicleTechLevels:state.vehicleTechLevels,morningPlanningDay:state.morningPlanningDay,parkingVersion:PARKING_VERSION,missionStats:state.missionStats,city:state.city,money:state.money,incidentRewards:state.incidentRewards,time:state.time,nextId:state.nextId,profileSeq:state.profileSeq,tourism:state.tourism,plantedTrees:state.plantedTrees,hiddenAutoTrees:state.hiddenAutoTrees,autoTreeRotations:state.autoTreeRotations||{},nextTouristAt:state.nextTouristAt,roads:[...state.roads].map(([i,r])=>[i,{...r,links:[...r.links]}]),buildings:[...state.buildings].map(([i,b])=>[i,{...b,residents:[...b.residents],workers:[...b.workers],visitors:[...b.visitors],parked:[...b.parked],guests:[...(b.guests||[])]}]),citizens:[...state.citizens].map(([i,c])=>[i,{...c,scheduled:[...c.scheduled],failKinds:[...c.failKinds]}]),vehicles:[...state.vehicles].map(([i,v])=>[i,{...v,pathSet:[...v.pathSet]}]),signals:[...state.signals],signalDefaults:state.signalDefaults,events:state.events,cam,news});}
 // Compact, lossless cloud saves. Old uncompressed saves still load unchanged.
 const SM_CITY_COMPRESSION='smcity-gzip-json-v1';
 async function encodeCloudCity(raw){
@@ -10344,7 +10344,98 @@ function migrateLegacyPhuketEntrance(s){
   // restoring lane reservations from routes that referenced removed gates.
   vehicles:[]};
 }
-function loadGame(silent=false,slotId=null,rawOverride=null){const previous={state,cam,news};try{const slots=rawOverride===null?readSaveSlots():[],slot=slotId?slots.find(s=>s.id===slotId):slots[0],raw=rawOverride??slot?.data;if(!raw){if(!silent)toast('ยังไม่มีเมืองที่บันทึกไว้ค่ะ');return false;}let s=JSON.parse(raw);validateSave(s);const legacyEntrance=s.city==='phuket'&&s.entryLayout!==PHUKET_NORTH_ENTRY;reset(s.city,false);if(legacyEntrance){s=migrateLegacyPhuketEntrance(s);validateSave(s);}state.intercityHour=s.intercityHour&&Number.isInteger(s.intercityHour.hour)&&Number.isInteger(s.intercityHour.total)&&s.intercityHour.total>=0&&Number.isInteger(s.intercityHour.next)&&s.intercityHour.next>=0&&s.intercityHour.next<=s.intercityHour.total?{hour:s.intercityHour.hour,total:s.intercityHour.total,next:s.intercityHour.next,offset:Math.floor(s.intercityHour.offset||0)%4}:null;state.deliveryRun=s.deliveryRun&&Number.isInteger(s.deliveryRun.night)&&Array.isArray(s.deliveryRun.plan)&&Number.isInteger(s.deliveryRun.next)&&s.deliveryRun.plan.length<=3000?{...s.deliveryRun,next:Math.max(0,Math.min(s.deliveryRun.plan.length,s.deliveryRun.next)),delivered:s.deliveryRun.delivered||{}}:null;state.money=s.money;state.vehicleTechLevels=normalizedVehicleTechLevels(s.vehicleTechLevels,s.vehicleTechUnit,s.citizens);state.time=s.time;state.morningPlanningDay=s.morningPlanningDay;const savedRewards=s.incidentRewards||{};state.incidentRewards={day:Math.floor(s.time/1440),count:savedRewards.day===Math.floor(s.time/1440)&&Number.isFinite(savedRewards.count)?Math.max(0,Math.min(INCIDENT_REWARD_DAILY_LIMIT,Math.floor(savedRewards.count))):0};state.nextId=s.nextId;state.profileSeq=s.profileSeq??s.citizens.length;state.lastImmigration=s.time;state.lastPass=s.time;state.tourism=s.tourism;state.plantedTrees=(s.plantedTrees||[]).filter(t=>!RETIRED_DECOR_KINDS.includes(t.kind));state.hiddenAutoTrees=s.hiddenAutoTrees||[];state.autoTreeRotations=s.autoTreeRotations||{};state.landscapeVersion=0;state.nextTouristAt=s.nextTouristAt||s.time+3;state.missionStats=restoreMissionStats(s.missionStats);missionAutoClose();state.roads=new Map(s.roads.map(([i,r])=>[i,{...r,links:new Set(r.links)}]));state.buildings=new Map(s.buildings.map(([i,b])=>[i,{...b,residents:new Set(b.residents),workers:new Set(b.workers),visitors:new Set(b.visitors),parked:new Set(b.parked),guests:new Set(b.guests||[]),moveOutCooldowns:Array.isArray(b.moveOutCooldowns)?b.moveOutCooldowns.filter(expiry=>Number.isFinite(expiry)&&expiry>s.time).slice(0,CATALOG[b.key]?.residents||0):[]}]));// Preserve old civic plots, parked cars and active trips without shrinking old saves.
+
+// Repair the disconnected approach on both original and already migrated saves.
+// Use the normal construction validator against a temporary graph, never move
+// a building or change money, and persist the repair marker on the next save.
+function repairLegacyPhuketConnection(s){
+ if(s.entryConnectionV2===true)return s;
+ const roads=new Map(s.roads.map(([n,r])=>[n,{...r,links:new Set(r.links)}]));
+ const gate=id(PHUKET_ENTRY_X,0);
+ if(!roads.has(gate))return s;
+ const legacyNodes=[...roads].filter(([n,r])=>{const [x,y]=xy(n);return r.main&&r.type==='large'&&(x===150||y===150);}).map(([n])=>n);
+ if(!legacyNodes.length)return {...s,entryConnectionV2:true};
+ const component=(start,seen=new Set())=>{
+  const list=[start];seen.add(start);
+  for(let i=0;i<list.length;i++)for(const n of roads.get(list[i])?.links||[])
+   if(!seen.has(n)&&roads.get(n)?.links.has(list[i])){seen.add(n);list.push(n);}
+  return list;
+ };
+ const gateNodes=component(gate),gateSet=new Set(gateNodes),seen=new Set(gateNodes),groups=[];
+ const accessCounts=new Map();
+ for(const [,b] of s.buildings)for(const a of b.access||[]){
+  const n=typeof a==='number'?a:a?.node;
+  if(roads.has(n))accessCounts.set(n,(accessCounts.get(n)||0)+1);
+ }
+ const score=nodes=>nodes.reduce((n,k)=>n+(accessCounts.get(k)||0),0);
+ for(const n of legacyNodes)if(!seen.has(n)){const nodes=component(n,seen);groups.push({nodes,score:score(nodes)});}
+ groups.sort((a,b)=>b.score-a.score||b.nodes.length-a.nodes.length);
+ if(!groups.length)return {...s,entryConnectionV2:true};
+ const city=groups[0],gateHasOld=legacyNodes.some(n=>gateSet.has(n));
+ if(gateHasOld&&score(gateNodes)>=city.score&&gateNodes.length>=city.nodes.length)return {...s,entryConnectionV2:true};
+ const sources=gateNodes.filter(n=>n!==gate&&roads.get(n).links.size===1&&!isPhuketWaterTile(...xy(n)));
+ if(!sources.length)return s;
+ const targets=city.nodes.filter(n=>roads.get(n).type!=='small'&&roads.get(n).links.size<=2&&!isPhuketWaterTile(...xy(n))&&!accessCounts.has(n));
+ const live=state,allSheets=new Set();
+ for(let y=0;y<MAP_SHEET_COLUMNS;y++)for(let x=0;x<MAP_SHEET_COLUMNS;x++)allSheets.add(mapSheetId(x,y));
+ const temporary={...live,roads,buildings:new Map(s.buildings),footprint:new Int32Array(W*H).fill(-1),buildGrid:new Int32Array(W*H).fill(-1),homeSideRoadFootprint:new Uint8Array(W*H),mapExpansion:{opened:allSheets},money:Number.MAX_SAFE_INTEGER};
+ let chosen=null;
+ const occupied=new Set();
+ for(const [,b] of s.buildings){
+  const bounds=savedBuildingBounds(b);
+  for(let y=b.y;y<b.y+bounds.h;y++)for(let x=b.x;x<b.x+bounds.w;x++)if(valid(x,y)){const n=id(x,y);temporary.buildGrid[n]=b.id??0;occupied.add(n);}
+ }
+ const planted=new Set((s.plantedTrees||[]).map(t=>id(Math.floor(t.x),Math.floor(t.y))));
+ const line=(a,b)=>{
+  const [x,y]=xy(a),[u,v]=xy(b),dx=Math.sign(u-x),dy=Math.sign(v-y);
+  if(dx&&dy)return [];
+  return Array.from({length:Math.max(Math.abs(u-x),Math.abs(v-y))+1},(_,k)=>id(x+k*dx,y+k*dy));
+ };
+ const joinPath=(a,b,c)=>[...line(a,b),...line(b,c).slice(1)];
+ const fits=(path,type)=>{
+  if(path.length<2||new Set(path).size!==path.length)return false;
+  // Do not convert any existing street, touch the water, buildings or planted
+  // decorations. Only the two selected endpoints may be existing road nodes.
+  if(path.slice(1,-1).some(n=>roads.has(n)||roadVisualCoveredCells(n,type).some(k=>occupied.has(k)||planted.has(k)||isPhuketWaterTile(...xy(k)))))return false;
+  if(ROADS[roads.get(path[0]).type].lanes<ROADS[type].lanes||ROADS[roads.get(path.at(-1)).type].lanes<ROADS[type].lanes)return false;
+  return !checkRoad(path,type).error;
+ };
+ try{
+  state=temporary;rebuildFootprint();
+  const pairs=[];
+  for(const a of sources)for(const b of targets){
+   const [x,y]=xy(a),[u,v]=xy(b);
+   pairs.push({a,b,d:Math.abs(x-u)+Math.abs(y-v)});
+  }
+  pairs.sort((a,b)=>a.d-b.d||a.a-b.a||a.b-b.b);
+  for(const {a,b} of pairs){
+   const [x,y]=xy(a),[u,v]=xy(b);
+   const paths=x===u||y===v?[line(a,b)]:[joinPath(a,id(x,v),b),joinPath(a,id(u,y),b)];
+   for(const path of paths){
+    const straight=x===u||y===v;
+    // Preserve eight lanes on a straight highway-to-highway connection;
+    // use medium roads for bends or smaller compatible destinations.
+    for(const type of straight?['large','medium']:['medium']){
+     if(fits(path,type)){chosen={path,type};break;}
+    }
+    if(chosen)break;
+   }
+   if(chosen)break;
+  }
+ }finally{state=live;}
+ if(!chosen)return s;
+ const {path,type}=chosen;
+ for(const n of path)if(!roads.has(n))roads.set(n,{type,main:false,links:new Set(),load:0,wait:0});
+ for(let i=1;i<path.length;i++){roads.get(path[i-1]).links.add(path[i]);roads.get(path[i]).links.add(path[i-1]);}
+ if(!component(gate).includes(path.at(-1)))return s;
+ const opened=new Set(s.mapExpansion?.opened||[]);
+ for(const n of path)for(const k of roadVisualCoveredCells(n,roads.get(n).type)){
+  const [x,y]=xy(k);opened.add(mapSheetId(Math.floor(x/MAP_SHEET_SIZE),Math.floor(y/MAP_SHEET_SIZE)));
+ }
+ return {...s,entryConnectionV2:true,roads:[...roads].map(([n,r])=>[n,{...r,links:[...r.links]}]),vehicles:[],
+  ...(s.mapExpansion?{mapExpansion:{...s.mapExpansion,opened:[...opened]}}:{})};
+}
+function loadGame(silent=false,slotId=null,rawOverride=null){const previous={state,cam,news};try{const slots=rawOverride===null?readSaveSlots():[],slot=slotId?slots.find(s=>s.id===slotId):slots[0],raw=rawOverride??slot?.data;if(!raw){if(!silent)toast('ยังไม่มีเมืองที่บันทึกไว้ค่ะ');return false;}let s=JSON.parse(raw);validateSave(s);const legacyEntrance=s.city==='phuket'&&s.entryLayout!==PHUKET_NORTH_ENTRY;reset(s.city,false);if(legacyEntrance){s=migrateLegacyPhuketEntrance(s);validateSave(s);}s=repairLegacyPhuketConnection(s);validateSave(s);state.entryConnectionV2=s.entryConnectionV2===true;state.intercityHour=s.intercityHour&&Number.isInteger(s.intercityHour.hour)&&Number.isInteger(s.intercityHour.total)&&s.intercityHour.total>=0&&Number.isInteger(s.intercityHour.next)&&s.intercityHour.next>=0&&s.intercityHour.next<=s.intercityHour.total?{hour:s.intercityHour.hour,total:s.intercityHour.total,next:s.intercityHour.next,offset:Math.floor(s.intercityHour.offset||0)%4}:null;state.deliveryRun=s.deliveryRun&&Number.isInteger(s.deliveryRun.night)&&Array.isArray(s.deliveryRun.plan)&&Number.isInteger(s.deliveryRun.next)&&s.deliveryRun.plan.length<=3000?{...s.deliveryRun,next:Math.max(0,Math.min(s.deliveryRun.plan.length,s.deliveryRun.next)),delivered:s.deliveryRun.delivered||{}}:null;state.money=s.money;state.vehicleTechLevels=normalizedVehicleTechLevels(s.vehicleTechLevels,s.vehicleTechUnit,s.citizens);state.time=s.time;state.morningPlanningDay=s.morningPlanningDay;const savedRewards=s.incidentRewards||{};state.incidentRewards={day:Math.floor(s.time/1440),count:savedRewards.day===Math.floor(s.time/1440)&&Number.isFinite(savedRewards.count)?Math.max(0,Math.min(INCIDENT_REWARD_DAILY_LIMIT,Math.floor(savedRewards.count))):0};state.nextId=s.nextId;state.profileSeq=s.profileSeq??s.citizens.length;state.lastImmigration=s.time;state.lastPass=s.time;state.tourism=s.tourism;state.plantedTrees=(s.plantedTrees||[]).filter(t=>!RETIRED_DECOR_KINDS.includes(t.kind));state.hiddenAutoTrees=s.hiddenAutoTrees||[];state.autoTreeRotations=s.autoTreeRotations||{};state.landscapeVersion=0;state.nextTouristAt=s.nextTouristAt||s.time+3;state.missionStats=restoreMissionStats(s.missionStats);missionAutoClose();state.roads=new Map(s.roads.map(([i,r])=>[i,{...r,links:new Set(r.links)}]));state.buildings=new Map(s.buildings.map(([i,b])=>[i,{...b,residents:new Set(b.residents),workers:new Set(b.workers),visitors:new Set(b.visitors),parked:new Set(b.parked),guests:new Set(b.guests||[]),moveOutCooldowns:Array.isArray(b.moveOutCooldowns)?b.moveOutCooldowns.filter(expiry=>Number.isFinite(expiry)&&expiry>s.time).slice(0,CATALOG[b.key]?.residents||0):[]}]));// Preserve old civic plots, parked cars and active trips without shrinking old saves.
  restoreMapExpansion(s.mapExpansion);
  if(legacyEntrance&&!s.mapExpansion)for(let y=0;y<=150-PHUKET_START_SHIFT;y++){const x=PHUKET_ENTRY_X;if(state.roads.has(id(x,y))&&!isPhuketWaterTile(x,y))state.mapExpansion.opened.add(mapSheetId(Math.floor(x/MAP_SHEET_SIZE),Math.floor(y/MAP_SHEET_SIZE)));}
  for(const b of state.buildings.values())if(b.key==='civic_starter'&&b.parkingSlots.length===60)b.key='civic_legacy';
