@@ -3311,7 +3311,7 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
   const total=totals[kind]||(totals[kind]={capacity:0,free:0});
   total.capacity+=capacity;total.free+=Math.max(0,capacity-used);
  }
- if(!Object.keys(totals).length)return new Set();
+ if(!Object.keys(totals).length)return new Map();
  for(const c of citizens.values()){
   if(c.removed)continue;
   const v=vehicles.get(c.vehicleId);
@@ -3331,18 +3331,17 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
   if(issue.resolvedAt!=null||issue.reason!=='full'||!isOpen(issue.kind))continue;
   for(const id of issue.people||[]){const c=citizens.get(id);if(c?.resident&&!c.removed&&!c.movingOut)add(issue.kind,id);}
  }
- const result=new Set();
+ const result=new Map();
  for(const [kind,t]of Object.entries(totals)){
-  if(kind==='work'){if(jobSeekers>freeJobs)result.add(kind);}
-  else if(kind==='hotel'){if(hotelSeekers>t.free)result.add(kind);}
-  // A live capacity complaint is relevant only when the category has no free
-  // service slots; a parking/route problem or historical complaint alone is not.
-  else if(t.free===0&&(waiting[kind]?.size||0)>0)result.add(kind);
+  // These are category-wide unmet places, not separate deficits at each roof.
+  // Keep the previous FULL eligibility rule and use unique waiting citizen IDs.
+  const missing=kind==='work'?jobSeekers-freeJobs:kind==='hotel'?hotelSeekers-t.free:t.free===0?(waiting[kind]?.size||0):0;
+  if(missing>0)result.set(kind,missing);
  }
  return result;
 }
 
- // One transparent canvas and eight reusable sprites: no per-building DOM or 3D meshes.
+ // One transparent canvas and a bounded sprite cache: no per-building DOM or 3D meshes.
  let capacityMoodLayer=null,capacityMoodContext=null,capacityMoodOwner=null,capacityMoodAt=-Infinity,capacityMoodLayout='',capacityMoodAnchors=[],capacityMoodProjection='',capacityMoodPoints=[];
  const capacityMoodSprites=new Map();
  function clearCapacityMoodLayer(){
@@ -3362,11 +3361,13 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
   const used=kind==='hotel'?(b.guests?.size||0):kind==='work'?(b.workers?.size||0):(b.visitors?.size||0)+(b.reservedService||0);
   return capacity>0&&used>=capacity;
  }
- function capacityMoodSprite(kind){
-  if(capacityMoodSprites.has(kind))return capacityMoodSprites.get(kind);
+ function capacityMoodSprite(kind,missing){
+  if(!Number.isSafeInteger(missing)||missing<=0)return null;
+  const key=kind+':'+missing;
+  if(capacityMoodSprites.has(key))return capacityMoodSprites.get(key);
   const sprite=document.createElement('canvas');sprite.width=240;sprite.height=104;
   const c=sprite.getContext('2d');if(!c)return null;
-  // Compact, high-contrast speech bubble; one cached bitmap per category.
+  // Preserve the existing icon, color and roof pointer; only the label changes.
   c.fillStyle='#d92335';c.strokeStyle='#fff5f5';c.lineWidth=4;c.lineJoin='round';
   c.beginPath();c.roundRect(5,5,230,76,17);c.fill();c.stroke();
   c.beginPath();c.moveTo(102,79);c.lineTo(120,99);c.lineTo(138,79);c.closePath();c.fill();
@@ -3374,8 +3375,14 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
   c.textAlign='center';c.textBaseline='middle';
   c.font='62px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
   c.fillText(BUILDING_CAPACITY_EMOJIS[kind],48,44);
-  c.fillStyle='#ffffff';c.font='bold 47px Arial, sans-serif';c.fillText('FULL',151,45);
-  capacityMoodSprites.set(kind,sprite);return sprite;
+  const label='-'+missing;
+  c.fillStyle='#ffffff';c.font='bold 47px Arial, sans-serif';
+  while(c.measureText(label).width>135&&parseInt(c.font.split(' ')[1],10)>18){
+   c.font='bold '+(parseInt(c.font.split(' ')[1],10)-2)+'px Arial, sans-serif';
+  }
+  c.fillText(label,151,45,135);
+  if(capacityMoodSprites.size>=64)capacityMoodSprites.delete(capacityMoodSprites.keys().next().value);
+  capacityMoodSprites.set(key,sprite);return sprite;
  }
  function updateBuildingCapacityMood(){
   if(!carStatusDiamondsVisible||heat||typeof document.createElement!=='function'){hideBuildingCapacityMood();return;}
@@ -3390,7 +3397,7 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
     let height=renderer3d?(t.kind==='office'?t.size*1.15+.7:t.kind==='park'?.85:t.kind==='home'?t.size*.62+1.2:t.size*.55+1)*18:t.kind==='office'?size*8+4:t.kind==='park'?12:t.kind==='home'?size*4+11:t.kind==='mall'?size*4+4:t.kind==='factory'?size*3.5+12:['restaurant','pub'].includes(t.kind)?size*3.5+8:size*3.5+4;
     const roof=renderer3d?.buildingCapacityAnchors?.get(b.id);
     if(roof){x=roof.x;z=roof.z;height=roof.y*18;}
-    anchors.push({id:b.id,x,z,height,kind});
+    anchors.push({id:b.id,x,z,height,kind,missing:full.get(kind)});
    }
    capacityMoodAnchors=anchors;capacityMoodProjection='';
   }
@@ -3408,7 +3415,7 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
    capacityMoodProjection=key;capacityMoodPoints=[];
    for(const a of capacityMoodAnchors){
     const p=renderer3d?renderer3d.projectCapacityAnchor(a.x,a.z,a.height):screen(a.x,a.z,a.height);
-    if(p&&Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=0&&p[0]<=view.w&&p[1]>=0&&p[1]<=view.h)capacityMoodPoints.push({x:p[0],y:p[1],kind:a.kind,id:a.id});
+    if(p&&Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=0&&p[0]<=view.w&&p[1]>=0&&p[1]<=view.h)capacityMoodPoints.push({x:p[0],y:p[1],kind:a.kind,id:a.id,missing:a.missing});
    }
   }
   if(!capacityMoodPoints.length){clearCapacityMoodLayer();return;}
@@ -3419,7 +3426,7 @@ function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,compl
   for(const p of capacityMoodPoints.slice().sort((a,b)=>b.y-a.y||a.id-b.id)){
    if(p.y<badgeH+2||p.x<badgeW/2||p.x>view.w-badgeW/2)continue;
    if(drawn.some(q=>Math.abs(q.x-p.x)<badgeW+3&&Math.abs(q.y-p.y)<badgeH+3))continue;
-   const sprite=capacityMoodSprite(p.kind);if(sprite){c.drawImage(sprite,p.x-badgeW/2,p.y-badgeH-1,badgeW,badgeH);drawn.push(p);}
+   const sprite=capacityMoodSprite(p.kind,p.missing);if(sprite){c.drawImage(sprite,p.x-badgeW/2,p.y-badgeH-1,badgeW,badgeH);drawn.push(p);}
   }
   if(!drawn.length)clearCapacityMoodLayer();
  }
