@@ -7906,3 +7906,7 @@ html body #inspector .sm-inspector-heading .tag{opacity:1!important;color:#bce3c
 /* Prominent warning for the prohibited small-to-large road connection only. */
 #toast.road-size-warning{zoom:1!important;box-sizing:border-box!important;top:110px!important;width:max-content!important;min-width:0!important;max-width:calc(100vw - 32px)!important;padding:18px 26px!important;border:2px solid #ffc96e!important;border-radius:14px!important;background:#382517f5!important;color:#fff6e4!important;box-shadow:0 8px 28px #1017128c!important;font-size:24px!important;font-weight:800!important;line-height:1.55!important;text-align:center!important;white-space:normal!important;z-index:3000!important;}
 @media(max-width:700px){#toast.road-size-warning{top:76px!important;font-size:20px!important;padding:14px 18px!important;}}
+
+/* Junction markers share the same fixed world-anchor behavior as FULL badges. */
+.ai-junction-pin{transform:translate(-50%,calc(-100% - 5px))!important;}
+.ai-junction-pin::before{content:"";position:absolute;left:50%;top:100%;width:7px;height:7px;transform:translate(-50%,-3px) rotate(45deg);background:inherit;border-right:1px solid #8ccbd7;border-bottom:1px solid #8ccbd7;pointer-events:none;}

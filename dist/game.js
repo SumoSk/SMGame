@@ -4178,8 +4178,8 @@ function removeSelectedVehicle(id){
 // Show junction AI pins when a page session starts.
 let aiPinsVisible=true;
 let aiPinExpanded=null,aiPinPopover=null;
-let aiPinState=null,aiPinVersion=-1,aiPinNodes=[],aiPinLast=-Infinity;
-let aiPinHover=null,aiPinLocked=null,aiPinLockUntil=0,aiLastActivatedNode=null,aiLastActivatedAt=-Infinity;
+let aiPinState=null,aiPinVersion=-1,aiPinNodes=[],aiPinLast=-Infinity,aiPinProjection='';
+let aiLastActivatedNode=null,aiLastActivatedAt=-Infinity;
 const aiPinButtons=new Map();
 function toggleAIPinLabels(){
  aiPinsVisible=!aiPinsVisible;
@@ -4203,7 +4203,6 @@ function activateAISignalPin(node){
  const now=Date.now();
  if(aiLastActivatedNode===node&&now-aiLastActivatedAt<600)return false;
  aiLastActivatedNode=node;aiLastActivatedAt=now;
- aiPinLocked=node;aiPinLockUntil=now+900;
  if(aiPinExpanded===node){collapseAISignalPin();return true;}
  aiPinExpanded=node;
  updateAIPinPopover();
@@ -4230,8 +4229,8 @@ function updateAIPinPopover(){
  '<p>'+(owned?'ติดตั้งแล้ว · ปรับไฟตามคิวรถ':'ปรับไฟอัตโนมัติตามคิวรถ')+'</p>'+
  (owned?'':'<div class="ai-pin-price"><span>ติดตั้ง 1 แยก</span><b>'+money(AI_SIGNAL_PRICE)+'</b></div>')+
  '<button type="button" class="ai-pin-upgrade" data-ai-upgrade>'+(owned?'ดูสถานะทางแยก':'อัปเกรด AI')+'</button>'+ (owned?'<button type="button" class="ai-pin-upgrade" data-ai-detach>ถอด AI · คืน 1 โควต้า</button>':'');
- if(aiPinPopover.innerHTML!==content){
-  aiPinPopover.innerHTML=content;
+ if(aiPinPopover.dataset.node!==String(node)||aiPinPopover.innerHTML!==content){
+  aiPinPopover.dataset.node=String(node);aiPinPopover.innerHTML=content;
   aiPinPopover.querySelector('[data-ai-close]').onclick=()=>{collapseAISignalPin();pin.focus?.();};
   aiPinPopover.querySelector('[data-ai-upgrade]').onclick=()=>{collapseAISignalPin();openAISignalUpgrade(node);};
   const detach=aiPinPopover.querySelector('[data-ai-detach]');if(detach)detach.onclick=()=>{collapseAISignalPin();openAISignalDetach(node);};
@@ -4241,7 +4240,7 @@ function updateAIPinPopover(){
  const width=Math.min(210,innerWidth-16),height=aiPinPopover.offsetHeight||145;
  aiPinPopover.style.width=width+'px';
  aiPinPopover.style.left=Math.max(8,Math.min(innerWidth-width-8,x-width/2))+'px';
- aiPinPopover.style.top=Math.max(8,y+height+28>innerHeight?y-height-24:y+24)+'px';
+ aiPinPopover.style.top=Math.max(8,y+height+12>innerHeight?y-height-pin.offsetHeight-16:y+12)+'px';
  for(const [id,button]of aiPinButtons)button.setAttribute('aria-expanded',String(id===node));
 }
 document.addEventListener?.('pointerdown',event=>{
@@ -4250,10 +4249,8 @@ document.addEventListener?.('pointerdown',event=>{
 document.addEventListener?.('keydown',event=>{if(event.key==='Escape')collapseAISignalPin();});
 function updateAISignalPins(){
  const now=Date.now();
- if(now-aiPinLast<180)return;
- aiPinLast=now;
  let overlay=document.getElementById?.('aiJunctionOverlay');
- if(!aiPinsVisible){if(overlay)overlay.hidden=true;return;}
+ if(!aiPinsVisible){if(overlay)overlay.hidden=true;aiPinProjection='';return;}
  if(!overlay){
   if(!document.body?.appendChild||!document.createElement)return;
   overlay=document.createElement('div');overlay.id='aiJunctionOverlay';
@@ -4261,23 +4258,28 @@ function updateAISignalPins(){
  }
  overlay.hidden=false;
  if(typeof overlay.appendChild!=='function')return;
- // Never recycle or move the button while a pointer is pressing it.
- const locked=aiPinLocked!=null&&now<aiPinLockUntil;
- if(!locked&&(aiPinState!==state||aiPinVersion!==state.version)){
+ const topologyChanged=aiPinState!==state||aiPinVersion!==state.version;
+ if(topologyChanged){
   if(aiPinState!==state)collapseAISignalPin();
   aiPinState=state;aiPinVersion=state.version;
   aiPinNodes=[...state.roads.keys()].filter(node=>junction(node)>=3);
-  for(const el of aiPinButtons.values())el.remove();
-  aiPinButtons.clear();aiPinHover=null;
+  const validNodes=new Set(aiPinNodes);
+  for(const [node,button]of aiPinButtons)if(!validNodes.has(node)||!state.roads.has(node)){button.remove();aiPinButtons.delete(node);}
+  aiPinProjection='';
  }
+ // Same frame as the 3D renderer: no 180 ms delay or frozen hover position.
+ // When the view is static, only refresh installation status on the old cadence.
+ const key=[cam.x,cam.y,cam.z,cam.angle,cam.elevation,view.w,view.h,renderer3d?.cameraViewVersion||0].join(':');
+ if(!topologyChanged&&key===aiPinProjection&&now-aiPinLast<180)return;
+ aiPinProjection=key;aiPinLast=now;
  const visible=[];
  for(const node of aiPinNodes){
-  const x=node%W,y=Math.floor(node/W),p=screen(x+(renderer3d?0:.5),y+(renderer3d?0:.5),renderer3d?1.5:0);
-  if(!p||p[0]<30||p[0]>innerWidth-30||p[1]<36||p[1]>innerHeight-80)continue;
-  visible.push({node,x:p[0],y:p[1],dist:Math.hypot(p[0]-innerWidth*.5,p[1]-innerHeight*.5)});
+  const x=node%W,y=Math.floor(node/W);
+  const p=renderer3d?renderer3d.projectCapacityAnchor(x,y,3):screen(x+.5,y+.5,0);
+  if(!p||!Number.isFinite(p[0])||!Number.isFinite(p[1])||p[0]<20||p[0]>view.w-20||p[1]<36||p[1]>view.h-6)continue;
+  visible.push({node,x:p[0],y:p[1]});
  }
- visible.sort((a,b)=>a.dist-b.dist);
- const shown=new Set();
+ const shown=new Set(),size=Math.max(22,Math.min(30,22+Math.log2(Math.max(.25,cam.z))*4))+'px';
  for(const pin of visible){
   const node=pin.node,owned=signalSettings(node).mode==='smart';
   let button=aiPinButtons.get(node);
@@ -4285,41 +4287,33 @@ function updateAISignalPins(){
    button=document.createElement('button');button.type='button';
    button.className='ai-junction-pin';button.dataset.node=String(node);
    button.setAttribute('aria-controls','aiPinPopover');button.setAttribute('aria-expanded','false');
-   button.onpointerenter=()=>{aiPinHover=node;};
-   button.onpointerleave=()=>{if(aiPinHover===node)aiPinHover=null;};
    button.onpointerdown=event=>{
     event.stopPropagation?.();event.stopImmediatePropagation?.();
-    aiPinLocked=node;aiPinLockUntil=Date.now()+1500;
-    // Pointer capture ensures touch/mouse release returns to this button, even if the map moves.
+    // Capture the press, not the screen position. The pin still follows the map.
     if(event.pointerId!=null)try{button.setPointerCapture?.(event.pointerId);}catch{}
    };
    button.onpointerup=event=>{
     event.preventDefault?.();event.stopPropagation?.();event.stopImmediatePropagation?.();
-    activateAISignalPin(node);
+    if(!button.hidden&&aiPinState===state)activateAISignalPin(node);
    };
    button.onclick=event=>{
     event.preventDefault?.();event.stopPropagation?.();event.stopImmediatePropagation?.();
-    activateAISignalPin(node); // keyboard and synthetic click fallback
+    if(!button.hidden&&aiPinState===state)activateAISignalPin(node);
    };
    overlay.appendChild(button);aiPinButtons.set(node,button);
   }
-  shown.add(node);
-  // A hovered or pressed badge must stay at the same screen coordinates until the click settles.
-  const stationary=aiPinHover===node||(aiPinLocked===node&&now<aiPinLockUntil);
-  button.hidden=false;
-  button.style.setProperty('--ai-pin-size',Math.max(22,Math.min(30,22+Math.log2(Math.max(.25,cam.z))*4))+'px');
+  shown.add(node);button.hidden=false;
+  if(button.style.getPropertyValue?.('--ai-pin-size')!==size)button.style.setProperty('--ai-pin-size',size);
   button.classList.toggle('owned',owned);
   const label=owned?'AI ✓':'AI +';
   if(button.textContent!==label)button.textContent=label;
   button.title=owned?'AI ติดตั้งแล้ว · แตะเพื่อกางรายละเอียด':'อัปเกรด AI ทางแยก · แตะเพื่อกางรายละเอียด';
   button.setAttribute('aria-label',button.title);
-  if(!stationary){
-   button.style.left=pin.x+'px';button.style.top=pin.y+'px';
-  }
+  const left=pin.x+'px',top=pin.y+'px';
+  if(button.style.left!==left)button.style.left=left;
+  if(button.style.top!==top)button.style.top=top;
  }
- for(const [node,button]of aiPinButtons)
-  if(!shown.has(node)&&node!==aiPinHover&&!(aiPinLocked===node&&now<aiPinLockUntil))button.hidden=true;
- if(!locked)aiPinLocked=null;
+ for(const [node,button]of aiPinButtons)if(!shown.has(node))button.hidden=true;
  updateAIPinPopover();
 }
 
