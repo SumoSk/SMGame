@@ -10527,19 +10527,18 @@ function trimLegacyPhuketHighways(s){
 // Once the coastal road branches off that approach, remove only its unused
 // inland tail, so the former T-junction becomes the normal rounded bend.
 function trimLegacyBridgeStub(s){
- if(s.legacyBridgeStubV1===true)return s;
  const roads=new Map(s.roads.map(([n,r])=>[n,{...r,links:new Set(r.links)}]));
  const gate=id(PHUKET_ENTRY_X,0),limit=150-PHUKET_START_SHIFT;
  const original=n=>{const r=roads.get(n),[x,y]=xy(n);return !!r?.main&&r.type==='large'&&x===PHUKET_ENTRY_X&&y>0&&y<=limit;};
  const oldCity=n=>{const r=roads.get(n),[x,y]=xy(n);return !!r?.main&&r.type==='large'&&(x===150||y===150);};
- if(![...roads.keys()].some(oldCity))return {...s,legacyBridgeStubV1:true};
+ if(!roads.has(gate)||![...roads.keys()].some(oldCity))return s;
  const adjacent=new Map([...roads.keys()].map(n=>[n,new Set()]));
  for(const [n,r] of roads)for(const k of r.links)if(k!==n&&roads.has(k)){adjacent.get(n).add(k);adjacent.get(k).add(n);}
- const protectedNodes=new Set((s.signals||[]).map(([n])=>n));
+ const protectedNodes=new Set();
  for(const [,b] of s.buildings){
   for(const a of b.access||[]){const n=typeof a==='number'?a:a?.node;if(Number.isInteger(n))protectedNodes.add(n);}
   const {w,h}=savedBuildingBounds(b);
-  for(let y=b.y-5;y<b.y+h+5;y++)for(let x=b.x-5;x<b.x+w+5;x++)if(valid(x,y))protectedNodes.add(id(x,y));
+  for(let y=b.y-4;y<b.y+h+4;y++)for(let x=b.x-4;x<b.x+w+4;x++)if(valid(x,y))protectedNodes.add(id(x,y));
  }
  const reach=(start,excluded=new Set())=>{
   const seen=new Set([start]),q=[start];
@@ -10547,27 +10546,38 @@ function trimLegacyBridgeStub(s){
    if(!excluded.has(k)&&!seen.has(k)&&roads.get(k)?.links.has(q[i])){seen.add(k);q.push(k);}
   return seen;
  };
- const ends=[...roads.keys()].filter(n=>original(n)&&adjacent.get(n).size===1).sort((a,b)=>b-a);
- for(const end of ends){
-  let n=end;const chain=[];
-  while(original(n)&&!protectedNodes.has(n)){
-   const [x,y]=xy(n),prev=id(x,y-1),next=id(x,y+1),ns=adjacent.get(n);
-   if(!ns.has(prev)||[...ns].some(k=>k!==prev&&k!==next)||ns.size!==(chain.length?2:1))break;
-   chain.push(n);n=prev;
+ const before=reach(gate);
+ // Inspect the actual fork, rather than relying on the prior migration flag
+ // or the exact direction of its coastal bend.
+ for(let y=1;y<limit;y++){
+  const n=id(PHUKET_ENTRY_X,y),up=id(PHUKET_ENTRY_X,y-1),down=id(PHUKET_ENTRY_X,y+1);
+  const ns=adjacent.get(n);
+  if(!original(n)||!before.has(n)||!ns?.has(up)||!ns.has(down)||ns.size!==3)continue;
+  const side=[...ns].find(k=>k!==up&&k!==down);
+  if(roads.get(side)?.type!=='large')continue;
+  const sideReach=reach(side,new Set([n]));
+  if(![...sideReach].some(oldCity))continue;
+  const chain=[];let k=down,prev=n,safe=true;
+  while(original(k)){
+   const links=adjacent.get(k);
+   if(!links?.has(prev)){safe=false;break;}
+   chain.push(k);
+   const next=[...links].filter(j=>j!==prev);
+   if(!next.length)break;
+   if(next.length!==1||next[0]!==k+W){safe=false;break;}
+   prev=k;k=next[0];
+   if(!original(k)){safe=false;break;}
   }
-  if(!chain.length||!original(n)||adjacent.get(n).size!==3)continue;
-  // A junction must have the approach back to the bridge and a separate
-  // westward coastal connector. No deletion if a city road uses the tail.
-  const [x,y]=xy(n),up=id(x,y-1),side=id(x-1,y);
-  if(!adjacent.get(n).has(up)||!adjacent.get(n).has(side))continue;
+  if(!chain.length)continue;
   const removed=new Set(chain),after=reach(gate,removed);
-  if(!after.has(n)||!after.has(side)||![...after].some(oldCity))continue;
-  const before=reach(gate);
-  if([...before].some(k=>!after.has(k)&&!removed.has(k)))continue;
+  const unused=safe&&!chain.some(k=>protectedNodes.has(k))&&after.has(n)&&after.has(side)&&[...before].every(k=>after.has(k)||removed.has(k));
+  if(!unused){
+   // Let the owner erase the old branch manually without unlocking the bridge.
+   for(const k of chain)roads.get(k).legacyRemovable=true;
+   return {...s,roads:[...roads].map(([k,r])=>[k,{...r,links:[...r.links]}])};
+  }
   const invalidSignals=new Set([n,...chain]);
   const refund=(s.signals||[]).filter(([k,r])=>invalidSignals.has(k)&&r.mode==='smart').length;
-  // Only the obsolete junction signal is removed; its purchased AI quota
-  // is returned by the same rule as a normal player demolition.
   for(const k of removed)roads.delete(k);
   for(const r of roads.values())for(const k of r.links)if(removed.has(k))r.links.delete(k);
   return {...s,legacyBridgeStubV1:true,roads:[...roads].map(([k,r])=>[k,{...r,links:[...r.links]}]),
@@ -10576,6 +10586,7 @@ function trimLegacyBridgeStub(s){
  }
  return s;
 }
+
 function loadGame(silent=false,slotId=null,rawOverride=null){const previous={state,cam,news};try{const slots=rawOverride===null?readSaveSlots():[],slot=slotId?slots.find(s=>s.id===slotId):slots[0],raw=rawOverride??slot?.data;if(!raw){if(!silent)toast('ยังไม่มีเมืองที่บันทึกไว้ค่ะ');return false;}let s=JSON.parse(raw);validateSave(s);const legacyEntrance=s.city==='phuket'&&s.entryLayout!==PHUKET_NORTH_ENTRY;reset(s.city,false);if(legacyEntrance){s=migrateLegacyPhuketEntrance(s);validateSave(s);}if(s.legacyHighwayTrimV1!==true)s=repairLegacyPhuketConnection(s);s=trimLegacyPhuketHighways(s);s=trimLegacyBridgeStub(s);validateSave(s);state.entryConnectionV2=s.entryConnectionV2===true;state.legacyHighwayTrimV1=s.legacyHighwayTrimV1===true;state.legacyBridgeStubV1=s.legacyBridgeStubV1===true;state.intercityHour=s.intercityHour&&Number.isInteger(s.intercityHour.hour)&&Number.isInteger(s.intercityHour.total)&&s.intercityHour.total>=0&&Number.isInteger(s.intercityHour.next)&&s.intercityHour.next>=0&&s.intercityHour.next<=s.intercityHour.total?{hour:s.intercityHour.hour,total:s.intercityHour.total,next:s.intercityHour.next,offset:Math.floor(s.intercityHour.offset||0)%4}:null;state.deliveryRun=s.deliveryRun&&Number.isInteger(s.deliveryRun.night)&&Array.isArray(s.deliveryRun.plan)&&Number.isInteger(s.deliveryRun.next)&&s.deliveryRun.plan.length<=3000?{...s.deliveryRun,next:Math.max(0,Math.min(s.deliveryRun.plan.length,s.deliveryRun.next)),delivered:s.deliveryRun.delivered||{}}:null;state.money=s.money;state.vehicleTechLevels=normalizedVehicleTechLevels(s.vehicleTechLevels,s.vehicleTechUnit,s.citizens);state.time=s.time;state.morningPlanningDay=s.morningPlanningDay;const savedRewards=s.incidentRewards||{};state.incidentRewards={day:Math.floor(s.time/1440),count:savedRewards.day===Math.floor(s.time/1440)&&Number.isFinite(savedRewards.count)?Math.max(0,Math.min(INCIDENT_REWARD_DAILY_LIMIT,Math.floor(savedRewards.count))):0};state.nextId=s.nextId;state.profileSeq=s.profileSeq??s.citizens.length;state.lastImmigration=s.time;state.lastPass=s.time;state.tourism=s.tourism;state.plantedTrees=(s.plantedTrees||[]).filter(t=>!RETIRED_DECOR_KINDS.includes(t.kind));state.hiddenAutoTrees=s.hiddenAutoTrees||[];state.autoTreeRotations=s.autoTreeRotations||{};state.landscapeVersion=0;state.nextTouristAt=s.nextTouristAt||s.time+3;state.missionStats=restoreMissionStats(s.missionStats);missionAutoClose();state.roads=new Map(s.roads.map(([i,r])=>[i,{...r,links:new Set(r.links)}]));state.buildings=new Map(s.buildings.map(([i,b])=>[i,{...b,residents:new Set(b.residents),workers:new Set(b.workers),visitors:new Set(b.visitors),parked:new Set(b.parked),guests:new Set(b.guests||[]),moveOutCooldowns:Array.isArray(b.moveOutCooldowns)?b.moveOutCooldowns.filter(expiry=>Number.isFinite(expiry)&&expiry>s.time).slice(0,CATALOG[b.key]?.residents||0):[]}]));// Preserve old civic plots, parked cars and active trips without shrinking old saves.
  restoreMapExpansion(s.mapExpansion);
  if(legacyEntrance&&!s.mapExpansion)for(let y=0;y<=150-PHUKET_START_SHIFT;y++){const x=PHUKET_ENTRY_X;if(state.roads.has(id(x,y))&&!isPhuketWaterTile(x,y))state.mapExpansion.opened.add(mapSheetId(Math.floor(x/MAP_SHEET_SIZE),Math.floor(y/MAP_SHEET_SIZE)));}
