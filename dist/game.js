@@ -9080,26 +9080,45 @@ function lineCells(a,b){let [x,y]=xy(a),[u,v]=xy(b),dx=u-x,dy=v-y;const horizont
  const steps=Math.max(Math.abs(u-x),Math.abs(v-y)),result=[];for(let n=0;n<=steps;n++){const xx=Math.round(x+(u-x)*(steps?n/steps:0)),yy=Math.round(y+(v-y)*(steps?n/steps:0));if(!valid(xx,yy))continue;const raw=id(xx,yy),snapped=owner(raw),point=xy(snapped),aligned=horizontal?point[1]===y:point[0]===x,p=aligned?snapped:raw;if(result[result.length-1]!==p)result.push(p);}return result;}
 // Validate the final road classes before construction or widening. Existing
 // legacy links are not modified; only newly created incompatible links fail.
-const ROAD_SIZE_CONNECTION_ERROR='ถนนเล็กต้องต่อกับถนนกลางเท่านั้น · ไม่สามารถเชื่อมกับถนนใหญ่โดยตรงได้';
+const ROAD_SIZE_CONNECTION_ERROR='ถนนเล็กไม่สามารถสร้างแยกกับถนนใหญ่ได้ โปรดเชื่อมถนนกลาง';
 function roadSizeConnectionError(roads,cells,type){
  const selected=new Set(cells),kind=node=>{
   const old=roads.get(node)?.type;
   return selected.has(node)&&(!old||ROADS[type].lanes>ROADS[old].lanes)?type:old;
  };
  const forbidden=(a,b)=>(a==='small'&&b==='large')||(a==='large'&&b==='small');
- // Existing links can become invalid when one of their endpoints is widened.
+ const affected=new Set(selected),added=new Map();
  for(const node of selected){
   const old=roads.get(node);
   if(!old||old.type===kind(node))continue;
   for(const next of old.links){
+   affected.add(next);
    if(forbidden(kind(node),kind(next))&&!forbidden(old.type,roads.get(next)?.type))return ROAD_SIZE_CONNECTION_ERROR;
   }
  }
- // Check each newly drawn connection in either drag direction.
+ // New direct transitions are checked in either direction.
  for(let i=1;i<cells.length;i++){
   const a=cells[i-1],b=cells[i];
-  if(a===b||!forbidden(kind(a),kind(b)))continue;
-  if(!roads.get(a)?.links.has(b)||!forbidden(roads.get(a)?.type,roads.get(b)?.type))return ROAD_SIZE_CONNECTION_ERROR;
+  if(a===b)continue;
+  if(forbidden(kind(a),kind(b))&&(!roads.get(a)?.links.has(b)||!forbidden(roads.get(a)?.type,roads.get(b)?.type)))return ROAD_SIZE_CONNECTION_ERROR;
+  for(const [p,q]of [[a,b],[b,a]]){
+   if(!added.has(p))added.set(p,new Set(roads.get(p)?.links||[]));
+   added.get(p).add(q);
+  }
+ }
+ // A medium tile at the center cannot hide a direct small/large
+ // intersection. A separate stretch of medium road between junctions
+ // is legal, and medium roads can connect to either size.
+ for(const node of affected){
+  const before=roads.get(node)?.links||new Set(),after=added.get(node)||before;
+  if(after.size<3)continue;
+  const members=[node,...after],small=members.filter(n=>kind(n)==='small'),large=members.filter(n=>kind(n)==='large');
+  if(!small.length||!large.length)continue;
+  for(const a of small)for(const b of large){
+   // Do not dismantle legacy intersections. Reject only new mixed pairs
+   // or a newly created junction, including a one-cell road upgrade.
+   if(before.size<3||(a!==node&&!before.has(a))||(b!==node&&!before.has(b))||roads.get(a)?.type!=='small'||roads.get(b)?.type!=='large')return ROAD_SIZE_CONNECTION_ERROR;
+  }
  }
  return null;
 }
