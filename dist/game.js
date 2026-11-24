@@ -10274,8 +10274,72 @@ function advanceLoadedCityToMorning(){
  reconcile();syncCitizenVehicleTech();
  addNews('โหลดเซฟ · เริ่มเช้าวันใหม่ 06:00');
 }
-function loadGame(silent=false,slotId=null,rawOverride=null){const previous={state,cam,news};try{const slots=rawOverride===null?readSaveSlots():[],slot=slotId?slots.find(s=>s.id===slotId):slots[0],raw=rawOverride??slot?.data;if(!raw){if(!silent)toast('ยังไม่มีเมืองที่บันทึกไว้ค่ะ');return false;}const s=JSON.parse(raw);validateSave(s);reset(s.city,s.entryLayout!==PHUKET_NORTH_ENTRY);state.intercityHour=s.intercityHour&&Number.isInteger(s.intercityHour.hour)&&Number.isInteger(s.intercityHour.total)&&s.intercityHour.total>=0&&Number.isInteger(s.intercityHour.next)&&s.intercityHour.next>=0&&s.intercityHour.next<=s.intercityHour.total?{hour:s.intercityHour.hour,total:s.intercityHour.total,next:s.intercityHour.next,offset:Math.floor(s.intercityHour.offset||0)%4}:null;state.deliveryRun=s.deliveryRun&&Number.isInteger(s.deliveryRun.night)&&Array.isArray(s.deliveryRun.plan)&&Number.isInteger(s.deliveryRun.next)&&s.deliveryRun.plan.length<=3000?{...s.deliveryRun,next:Math.max(0,Math.min(s.deliveryRun.plan.length,s.deliveryRun.next)),delivered:s.deliveryRun.delivered||{}}:null;state.money=s.money;state.vehicleTechLevels=normalizedVehicleTechLevels(s.vehicleTechLevels,s.vehicleTechUnit,s.citizens);state.time=s.time;state.morningPlanningDay=s.morningPlanningDay;const savedRewards=s.incidentRewards||{};state.incidentRewards={day:Math.floor(s.time/1440),count:savedRewards.day===Math.floor(s.time/1440)&&Number.isFinite(savedRewards.count)?Math.max(0,Math.min(INCIDENT_REWARD_DAILY_LIMIT,Math.floor(savedRewards.count))):0};state.nextId=s.nextId;state.profileSeq=s.profileSeq??s.citizens.length;state.lastImmigration=s.time;state.lastPass=s.time;state.tourism=s.tourism;state.plantedTrees=(s.plantedTrees||[]).filter(t=>!RETIRED_DECOR_KINDS.includes(t.kind));state.hiddenAutoTrees=s.hiddenAutoTrees||[];state.autoTreeRotations=s.autoTreeRotations||{};state.landscapeVersion=0;state.nextTouristAt=s.nextTouristAt||s.time+3;state.missionStats=restoreMissionStats(s.missionStats);missionAutoClose();state.roads=new Map(s.roads.map(([i,r])=>[i,{...r,links:new Set(r.links)}]));state.buildings=new Map(s.buildings.map(([i,b])=>[i,{...b,residents:new Set(b.residents),workers:new Set(b.workers),visitors:new Set(b.visitors),parked:new Set(b.parked),guests:new Set(b.guests||[]),moveOutCooldowns:Array.isArray(b.moveOutCooldowns)?b.moveOutCooldowns.filter(expiry=>Number.isFinite(expiry)&&expiry>s.time).slice(0,CATALOG[b.key]?.residents||0):[]}]));// Preserve old civic plots, parked cars and active trips without shrinking old saves.
+// One-time conversion of the original four edge highways. The layout marker is
+// persisted by snapshot(); the original cloud/backup save is never overwritten.
+function migrateLegacyPhuketEntrance(s){
+ const roads=new Map(s.roads.map(([n,r])=>[n,{...r,links:[...r.links]}]));
+ const protectedAccess=new Set();
+ for(const [,b] of s.buildings)for(const a of b.access||[]){
+  const n=typeof a==='number'?a:a?.node;if(Number.isInteger(n))protectedAccess.add(n);
+ }
+ const originalAxes=(x,y)=>x===150||y===150;
+ const oldMain=n=>{const r=roads.get(n),[x,y]=xy(n);return !!r?.main&&r.type==='large'&&originalAxes(x,y);};
+ const landRoad=(n,type)=>{
+  const [x,y]=xy(n);
+  return x>0&&x<W-1&&y>0&&y<H-1&&roadVisualCoveredCells(n,type).every(k=>{const [u,v]=xy(k);return !isPhuketWaterTile(u,v);});
+ };
+ const removed=new Set();
+ // Walk inward only from each former gate; keep all inland roads, branches
+ // and saved building access. Removing a gate does not remove a player's road.
+ for(const [x,y,dx,dy] of [[150,0,0,1],[W-1,150,-1,0],[150,H-1,0,-1],[0,150,1,0]]){
+  for(let k=0;k<150;k++){
+   const n=id(x+dx*k,y+dy*k),r=roads.get(n);
+   if(!oldMain(n)||protectedAccess.has(n)||landRoad(n,r.type))break;
+   if(r.links.some(j=>roads.has(j)&&!oldMain(j)))break;
+   removed.add(n);
+  }
+ }
+ for(const n of removed)roads.delete(n);
+ for(const r of roads.values())r.links=r.links.filter(n=>!removed.has(n));
+ // Construct only the new bridge approach, not the starter village or the
+ // starter east-west collector: the old city's location remains untouched.
+ const occupied=new Set();
+ for(const [,b] of s.buildings){
+  const {w,h}=savedBuildingBounds(b);
+  for(let y=b.y;y<b.y+h;y++)for(let x=b.x;x<b.x+w;x++)occupied.add(id(x,y));
+ }
+ const approach=[],mainY=150-PHUKET_START_SHIFT;
+ for(let y=0;y<=mainY;y++){
+  const n=id(PHUKET_ENTRY_X,y),r=roads.get(n);
+  if(roadVisualCoveredCells(n,'large').some(k=>occupied.has(k)))break;
+  if(r&&r.type!=='large')break;
+  if(!r)roads.set(n,{type:'large',main:true,links:[],load:0,wait:0});
+  if(y===0)roads.get(n).main=true;
+  if(approach.length){
+   const p=approach[approach.length-1],a=roads.get(p),b=roads.get(n);
+   if(!a.links.includes(n))a.links.push(n);
+   if(!b.links.includes(p))b.links.push(p);
+  }
+  approach.push(n);
+  // A compatible existing road already provides a connection; do not extend
+  // the new road through an established town.
+  if(r&&y>0&&landRoad(n,'large'))break;
+ }
+ if(!approach.length||!approach.some(n=>landRoad(n,'large')))throw Error('ไม่สามารถวางทางเข้าใหม่โดยไม่ทับเมืองเดิม');
+ // Unlock only the new land approach, without charging for or changing the
+ // user's purchased sheets. Older pre-expansion saves use legacy restoration.
+ const opened=new Set(s.mapExpansion?.opened||[]);
+ for(const n of approach){const [x,y]=xy(n);if(!isPhuketWaterTile(x,y))opened.add(mapSheetId(Math.floor(x/MAP_SHEET_SIZE),Math.floor(y/MAP_SHEET_SIZE)));}
+ return {...s,entryLayout:PHUKET_NORTH_ENTRY,roads:[...roads],
+  signals:(s.signals||[]).filter(([n])=>!removed.has(n)),
+  ...(s.mapExpansion?{mapExpansion:{...s.mapExpansion,opened:[...opened]}}:{}),
+  // Existing load-to-06:00 behavior clears transient trips anyway. Avoid
+  // restoring lane reservations from routes that referenced removed gates.
+  vehicles:[]};
+}
+function loadGame(silent=false,slotId=null,rawOverride=null){const previous={state,cam,news};try{const slots=rawOverride===null?readSaveSlots():[],slot=slotId?slots.find(s=>s.id===slotId):slots[0],raw=rawOverride??slot?.data;if(!raw){if(!silent)toast('ยังไม่มีเมืองที่บันทึกไว้ค่ะ');return false;}let s=JSON.parse(raw);validateSave(s);const legacyEntrance=s.city==='phuket'&&s.entryLayout!==PHUKET_NORTH_ENTRY;reset(s.city,false);if(legacyEntrance){s=migrateLegacyPhuketEntrance(s);validateSave(s);}state.intercityHour=s.intercityHour&&Number.isInteger(s.intercityHour.hour)&&Number.isInteger(s.intercityHour.total)&&s.intercityHour.total>=0&&Number.isInteger(s.intercityHour.next)&&s.intercityHour.next>=0&&s.intercityHour.next<=s.intercityHour.total?{hour:s.intercityHour.hour,total:s.intercityHour.total,next:s.intercityHour.next,offset:Math.floor(s.intercityHour.offset||0)%4}:null;state.deliveryRun=s.deliveryRun&&Number.isInteger(s.deliveryRun.night)&&Array.isArray(s.deliveryRun.plan)&&Number.isInteger(s.deliveryRun.next)&&s.deliveryRun.plan.length<=3000?{...s.deliveryRun,next:Math.max(0,Math.min(s.deliveryRun.plan.length,s.deliveryRun.next)),delivered:s.deliveryRun.delivered||{}}:null;state.money=s.money;state.vehicleTechLevels=normalizedVehicleTechLevels(s.vehicleTechLevels,s.vehicleTechUnit,s.citizens);state.time=s.time;state.morningPlanningDay=s.morningPlanningDay;const savedRewards=s.incidentRewards||{};state.incidentRewards={day:Math.floor(s.time/1440),count:savedRewards.day===Math.floor(s.time/1440)&&Number.isFinite(savedRewards.count)?Math.max(0,Math.min(INCIDENT_REWARD_DAILY_LIMIT,Math.floor(savedRewards.count))):0};state.nextId=s.nextId;state.profileSeq=s.profileSeq??s.citizens.length;state.lastImmigration=s.time;state.lastPass=s.time;state.tourism=s.tourism;state.plantedTrees=(s.plantedTrees||[]).filter(t=>!RETIRED_DECOR_KINDS.includes(t.kind));state.hiddenAutoTrees=s.hiddenAutoTrees||[];state.autoTreeRotations=s.autoTreeRotations||{};state.landscapeVersion=0;state.nextTouristAt=s.nextTouristAt||s.time+3;state.missionStats=restoreMissionStats(s.missionStats);missionAutoClose();state.roads=new Map(s.roads.map(([i,r])=>[i,{...r,links:new Set(r.links)}]));state.buildings=new Map(s.buildings.map(([i,b])=>[i,{...b,residents:new Set(b.residents),workers:new Set(b.workers),visitors:new Set(b.visitors),parked:new Set(b.parked),guests:new Set(b.guests||[]),moveOutCooldowns:Array.isArray(b.moveOutCooldowns)?b.moveOutCooldowns.filter(expiry=>Number.isFinite(expiry)&&expiry>s.time).slice(0,CATALOG[b.key]?.residents||0):[]}]));// Preserve old civic plots, parked cars and active trips without shrinking old saves.
  restoreMapExpansion(s.mapExpansion);
+ if(legacyEntrance&&!s.mapExpansion)for(let y=0;y<=150-PHUKET_START_SHIFT;y++){const x=PHUKET_ENTRY_X;if(state.roads.has(id(x,y))&&!isPhuketWaterTile(x,y))state.mapExpansion.opened.add(mapSheetId(Math.floor(x/MAP_SHEET_SIZE),Math.floor(y/MAP_SHEET_SIZE)));}
  for(const b of state.buildings.values())if(b.key==='civic_starter'&&b.parkingSlots.length===60)b.key='civic_legacy';
  state.buildingQuota=restoreBuildingQuota(s.buildingQuota);state.demandNotices=restoreDemandNotices(s.demandNotices);state.citizens=new Map(s.citizens.map(([i,c])=>[i,{...c,scheduled:new Set(c.scheduled),failKinds:new Set(c.failKinds)}]));state.cityLevel=restoreCityLevel(s.cityLevel);state.vehicles=new Map(s.vehicles.map(([i,v])=>[i,{...v,trafficModel:v.trafficModel??1,pathSet:new Set(v.pathSet)}]));trafficPairRestore(s.trafficPairStats);state.signals=new Map(s.signals||[]);nextAISignalPoll=-Infinity;state.signalDefaults=s.signalDefaults||state.signalDefaults;state.events=s.events;eventHeapify();cam=s.cam||cam;news=s.news||[];migrateCompactHomes();migrateMahanakhonSpaciousLots();migrateJourneyRules();migrateActivity251();rebuildFootprint();state.buildGrid.fill(-1);for(const b of state.buildings.values()){markBuildingPlot(b,b.id);b.access=accessFor(b);}// Previously saved grand homes share the exact same 11x13 footprint, so
  // relocate only internal geometry and reset in-flight lot manoeuvres.
