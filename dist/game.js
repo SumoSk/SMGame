@@ -3233,19 +3233,50 @@ let carStatusDiamondsVisible=true;
 
 const BUILDING_CAPACITY_EMOJIS=Object.freeze({work:'💼',shop:'🛒',restaurant:'🍴',mall:'🛍️',park:'🌳',pub:'🎵',casino:'♠️',hotel:'🏨'});
 function capacityMoodKind(kind){return kind==='office'||kind==='factory'?'work':kind;}
-// Full means no unreserved capacity anywhere in the category, not just one building.
-function fullBuildingCapacityKinds(buildings,catalog){
- const totals=Object.create(null);
+// Show only actual unmet demand, not a category that is merely fully occupied.
+function shortageBuildingCapacityKinds(buildings,catalog,citizens,vehicles,complaints,now,isOpen){
+ const totals=Object.create(null),waiting=Object.create(null);
+ let freeJobs=0,jobSeekers=0,hotelSeekers=0;
+ const add=(kind,id)=>{if(Object.hasOwn(BUILDING_CAPACITY_EMOJIS,kind))(waiting[kind]||(waiting[kind]=new Set())).add(id);};
  for(const b of buildings){
-  const t=catalog[b.key],kind=capacityMoodKind(t?.kind);
+  const t=catalog[b.key],kind=capacityMoodKind(t?.kind);if(!t)continue;
+  freeJobs+=Math.max(0,(t.jobs||0)-(b.workers?.size||0));
   if(!Object.hasOwn(BUILDING_CAPACITY_EMOJIS,kind))continue;
   const capacity=kind==='hotel'?t.beds:kind==='work'?t.jobs:t.service;
   if(!(capacity>0))continue;
   const used=kind==='hotel'?(b.guests?.size||0):kind==='work'?(b.workers?.size||0):(b.visitors?.size||0)+(b.reservedService||0);
-  const total=totals[kind]||(totals[kind]={capacity:0,used:0});
-  total.capacity+=capacity;total.used+=Math.min(capacity,Math.max(0,used));
+  const total=totals[kind]||(totals[kind]={capacity:0,free:0});
+  total.capacity+=capacity;total.free+=Math.max(0,capacity-used);
  }
- return new Set(Object.keys(totals).filter(k=>totals[k].capacity>0&&totals[k].used>=totals[k].capacity));
+ if(!Object.keys(totals).length)return new Set();
+ for(const c of citizens.values()){
+  if(c.removed)continue;
+  const v=vehicles.get(c.vehicleId);
+  if(c.tourist){
+   if(c.enteredAt==null||c.returning)continue;
+   if(!c.hotelId&&c.wantsHotel&&c.nights<c.maxNights)hotelSeekers++;
+   const step=c.itinerary?.[c.tourIndex];
+   if(!v&&c.tourRetries>0&&step&&step.at<=now&&now<c.tourEnd&&/เต็ม/.test(c.problem||'')&&isOpen(step.kind))add(step.kind,c.id);
+   continue;
+  }
+  if(!c.resident||c.movingOut)continue;
+  if(c.profile?.trait!==3&&!c.workId)jobSeekers++;
+  const p=c.pending;
+  if(!v&&p?.action==='leisure'&&(!Number.isFinite(p.expires)||p.expires>=now)&&(!Number.isFinite(p.end)||p.end>now)&&!(/ไม่มีเส้นทาง|ถนนเชื่อม|ปิดบริการ|ไม่มีสถานที่เปิด/.test(c.problem||''))&&isOpen(p.kind))add(p.kind,c.id);
+ }
+ for(const issue of Object.values(complaints||{})){
+  if(issue.resolvedAt!=null||issue.reason!=='full'||!isOpen(issue.kind))continue;
+  for(const id of issue.people||[]){const c=citizens.get(id);if(c?.resident&&!c.removed&&!c.movingOut)add(issue.kind,id);}
+ }
+ const result=new Set();
+ for(const [kind,t]of Object.entries(totals)){
+  if(kind==='work'){if(jobSeekers>freeJobs)result.add(kind);}
+  else if(kind==='hotel'){if(hotelSeekers>t.free)result.add(kind);}
+  // A live capacity complaint is relevant only when the category has no free
+  // service slots; a parking/route problem or historical complaint alone is not.
+  else if(t.free===0&&(waiting[kind]?.size||0)>0)result.add(kind);
+ }
+ return result;
 }
 
  // One transparent canvas and eight reusable sprites: no per-building DOM or 3D meshes.
@@ -3272,7 +3303,7 @@ function fullBuildingCapacityKinds(buildings,catalog){
   const now=performance.now(),layout=(state.buildingVisualVersion||0)+':'+state.buildings.size;
   if(capacityMoodOwner!==state||capacityMoodLayout!==layout||now-capacityMoodAt>=180){
    capacityMoodOwner=state;capacityMoodLayout=layout;capacityMoodAt=now;
-   const full=fullBuildingCapacityKinds(state.buildings.values(),CATALOG),anchors=[];
+   const full=shortageBuildingCapacityKinds(state.buildings.values(),CATALOG,state.citizens,state.vehicles,state.performance?.complaints,state.time,kind=>!!serviceWindow(kind,state.time)),anchors=[];
    if(full.size)for(const b of state.buildings.values()){
     const t=CATALOG[b.key],kind=capacityMoodKind(t?.kind);if(!t||!full.has(kind))continue;
     const m=lotModel(b),size=m.visualSize||t.size;
