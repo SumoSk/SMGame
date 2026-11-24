@@ -2360,11 +2360,62 @@ junction.details=junctionDetails;
  function trimTurnaroundPaint(lo,hi,cuts){let ranges=[[lo,hi]];for(const [a,b]of cuts||[]){const next=[];for(const [x,y]of ranges){if(b<=x||a>=y)next.push([x,y]);else{if(a>x)next.push([x,a]);if(b<y)next.push([b,y]);}}ranges=next;}return ranges;}
  function turnaroundArc(end,margin=0){
   const [dx,dy]=DIR[end.direction],radius=end.width*.5+margin,depth=end.depth+margin,points=[];
-  for(let k=0;k<=24;k++){const a=-Math.PI*.5+k*Math.PI/24;points.push([end.x+dx*Math.cos(a)*depth-dy*Math.sin(a)*radius,end.y+dy*Math.cos(a)*depth+dx*Math.sin(a)*radius]);}
+  for(let k=0;k<=40;k++){const a=-Math.PI*.5+k*Math.PI/40;points.push([end.x+dx*Math.cos(a)*depth-dy*Math.sin(a)*radius,end.y+dy*Math.cos(a)*depth+dx*Math.sin(a)*radius]);}
   return points;
  }
 
 junction.turnarounds=turnaroundEnds;junctionDetails.turnarounds=turnaroundEnds;junction.turnaroundPaintCuts=turnaroundPaintCuts;junction.trimTurnaroundPaint=trimTurnaroundPaint;
+
+// Rendering-only curves: keep all simulation ports, lane widths, graph links,
+// collision limits and motion plans intact. The two borders and lane paint
+// share one tangent-matched quarter-ellipse construction.
+const roadArtLayoutCache=new WeakMap(),roadArtTerminalCache=new WeakMap();
+function roadArtQuarter(a,b,c,steps=32){
+ const k=.5522847498307936,p=[a[0]+(c[0]-a[0])*k,a[1]+(c[1]-a[1])*k],q=[b[0]+(c[0]-b[0])*k,b[1]+(c[1]-b[1])*k],out=[];
+ for(let i=0;i<=steps;i++){const t=i/steps,u=1-t;out.push([u*u*u*a[0]+3*u*u*t*p[0]+3*u*t*t*q[0]+t*t*t*b[0],u*u*u*a[1]+3*u*u*t*p[1]+3*u*t*t*q[1]+t*t*t*b[1]]);}
+ return out;
+}
+function roadArtLayout(layout){
+ if(!layout?.bend||layout.ports.length!==2)return layout;
+ const old=roadArtLayoutCache.get(layout);if(old)return old;
+ const ports=layout.ports,polygon=[],borders=[];
+ for(let i=0;i<2;i++){
+  const a=ports[i],b=ports[(i+1)%2],p=a.points[1],q=b.points[0],c=a.dir%2===0?[q[0],p[1]]:[p[0],q[1]];
+  const edge=roadArtQuarter(p,q,c);polygon.push(...a.points,...edge.slice(1,-1));borders.push(edge);
+ }
+ const result={...layout,polygon,borders};roadArtLayoutCache.set(layout,result);return result;
+}
+function roadArtBendGuide(layout,oa,ob){
+ const [a,b]=layout.ports,va=DIR[a.dir],vb=DIR[b.dir];
+ const p=[va[0]*a.extent-va[1]*oa,va[1]*a.extent+va[0]*oa],q=[vb[0]*b.extent+vb[1]*ob,vb[1]*b.extent-vb[0]*ob],c=a.dir%2===0?[q[0],p[1]]:[p[0],q[1]];
+ return roadArtQuarter(p,q,c).map(([x,y])=>[layout.x+x,layout.y+y]);
+}
+function roadArtTerminals(roadState,ends){
+ const cached=roadArtTerminalCache.get(roadState);
+ const stamp=roadState.buildingVisualVersion||0;
+ if(cached?.ends===ends&&cached.stamp===stamp&&cached.count===roadState.buildings.size)return cached.result;
+ const result=new Map();
+ for(const [node,e]of ends){
+  if(!roadState.roads.has(node))continue;
+  const [dx,dy]=DIR[e.direction],r=e.width*.5,target=Math.min(r,1.4),margin=.14;
+  let depth=target;
+  // A cap may round out only on existing clear ground. Never alter the
+  // footprint, add land, or cover another road/building to achieve a curve.
+  const alongMax=Math.ceil(target+margin+.5),acrossMax=Math.ceil(r+margin+.5);
+  for(let a=1;a<=alongMax;a++)for(let b=-acrossMax;b<=acrossMax;b++){
+   const along=Math.max(0,a-.5),across=Math.max(0,Math.abs(b)-.5);
+   if((along/(target+margin))**2+(across/(r+margin))**2>=1)continue;
+   const x=e.x+dx*a-dy*b,y=e.y+dy*a+dx*b;
+   if(x<0||x>=W||y<0||y>=H){depth=e.depth;continue;}
+   const tile=y*W+x,owner=roadState.footprint?.[tile];
+   if(roadState.buildGrid?.[tile]>=0||roadState.roads.has(tile)&&tile!==node||owner>=0&&owner!==node&&owner!==e.neighbor||roadState===state&&(!sheetUnlocked(x,y)||isPhuketWaterTile(x,y)))depth=e.depth;
+  }
+  result.set(node,{...e,depth:Math.max(e.depth,depth)});
+ }
+ roadArtTerminalCache.set(roadState,{ends,stamp,count:roadState.buildings.size,result});return result;
+}
+junction.roadArtLayout=roadArtLayout;junction.roadArtBendGuide=roadArtBendGuide;junction.roadArtTerminals=roadArtTerminals;
+
 // Shared visual-only streetscape: no road graph, lanes, plots or prices change.
 const roadsideVisualCache=new WeakMap();
 function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
@@ -2449,7 +2500,7 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
   }
   for(let i=1;i<pairs.length;i++)if(pairs[i-1]&&pairs[i])emit([pairs[i-1][0],pairs[i][0],pairs[i][1],pairs[i-1][1]],color,height,thickness,role);
  };
- for(const [node] of roadState.roads){const l=roadDetails(node);if(!l)continue;for(const [a,b] of l.hiddenEdges||[])hidden.add(edgeKey(a,b));if(l.arms.length>=3||l.bend)layouts.set(node,l);}
+ for(const [node] of roadState.roads){const l=roadDetails(node);if(!l)continue;for(const [a,b] of l.hiddenEdges||[])hidden.add(edgeKey(a,b));if(l.arms.length>=3||l.bend)layouts.set(node,roadArtLayout(l));}
  for(const l of layouts.values())for(let x=Math.floor(l.x-l.halfX-2);x<=Math.ceil(l.x+l.halfX+2);x++)for(let y=Math.floor(l.y-l.halfY-2);y<=Math.ceil(l.y+l.halfY+2);y++){const key=y*W+x;if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(l);}
  for(const [i,r] of roadState.roads)for(const j of r.links){
   if(j<i||hidden.has(edgeKey(i,j)))continue;const x=i%W,y=Math.floor(i/W),nx=j%W,ny=Math.floor(j/W),dx=nx-x,dy=ny-y,len=Math.hypot(dx,dy);if(!len)continue;
@@ -2496,15 +2547,20 @@ function roadsideVisuals(roadState=state,roadDetails=junctionDetails){
    }else{strip(points,.055,w,'#c6c9c4',.135,.045,'sidewalk');strip(points,0,.055,'#e1dfd5',.16,.065,'curb');}
   }
  }
+ for(const [node,e]of roadArtTerminals(roadState,roadDetails.turnarounds?.(roadState,roadDetails)||new Map())){
+  const small=roadState.roads.get(node)?.type==='small',points=turnaroundArc(e);
+  if(small){strip(points,.025,.12,'#b2b5aa',.115,.035,'sidewalk');strip(points,0,.025,'#929b87',.13,.035,'curb');}
+  else{strip(points,.055,.14,'#c6c9c4',.135,.045,'sidewalk');strip(points,0,.055,'#e1dfd5',.16,.065,'curb');}
+ }
  for(const gate of gates)emit(gate.corners,'#58666a',.103,.045,'driveway',gate.building,gate.grade);
  roadsideVisualCache.set(roadState,{stamp,details:roadDetails,faces});return faces;
 }
 function drawRoads(roadState=state,roadDetails=junctionDetails){
  const state=roadState,PREMIUM_CONCRETE='#555957',CONCRETE_JOINT='#4e5250',PREMIUM_LANE='#f0ede4',PREMIUM_CENTER='#d6b36a',PREMIUM_EDGE='#cfd0ca';
  const layouts=new Map(),nearby=new Map(),hidden=new Set(),edgeKey=(a,b)=>a<b?a+':'+b:b+':'+a;
- for(const [node]of state.roads){const layout=roadDetails(node);for(const [a,b]of layout.hiddenEdges)hidden.add(edgeKey(a,b));if(layout.arms.length>=3||layout.bend)layouts.set(node,layout);}
+ for(const [node]of state.roads){const layout=roadDetails(node);for(const [a,b]of layout.hiddenEdges)hidden.add(edgeKey(a,b));if(layout.arms.length>=3||layout.bend)layouts.set(node,roadArtLayout(layout));}
  for(const l of layouts.values())for(let yy=Math.floor(l.y-l.halfY-2);yy<=Math.ceil(l.y+l.halfY+2);yy++)for(let xx=Math.floor(l.x-l.halfX-2);xx<=Math.ceil(l.x+l.halfX+2);xx++){const key=id(xx,yy);if(!nearby.has(key))nearby.set(key,[]);nearby.get(key).push(l);}
- const ends=roadDetails.turnarounds?.(state,roadDetails)||new Map(),paintCuts=turnaroundPaintCuts(ends);
+ const ends=roadArtTerminals(state,roadDetails.turnarounds?.(state,roadDetails)||new Map()),paintCuts=turnaroundPaintCuts(ends);
  const segments=[];
  for(const [i,r]of state.roads)for(const n of r.links){if(n<i||hidden.has(edgeKey(i,n)))continue;const [x,y]=xy(i),[nx,ny]=xy(n),dx=nx-x,dy=ny-y,length=Math.hypot(dx,dy),other=state.roads.get(n);let wa=roadVisualWidth(r.type),wb=roadVisualWidth(other?.type),intervals=[[0,1]];
  for(const l of new Set([...(nearby.get(i)||[]),...(nearby.get(n)||[])])){const horizontal=Math.abs(dx)>Math.abs(dy),d=horizontal?((x+nx)/2>=l.x?0:2):((y+ny)/2>=l.y?1:3),arm=l.arms.find(a=>a.dir===d);if(!arm||(horizontal?Math.abs(y-l.y):Math.abs(x-l.x))>.01)continue;wa=wb=arm.width;let lo=0,hi=1;for(const [start,delta,min,max]of [[x,dx,l.x-l.halfX,l.x+l.halfX],[y,dy,l.y-l.halfY,l.y+l.halfY]]){if(Math.abs(delta)<1e-9){if(start<min||start>max)hi=-1;}else{const a=(min-start)/delta,b=(max-start)/delta;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}}if(hi>lo){const next=[];for(const [a,b]of intervals){if(hi<=a||lo>=b)next.push([a,b]);else{if(lo>a)next.push([a,lo]);if(hi<b)next.push([hi,b]);}}intervals=next;}}
@@ -2560,7 +2616,7 @@ function drawRoads(roadState=state,roadDetails=junctionDetails){
  for(const l of layouts.values()){
  const premiumLayout=l.arms.length>=2&&l.arms.every(a=>Math.abs(a.width-ROADS.large.visualWidth)<.02);
  for(const edge of l.borders){const points=edge.map(([x,y])=>[l.x+x,l.y+y]);stroke(points,'#c9c8b5',.28);stroke(points,premiumLayout?PREMIUM_EDGE:'#dce3d8');}
- if(l.bend){const [a,b]=l.ports,va=DIR[a.dir],vb=DIR[b.dir],ca=capacity(a.width),cb=capacity(b.width),guide=(oa,ob,color,dashed=false)=>{const ax=va[0]*a.extent-va[1]*oa,ay=va[1]*a.extent+va[0]*oa,bx=vb[0]*b.extent+vb[1]*ob,by=vb[1]*b.extent-vb[0]*ob,cx=a.dir%2===0?bx:ax,cy=a.dir%2===0?ay:by,points=[];for(let k=0;k<=64;k++){const t=k/64,u=1-t;points.push([l.x+u*u*ax+2*u*t*cx+t*t*bx,l.y+u*u*ay+2*u*t*cy+t*t*by]);}stroke(points,color,color==='#ead78c'||color===PREMIUM_CENTER?.018:.025,dashed);};for(const sign of [-1,1]){guide(.035*sign,.035*sign,premiumLayout?PREMIUM_CENTER:'#ead78c');for(let k=1;k<Math.max(ca,cb);k++)guide(Math.min(a.width/2-.1,k*a.width/(ca*2))*sign,Math.min(b.width/2-.1,k*b.width/(cb*2))*sign,premiumLayout?PREMIUM_LANE:'#dce3d8',true);}}
+ if(l.bend){const [a,b]=l.ports,ca=capacity(a.width),cb=capacity(b.width),guide=(oa,ob,color,dashed=false)=>stroke(roadArtBendGuide(l,oa,ob),color,color==='#ead78c'||color===PREMIUM_CENTER?.018:.025,dashed);for(const sign of [-1,1]){guide(.035*sign,.035*sign,premiumLayout?PREMIUM_CENTER:'#ead78c');for(let k=1;k<Math.max(ca,cb);k++)guide(Math.min(a.width/2-.1,k*a.width/(ca*2))*sign,Math.min(b.width/2-.1,k*b.width/(cb*2))*sign,premiumLayout?PREMIUM_LANE:'#dce3d8',true);}}
  else if(cam.z>.4){for(const port of l.ports){const d=port.dir,[vx,vy]=DIR[d],px=-vy,py=vx,offset=port.extent+.13,point=(along,side)=>[l.x+vx*along+px*side,l.y+vy*along+py*side];stroke([point(offset,.06),point(offset,port.width/2-.06)],premiumLayout?PREMIUM_LANE:'#edf0df',.075);const [sx,sy]=screen(...point(offset,port.width/2+.3).map(v=>v+.5));ctx.fillStyle='#263e3a';ctx.fillRect(sx-2*cam.z,sy-4*cam.z,4*cam.z,8*cam.z);const light=signalColor(l.node,(d+2)%4);ctx.fillStyle=light==='green'?'#a4dc90':light==='yellow'?'#efd581':'#f08b75';ctx.beginPath();ctx.arc(sx,sy,1.7*cam.z,0,7);ctx.fill();}}
  }
  if(selected?.kind==='road'&&junction(selected.id)>=3){const [x,y]=xy(selected.id),p=screen(x+.5,y+.5);ctx.strokeStyle='#fff0a9';ctx.lineWidth=2.5*cam.z;ctx.beginPath();ctx.arc(p[0],p[1],Math.max(12,17*cam.z),0,Math.PI*2);ctx.stroke();}
@@ -9059,7 +9115,7 @@ function getRoadPreview(){
  // Layouts use the full graph; clip only boundary links in the local drawing.
  for(const [i,r]of local)local.set(i,{...r,links:new Set([...r.links].filter(n=>local.has(n)))});
  const junctionPreview=i=>counts.get(i)||0;junctionPreview.details=i=>layouts.get(i);
- const previewEnds=turnaroundEnds(planned,i=>layouts.get(i));junctionPreview.turnarounds=()=>previewEnds;junctionPreview.details.turnarounds=()=>previewEnds;junctionPreview.turnaroundPaintCuts=turnaroundPaintCuts;junctionPreview.trimTurnaroundPaint=trimTurnaroundPaint;
+ const previewEnds=turnaroundEnds(planned,i=>layouts.get(i));junctionPreview.turnarounds=()=>previewEnds;junctionPreview.details.turnarounds=()=>previewEnds;junctionPreview.turnaroundPaintCuts=turnaroundPaintCuts;junctionPreview.trimTurnaroundPaint=trimTurnaroundPaint;junctionPreview.roadArtLayout=roadArtLayout;junctionPreview.roadArtBendGuide=roadArtBendGuide;junctionPreview.roadArtTerminals=roadArtTerminals;
  const plan={key,state:{...planned,roads:local},junction:junctionPreview,error:checkRoad(cells,type).error,cells,type};
  roadPreviewCache={source:live,key,plan};return plan;
 }
