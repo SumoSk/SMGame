@@ -78,3 +78,49 @@
 @media(min-width:850px) and (pointer:fine){#mayorPanel[data-mode="issues"][data-detail="true"]{right:auto;left:50%;top:50%;transform:translate(-50%,-50%);width:min(570px,calc(100vw - 160px));max-height:calc(100dvh - 112px);box-shadow:0 18px 70px #10241e60}#mayorPanel[data-mode="issues"][data-detail="true"] .mayor-body{padding:10px}#mayorPanel[data-mode="issues"][data-detail="true"] h3{font-size:16px}}
 @media(max-width:600px){#mayorRail{right:6px;width:52px;gap:4px}#mayorRail button{width:46px;height:46px}#mayorPanel{right:calc(57px + env(safe-area-inset-right,0px));width:min(330px,calc(100vw - 63px - env(safe-area-inset-right,0px)));top:calc(95px + env(safe-area-inset-top,0px));max-height:calc(100dvh - 245px);font-size:12px}#mayorPanel .mayor-body{padding:6px}#mayorPanel header{padding:5px 7px}#mayorPanel .mayor-option{min-height:44px}#mayorPanel .mayor-choice-type{font-size:9px}#mayorPanel .mayor-story h3{font-size:14px}#mayorPanel .mayor-meta,#mayorPanel .mayor-outcomes{padding-left:0}#mayorPanel .mayor-lock-reason{padding-left:0}#mayorPanel .mayor-category-label{font-size:11px}}
 @media(prefers-reduced-motion:reduce){#mayorPanel *,#mayorRail *{transition:none!important;scroll-behavior:auto!important}}
+
+/* Permanent compact desktop score rail; result cards use the same score colors. */
+#mayorScoreHud{display:none;position:fixed;z-index:28;right:74px;top:90px;width:174px;box-sizing:border-box;padding:6px 7px;background:#f5f8f6ed;color:#263b34;border:1px solid #d2ddd7;border-radius:10px;box-shadow:0 3px 14px #10241e25;font-family:inherit;font-size:10px;font-weight:500;line-height:1.2;pointer-events:none}
+#mayorScoreHud[hidden]{display:none!important}
+#mayorScoreHud svg{width:13px;height:13px;display:block}
+#mayorScoreHud .mayor-hud-head{display:flex;align-items:center;gap:5px;border-bottom:1px solid #d4dfd8;padding:2px 0 5px;margin-bottom:3px;color:#2e735e;font-size:12px}
+#mayorScoreHud .mayor-hud-head b{flex:1}#mayorScoreHud .mayor-hud-head small{color:#647d71;font-size:9px}
+#mayorScoreHud .mayor-hud-row{display:grid;grid-template-columns:13px 1fr 26px 17px;align-items:center;gap:4px;min-height:20px;font-size:10px}
+#mayorScoreHud .mayor-hud-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#mayorScoreHud .mayor-hud-icon{color:#507c70}#mayorScoreHud .mayor-hud-row strong{text-align:right;font-size:12px;font-variant-numeric:tabular-nums}
+#mayorScoreHud .mayor-hud-grade{border-radius:4px;text-align:center;line-height:16px;color:#24704f;background:#e3f1e8}
+#mayorScoreHud [data-grade="B"] .mayor-hud-grade{color:#3a6f9d;background:#e3edf9}
+#mayorScoreHud [data-grade="C"] .mayor-hud-grade{color:#876a22;background:#f6edd7}
+#mayorScoreHud [data-grade="D"] .mayor-hud-grade{color:#a5652c;background:#f9e9d9}
+#mayorScoreHud [data-grade="F"] .mayor-hud-grade{color:#a43c40;background:#f6e3e2}
+#mayorScoreHud .mayor-hud-suspended{padding:4px 0 1px;text-align:center;font-weight:700;color:#b34749}
+:root.smcity-gray-ui #mayorScoreHud{background:#1e2933ed;color:#e4ebef;border-color:#52616c}
+:root.smcity-gray-ui #mayorScoreHud .mayor-hud-head{border-color:#52616c;color:#98c6b9}
+:root.smcity-gray-ui #mayorScoreHud .mayor-hud-head small,:root.smcity-gray-ui #mayorScoreHud .mayor-hud-icon{color:#a5b8ba}
+#mayorPanel .mayor-result{border:1px solid var(--my-line);border-radius:10px;background:var(--my-surface);padding:10px;margin:5px 0 10px}
+#mayorPanel .mayor-result-hero{display:flex;align-items:center;gap:10px;padding:9px;border-radius:8px;background:var(--my-good-bg);color:var(--my-good)}
+#mayorPanel .mayor-result[data-tone="bad"] .mayor-result-hero{background:var(--my-bad-bg);color:var(--my-bad)}
+#mayorPanel .mayor-result[data-tone="working"] .mayor-result-hero{background:#e8eff8;color:#38658c}
+#mayorPanel .mayor-result-symbol{width:34px;height:34px;border:1px solid currentColor;border-radius:50%;display:grid;place-items:center;font-size:21px;flex:none}
+#mayorPanel .mayor-result-hero small{font-size:10px;opacity:.85}#mayorPanel .mayor-result-hero h3{font-size:20px;margin:0;line-height:1.25}
+#mayorPanel .mayor-result-choice{padding:9px 2px 3px;display:grid;gap:2px}#mayorPanel .mayor-result-choice small{color:var(--my-muted)}
+#mayorPanel .mayor-result-report{font-size:14px;font-weight:600;padding:6px 2px;line-height:1.5}
+#mayorPanel .mayor-result-section{border-top:1px solid var(--my-line);padding:7px 2px 3px;margin-top:5px}
+#mayorPanel .mayor-result-section>b{font-size:11px;color:var(--my-muted);display:block;margin-bottom:4px}
+#mayorPanel .mayor-result-row{display:flex;align-items:center;gap:7px;padding:4px 0;min-height:27px}
+#mayorPanel .mayor-result-row>span:first-child{flex:1}
+#mayorPanel .mayor-result-transition{font-variant-numeric:tabular-nums;color:var(--my-muted);font-size:12px;white-space:nowrap}
+#mayorPanel .mayor-result-row>strong{font-size:17px;min-width:30px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+#mayorPanel .mayor-result-row>strong.good{color:var(--my-good)}#mayorPanel .mayor-result-row>strong.bad{color:var(--my-bad)}#mayorPanel .mayor-result-row>strong.neutral{color:var(--my-muted)}
+#mayorPanel .mayor-result-chips{display:flex;flex-wrap:wrap;gap:4px}
+#mayorPanel .mayor-result-chips .mayor-chip{font-size:12px;padding:4px 7px}
+#mayorPanel .mayor-result-progress{background:var(--my-soft);padding:8px;border-radius:7px;display:grid;gap:3px}
+#mayorPanel .mayor-result-progress small,#mayorPanel .mayor-result-neutral{color:var(--my-muted);font-size:11px}
+#mayorPanel[data-result="true"] .mayor-next{min-height:38px;font-size:13px}
+@media(min-width:850px) and (pointer:fine){
+ #mayorScoreHud{display:block}
+ #mayorPanel:not([data-detail="true"]){top:calc(var(--mayor-hud-top,90px) + 202px);max-height:max(130px,calc(100dvh - var(--mayor-hud-top,90px) - 300px))}
+ #mayorPanel[data-detail="true"]{width:min(570px,calc(100vw - 510px))}
+}
+@media(max-height:660px) and (min-width:850px) and (pointer:fine){#mayorPanel:not([data-detail="true"]){top:calc(var(--mayor-hud-top,90px) + 184px);max-height:max(130px,calc(100dvh - var(--mayor-hud-top,90px) - 265px))}}
+@media(max-width:600px){#mayorPanel .mayor-result{padding:7px}#mayorPanel .mayor-result-hero{padding:7px}#mayorPanel .mayor-result-hero h3{font-size:17px}#mayorPanel .mayor-result-report{font-size:13px}#mayorPanel .mayor-result-row>strong{font-size:15px}}
