@@ -2005,7 +2005,7 @@ function mayorUI(force=false){
    else if(i.status==='working'){const t=i.task,city=mayorCity();const progress=t.kind==='build'?(city.buildingIds[t.key]||[]).filter(x=>!i.baseline.includes(x)).length+'/'+t.count:Math.round(currentMissionScore()||0)+'% / '+t.target+'%';body+='<p>กำลังดำเนินการ '+progress+' · ก่อน 06:00</p>';}
    else{const log=s.history.filter(h=>h.id===i.id).at(-1);body+='<p>'+mayorEsc(log?.report||mayorReport)+'</p>';if(log?.details){const d=log.details;body+='<p>'+mayorEsc(mayorOutcome({scores:d.scores,effects:d.effects,money:d.money}))+'</p>';if(d.paid)body+='<small class="mayor-bad">จ่าย '+mayorFmt(d.paid)+' บาท</small>';if(d.grant)body+='<p><small>เงินสนับสนุน '+mayorFmt(d.grant)+' บาท</small></p>';}}
    const next=pending.find(x=>x.id!==i.id);if(next)body+='<button class="mayor-primary mayor-next" data-mayor-open="'+next.id+'">เรื่องถัดไป '+mayorIcon('next')+'</button>';
-  }else{body+='<div class="mayor-hero"><div><small>เรื่องรอตัดสินใจ</small><strong>'+pending.length+' <i>/ '+s.issues.length+'</i></strong></div><div class="mayor-hero-icon">'+mayorIcon('issues')+'</div></div><div class="mayor-meter mayor-progress"><i style="width:'+(100*(s.issues.length-pending.length)/Math.max(1,s.issues.length))+'%"></i></div><small class="mayor-subtle">ก่อน 16:00 น.</small>';for(const [id,n] of Object.entries(mayorModule.MAYOR_CATEGORIES)){const list=s.issues.filter(i=>i.category===id);body+='<div class="mayor-category"><b class="mayor-category-label">'+mayorCategoryLabel(id)+'</b>'+grade(s.scores[id])+'<button data-mayor-explore="'+id+'" '+(mayorLocked()||state.time>=mayorEngine.deadline(s.day)||list.some(i=>['pending','working'].includes(i.status))?'disabled':'')+'>แก้ปัญหาเพิ่ม</button></div>'+list.map(i=>'<button class="mayor-choice mayor-list-item" data-state="'+i.status+'" data-mayor-open="'+i.id+'"><span>'+mayorEsc(mayorModule.MAYOR_EVENTS.find(d=>d.id===i.eventId)?.title)+'</span> <small>'+({pending:'รอตัดสินใจ',working:'กำลังทำ',success:'เสร็จ',failed:'ล้มเหลว',expired:'หมดเวลา'}[i.status]||'')+'</small></button>').join('');}}
+  }else{body+='<div class="mayor-hero"><div><small>เรื่องรอตัดสินใจ</small><strong>'+pending.length+' <i>/ '+s.issues.length+'</i></strong></div><div class="mayor-hero-icon">'+mayorIcon('issues')+'</div></div><div class="mayor-meter mayor-progress"><i style="width:'+(100*(s.issues.length-pending.length)/Math.max(1,s.issues.length))+'%"></i></div><small class="mayor-subtle">'+(state.time>=mayorEngine.deadline(s.day)?'ปิดรับการตัดสินใจแล้ว · เรื่องใหม่ 06:00':'ก่อน 16:00 น.')+'</small>';for(const [id,n] of Object.entries(mayorModule.MAYOR_CATEGORIES)){const list=s.issues.filter(i=>i.category===id);body+='<div class="mayor-category"><b class="mayor-category-label">'+mayorCategoryLabel(id)+'</b>'+grade(s.scores[id])+'<button data-mayor-explore="'+id+'" '+(mayorLocked()||state.time>=mayorEngine.deadline(s.day)||list.some(i=>['pending','working'].includes(i.status))?'disabled':'')+'>แก้ปัญหาเพิ่ม</button></div>'+list.map(i=>'<button class="mayor-choice mayor-list-item" data-state="'+i.status+'" data-mayor-open="'+i.id+'"><span>'+mayorEsc(mayorModule.MAYOR_EVENTS.find(d=>d.id===i.eventId)?.title)+'</span> <small>'+({pending:'รอตัดสินใจ',working:'กำลังทำ',success:'เสร็จ',failed:'ล้มเหลว',expired:'หมดเวลา'}[i.status]||'')+'</small></button>').join('');}}
  }
  panel.innerHTML='<header><span class="mayor-header-icon">'+mayorIcon(k)+'</span><b>'+mayorTitles[k]+'</b><small class="mayor-time">'+mayorIcon('clock')+' '+timeText(state.time)+'</small><button class="mayor-close" data-mayor-action="close" aria-label="ปิด">'+mayorIcon('close')+'</button></header><div class="mayor-body">'+body+'</div>';panel.scrollTop=force?0:scroll;
  panel.onclick=e=>{const btn=e.target.closest('button');if(!btn||btn.disabled)return;const a=btn.dataset.mayorAction;if(a==='close')return mayorClose();if(a==='back')return mayorOpen('issues');if(a==='level'){$('cityLevelButton')?.click();return mayorClose();}if(btn.dataset.mayorOpen)return mayorOpen('issues',Number(btn.dataset.mayorOpen));if(btn.dataset.mayorExplore){mayorAdvance();const i=mayorEngine.explore(s,mayorCity(),btn.dataset.mayorExplore,state.time);if(i)mayorOpen('issues',i.id);else toast('วันนี้ไม่มีเรื่องใหม่ที่เข้าเงื่อนไขในหมวดนี้');return;}if(btn.dataset.mayorChoice!==undefined){mayorAdvance();const r=mayorEngine.choose(s,mayorViewedIssue,Number(btn.dataset.mayorChoice),mayorCity(),state.time);if(r.ok){mayorReport=r.report||'รับภารกิจแล้ว';toast(mayorReport);mayorRenderKey='';mayorUI(true);}else toast('ตัวเลือกไม่พร้อมใช้งาน');}};
@@ -2033,6 +2033,8 @@ const guideBox=()=>document.getElementById('cityLesson');
 function stopGuide(){
  if(guideTimer)clearInterval(guideTimer);
  const previous=guide;guideTimer=0;guide=null;
+ // Tutorial time is exempt from mayor deadlines.
+ if(state&&previous?.city===state&&mayorEngine&&state.mayor?.started===false)state.mayor=mayorEngine.fresh(state.time);
  if(previous?.city===state&&state)for(const c of state.citizens.values())if(c.lessonFirstWork&&c.resident)scheduleDay(c,Math.floor(state.time/1440));
  highlighted?.classList.remove('lesson-focus');highlighted=null;
  guideBox()?.remove();document.getElementById('lessonPoint')?.remove();
@@ -2060,13 +2062,15 @@ function startNewCity(city='phuket'){
 }
 function beginGuide(){
  guide={city:state,step:'road',node:null};
+ if(mayorEngine){state.mayor=mayorEngine.fresh(state.time);mayorAutoDay=null;mayorClose();if($('mayorRail'))$('mayorRail').hidden=true;}
  const box=document.createElement('aside');box.id='cityLesson';
  box.innerHTML='<button type="button" class="lesson-exit" aria-label="ออกจากบทสอน">×</button><strong>สอนเล่น</strong><div role="status"></div><button type="button" class="lesson-next" hidden>ต่อไป</button>';
  const point=document.createElement('i');point.id='lessonPoint';point.hidden=true;
  document.body.append(box,point);box.querySelector('.lesson-exit').onclick=stopGuide;
  box.querySelector('.lesson-next').onclick=()=>{
   if(!guide)return;
-  if(guide.step==='hotel'){cancelInteraction();stopGuide();return;}
+  if(guide.step==='hotel'){cancelInteraction();guide.step='mayor';}
+  else if(guide.step==='mayor'){finishCityGuide();return;}
   if(guide.step==='tourist'){cancelInteraction();guide.step='hotel';}
   if(guide.step==='score'){guide.step='signal';cancelInteraction();const [x,y]=xy(guide.node);cam.x=x;cam.y=y;}
   else if(guide.step==='trip')guide.step='score';
@@ -2074,6 +2078,15 @@ function beginGuide(){
   updateGuide();
  };
  updateGuide();guideTimer=setInterval(updateGuide,220);
+}
+function finishCityGuide(){
+ if(!guide||guide.city!==state)return;
+ cancelInteraction();stopGuide();
+ if(!mayorEngine){$('cityLevelButton')?.click();return;}
+ mayorAdvance();const m=mayorState();
+ mayorAutoCity=state;mayorAutoDay=m.day;
+ const first=m.issues.find(i=>i.status==='pending');
+ mayorOpen('issues',first?.id??null);
 }
 function updateGuide(){
  if(!guide||guide.city!==state){stopGuide();return;}
@@ -2166,15 +2179,17 @@ function updateGuide(){
  }else if(step==='tourist'){
   selector=shortcut('touristDashboard');message=`กดนักท่องเที่ยวเพื่อดูผู้มาเยือน เมืองจะเริ่มรับนักท่องเที่ยวได้เมื่อคะแนนภารกิจของชาวเมืองถึง ${TOURISM.happiness}% ทริปของนักท่องเที่ยวไม่นำมาคิดคะแนนนี้ เตรียมโรงแรมไว้สำหรับผู้ที่ต้องการค้างคืน`;
   manual=tool==='touristDashboard';
- }else{
+ }else if(step==='hotel'){
   if(category!=='home'){selector=categoryButton('home');message='กดหมวดที่อยู่อาศัย เพื่อหาที่พักสำหรับนักท่องเที่ยว';}
-  else{selector='[data-build-kind="hotel"]';message='กดโรงแรมเพื่อดูขนาดที่สร้างได้ แล้วกดจบบทสอน';manual=openBuildingKind==='hotel'||CATALOG[tool]?.kind==='hotel';}
+  else{selector='[data-build-kind="hotel"]';message='กดโรงแรมเพื่อดูขนาดที่สร้างได้ แล้วกดต่อไป';manual=openBuildingKind==='hotel'||CATALOG[tool]?.kind==='hotel';}
+ }else if(step==='mayor'){
+  manual=true;message='บริหารเมืองผ่านปุ่มด้านขวา ทุกวัน 06:00 มีปัญหาอย่างน้อย 7 เรื่อง ครบ 7 หมวด มีเรื่องละ 5 ทางเลือก คะแนนนายกส่งผลต่อสิทธิ์เลือก ต้องตัดสินใจหรือกดแก้ปัญหาเพิ่มก่อน 16:00 (4 โมงเย็น) ไม่เลือกเสีย 10 คะแนนต่อเรื่อง ภารกิจที่รับแล้วต้องเสร็จก่อน 06:00 วันถัดไป บัฟและดีบัฟหมดเวลาพร้อมกัน กดจบบทสอนเพื่อเปิดหน้าภารกิจเมือง';
  }
  if($('dialog').open&&$('confirmDialog')&&!['signal','erase'].includes(step)){selector='#confirmDialog';pos=null;}
  const target=selector?document.querySelector(selector):null;
  if(highlighted!==target){highlighted?.classList.remove('lesson-focus');target?.classList.add('lesson-focus');highlighted=target;}
  const label=box.querySelector('[role=status]');if(label.textContent!==message)label.textContent=message;
- next.hidden=!manual;next.textContent=step==='hotel'?'จบบทสอน':'ต่อไป';
+ next.hidden=!manual;next.textContent=step==='mayor'?'จบบทสอน':'ต่อไป';
  point.hidden=!pos;if(pos){const [x,y]=screen(...pos);point.style.left=x+'px';point.style.top=y+'px';}
 }
 function link(a,b){if(a===b)return;state.roads.get(a)?.links.add(b);state.roads.get(b)?.links.add(a);}
