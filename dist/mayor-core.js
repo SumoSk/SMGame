@@ -10691,8 +10691,8 @@ const clone=x=>JSON.parse(JSON.stringify(x));
 const dayAt=t=>Math.floor((t-360)/1440), start=d=>d*1440+360, deadline=d=>start(d)+600;
 const grade=v=>v>=86?"A":v>=71?"B":v>=51?"C":v>=26?"D":"F";
 const clamp=v=>Math.max(0,Math.min(100,Math.trunc(v)));
-function fresh(t){return {version:1,day:dayAt(t),lastTime:t,scores:Object.fromEntries(keys.map(k=>[k,60])),issues:[],effects:[],history:[],flags:[],suspendedUntil:null,sequence:0,unpaid:0,started:false,nightAt:null,nightDay:null};}
-function restore(saved,t){if(!saved||saved.version!==1)return fresh(t);const s=clone(saved);for(const k of keys)s.scores[k]=clamp(Number.isFinite(s.scores[k])?s.scores[k]:60);return s;}
+function fresh(t){return {version:1,day:dayAt(t),lastTime:t,scores:Object.fromEntries(keys.map(k=>[k,60])),issues:[],effects:[],history:[],flags:[],suspendedUntil:null,sequence:0,unpaid:0,started:false,nightAt:null,nightDay:null,exploreQuota:{day:dayAt(t),used:{}}};}
+function restore(saved,t){if(!saved||saved.version!==1)return fresh(t);const s=clone(saved);for(const k of keys)s.scores[k]=clamp(Number.isFinite(s.scores[k])?s.scores[k]:60);reconcileExploreQuota(s,true);return s;}
 const active=(s,t)=>s.suspendedUntil!==null&&t<s.suspendedUntil;
 function score(s,changes,t){let crossed=false;for(const [k,delta] of Object.entries(changes||{})){if(!keys.includes(k))continue;const before=s.scores[k];s.scores[k]=clamp(before+delta);if(before>25&&s.scores[k]<=25)crossed=true;}if(crossed&&!active(s,t))s.suspendedUntil=start(dayAt(t)+2);}
 function count(level){if(level<=5)return 1;if(level<=10)return 1+(random()<.5?1:0);if(level<=20)return 2;if(level<=30)return 2+(random()<.5?1:0);if(level<=50)return 3;return 3+(random()<.5?1:0);}
@@ -10708,16 +10708,36 @@ function startDay(s,city,t){s.started=true;planNight(s,t);if(active(s,t)||t>=dea
 function issueDeadline(i){return i.source==="night"&&Number.isFinite(i.deadline)?i.deadline:deadline(i.day);}
 function needsAdvance(s,t){return !s?.started||s.day!==dayAt(t)||s.nightDay!==s.day||s.lastTime<deadline(s.day)&&t>=deadline(s.day)||Number.isFinite(s.nightAt)&&t>=s.nightAt||s.issues.some(i=>i.source==="night"&&i.status==="pending"&&t>=issueDeadline(i));}
 function nightPulse(s,city,t){if(!Number.isFinite(s.nightAt)||t<s.nightAt)return;const at=s.nightAt;s.nightAt=null;if(active(s,t)||t>=at+120||t>=start(s.day+1))return;specialIssue(s,city,"emergencyOnly",at);}
-function record(s,i,report,t,details=null){s.history.push({id:i.id,eventId:i.eventId,category:i.category,status:i.status,report,at:t,source:i.source,...(i.target?{target:clone(i.target)}:{}),...(details?{details}: {})});}
+function record(s,i,report,t,details=null){s.history.push({id:i.id,eventId:i.eventId,category:i.category,status:i.status,report,at:t,source:i.source,day:i.day,...(i.target?{target:clone(i.target)}:{}),...(details?{details}: {})});}
 function apply(s,i,result,city,t,cashBefore=city.money){const r=result||{},before={...s.scores},aiBefore=city.aiCredits;if(r.money)city.money+=r.money;if(r.aiCredits&&Number.isFinite(city.aiCredits))city.aiCredits=Math.min(100000,Math.max(0,city.aiCredits+r.aiCredits));score(s,r.scores,t);const scoreChanges=Object.fromEntries(Object.keys(r.scores||{}).filter(k=>keys.includes(k)).map(k=>[k,{before:before[k],after:s.scores[k],delta:s.scores[k]-before[k]}]));for(const e of r.effects||[]){if(["floodDamage","fillPopulation"].includes(e.kind)){city.applyEffect?.(clone(e));}else if(t<start(i.day+1)){s.effects.push({...clone(e),expires:start(i.day+1),source:i.id});}}for(const flag of r.flags||[])if(!s.flags.includes(flag))s.flags.push(flag);const cashDelta=city.money-cashBefore,aiDelta=Number.isFinite(aiBefore)?city.aiCredits-aiBefore:0;const report=mayorV72Narrative(i,r,scoreChanges,cashDelta,aiDelta);record(s,i,report,t,{money:r.money||0,scores:clone(r.scores||{}),effects:clone(r.effects||[]),paid:i.paid||0,grant:i.grant||0,scoreChanges,cashDelta,aiCredits:aiDelta});return report;}
 function choose(s,id,index,city,t){const i=s.issues.find(x=>x.id===id);if(!i||i.status!=="pending"||active(s,t)||dayAt(t)!==i.day||t>=issueDeadline(i))return {ok:false};const o=options(s,i,city)[index];if(!o?.enabled)return {ok:false};const cashBefore=city.money;if(o.payable)city.money-=o.payable;if(o.grant)city.money+=o.grant;i.selected=index;i.paid=o.payable;i.grant=o.grant||0;if(o.task){i.status="working";i.task=clone(o.task);if(o.task.kind==="build")i.baseline=(city.buildingIds?.[o.task.key]||[]).slice();const objective=o.task.kind==="build"?"ก่อสร้าง "+(city.catalog?.[o.task.key]?.name||o.task.key)+" จำนวน "+o.task.count+" แห่ง":"ทำให้ภารกิจเดินทางสำเร็จถึง "+o.task.target+"%";const report="เทศบาลรับข้อเสนอแล้ว เจ้าหน้าที่จะติดตามเป้าหมาย "+objective+" ก่อน 06:00 วันถัดไป"+(i.paid?" และอนุมัติงบ "+i.paid.toLocaleString("th-TH")+" บาท":"")+(i.grant?" โดยได้รับเงินสนับสนุน "+i.grant.toLocaleString("th-TH")+" บาท ซึ่งต้องคืนหากไม่ผ่านเงื่อนไข":"")+" คะแนนจะสรุปเมื่อภารกิจสิ้นสุด";record(s,i,report,t,{money:0,scores:{},effects:[],paid:i.paid,grant:i.grant,scoreChanges:{},cashDelta:city.money-cashBefore});return {ok:true,working:true,report};}const won=o.chance===undefined||random()<o.chance;i.status=won?"success":"failed";i.rollWon=won;return {ok:true,won,report:apply(s,i,won?o.success:o.failure,city,t,cashBefore)};}
 function finish(s,i,city,t,won){if(i.status!=="working")return false;const o=byId.get(i.eventId).choices[i.selected];i.status=won?"success":"failed";const cashBefore=city.money;if(!won&&i.grant){const paid=Math.min(Math.max(0,city.money),i.grant);city.money-=paid;s.unpaid+=i.grant-paid;}apply(s,i,won?o.success:o.failure,city,t,cashBefore);return true;}
 function checkTasks(s,city,t){for(const i of s.issues){if(i.status!=="working"||t>=start(i.day+1))continue;const task=i.task;let success=false;if(task.kind==="build"){const old=new Set(i.baseline);success=new Set((city.buildingIds?.[task.key]||[]).filter(id=>!old.has(id))).size>=task.count;}else if(task.kind==="performance"){success=Number.isFinite(city.performance)&&city.performance>=task.target;}if(success)finish(s,i,city,t,true);}}
 function expire(s,city,t){for(const i of s.issues){if(i.status==="pending"&&t>=issueDeadline(i)){i.status="expired";const r=i.source==="night"?byId.get(i.eventId)?.ignored:null;apply(s,i,r||{scores:{[i.category]:-10},report:"ละเลยการตัดสินใจก่อน 16:00"},city,issueDeadline(i));}}}
-function advance(s,city,t){if(t<s.lastTime)throw new Error("Mayor clock cannot run backward");if(!s.started)startDay(s,city,s.lastTime);while(s.day<dayAt(t)){const boundary=start(s.day+1);expire(s,city,boundary);for(const i of s.issues)if(i.status==="working")finish(s,i,city,boundary,false);s.effects=s.effects.filter(e=>e.expires>boundary);s.issues=[];s.day++;startDay(s,city,boundary);}planNight(s,t);ensureDailyCoverage(s,city,t);expire(s,city,t);nightPulse(s,city,t);checkTasks(s,city,t);s.lastTime=t;}
+function advance(s,city,t){if(t<s.lastTime)throw new Error("Mayor clock cannot run backward");if(!s.started)startDay(s,city,s.lastTime);while(s.day<dayAt(t)){const boundary=start(s.day+1);expire(s,city,boundary);for(const i of s.issues)if(i.status==="working")finish(s,i,city,boundary,false);s.effects=s.effects.filter(e=>e.expires>boundary);s.issues=[];s.day++;s.exploreQuota={day:s.day,used:{}};startDay(s,city,boundary);}planNight(s,t);ensureDailyCoverage(s,city,t);expire(s,city,t);nightPulse(s,city,t);checkTasks(s,city,t);s.lastTime=t;}
 const EXPLORE_DAILY_LIMIT=3;
-function exploreRemaining(s,category){if(!keys.includes(category))return 0;return Math.max(0,EXPLORE_DAILY_LIMIT-s.issues.filter(i=>i.category===category&&i.source==="explore"&&i.day===s.day).length);}
-function explore(s,city,category,t){if(!keys.includes(category)||!exploreRemaining(s,category)||active(s,t)||t>=deadline(s.day)||dayAt(t)!==s.day||s.issues.some(i=>i.category===category&&["pending","working"].includes(i.status)))return null;return issue(s,city,category,"explore");}
+// Persist used quota separately from the issue list; reconcile older saves without
+// double-counting an issue which has both an acceptance and a completion history.
+function reconcileExploreQuota(s,includeHistory=false){
+ const valid=s.exploreQuota?.day===s.day&&s.exploreQuota.used&&typeof s.exploreQuota.used==="object";
+ if(!valid)s.exploreQuota={day:s.day,used:{}};
+ const seen=Object.fromEntries(keys.map(k=>[k,new Set()]));
+ const mark=(i,day)=>{if(i.source==="explore"&&day===s.day&&seen[i.category]&&i.id!=null)seen[i.category].add(i.id);};
+ for(const i of s.issues||[])mark(i,i.day);
+ if(includeHistory||!valid){
+  const first=new Set();
+  for(const h of s.history||[]){if(h.source!=="explore"||h.id==null||first.has(h.id))continue;first.add(h.id);mark(h,Number.isInteger(h.day)?h.day:dayAt(h.at));}
+ }
+ for(const k of keys){const n=s.exploreQuota.used[k];s.exploreQuota.used[k]=Math.min(EXPLORE_DAILY_LIMIT,Math.max(Number.isFinite(n)?Math.floor(n):0,seen[k].size,0));}
+ return s.exploreQuota;
+}
+function exploreRemaining(s,category){if(!keys.includes(category))return 0;return EXPLORE_DAILY_LIMIT-reconcileExploreQuota(s).used[category];}
+function explore(s,city,category,t){
+ if(!keys.includes(category)||!exploreRemaining(s,category)||active(s,t)||t>=deadline(s.day)||dayAt(t)!==s.day||s.issues.some(i=>i.category===category&&["pending","working"].includes(i.status)))return null;
+ const q=reconcileExploreQuota(s),used=q.used[category],i=issue(s,city,category,"explore");
+ if(i)q.used[category]=Math.min(EXPLORE_DAILY_LIMIT,used+1);
+ return i;
+}
 function tripReward(s,base,scope,isTourist,t){const es=s.effects.filter(e=>t<e.expires&&(e.scope==="all"||e.scope===scope||isTourist&&e.scope==="tourist"));const multipliers=es.filter(e=>e.kind==="tripMultiplier"||e.kind==="touristMultiplier").map(e=>e.value);const delta=Math.min(0,...es.filter(e=>e.kind==="tripDelta").map(e=>e.value));return Math.max(0,Math.floor(base*Math.max(1,...multipliers)+delta));}
 return {fresh,restore,grade,dayAt,start,deadline,issueDeadline,needsAdvance,noon:deadline,active,options,advance,explore,exploreRemaining,choose,checkTasks,tripReward};
 }
