@@ -218,3 +218,13 @@
 #mayorRail [data-suspended="true"]::after{background:#962d37}
 #mayorScoreHud .mayor-hud-suspended{background:#962d37;color:#fff;border-radius:4px;padding:4px;margin-top:4px}
 @media(max-width:600px){#mayorPanel .mayor-suspension-head{padding:8px}#mayorPanel .mayor-suspension-head h3{font-size:16px}#mayorPanel .mayor-suspension-body{padding:7px}#mayorPanel .mayor-suspension-cause{font-size:12px}}
+
+/* v7.2: once-daily 14:00 reminder for decisions due at 16:00. */
+#mayorPanel .mayor-afternoon{border:1px solid #d29543;border-radius:9px;background:#fff6e7;color:#714416;margin:0 0 9px;overflow:hidden}
+#mayorPanel .mayor-afternoon-head{display:flex;align-items:center;gap:8px;background:#a76020;color:white;padding:9px}
+#mayorPanel .mayor-afternoon-head>span{display:grid;place-items:center;flex:none;width:26px;height:26px;border:2px solid currentColor;border-radius:50%;font-size:19px;font-weight:800}
+#mayorPanel .mayor-afternoon-head small{color:#fff0d8;font-size:10px}
+#mayorPanel .mayor-afternoon-head h3{font-size:15px;line-height:1.4;margin:2px 0 0;color:white}
+#mayorPanel .mayor-afternoon p{font-size:11px;padding:0 8px;margin:6px 0;line-height:1.55}
+#mayorPanel .mayor-afternoon button{display:flex;align-items:center;justify-content:center;gap:5px;width:calc(100% - 16px);margin:7px 8px 8px;min-height:35px;background:#9f581b;border-color:#9f581b;color:white;font-weight:700}
+#mayorPanel .mayor-afternoon button:hover{background:#874914;color:white}
