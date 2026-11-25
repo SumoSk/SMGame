@@ -137,22 +137,54 @@
 #mayorPanel[data-urgent="true"] .mayor-header-icon{color:#a83c3f;background:#fce9e8}
 @media(max-width:600px){#mayorPanel .mayor-blind-option{padding:8px 6px}#mayorPanel .mayor-blind-option .mayor-option-head b{font-size:12px}}
 
-/* v7.2 mobile: mirror the scaled left buttons, keep camera pitch independently tappable. */
+/* v7.2 mobile rail: physical dimensions, independent of script-applied transforms.
+   Camera slider owns the outer right edge; mayor buttons occupy a separate lane. */
 @media(max-width:720px), (pointer:coarse){
- #mayorRail{pointer-events:none;overscroll-behavior:contain;touch-action:pan-y}
- #mayorRail button{pointer-events:auto;touch-action:pan-y}
- #mayorRail button svg{width:1em;height:1em}
+ html body #mayorRail{
+  --mayor-mobile-button:52px;--mayor-mobile-width:58px;--mayor-mobile-icon:19px;
+  --mayor-mobile-label:9px;--mayor-mobile-gap:5px;--mayor-mobile-radius:12px;
+  transform:none!important;transform-origin:top right!important;zoom:1!important;
+  width:var(--mayor-mobile-width)!important;gap:var(--mayor-mobile-gap)!important;
+  padding:0!important;margin:0!important;border:0!important;background:transparent!important;
+  right:calc(9px + env(safe-area-inset-right,0px))!important;
+  pointer-events:none;overscroll-behavior:contain;touch-action:pan-y;
+ }
+ html body #mayorRail button{
+  box-sizing:border-box!important;flex:0 0 var(--mayor-mobile-button)!important;
+  width:var(--mayor-mobile-button)!important;min-width:var(--mayor-mobile-button)!important;max-width:var(--mayor-mobile-button)!important;
+  height:var(--mayor-mobile-button)!important;min-height:var(--mayor-mobile-button)!important;max-height:var(--mayor-mobile-button)!important;
+  padding:2px!important;gap:2px!important;margin:0!important;
+  border-radius:var(--mayor-mobile-radius)!important;font-size:var(--mayor-mobile-label)!important;line-height:1.15!important;
+  pointer-events:auto;touch-action:pan-y;
+ }
+ html body #mayorRail button .quick-mode-icon{font-size:var(--mayor-mobile-icon)!important;line-height:1!important}
+ html body #mayorRail button .quick-mode-icon svg{display:block;width:1em!important;height:1em!important;max-width:1em!important;max-height:1em!important}
+ html body #mayorRail button .quick-mode-name{font-size:var(--mayor-mobile-label)!important;line-height:1.15!important}
+}
+@media(max-width:720px){
+ html body #mayorRail{--mayor-mobile-button:48px;--mayor-mobile-width:52px;--mayor-mobile-icon:18px;--mayor-mobile-label:8px;--mayor-mobile-gap:4px;--mayor-mobile-radius:10px;right:calc(5px + env(safe-area-inset-right,0px))!important}
+}
+/* The left rail is transformed to 80% in index.html at these exact breakpoints. */
+@media(max-width:520px){
+ html body #mayorRail{--mayor-mobile-button:38.4px;--mayor-mobile-width:41.6px;--mayor-mobile-icon:14.4px;--mayor-mobile-label:6.4px;--mayor-mobile-gap:3.2px;--mayor-mobile-radius:8px}
+}
+@media(min-width:721px) and (max-width:1000px) and (max-height:520px) and (pointer:coarse){
+ html body #mayorRail{--mayor-mobile-button:41.6px;--mayor-mobile-width:46.4px;--mayor-mobile-icon:15.2px;--mayor-mobile-label:7.2px;--mayor-mobile-gap:4px;--mayor-mobile-radius:9.6px}
+}
+@media(min-width:521px) and (max-width:720px) and (max-height:520px) and (pointer:coarse){
+ html body #mayorRail{--mayor-mobile-button:38.4px;--mayor-mobile-width:41.6px;--mayor-mobile-icon:14.4px;--mayor-mobile-label:6.4px;--mayor-mobile-gap:3.2px;--mayor-mobile-radius:8px}
 }
 @media(pointer:coarse){
- body:has(#mayorRail:not([hidden])) #cameraPitchRail{right:calc(74px + env(safe-area-inset-right,0px))}
+ html body #mayorRail{right:calc(46px + env(safe-area-inset-right,0px))!important}
+ html body #cameraPitchRail{right:calc(4px + env(safe-area-inset-right,0px))!important;z-index:30!important}
  body:has(#mayorPanel:not([hidden])) #cameraPitchRail{opacity:0;pointer-events:none}
+ /* Leave the rail and camera lane clear when opening mayor details. */
+ html body #mayorPanel{right:calc(110px + env(safe-area-inset-right,0px))!important;width:min(330px,calc(100vw - 120px - env(safe-area-inset-right,0px)))!important}
 }
 @media(max-width:720px) and (pointer:coarse){
- body:has(#mayorRail:not([hidden])) #cameraPitchRail{right:calc(64px + env(safe-area-inset-right,0px))}
-}
-@media(max-width:1000px) and (max-height:520px) and (pointer:coarse){
- body:has(#mayorRail:not([hidden])) #cameraPitchRail{right:calc(64px + env(safe-area-inset-right,0px))}
+ html body #mayorPanel{right:calc(102px + env(safe-area-inset-right,0px))!important;width:min(330px,calc(100vw - 112px - env(safe-area-inset-right,0px)))!important}
 }
 @media(max-width:520px) and (pointer:coarse){
- body:has(#mayorRail:not([hidden])) #cameraPitchRail{right:calc(52px + env(safe-area-inset-right,0px))}
+ html body #mayorRail [data-pending]:not([data-pending=""])::after{font:600 7px/11px sans-serif;min-width:11px;right:1px;top:1px}
+ html body #mayorPanel{right:calc(92px + env(safe-area-inset-right,0px))!important;width:min(330px,calc(100vw - 102px - env(safe-area-inset-right,0px)))!important}
 }
