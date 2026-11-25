@@ -1,0 +1,123 @@
+/* Important theme properties live in one layer so they precede the old device-specific
+   colors without taking over sizing, visibility or pointer handling. */
+@layer citySkin {
+  :root {
+    color-scheme:light;
+    --city-base:#f4efdf; --city-surface:#fffbef; --city-raised:#ecdfc3;
+    --city-edge:#ae9871; --city-ink:#26394a; --city-muted:#53646d;
+    --city-accent:#86511d; --city-selected:#21596a; --city-on-selected:#fff8e8;
+    --city-shadow:0 3px 12px #24374633; --city-sheen:#ffffff8a;
+    --city-glass:linear-gradient(145deg,var(--city-surface),var(--city-base));
+    --city-key:linear-gradient(150deg,var(--city-surface),var(--city-raised));
+  }
+  :root.smcity-gray-ui {
+    color-scheme:dark;
+    --city-base:#182737; --city-surface:#25394b; --city-raised:#30485a;
+    --city-edge:#677888; --city-ink:#f7efdf; --city-muted:#becdd4;
+    --city-accent:#ffda91; --city-selected:#386678; --city-on-selected:#fff4dd;
+    --city-shadow:0 4px 15px #07142077; --city-sheen:#ffffff18;
+  }
+  :root, :root.smcity-gray-ui {
+    --smg-panel-top:var(--city-surface)!important; --smg-panel-bottom:var(--city-base)!important;
+    --smg-button-top:var(--city-surface)!important; --smg-button-bottom:var(--city-raised)!important;
+    --smg-border:var(--city-edge)!important; --smg-text:var(--city-ink)!important; --smg-icon:var(--city-accent)!important;
+    --smg-active-top:var(--city-raised)!important; --smg-active-bottom:var(--city-surface)!important;
+    --smg-aura:transparent!important; --smg-aura-strong:var(--city-sheen)!important;
+    --sm-dark-outer:var(--city-base)!important; --sm-dark-panel:var(--city-surface)!important;
+    --sm-dark-card:var(--city-raised)!important; --sm-dark-text:var(--city-ink)!important;
+    --sm-dark-muted:var(--city-muted)!important; --sm-dark-stroke:var(--city-edge)!important;
+  }
+  :is(dialog,.member-card,#missionDailyAuto) {
+    --sm-pop-surface:var(--city-base)!important; --sm-pop-card:var(--city-surface)!important;
+    --sm-pop-raised:var(--city-raised)!important; --sm-pop-line:var(--city-edge)!important;
+    --sm-pop-ink:var(--city-ink)!important; --sm-pop-muted:var(--city-muted)!important;
+    --sm-pop-primary:var(--city-selected)!important; --sm-pop-on-primary:var(--city-on-selected)!important;
+    --sm-pop-hover:var(--city-raised)!important;
+  }
+  :is(.control-deck,#cityCommandBar .dock-head,.city-dashboard,.city-control-mini,.build-dock,.city-level-button,
+      .city-mission-total,.city-mood-collector,.city-ai-quota-button,#cityAdvisor,#cityAdvisorTicker,#cityLesson,
+      #inspector,.citizens-dashboard,#trafficPairDashboard,#planningCoverageControls,#buildVariantPopup,
+      #buildingQuickActions,#cameraJoystick,dialog:not(.member-gate),.member-card,#missionDailyAuto,#toast) {
+    background:var(--city-glass)!important;color:var(--city-ink)!important;border-color:var(--city-edge)!important;
+    box-shadow:inset 0 1px var(--city-sheen),var(--city-shadow)!important;
+  }
+  :is(.dashboard-heading,.dock-body,.dock-context,.city-demand-panel,.panel-content,.citizens-toolbar,
+     .citizens-top,.citizen-kpi,.citizen-person,.citizen-issue,.citizen-note,.citizen-more,.mini-need,.city-metric,
+     .tp-head,.tp-metric,.tp-route,.dc-heading,#developerChatDialog header,.daily-report-topbar) {
+    background:var(--city-surface)!important;color:var(--city-ink)!important;border-color:var(--city-edge)!important;
+  }
+  :is(#cityCommandBar,.dashboard-member-buttons,.dashboard-actions,#subcategories,#categories,#tools,
+      #cityQuickModes,#citizenFilters,#touristFilters,#buildVariantPopup,#trafficPairDashboard,
+      #cameraJoystick,#planningCoverageControls,#landscapeQuickActions) button {
+    background:var(--city-key)!important;color:var(--city-ink)!important;border-color:var(--city-edge)!important;
+    box-shadow:inset 0 1px var(--city-sheen)!important;
+  }
+  :is(#cityCommandBar,#tools,#categories,#subcategories,#cityQuickModes,#citizenFilters,#touristFilters,#trafficPairDashboard)
+    button:is(.active,.tp-active,[aria-pressed="true"]) {
+    background:var(--city-selected)!important;color:var(--city-on-selected)!important;
+    border-color:var(--city-accent)!important;box-shadow:inset 0 -2px var(--city-accent)!important;
+  }
+  :is(#tools,#categories,#subcategories) button :is(strong,small,.dock-group-name,.tool-price,.tool-capacity,.tool-parking),
+  :is(#cityCommandBar,.dashboard-title,.city-metric,.mini-need,.citizens-top,.tp-metric) :is(h2,b,strong,.quick-mode-name),
+  #cityQuickModes .quick-mode-name {color:inherit!important}
+  :is(.tp-sub,.tp-label,.tp-route-small,.tp-empty,.tp-foot,.mini-demand-legend,.dashboard-title small) {color:var(--city-muted)!important}
+  .tp-duration {color:var(--city-accent)!important}
+  .mini-need.shortage strong {color:#aa422e!important}
+  :root.smcity-gray-ui .mini-need.shortage strong {color:#ffac98!important}
+  #cityQuickModes [data-city-shortcut] {--enamel:#386e76}
+  #cityQuickModes [data-city-shortcut="vehicleUpgrade"] {--enamel:#97494f}
+  #cityQuickModes [data-city-shortcut="citizenDashboard"] {--enamel:#42669a}
+  #cityQuickModes [data-city-shortcut="touristDashboard"] {--enamel:#307c69}
+  #cityQuickModes [data-city-shortcut="trafficHeat"] {--enamel:#a25534}
+  #cityQuickModes [data-city-shortcut="missionDashboard"] {--enamel:#765888}
+  #cityQuickModes [data-city-shortcut="erase"] {--enamel:#8d593c}
+  :is(#mayorRail,#cityQuickModes) button {
+    background:linear-gradient(150deg,color-mix(in srgb,var(--enamel) 30%,#fff8dd),var(--city-surface))!important;
+    color:var(--city-ink)!important;border-color:color-mix(in srgb,var(--enamel) 65%,#cabb96)!important;
+  }
+  :root.smcity-gray-ui :is(#mayorRail,#cityQuickModes) button {
+    background:linear-gradient(150deg,var(--enamel),#1a2939 85%)!important;color:#fff5e3!important;
+  }
+  :is(#cityQuickModes,#mayorRail) button:is(:focus-visible,[aria-pressed="true"]) {
+    outline:2px solid var(--city-accent)!important;outline-offset:-2px;
+  }
+  :root:not(.smcity-gray-ui) #mayorPanel {
+    --my-bg:var(--city-base)!important;--my-surface:var(--city-surface)!important;--my-soft:var(--city-raised)!important;
+    --my-line:var(--city-edge)!important;--my-text:var(--city-ink)!important;--my-muted:var(--city-muted)!important;
+    --my-accent:var(--city-accent)!important;--my-good:#226348!important;--my-good-bg:#dbeddb!important;
+    --my-bad:#9a3834!important;--my-bad-bg:#f6dfd7!important;color-scheme:light!important;
+  }
+  :root:not(.smcity-gray-ui) #mayorPanel :is(header,.mayor-story,.mayor-blind-option,.mayor-header-icon),
+  :root:not(.smcity-gray-ui) #mayorScoreHud {
+    background:var(--city-glass)!important;color:var(--city-ink)!important;border-color:var(--city-edge)!important;
+  }
+  :root:not(.smcity-gray-ui) #mayorPanel :is(header>b,.mayor-choice-bar>b,.mayor-reply-icon,.mayor-category-icon),
+  :root:not(.smcity-gray-ui) #mayorScoreHud :is(.mayor-hud-head,.mayor-hud-icon) {color:var(--city-accent)!important}
+  :root:not(.smcity-gray-ui) #mayorPanel :is(.mayor-question-extra,.mayor-question-facts>b),
+  :root:not(.smcity-gray-ui) #mayorScoreHud .mayor-hud-head small {color:var(--city-muted)!important}
+  :root:not(.smcity-gray-ui) #mayorPanel button.mayor-primary {background:var(--city-selected)!important;color:white!important}
+  :root:not(.smcity-gray-ui) #mayorPanel button.mayor-blind-option:is(:hover,:focus-visible):enabled {background:var(--city-raised)!important}
+}
+
+@layer citySkin {
+  #developerChatDialog {
+    --dc-bg:var(--city-base)!important;--dc-ink:var(--city-ink)!important;--dc-muted:var(--city-muted)!important;
+    --dc-line:var(--city-edge)!important;--dc-soft:var(--city-surface)!important;--dc-blue:var(--city-accent)!important;
+    --dc-incoming:var(--city-raised)!important;--dc-mine:var(--city-selected)!important;
+  }
+  #dcMessages .dc-bubble {color:var(--city-ink)!important}
+  #dcMessages article.mine .dc-bubble {color:var(--city-on-selected)!important}
+  :is(.dock-context,.builder-zone,.dock-timebar,.city-panel,#tools,#subcategories,#categories) {
+    background-color:var(--city-base)!important;border-color:var(--city-edge)!important;
+  }
+  #tools [data-category="roads"] .tool-icon {
+    display:inline-block!important;width:var(--road-icon-width,12px)!important;height:14px!important;
+    min-width:0!important;padding:0!important;border-radius:2px!important;
+    border-inline:2px solid #9eabb1!important;font-size:0!important;
+    background:repeating-linear-gradient(to bottom,#ffda77 0 3px,transparent 3px 5px) center / 2px 100% no-repeat,
+      repeating-linear-gradient(to right,#40525e 0 4px,#83929a 4px 5px)!important;
+    transform:skewX(-17deg);
+  }
+  #tools [data-tool="medium"] {--road-icon-width:19px}
+  #tools [data-tool="large"] {--road-icon-width:28px}
+}
