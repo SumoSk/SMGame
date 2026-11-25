@@ -1938,7 +1938,7 @@ function startNewCity(city='phuket'){
 function beginGuide(){
  guide={city:state,step:'road',node:null};
  const box=document.createElement('aside');box.id='cityLesson';
- box.innerHTML='<button type="button" class="lesson-exit" aria-label="ออกจากบทสอน">×</button><strong>อริสสอนเล่น</strong><div role="status"></div><button type="button" class="lesson-next" hidden>ต่อไป</button>';
+ box.innerHTML='<button type="button" class="lesson-exit" aria-label="ออกจากบทสอน">×</button><strong>สอนเล่น</strong><div role="status"></div><button type="button" class="lesson-next" hidden>ต่อไป</button>';
  const point=document.createElement('i');point.id='lessonPoint';point.hidden=true;
  document.body.append(box,point);box.querySelector('.lesson-exit').onclick=stopGuide;
  box.querySelector('.lesson-next').onclick=()=>{
