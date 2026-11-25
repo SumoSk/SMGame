@@ -2028,10 +2028,10 @@ function mayorQuestionMarkup(i,d,c){
  if(i.context)extra=[i.context,extra].filter(Boolean).join(' · ');
  const tasks=(d?.choices||[]).map(o=>o.task).filter(Boolean);
  const buildKeys=[...new Set(tasks.filter(t=>t.kind==='build').map(t=>t.key))];
- const facts=['เงินในคลัง '+mayorFmt(c.money)+' บาท'];
+ const facts=(tasks.length||(d?.choices||[]).some(o=>o.cost>0))?['เงินในคลัง '+mayorFmt(c.money)+' บาท']:[];
  if(tasks.some(t=>t.kind==='performance')&&Number.isFinite(c.performance))facts.push('ภารกิจเดินทางสำเร็จขณะนี้ '+Math.round(c.performance)+'%');
- for(const key of buildKeys){const name=c.catalog[key]?.name||key;facts.push(name+' ที่มี '+(c.buildingCounts[key]||0)+' แห่ง');const kind=c.catalog[key]?.kind,group=kind==='office'||kind==='factory'?'work':kind;const demand=c.capacityNeed?.(group);if(demand&&!facts.some(v=>v.startsWith('ความจุรวม '+group+' '))) {const label=group==='work'?'งาน':(KINDS[group]?.name||name);facts.push(label+' · ว่าง '+mayorFmt(demand.free)+' / '+mayorFmt(demand.capacity)+' ที่ · ขาด '+mayorFmt(demand.deficit)+' ที่');}}
- return '<p class="mayor-question-text">'+mayorEsc(story)+'</p>'+(extra?'<p class="mayor-question-extra">'+mayorEsc(extra)+'</p>':'')+'<div class="mayor-question-facts"><b>ข้อมูลประกอบการตัดสินใจ</b>'+facts.map(v=>'<span>'+mayorEsc(v)+'</span>').join('')+'</div>';
+ for(const key of buildKeys){const name=c.catalog[key]?.name||key;facts.push(name+' ที่มี '+(c.buildingCounts[key]||0)+' แห่ง');const kind=c.catalog[key]?.kind,group=kind==='office'||kind==='factory'?'work':kind;const demand=c.capacityNeed?.(group);if(demand&&!facts.some(v=>v.startsWith('ความจุรวม '+group+' '))) {const label=group==='work'?'งาน':(KINDS[group]?.name||name);facts.push(label+' · ยังขาด '+mayorFmt(demand.deficit)+' ที่');}}
+ return '<p class="mayor-question-text">'+mayorEsc(story)+'</p>'+(extra?'<p class="mayor-question-extra">'+mayorEsc(extra)+'</p>':'')+(facts.length?'<div class="mayor-question-facts"><b>ข้อมูลเมือง</b>'+facts.map(v=>'<span>'+mayorEsc(v)+'</span>').join('')+'</div>':'');
 }
 function mayorChoiceMarkup(o,c,s,position=o.index){
  const req=Object.entries(o.requires||{}).map(([k,v])=>mayorModule.MAYOR_CATEGORIES[k]+' '+mayorGrade(v)+' ขึ้นไป').join(' · ');
@@ -2072,7 +2072,7 @@ function mayorResultMarkup(i,log,s,progress=''){
   if((status==='working'||!choice?.task)&&d.grant)out+='<div class="mayor-result-row"><span>เงินสนับสนุน</span><b>+'+mayorFmt(d.grant)+' บาท</b></div>';
   out+='</div>';
  }
- if(d.aiCredits)out+='<div class="mayor-result-section"><b>โควต้าแยก AI</b><div class="mayor-result-row"><span>โควต้าที่ได้รับจริง</span><strong class="good">+'+mayorFmt(d.aiCredits)+' จุด</strong></div></div>';
+ if(d.aiCredits)out+='<div class="mayor-result-section"><b>โควต้าแยก AI</b><div class="mayor-result-row"><span>โควต้าที่เปลี่ยนแปลง</span><strong class="'+(d.aiCredits>0?'good':'bad')+'">'+(d.aiCredits>0?'+':'')+mayorFmt(d.aiCredits)+' จุด</strong></div></div>';
  if(d.effects?.length)out+='<div class="mayor-result-section"><b>ผลต่อเมือง · ถึง 06:00</b><div class="mayor-result-chips">'+mayorChips({effects:d.effects})+'</div></div>';
  if(status==='working'&&!known&&(i.paid||i.grant))out+='<div class="mayor-result-section"><b>งบตอนรับภารกิจ</b><p>จ่าย '+mayorFmt(i.paid||0)+' บาท · รับงบ '+mayorFmt(i.grant||0)+' บาท</p></div>';
  if(!changes.length&&!d.effects?.length&&!d.cashDelta&&!d.aiCredits&&status!=='working')out+='<div class="mayor-result-neutral">ไม่มีการเปลี่ยนแปลงคะแนนหรือสถานะพิเศษ</div>';
@@ -2107,7 +2107,7 @@ function mayorPerformanceForDay(day){
 function mayorCity(){
  const counts={},ids={};for(const b of state.buildings.values()){counts[b.key]=(counts[b.key]||0)+1;(ids[b.key]||=[]).push(b.id);}
  let capacity=null;const catalog={};for(const [k,t] of Object.entries(CATALOG))catalog[k]={name:t.name,kind:t.kind,cost:t.cost,residents:t.residents,jobs:t.jobs,service:t.service,beds:t.beds,unlocked:!t.legacyOnly&&!['home_small','home_medium'].includes(k)&&!buildingQuotaStatus(k).locked};
- return {get money(){return state.money},set money(v){state.money=v},get aiCredits(){return ensureCityLevel().aiCredits},set aiCredits(v){ensureCityLevel().aiCredits=v},level:ensureCityLevel().level,buildingCounts:counts,buildingIds:ids,catalog,capacityNeed:k=>(capacity??=mayorCapacityDemand())[k],performance:currentMissionScore(),performanceForDay:mayorPerformanceForDay,canBuild:(k,n)=>{const q=buildingQuotaStatus(k);return !!catalog[k]?.unlocked&&(!q.limited||q.remaining>=n);}};
+ return {get money(){return state.money},set money(v){state.money=v},get aiCredits(){return ensureCityLevel().aiCredits},set aiCredits(v){ensureCityLevel().aiCredits=v},level:ensureCityLevel().level,buildingCounts:counts,buildingIds:ids,catalog,capacityNeed:k=>(capacity??=mayorCapacityDemand())[k],performance:currentMissionScore(),recentPerformance:mayorPerformanceForDay(performanceDay()-1)??currentMissionScore(),performanceForDay:mayorPerformanceForDay,canBuild:(k,n)=>{const q=buildingQuotaStatus(k);return !!catalog[k]?.unlocked&&(!q.limited||q.remaining>=n);}};
 }
 function mayorStoryClosed(id){return !!(state?.mayor&&mayorEngine?.storyClosed?.(state.mayor,id));}
 function mayorEffect(kind){const s=state?.mayor;return !!s?.effects.some(e=>e.kind===kind&&e.expires>state.time);}
@@ -2182,18 +2182,18 @@ function mayorAfternoonPending(s,t,locked){
 function mayorAfternoonMarkup(s,t,items){
  const minutes=Math.max(0,Math.ceil(mayorEngine.deadline(s.day)-t));
  const duration=Math.floor(minutes/60)+' ชม. '+minutes%60+' นาที';
- return '<section class="mayor-afternoon" role="region" aria-label="แจ้งเตือนงานบริหารค้าง"><div class="mayor-afternoon-head"><span aria-hidden="true">!</span><div><small>แจ้งเตือนก่อนหมดเวลาทำงาน</small><h3>ท่านนายก! ยังมีงานบริหารค้าง '+items.length+' เรื่อง</h3></div></div><p>กรุณาตัดสินใจภายใน 16:00 น. เหลือเวลา <b>'+duration+'</b> ในเกม</p><p>หากปล่อยให้หมดเวลา จะเสียคะแนนหมวดที่เกี่ยวข้อง <b>10 คะแนนต่อเรื่อง</b></p><button type="button" data-mayor-action="afternoon-now">แก้ปัญหาเดี๋ยวนี้ '+mayorIcon('next')+'</button></section>';
+ return '<section class="mayor-afternoon" role="region" aria-label="แจ้งเตือนงานบริหารค้าง"><div class="mayor-afternoon-head"><span aria-hidden="true">!</span><div><small>แจ้งเตือนก่อนหมดเวลาทำงาน</small><h3>ท่านนายก! ยังมีงานบริหารค้าง '+items.length+' เรื่อง</h3></div></div><p>กรุณาตัดสินใจภายใน 16:00 น. เหลือเวลา <b>'+duration+'</b> ในเกม</p><p>หากปล่อยให้หมดเวลา บางเรื่องอาจทำให้คะแนนลดลง</p><button type="button" data-mayor-action="afternoon-now">แก้ปัญหาเดี๋ยวนี้ '+mayorIcon('next')+'</button></section>';
 }
 
 function mayorStoryMarkup(s){
- const active=(s.stories||[]).filter(x=>x.status==="active"),ended=(s.stories||[]).filter(x=>x.status==="ended").slice(-8).reverse();
+ const active=(s.stories||[]).filter(x=>x.status==="active"),ended=[];
  if(!active.length&&!ended.length)return "";
  const item=x=>{
   const pending=s.issues.find(i=>i.storyId===x.id&&i.status==="pending"),last=x.history?.at(-1);
   const label=x.status==="ended"?"ปิดเรื่องแล้ว":pending?"รอตัดสินใจ":"รอติดตาม";
   return '<div class="mayor-thread"><div class="mayor-thread-head"><b>'+mayorEsc(x.title)+'</b><small>'+label+'</small></div><span>'+mayorEsc(x.actor)+' · วันที่ '+(x.startedDay+1)+' เป็นต้นมา</span>'+(x.closedIds?.length?'<strong class="mayor-thread-alert">ร้านหยุดรับลูกค้า '+x.closedIds.length+' แห่ง</strong>':'')+(last?'<p>'+mayorEsc(last.choiceTitle)+' — '+mayorEsc(last.report)+'</p>':'')+(pending?'<button type="button" class="mayor-primary" data-mayor-open="'+pending.id+'">จัดการเรื่องต่อ</button>':'')+'<details><summary>ประวัติเรื่องราว ('+(x.history?.length||0)+' ตอน)</summary>'+((x.history||[]).map(h=>'<p>วันที่ '+(h.day+1)+' · '+mayorEsc(h.choiceTitle)+'<br>'+mayorEsc(h.report)+'</p>').join(''))+'</details></div>';
  };
- return '<section class="mayor-threads"><div class="mayor-thread-title"><b>รายงานจากเลขานุการ</b><small>'+active.length+'/7 เรื่องกำลังดำเนินอยู่</small></div>'+active.map(item).join('')+(ended.length?'<details><summary>เรื่องที่จบแล้ว '+ended.length+' เรื่องล่าสุด</summary>'+ended.map(item).join('')+'</details>':'')+'</section>';
+ return '<section class="mayor-threads"><div class="mayor-thread-title"><b>เรื่องที่ยังไม่จบ</b><small>'+active.length+' เรื่อง</small></div>'+active.map(item).join('')+(ended.length?'<details><summary>เรื่องที่จบแล้ว '+ended.length+' เรื่องล่าสุด</summary>'+ended.map(item).join('')+'</details>':'')+'</section>';
 }
 function mayorUI(force=false){
  if(!mayorEngine||!state||typeof document.createElement!=='function'||!document.body?.appendChild||!$('cityLeftRail'))return;
@@ -2238,7 +2238,7 @@ function mayorUI(force=false){
  if(k==='history'){const recent=s.history.slice(-30);const sums={};for(const h of recent){const day=mayorEngine.dayAt(h.at)+1;const item=sums[day]||={ok:0,fail:0};if(h.status==='success')item.ok++;if(['failed','expired'].includes(h.status))item.fail++;}const days=Object.entries(sums).slice(-7);if(days.length)body+='<small>ผลการบริหาร 7 วันล่าสุด</small>'+days.map(([d,r])=>'<div class="mayor-stat"><small>วันที่ '+d+'</small><span>สำเร็จ '+r.ok+' / ไม่สำเร็จ '+r.fail+'</span></div><div class="mayor-meter"><i style="width:'+(100*r.ok/Math.max(1,r.ok+r.fail))+'%"></i></div>').join('');body+=s.history.slice(-40).reverse().map(h=>'<p><small>วันที่ '+(mayorEngine.dayAt(h.at)+1)+' · '+mayorEsc(mayorModule.MAYOR_CATEGORIES[h.category])+'</small><br>'+mayorEsc(h.report)+(h.details?.scoreChanges&&Object.keys(h.details.scoreChanges).length?'<br><small>'+mayorEsc(Object.entries(h.details.scoreChanges).map(([key,v])=>(mayorModule.MAYOR_CATEGORIES[key]||key)+' '+(v.delta>0?'+':'')+v.delta).join(' · '))+'</small>':'')+'</p>').join('')||'<p>ยังไม่มีประวัติ</p>';}
  if(k==='issues'){
   const i=s.issues.find(x=>x.id===mayorViewedIssue);
-  if(i){const d=mayorModule.MAYOR_EVENTS.find(x=>x.id===i.eventId);const thread=(s.stories||[]).find(x=>x.id===i.storyId);if(thread)body+='<div class="mayor-thread-note">'+mayorEsc(thread.title)+' · ตอนที่ '+(thread.history.length+(i.status==='pending'?1:0))+'<br>'+mayorEsc(thread.history.at(-1)?.report||'')+'</div>';body+='<div class="mayor-issue-top"><button class="mayor-back" data-mayor-action="back">'+mayorIcon('back')+' ทุกหมวด</button><span class="mayor-category-label">'+mayorCategoryLabel(i.category)+'</span><small>'+(s.issues.indexOf(i)+1)+' / '+s.issues.length+'</small></div><div class="mayor-story"><h3>' +mayorEsc(mayorIssueTitle(i,d))+'</h3>'+(i.status==='pending'?mayorQuestionMarkup(i,d,mayorCity()):'')+'</div>';
+  if(i){const d=mayorModule.MAYOR_EVENTS.find(x=>x.id===i.eventId);const thread=(s.stories||[]).find(x=>x.id===i.storyId);if(thread)body+='<div class="mayor-thread-note">'+mayorEsc(thread.title)+' · ตอนที่ '+(thread.history.length+(i.status==='pending'?1:0))+'</div>';body+='<div class="mayor-issue-top"><button class="mayor-back" data-mayor-action="back">'+mayorIcon('back')+' ทุกหมวด</button><span class="mayor-category-label">'+mayorCategoryLabel(i.category)+'</span><small>'+(s.issues.indexOf(i)+1)+' / '+s.issues.length+'</small></div><div class="mayor-story"><h3>' +mayorEsc(mayorIssueTitle(i,d))+'</h3>'+(i.status==='pending'?mayorQuestionMarkup(i,d,mayorCity()):'')+'</div>';
    if(i.status==='pending'){if(i.source==='night')body+='<div class="mayor-urgent-call">'+mayorIcon('clock')+'<b>สายด่วนถึงนายก · นอกเวลางาน</b><small>เหลือ '+Math.max(0,Math.ceil(mayorEngine.issueDeadline(i)-state.time))+' นาทีในเกม</small></div>';body+='<div class="mayor-choice-bar"><b>คุณจะตัดสินใจอย่างไร?</b><small>'+mayorIcon('clock')+' ก่อน '+timeText(mayorEngine.issueDeadline(i))+'</small></div>';const c=mayorCity();body+='<div class="mayor-options">'+mayorDisplayOptions(mayorEngine.options(s,i,c),i).map((o,position)=>mayorChoiceMarkup(o,c,s,position)).join('')+'</div>';}
    else if(i.status==='working'){const t=i.task,city=mayorCity();const progress=t.kind==='build'?(city.buildingIds[t.key]||[]).filter(x=>!i.baseline.includes(x)).length+'/'+t.count:Math.round(currentMissionScore()||0)+'% / '+t.target+'%';const log=s.history.filter(h=>h.id===i.id).at(-1);body+=mayorResultMarkup(i,log,s,progress);}
    else{const log=s.history.filter(h=>h.id===i.id).at(-1);body+=mayorResultMarkup(i,log,s);}

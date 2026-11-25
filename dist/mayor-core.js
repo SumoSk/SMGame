@@ -10670,8 +10670,9 @@ const MAYOR_V72_REACTION={
  integrity:['ผลที่เกิดขึ้นช่วยเพิ่มความเชื่อถือเรื่องความโปร่งใส','ผลที่เกิดขึ้นทำให้ความเชื่อถือเรื่องความโปร่งใสลดลง']
 };
 function mayorV72Narrative(i,r,changes,cashDelta,aiDelta){
- const parts=[r.report||'เทศบาลสรุปผลการดำเนินงาน'];
- const written=i.eventId.startsWith('v72-')||MAYOR_V72_OFFERS[i.eventId]?.success?.report===r.report;
+ const parts=[r.report||'สรุปผลการตัดสินใจ'];
+ if(i.eventId.startsWith("play-")||i.eventId.startsWith("story-play-"))return parts[0];
+ const written=i.eventId.startsWith('play-')||i.eventId.startsWith('story-play-')||i.eventId.startsWith('v72-')||MAYOR_V72_OFFERS[i.eventId]?.success?.report===r.report;
  if(!written){
   const reactions=Object.entries(r.scores||{}).filter(([k,v])=>v&&MAYOR_V72_REACTION[k]).map(([k,v])=>MAYOR_V72_REACTION[k][v>0?0:1]);
   if(reactions.length)parts.push(reactions.join(' และ '));
@@ -10790,6 +10791,7 @@ function expandedStoryDefinitions(){
 MAYOR_EVENTS.push(...expandedStoryDefinitions());
 const MAYOR_SUSPICIOUS_OFFERS=new Set(["fame-food:5"]);
 function mayorRiskyOffer(d,index,r){
+ if(d.playEvent)return false; // New moral stories own their consequences; no extra administrative sequel.
  return !!((r.money>0||r.aiCredits>0)&&((r.scores?.integrity||0)<0||MAYOR_SUSPICIOUS_OFFERS.has(d.id+":"+index)));
 }
 function mayorOfferLevel(value){return value>=1500000?10:value>=1000000?6:value>=500000?3:1;}
@@ -10809,13 +10811,308 @@ for(const d of MAYOR_EVENTS){
 }
 
 
+
+// SMCITY: short, city-driven events. Keep old definitions solely for existing saves.
+const PLAY_PREFIX="play-";
+const play=(title,report,scores={},extra={})=>({title,success:{report,scores,...extra}});
+const spend=(title,cost,report,scores,extra={})=>({...play(title,report,scores,extra),cost,exactCost:true});
+const gamble=(title,chance,win,lose)=>({title,chance,success:win,failure:lose});
+const result=(report,scores={},extra={})=>({report,scores,...extra});
+const buff=(scope,value=2)=>({effects:[{kind:scope==="tourist"?"touristMultiplier":"tripMultiplier",scope,value}]});
+const drop=(scope,value=-150)=>({effects:[{kind:"tripDelta",scope,value}]});
+const event=(id,category,title,story,choices,extra={})=>({id:PLAY_PREFIX+id,category,title,story,minLevel:1,choices,ignored:result("เรื่องนี้ผ่านไปแล้ว",{[category]:-2}),...extra});
+const task=(title,key,count,report,scores,extra={},grant=0)=>({title,task:{kind:"build",key,count},...(grant?{grant}:{}),success:result(report,scores,extra),failure:result("สร้างไม่ครบตามที่รับปากไว้",{[Object.keys(scores)[0]]:-8})});
+const trafficTask=(target,scope="all")=>({title:"รับคำท้า ทำภารกิจเดินทางให้สำเร็จ "+target+"%",task:{kind:"performance",target},success:result("ทำได้แล้ว! การเดินทางของชาวเมืองดีขึ้น",{admin:8,people:5},buff(scope,2)),failure:result("ยังทำผลงานไม่ถึงเป้าหมาย",{admin:-7,people:-3})});
+const CITY_PLAY_EVENTS=[
+ // The larger choice is shown only if it fits real demand and the treasury.
+ event("home","people","มีคนอยากย้ายมาอยู่เมืองเรา","ครอบครัวใหม่กำลังมองหาบ้าน แต่ที่พักไม่พอ จะสร้างเพิ่มไหม?",[
+  task("สร้างบ้านเพิ่ม 1 หลัง","home_starter",1,"ครอบครัวใหม่มีบ้านให้ย้ายเข้าแล้ว!",{people:7,admin:3},{money:30000}),
+  task("สร้างบ้านเพิ่ม 2 หลัง","home_starter",2,"ชาวเมืองดีใจที่มีบ้านรองรับมากขึ้น",{people:10,admin:4},{money:60000}),
+  play("ยังไม่ขยายบ้านตอนนี้","ครอบครัวเหล่านั้นต้องรอบ้านว่าง",{people:-3})]),
+ event("food","people","ชาวเมืองหิวแล้ว!","ร้านอาหารเต็มจนหลายคนหาที่กินไม่ได้ ขอร้านเพิ่มหน่อยนะท่านนายก",[
+  task("สร้างร้านอาหาร 1 แห่ง","restaurant_starter",1,"ร้านใหม่เปิดแล้ว ชาวเมืองยิ้มออก",{people:7,business:3},{money:50000,...buff("restaurant")}),
+  task("สร้างร้านอาหาร 2 แห่ง","restaurant_starter",2,"ร้านใหม่ช่วยเพิ่มที่นั่งให้คนในเมือง",{people:10,business:4},{money:100000,...buff("restaurant",3)}),
+  play("ให้รอร้านที่มีอยู่ก่อน","คนที่หิวต้องรอต่อไป",{people:-4})]),
+ event("shop","people","ซื้อของไม่ทัน","ร้านค้าใกล้บ้านเต็มบ่อย ชาวเมืองขอให้เพิ่มร้านอีกหน่อย",[
+  task("สร้างร้านค้า 1 แห่ง","shop_starter",1,"ชาวเมืองมีทางเลือกเพิ่ม",{people:7,admin:3},{money:40000,...buff("shop")}),
+  task("สร้างร้านค้า 2 แห่ง","shop_starter",2,"ร้านใหม่พร้อมรองรับลูกค้า",{people:10,business:4},{money:80000,...buff("shop")}),
+  play("รอให้ร้านเดิมมีที่ว่าง","ชาวเมืองยังต้องต่อคิว",{people:-3})]),
+ event("park","image","เด็ก ๆ อยากมีที่เล่น","เด็ก ๆ ชูป้ายขอสวนสาธารณะเพิ่ม จะหาให้พวกเขาไหม?",[
+  task("สร้างสวนสาธารณะ 1 แห่ง","park_starter",1,"เด็ก ๆ มีที่พักผ่อนเพิ่มแล้ว",{image:7,people:5},{money:35000,...buff("park")}),
+  play("ขอเก็บเงินไว้ก่อน","เด็ก ๆ ฝากข้อความว่าจะรอ",{image:-3})]),
+ event("office","admin","คนอยากทำงาน","มีคนมาสมัครงานแต่ตำแหน่งว่างไม่พอ ขอสำนักงานเพิ่มสักแห่ง",[
+  task("สร้างสำนักงาน 1 แห่ง","office_starter",1,"สำนักงานใหม่เปิดรับสมัครงาน",{admin:8,people:5},{money:80000,...buff("office")}),
+  task("สร้างสำนักงาน 2 แห่ง","office_starter",2,"เมืองมีตำแหน่งงานใหม่มากขึ้น",{admin:10,business:5},{money:160000,...buff("office")}),
+  play("ยังไม่เพิ่มสำนักงาน","ผู้สมัครงานต้องรอโอกาสต่อไป",{admin:-4})]),
+ event("factory","business","นักลงทุนอยากเปิดโรงงาน","บริษัทหนึ่งสนใจตั้งโรงงานในเมือง และพร้อมจ้างคนเมื่อมีพื้นที่",[
+  task("สร้างโรงงาน 1 แห่ง","factory_starter",1,"โรงงานพร้อมรับคนเข้าทำงาน",{business:8,admin:4},{money:100000,...buff("factory")}),
+  play("ยังไม่ขยายโรงงาน","นักลงทุนขอไปดูเมืองอื่นก่อน",{business:-3})]),
+ event("hotel","fame","นักท่องเที่ยวไม่มีห้องพัก","นักท่องเที่ยวบางคนยังหาห้องพักไม่ได้ เจ้าของกิจการขอให้เพิ่มโรงแรม",[
+  task("สร้างโรงแรม 1 แห่ง","hotel_starter",1,"โรงแรมใหม่พร้อมต้อนรับแขก",{fame:8,business:4},{money:80000,...buff("tourist")}),
+  task("สร้างโรงแรม 2 แห่ง","hotel_starter",2,"เมืองมีห้องพักรองรับเพิ่ม",{fame:10,business:5},{money:160000,...buff("tourist")}),
+  play("พักแผนขยายโรงแรมไว้ก่อน","นักท่องเที่ยวบางคนต้องรอห้องว่าง",{fame:-4})]),
+ event("mall","business","คนแน่นห้าง","ผู้ประกอบการเห็นว่าพื้นที่ชอปปิงไม่พอ อยากเปิดห้างเพิ่ม",[
+  task("สร้างห้าง 1 แห่ง","mall_starter",1,"ห้างใหม่พร้อมต้อนรับลูกค้า",{business:8,people:4},{money:120000,...buff("mall")}),
+  play("ชะลอการสร้างห้าง","ผู้ประกอบการยอมรอ",{business:-3})]),
+ event("pub","business","เมืองเงียบไปหรือเปล่า?","คนชอบเที่ยวกลางคืนบอกว่าผับที่มีอยู่เต็มบ่อย ขอที่เที่ยวเพิ่มอีกสักแห่ง",[
+  task("สร้างผับ 1 แห่ง","pub_starter",1,"ผับใหม่เปิดให้บริการ",{business:8,fame:4},{money:90000,...buff("pub")}),
+  play("ยังไม่เพิ่มผับ","ผู้ประกอบการผิดหวังเล็กน้อย",{business:-3,people:2})]),
+ event("casino","business","ลูกค้าเต็มคาสิโน","ผู้ประกอบการบอกว่าที่นั่งไม่พอ อยากลงทุนเพิ่ม",[
+  task("สร้างคาสิโน 1 แห่ง","casino_starter",1,"สถานที่ใหม่เปิดรับลูกค้า",{business:9,admin:3},{money:150000,...buff("casino")}),
+  play("ไม่ขยายคาสิโนตอนนี้","ผู้ประกอบการเก็บแผนไว้ก่อน",{business:-4})]),
+ event("home-help","government","จังหวัดช่วยค่าบ้าน","จังหวัดมีเงินช่วยสร้างบ้านให้เมืองที่ยังมีคนรอที่พัก สนใจไหม?",[
+  task("รับงบ 24,000 บาท สร้างบ้าน 1 หลัง","home_starter",1,"สร้างบ้านสำเร็จ จังหวัดส่งคำชมมา",{government:7,people:5},{money:20000},24000),
+  task("รับงบ 48,000 บาท สร้างบ้าน 2 หลัง","home_starter",2,"โครงการบ้านสำเร็จ",{government:10,people:7},{money:40000},48000),
+  play("ขอไม่รับงบรอบนี้","จังหวัดส่งโอกาสให้เมืองอื่น",{})]),
+ event("shop-help","government","ทุนร้านค้าเล็ก ๆ","จังหวัดอยากช่วยเมืองที่ยังมีร้านค้าไม่พอ เปิดโอกาสให้ขอเงินสร้างร้าน",[
+  task("รับงบ 20,000 บาท สร้างร้านค้า 1 แห่ง","shop_starter",1,"ร้านใหม่สร้างเสร็จตามที่ตกลง",{government:7,business:5},{money:30000},20000),
+  play("ขอผ่านก่อน","ไม่มีภาระผูกพันกับเมือง",{})]),
+ event("food-help","government","ทุนช่วยเรื่องปากท้อง","จังหวัดเสนอเงินช่วยเปิดร้านอาหารในเมืองที่ยังมีคนรอคิว",[
+  task("รับงบ 30,000 บาท สร้างร้านอาหาร 1 แห่ง","restaurant_starter",1,"ร้านอาหารสร้างเสร็จตามเป้า",{government:8,people:5},buff("restaurant"),30000),
+  play("ขอผ่านก่อน","จังหวัดเก็บงบไว้ช่วยเมืองอื่น",{})]),
+ event("hotel-help","government","ทุนต้อนรับนักท่องเที่ยว","จังหวัดอยากให้เมืองมีห้องพักพอสำหรับนักท่องเที่ยวที่รออยู่",[
+  task("รับงบ 50,000 บาท สร้างโรงแรม 1 แห่ง","hotel_starter",1,"โรงแรมพร้อมเปิดรับแขก",{government:7,fame:5},buff("tourist"),50000),
+  play("ยังไม่รับทุน","จังหวัดรับทราบ",{})]),
+ event("traffic","admin","ขอถนนโล่ง ๆ สักวัน!","ชาวเมืองอยากไปทำงานและกลับบ้านให้ทัน มาลองทำให้การเดินทางดีขึ้นไหม?",[
+  trafficTask(80),trafficTask(90),
+  play("วันนี้ยังไม่รับปาก","ชาวเมืองหวังว่าพรุ่งนี้จะดีขึ้น",{admin:-2})]),
+ event("traffic-hard","admin","เมืองเราจะทำได้ไหม?","ชมรมคนขับรถอยากท้าว่าวันนี้เมืองจะทำภารกิจเดินทางสำเร็จเกิน 95% ได้หรือเปล่า",[
+  {...trafficTask(95),success:result("ทำได้จริง! ชมรมส่งเงินรางวัลมา",{admin:10,image:6},{money:150000,...buff("all",3)})},
+  play("ไม่รับคำท้า","ชมรมบอกไว้ลองวันอื่นก็ได้",{})],{minLevel:5}),
+ // Short events: no follow-up unless the story itself warrants it.
+ event("school","image","รูปวาดของเด็ก ๆ","เด็ก ๆ วาดรูปเมืองในฝัน มีรูปนายกยืนอยู่หน้าบ้านด้วย อยากไปดูไหม?",[
+  play("ไปดูด้วยตัวเอง","เด็ก ๆ ดีใจมาก วาดรูปนายกเพิ่มอีกเต็มกระดาษ",{image:6,people:3}),
+  play("ฝากคำชมไปให้","เด็ก ๆ ยิ้มและเอาคำชมไปติดหน้าห้อง",{image:3})]),
+ event("grandma","image","วันเกิดคุณยาย","คุณยายอายุ 90 ปี อยากพบคุณสักครั้งในชีวิต",[
+  play("แวะไปอวยพรคุณยาย","คุณยายยิ้มจนตาหยี ลูกหลานขอบคุณจากใจ",{image:7,people:4}),
+  play("ส่งการ์ดอวยพร","คุณยายเก็บการ์ดไว้เป็นที่ระลึก",{image:3}),
+  play("ฝากเลขานุการไปแทน","ครอบครัวเข้าใจว่านายกมีงานมาก",{})]),
+ event("stray","people","เจ้าตูบหน้าศาลา","หมาจรตัวหนึ่งมานอนรอหน้าเมืองทุกวัน ชาวบ้านกำลังช่วยกันหาบ้านให้",[
+  spend("ช่วยค่ารักษาและอาหาร",5000,"เจ้าตูบได้บ้านใหม่แล้ว!",{people:6,image:3}),
+  play("ช่วยประกาศหาคนรับเลี้ยง","มีครอบครัวอาสารับเจ้าตูบไปดูแล",{people:4}),
+  play("ให้ชาวบ้านช่วยกันต่อ","กลุ่มอาสารับเรื่องต่อไป",{})]),
+ event("festival","people","ชาวเมืองจัดงานกันเอง","ชาวบ้านกำลังจัดงานเทศกาลเล็ก ๆ ขอค่าอุปกรณ์จัดงาน 20,000 บาท",[
+  spend("สมทบ 20,000 บาท",20000,"งานครึกครื้น ร้านค้าขายดี!",{people:7,business:4},buff("all")),
+  play("ไปร่วมงานโดยไม่ใช้งบเมือง","ชาวบ้านดีใจที่นายกมาร่วมงาน",{people:4,image:3}),
+  play("ส่งคำอวยพร","งานยังจัดได้ด้วยแรงชุมชน",{})]),
+ event("thankyou","people","คำขอบคุณจากชาวเมือง","คนในเมืองรวมตัวกันมอบจดหมายขอบคุณให้ทีมงานที่ช่วยดูแลเมือง",[
+  play("ขอบคุณทีมงานต่อหน้าทุกคน","ทีมงานมีกำลังใจ ชาวเมืองปรบมือ",{people:5,image:4},buff("all")),
+  play("รับจดหมายไว้เป็นที่ระลึก","จดหมายถูกติดไว้ในห้องทำงาน",{people:3})]),
+ event("rain","admin","ฝนตกหนัก","วันนี้ฝนตกหนัก คนเดินทางลำบาก ทีมงานขอเงินจัดการจุดเสี่ยง",[
+  spend("ช่วยทีมงาน 40,000 บาท",40000,"ทีมงานออกดูแลจุดเสี่ยง",{admin:6,people:4},buff("all")),
+  gamble("ให้ทีมงานเดิมจัดการ",.65,result("ฝนหยุดเร็วกว่าที่คิด",{admin:3}),result("คนบ่นว่าเดินทางลำบาก",{admin:-5},drop("all")))]),
+ event("driver","admin","คนขับรถอาสา","กลุ่มคนขับรถอยากช่วยประชาสัมพันธ์การเดินทางช่วงเร่งด่วน",[
+  play("ให้ช่วยกันเลย","คนขับรถร่วมมือกันดี",{admin:4,people:4},buff("all")),
+  play("ขอให้ใช้แผนเดิม","กลุ่มอาสารับทราบ",{})]),
+ event("map","admin","ทีมงานเจอจุดติดขัด","คนขับรถส่งภาพถนนที่รถต่อคิวยาวมาให้ อยากให้เมืองเร่งแก้",[
+  trafficTask(85),
+  play("รับเรื่องไว้ดูตอนมีเวลา","ชาวเมืองรอดูผลงาน",{admin:-3})]),
+ event("photo","image","ถ่ายรูปกับนายก","เด็กนักเรียนขอถ่ายรูปกับนายกตอนมาเที่ยวเมือง",[
+  play("ถ่ายด้วยกันเลย","ภาพถูกแชร์ในกลุ่มครอบครัว เด็ก ๆ ดีใจ",{image:5,fame:2}),
+  play("ฝากทีมงานต้อนรับ","เด็ก ๆ ยังได้ภาพสวยกลับบ้าน",{image:1})]),
+ event("live","image","ไลฟ์สดไม่ทันตั้งตัว","เพจท้องถิ่นอยากสัมภาษณ์สดเกี่ยวกับชีวิตในเมือง",[
+  gamble("ตอบสดแบบเป็นกันเอง",.75,result("คนดูชอบความเป็นกันเอง",{image:8,fame:3}),result("นายกตอบติดขัด คลิปถูกแซว",{image:-5})),
+  play("ขอคุยวันหลัง","เพจเข้าใจและรอวันนัด",{})]),
+ event("lost","integrity","กระเป๋าเงินหาย","คนเก็บขยะเจอกระเป๋าเงินของนักท่องเที่ยว มีเงินอยู่ข้างใน",[
+  play("ช่วยตามหาเจ้าของ","นักท่องเที่ยวได้รับของคืนและขอบคุณเมือง",{integrity:7,fame:3}),
+  play("เก็บไว้ที่จุดรับของหาย","เจ้าของสามารถมาติดต่อรับได้",{integrity:4}),
+  play("เอาเงินเข้าคลังเมือง","เจ้าของกลับมาหาของและผิดหวัง",{integrity:-10,image:-5},{money:10000})]),
+ event("honest","integrity","ของขวัญไม่มีเงื่อนไข","ร้านค้าเล็ก ๆ ส่งของขวัญขอบคุณทีมงาน ไม่ได้ขออะไรตอบแทน",[
+  play("รับแล้วแบ่งให้ทีมงาน","ทุกคนดีใจ ไม่มีการแลกสิทธิพิเศษ",{integrity:3,image:3}),
+  play("ขอบคุณและส่งคืนอย่างสุภาพ","ร้านค้าเข้าใจและยังสนับสนุนเมือง",{integrity:4})],{needsKind:"shop"}),
+ event("mistake","integrity","เงินโอนเกิน","ร้านค้าแจ้งว่าโอนเงินเข้าคลังเกิน 50,000 บาท",[
+  play("คืนเงินส่วนที่โอนเกิน","ร้านค้าชื่นชมความตรงไปตรงมา",{integrity:8,business:3}),
+  play("อ้างว่าเป็นเงินบริจาค","ร้านค้าเปิดเผยหลักฐานการโอน",{integrity:-12,business:-6},{money:50000})],{needsKind:"shop"}),
+ event("tour-group","fame","ทัวร์ลงเมืองเรา!","บริษัททัวร์อยากแนะนำเมืองให้ลูกค้ารู้จัก ขอให้ช่วยโปรโมตแหล่งเที่ยว",[
+  spend("ร่วมโปรโมต 30,000 บาท",30000,"แคมเปญได้รับความสนใจจากนักท่องเที่ยว",{fame:7,business:4},buff("tourist")),
+  play("ช่วยแชร์ข้อมูลฟรี","บริษัททัวร์ขอบคุณและแชร์เมืองต่อ",{fame:4},buff("tourist",1.5)),
+  play("ยังไม่โปรโมต","ทัวร์เลือกเที่ยวตามแผนเดิม",{})],{needsKind:"hotel"}),
+ event("hotel-vip","fame","แขกคนสำคัญ","โรงแรมแจ้งว่ามีนักธุรกิจคนดังมาพัก เขาอยากรู้จักเมืองของเรา",[
+  spend("ช่วยจัดต้อนรับ 20,000 บาท",20000,"แขกประทับใจและแนะนำเมืองต่อ",{fame:7,image:4},buff("tourist")),
+  play("ฝากแผนที่เที่ยวให้","แขกกล่าวขอบคุณ",{fame:3})],{needsKind:"hotel"}),
+ event("hotel-review","business","รีวิวโรงแรม","แขกโพสต์ว่าที่พักดีแต่เดินทางลำบาก เจ้าของโรงแรมอยากให้ช่วย",[
+  trafficTask(85),
+  play("ขอโทษและรับฟัง","เจ้าของโรงแรมขอบคุณที่รับฟัง แต่ยังรอแก้รถติด",{business:3,fame:-2}),
+  play("บอกให้แขกไปเมืองอื่น","รีวิวถูกแชร์ต่ออย่างรวดเร็ว",{business:-7,image:-7})],{needsKind:"hotel"}),
+ event("factory-late","admin","พนักงานไปทำงานสาย","คนงานโรงงานบ่นว่ารถติดจนเสียเวลาทุกเช้า เจ้าของโรงงานขอให้ช่วย",[
+  trafficTask(85,"factory"),
+  play("รับฟังและไม่รับปากเกินจริง","เจ้าของโรงงานยังรอผลงาน",{admin:-2,business:2}),
+  play("โทษคนงานว่าตื่นสายเอง","คนงานไม่พอใจ",{people:-7,image:-4})],{needsKind:"factory"}),
+ event("factory-party","business","โรงงานฉลองยอดขาย","โรงงานขายดีมาก อยากจัดเลี้ยงพนักงานและขอให้นายกกล่าวเปิดงาน",[
+  play("ไปร่วมแสดงความยินดี","เจ้าของโรงงานส่งเงินสมทบเมือง",{business:6,image:3},{money:80000,...buff("factory")}),
+  play("ฝากคำยินดีไป","โรงงานจัดงานเองอย่างสนุก",{business:3})],{needsKind:"factory"}),
+ event("office-lunch","business","พนักงานออฟฟิศพักเที่ยง","สำนักงานอยากชวนร้านอาหารจัดมื้อเที่ยงพิเศษให้พนักงาน",[
+  play("ช่วยประชาสัมพันธ์","ร้านอาหารและสำนักงานร่วมจัดกิจกรรม",{business:5,people:3},buff("restaurant")),
+  play("ให้บริษัทจัดกันเอง","บริษัทจัดงานตามแผนเดิม",{})],{needsKind:"office",alsoKind:"restaurant"}),
+ event("office-award","government","เมืองแห่งการทำงาน","จังหวัดอยากยกย่องเมืองที่คนเดินทางไปทำงานได้ดี",[
+  {...trafficTask(90,"office"),success:result("จังหวัดส่งเงินรางวัลมาให้เมือง",{government:8,admin:5},{money:150000,...buff("office")})},
+  play("ขอไม่เข้าร่วม","จังหวัดรับทราบ",{})],{needsKind:"office"}),
+ event("food-fair","fame","เทศกาลของอร่อย","ร้านอาหารชวนจัดงานรวมของอร่อยประจำเมือง ขอช่วยค่าเตรียมงาน 25,000 บาท",[
+  spend("ช่วยจัดงาน",25000,"งานคึกคัก คนแห่มากินอาหาร",{fame:7,business:5},buff("restaurant",3)),
+  play("ช่วยแชร์ข่าวงานฟรี","งานได้รับความสนใจพอสมควร",{fame:3},buff("restaurant")),
+  play("ไม่ร่วมจัด","ร้านค้าจัดงานขนาดเล็กเอง",{})],{needsKind:"restaurant"}),
+ event("food-review","fame","นักรีวิวเจอร้านเด็ด","นักรีวิวมาเจอร้านอาหารอร่อยและอยากถ่ายคลิปแนะนำร้าน",[
+  play("ช่วยแชร์คลิป","คลิปได้รับความสนใจ คนอยากลองอาหารเมืองเรา",{fame:5,business:3},buff("restaurant")),
+  play("ให้ร้านจัดการเอง","ร้านลงคลิปตามปกติ",{fame:2})],{needsKind:"restaurant"}),
+ event("food-free","people","ข้าวฟรีให้คนหิว","ร้านอาหารอยากแจกข้าวให้คนในเมืองหนึ่งวัน ขอให้ช่วยค่าอาหาร",[
+  spend("สมทบค่าอาหาร 15,000 บาท",15000,"เจ้าของร้านแจกข้าวจนหมด ชาวเมืองอิ่มใจ",{people:7,business:4},buff("restaurant")),
+  play("ชวนคนร่วมบริจาคโดยสมัครใจ","ร้านได้อาสาสมัครช่วยงาน",{people:4})],{needsKind:"restaurant"}),
+ event("pub-concert","business","คืนนี้มีคอนเสิร์ต","เจ้าของผับอยากจัดคอนเสิร์ตใหญ่ แต่ชาวบ้านกังวลเรื่องเสียงดัง",[
+  play("ให้จัดงานและขอให้ลดเสียง","งานสนุก คนแถวนั้นพอรับได้",{business:6,people:-2},buff("pub")),
+  play("ให้จัดเต็มทั้งคืน","ผับขายดี แต่คนรอบ ๆ บ่นว่านอนไม่หลับ",{business:9,people:-8},buff("pub",3)),
+  play("ไม่อนุญาตจัดงานใหญ่","ชุมชนสบายใจ แต่เจ้าของผับเสียดาย",{people:5,business:-6})],{needsKind:"pub"}),
+ event("pub-birthday","image","เพลงให้ท่านนายก","วงดนตรีในผับแต่งเพลงขำ ๆ เกี่ยวกับรถติดในเมือง อยากให้นายกฟัง",[
+  play("ขอไปฟังด้วยคน","ทุกคนหัวเราะ นายกได้รับคำชมว่าไม่ถือตัว",{image:6,business:3},buff("pub")),
+  play("ส่งข้อความขอบคุณ","วงดนตรีดีใจที่นายกได้ฟัง",{image:2})],{needsKind:"pub"}),
+ event("casino-visit","fame","แขกจากเมืองอื่น","คาสิโนจัดงานต้อนรับแขกต่างเมือง ขอให้ช่วยแนะนำสถานที่เที่ยวอื่นด้วย",[
+  play("แนะนำโรงแรมและร้านอาหารในเมือง","แขกได้รู้จักเมืองมากขึ้น",{fame:5,business:3},buff("tourist")),
+  play("ไม่ร่วมประชาสัมพันธ์","เจ้าของกิจการทำแผนของตนเอง",{})],{needsKind:"casino"}),
+ event("casino-noise","people","เสียงดังจากคาสิโน","คนในละแวกคาสิโนบ่นว่ากลางคืนเสียงดัง",[
+  play("ขอให้ลดเสียง","เพื่อนบ้านสบายใจขึ้น แต่กิจการเสียบรรยากาศบางส่วน",{people:6,business:-3},drop("casino",-100)),
+  play("ให้เปิดตามเดิม","เจ้าของกิจการดีใจ แต่เพื่อนบ้านไม่พอใจ",{business:5,people:-6})],{needsKind:"casino"}),
+ event("mall-sale","business","ห้างจัดมหกรรมลดราคา","ห้างอยากจัดวันลดราคาใหญ่และขอช่วยแชร์ข่าว",[
+  play("ช่วยแชร์ข่าวให้","ลูกค้าสนใจงานลดราคา",{business:6,people:3},buff("mall")),
+  play("ปล่อยให้ห้างโปรโมตเอง","ห้างจัดงานตามแผน",{})],{needsKind:"mall"}),
+ event("park-run","people","วิ่งเล่นที่สวน","กลุ่มคนรักสุขภาพอยากจัดงานวิ่งเล็ก ๆ ในสวน",[
+  spend("ช่วยค่าน้ำและอุปกรณ์ 10,000 บาท",10000,"งานสนุกและชาวเมืองได้ออกกำลังกาย",{people:6,image:3},buff("park")),
+  play("ช่วยแชร์ข่าวฟรี","อาสาสมัครร่วมจัดงานเอง",{people:4})],{needsKind:"park"}),
+ event("shop-local","business","ซื้อของร้านใกล้บ้าน","ร้านค้ารายย่อยอยากให้คนในเมืองรู้จักร้านของตัวเอง",[
+  play("ช่วยแชร์ร้านทุกราย","ชุมชนรู้จักร้านค้าเพิ่มขึ้น",{business:6,integrity:3},buff("shop")),
+  play("เลือกแชร์เฉพาะร้านเพื่อนสนิท","ร้านอื่นน้อยใจที่ไม่ได้รับโอกาส",{business:-4,integrity:-6})],{needsKind:"shop"}),
+ event("province-help","government","จังหวัดขอความช่วยเหลือ","เมืองข้างเคียงจัดงานใหญ่แต่ขาดเงินซื้ออุปกรณ์ ขอให้เราช่วย 50,000 บาท",[
+  spend("สมทบ 50,000 บาท",50000,"เมืองเพื่อนบ้านส่งคำขอบคุณ",{government:8,fame:4}),
+  play("ช่วยประชาสัมพันธ์แทน","จังหวัดขอบคุณสำหรับความร่วมมือ",{government:3}),
+  play("ขอเก็บงบไว้ในเมือง","จังหวัดเข้าใจว่าเรามีภาระของตัวเอง",{})]),
+ event("province-ai","government","ของขวัญจากจังหวัด","จังหวัดมีโควต้าไฟจราจร AI เหลือหนึ่งจุด เสนอให้เมืองที่ดูแลการเดินทางดี",[
+  {...trafficTask(85),success:result("เมืองผ่านเป้า จังหวัดมอบโควต้าให้",{government:7,admin:6},{aiCredits:1})},
+  play("ไม่รับคำท้า","จังหวัดให้โอกาสเมืองอื่น",{})],{minLevel:3}),
+ event("province-visit","government","แขกมาดูเมือง","จังหวัดส่งทีมมาเยี่ยมชมเมือง ขอให้นายกพาเดินดูด้วย",[
+  play("พาไปชมเมืองด้วยตัวเอง","แขกประทับใจและส่งคำชม",{government:6,image:3}),
+  spend("ช่วยค่าอาหารต้อนรับ 10,000 บาท",10000,"แขกได้รับการต้อนรับอย่างดี",{government:5,business:3},buff("restaurant"))],{needsKind:"restaurant"}),
+ event("province-gift","government","เงินช่วยพัฒนาเมือง","จังหวัดส่งเงินช่วยเมือง 100,000 บาท ไม่มีเงื่อนไขพิเศษ",[
+  play("รับเงินเข้าเมือง","เมืองได้รับเงินช่วยเหลือ",{government:5},{money:100000}),
+  play("ให้จังหวัดส่งไปเมืองที่ต้องการกว่า","จังหวัดชื่นชมความเอื้อเฟื้อ",{government:4,image:4})],{minLevel:3}),
+ event("good-road","image","วันนี้คนขับรถยิ้ม","ชาวเมืองบอกว่าช่วงนี้เดินทางดีขึ้น อยากชื่นชมทีมงาน",[
+  play("ขอบคุณทุกคนที่ช่วยกัน","ชาวเมืองมีกำลังใจ",{image:6,admin:3},buff("all")),
+  play("ฝากคำชมให้ทีมงาน","ทีมงานดีใจที่มีคนเห็นความพยายาม",{image:3})],{minPerformance:80}),
+ // Some generous offers are perfectly ordinary; others cost trust immediately.
+ event("donor","integrity","เศรษฐีใจดี","เจ้าของกิจการอยากบริจาค 500,000 บาทให้เมืองโดยไม่ขอสิ่งตอบแทน",[
+  play("รับเงินเข้าคลังเมือง","เงินมาจากผู้บริจาคจริง ไม่มีข้อแลกเปลี่ยน",{integrity:4,business:3},{money:500000}),
+  play("ขอบคุณแต่ไม่รับ","ผู้บริจาคยอมรับการตัดสินใจ",{integrity:2})],{moralOnly:true,minLevel:3,offerCooldown:7}),
+ event("ai-gift","integrity","ไฟ AI ฟรีจริงหรือ?","ผู้ผลิตอยากให้โควต้า AI ฟรี 1 จุดเพื่อทดลองสินค้า และไม่ขอสิทธิพิเศษ",[
+  play("รับข้อเสนอ","ผู้ผลิตให้โควต้าตามที่สัญญา",{business:3},{aiCredits:1}),
+  play("ขอทราบชื่อผู้ให้ก่อน","เป็นบริษัทจริง เมืองได้โควต้าฟรี",{integrity:5},{aiCredits:1}),
+  play("ไม่รับ","เมืองพลาดโอกาส แต่ไม่มีความเสียหาย",{})],{moralOnly:true,minLevel:3,offerCooldown:7}),
+ event("envelope","integrity","ซองเงินหน้าห้อง","คนแปลกหน้าเสนอเงิน 300,000 บาท ถ้านายกช่วยโปรโมตเฉพาะร้านของเขา",[
+  play("รับและโปรโมตตามที่ขอ","ร้านอื่นสังเกตเห็นความลำเอียง",{integrity:-10,business:-4},{money:300000}),
+  play("ไม่รับเงิน แต่ให้ทุกคนโปรโมตเท่ากัน","ร้านเล็กชื่นชมความยุติธรรม",{integrity:7,business:3}),
+  play("ไม่ตอบรับข้อเสนอ","คนแปลกหน้ากลับไป",{})],{moralOnly:true,minLevel:2,offerCooldown:5}),
+ event("friend","integrity","เพื่อนเก่ามาขอฝาก","เพื่อนสมัยเรียนขอให้ช่วยโฆษณากิจการของเขาเป็นพิเศษ แลกเงิน 200,000 บาท",[
+  play("รับเงินช่วยเพื่อน","เพื่อนดีใจ แต่คู่แข่งไม่พอใจ",{integrity:-9,business:-4},{money:200000}),
+  play("ให้เข้าร่วมกับร้านอื่นตามปกติ","เพื่อนยอมรับและร้านอื่นรู้สึกเป็นธรรม",{integrity:6,business:3}),
+  play("ปฏิเสธ","เพื่อนผิดหวัง แต่ไม่ได้ทำให้เมืองเสียหาย",{integrity:3})],{moralOnly:true,offerCooldown:5}),
+ event("casino-money","integrity","เงินก้อนโตจากคาสิโน","เจ้าของคาสิโนเสนอ 2,000,000 บาท ขอให้นายกไม่สนใจคำร้องเรียนเรื่องเสียงดัง",[
+  play("รับเงินและปล่อยเรื่องร้องเรียน","เงินเข้าคลัง แต่เพื่อนบ้านรู้สึกว่าถูกทอดทิ้ง",{integrity:-16,people:-8,business:5},{money:2000000}),
+  play("ไม่รับเงินและขอให้ลดเสียง","ชาวบ้านชื่นชม เจ้าของกิจการผิดหวัง",{integrity:8,people:5,business:-4}),
+  play("ขอให้บริจาคโดยไม่ตั้งเงื่อนไข","เจ้าของคาสิโนถอนข้อเสนอ",{integrity:4})],{moralOnly:true,needsKind:"casino",minLevel:10,offerCooldown:10}),
+ // Only a handful of hand-written stories continue. Their next steps are not generic paperwork.
+];
+function playArc(id,category,title,actor,nodes,extra={}){
+ const arc=PLAY_PREFIX+id;
+ MAYOR_STORY_META[arc]={id:arc,category,title,actor,tone:"play"};
+ for(const [node,heading,story,choices,options] of nodes){
+  CITY_PLAY_EVENTS.push({...event(id+"-"+node,category,heading,story,choices,{...extra,...options}),id:"story-"+arc+"-"+node,playEvent:true,storyArc:arc,storyNode:node,...(node==="root"?{}:{storyOnly:true}),ignored:result("ไม่ได้ตอบกลับ เรื่องจบลง",{[category]:-2},{storyNext:null})});
+ }
+}
+playArc("midnight-money","integrity","เงินปริศนา","คุณภพ",[
+ ["root","เงินสองล้านตอนเที่ยงคืน","คุณภพโทรมาเสนอเงิน 2 ล้านบาทให้เมือง บอกเพียงว่าไว้วันหลังค่อยคุยกัน",[
+  play("รับเงินไว้ก่อน","คุณภพโอนเงินตามที่พูด",{integrity:-5},{money:2000000,storyNext:"conflict"}),
+  play("ถามว่าเขาต้องการอะไร","เขาหัวเราะและบอกว่าจะโทรมาใหม่",{integrity:3},{storyNext:"good"}),
+  play("ไม่รับเงินที่ไม่รู้เงื่อนไข","เขาวางสายและไม่ติดต่อมาอีก",{integrity:6},{storyNext:null})]],
+ ["conflict","เขากลับมาแล้ว","คุณภพขอให้ช่วยโปรโมตบริษัทของเขาเป็นพิเศษ มิฉะนั้นอยากได้เงินคืน",[
+  play("ยอมช่วยโปรโมตเฉพาะบริษัทเขา","บริษัทได้โฆษณา ร้านอื่นรู้สึกถูกเอาเปรียบ",{integrity:-15,business:-6,image:-5},{storyNext:null}),
+  play("คืนเงินทั้งหมดและไม่ให้สิทธิพิเศษ","คุณภพยอมจบเรื่อง เงินที่ยังคืนไม่ครบจะค้างชำระ",{integrity:5,image:3},{refund:2000000,storyNext:null}),
+  play("ขอให้โปรโมตกับร้านอื่นอย่างเท่าเทียม","เขาไม่พอใจและเรียกเงินคืนครึ่งหนึ่ง",{integrity:3,business:3},{refund:1000000,storyNext:null})]],
+ ["good","ความจริงของคุณภพ","เขาเคยอยู่เมืองนี้ตอนเด็ก ตอนนี้อยากช่วยบ้านเกิด แต่ขอให้ประกาศชื่อผู้บริจาค",[
+  play("รับเงินบริจาคอย่างเปิดเผย","คุณภพโอนเงินเข้าคลังโดยไม่มีสิทธิพิเศษ",{integrity:7,image:4},{money:1000000,storyNext:null}),
+  play("ขอบคุณแต่ไม่รับ","คุณภพยังยินดีที่ได้กลับบ้านเกิด",{integrity:3},{storyNext:null})]]
+],{moralOnly:true,minLevel:10,offerCooldown:10});
+playArc("ai-mystery","integrity","คนส่งโควต้า AI","คุณนัท",[
+ ["root","โควต้า AI จากคนแปลกหน้า","คนที่ไม่ยอมบอกชื่อบริษัทเสนอส่งโควต้า AI ฟรี 1 จุด และเร่งให้ตอบ",[
+  play("รับไว้ก่อน","โควต้าเข้าบัญชีเมืองแล้ว",{integrity:-5},{aiCredits:1,storyNext:"conflict"}),
+  play("ถามชื่อและที่มาก่อน","เขาขอเวลาติดต่อบริษัท",{integrity:3},{storyNext:"good"}),
+  play("ปฏิเสธ","เขาไม่ติดต่อกลับ",{integrity:4},{storyNext:null})]],
+ ["conflict","โควต้ามีเจ้าของ","คุณนัทขอให้ช่วยโฆษณาบริษัทเขาเป็นพิเศษ แลกกับไฟ AI ที่ให้ไปแล้ว",[
+  play("ยอมโฆษณา","คู่แข่งไม่พอใจที่เขาได้สิทธิพิเศษ",{integrity:-10,business:-5},{storyNext:null}),
+  play("คืนโควต้าที่ยังไม่ได้ใช้","คุณนัทถอนข้อเสนอ หากใช้โควต้าแล้วต้องชดใช้มูลค่า 100,000 บาท",{integrity:4},{returnAI:1,storyNext:null})]],
+ ["good","บริษัทตัวจริง","บริษัทติดต่อมาเอง ยืนยันว่าต้องการให้เมืองลองใช้ไฟ AI ฟรีโดยไม่ขออะไร",[
+  play("รับโควต้า","เมืองได้รับโควต้าตามข้อเสนอ",{integrity:5},{aiCredits:1,storyNext:null}),
+  play("ขอบคุณแต่ไม่รับ","บริษัทเข้าใจ",{integrity:2},{storyNext:null})]]
+],{moralOnly:true,minLevel:3,offerCooldown:9});
+playArc("food-hero","business","ร้านป้าดา","ป้าดา",[
+ ["root","ร้านป้าดาจะปิดแล้ว","ป้าดาบอกว่าลูกค้ามาช้าเพราะรถติด เงินหมุนไม่พอจะจ่ายค่าแรง",[
+  spend("ช่วยค่าแรงฉุกเฉิน 50,000 บาท",50000,"ป้าดาจ่ายค่าแรงพนักงานได้ทัน",{business:6,people:4},{storyNext:"good"}),
+  play("ให้ช่วยกันโปรโมตร้านแทน","ป้าดาลองทำตามและหวังว่าลูกค้าจะมา",{business:3},{storyNext:"award"}),
+  play("ไม่ช่วยด้วยงบเมือง","ป้าดาเข้าใจแต่ต้องลดเวลาทำงาน",{business:-4,people:-2},{storyNext:null})]],
+ ["good","ป้าดามีข่าวดี","ร้านกลับมาขายดีแล้ว ป้าดาอยากจัดวันแจกข้าวขอบคุณคนในเมือง",[
+  play("ช่วยแชร์ข่าว","ร้านแจกอาหารและมีคนมาช่วยมากมาย",{people:7,business:5}, {...buff("restaurant",3),storyNext:null}),
+  play("ไปขอบคุณป้าดา","ป้าดายิ้มและมอบเงินสมทบเมือง 70,000 บาท",{image:5,business:5},{money:70000,storyNext:null})]],
+ ["award","คลิปป้าดาดังแล้ว","คลิปอาหารของป้าดาถูกแชร์ ร้านกลับมาคึกคักโดยไม่ใช้งบเมือง",[
+  play("แวะไปแสดงความยินดี","ลูกค้าชื่นชมนายกและร้านอาหารขายดี",{image:5,fame:4},{...buff("restaurant",2),storyNext:null}),
+  play("ส่งข้อความยินดี","ป้าดาขอบคุณที่ช่วยแชร์ร้าน",{business:4},{storyNext:null})]]
+],{needsKind:"restaurant",minLevel:2});
+playArc("hotel-star","fame","แขกที่ไม่มีใครรู้จัก","คุณมีนา",[
+ ["root","แขกโรงแรมขอพบ","โรงแรมโทรบอกว่าคุณมีนา นักเดินทางธรรมดาคนหนึ่ง อยากให้นายกแนะนำเมือง",[
+  play("แนะนำเมืองด้วยตัวเอง","คุณมีนาประทับใจและถ่ายคลิปไว้",{image:4,fame:3},{storyNext:"good"}),
+  play("ส่งแผนที่เที่ยวให้","เธอขอบคุณและออกเที่ยวตามแผนที่",{fame:3},{storyNext:null}),
+  play("วันนี้ไม่มีเวลา","โรงแรมดูแลแขกตามปกติ",{}, {storyNext:null})]],
+ ["good","คลิปดังข้ามคืน","ที่แท้คุณมีนาเป็นนักทำสารคดีชื่อดัง คลิปแนะนำเมืองมียอดชมสูง",[
+  play("ขอบคุณและแชร์คลิป","เมืองได้รับความสนใจจากนักท่องเที่ยว",{fame:9,business:4},{...buff("tourist",3),storyNext:null}),
+  play("ส่งข้อความขอบคุณส่วนตัว","เธอส่งเงินสมทบเมือง 100,000 บาท",{fame:5,image:4},{money:100000,storyNext:null})]]
+],{needsKind:"hotel",minLevel:2});
+playArc("factory-kid","image","ความฝันของต้น","ต้น",[
+ ["root","เด็กฝึกงานคนแรก","ต้นอยากทำงานโรงงานเพื่อช่วยครอบครัว ขอให้นายกช่วยแนะนำช่องทางสมัคร",[
+  play("แนะนำให้สมัครเหมือนคนอื่น","ต้นขอบคุณและเตรียมตัวสมัคร",{image:4,integrity:4},{storyNext:"good"}),
+  play("ขอให้โรงงานจัดคนสอนสมัครงาน","เจ้าของโรงงานยินดีช่วยเด็ก ๆ ทุกคน",{people:4,business:3},{storyNext:"good"}),
+  play("ฝากให้รับต้นเป็นกรณีพิเศษ","ต้นได้งาน แต่คนสมัครคนอื่นไม่พอใจ",{integrity:-7,image:-3},{storyNext:null})]],
+ ["good","ต้นทำสำเร็จแล้ว","ต้นส่งรูปวันทำงานวันแรกมาให้ ครอบครัวดีใจมาก",[
+  play("ส่งคำยินดี","ต้นส่งข้อความขอบคุณอย่างซึ้งใจ",{image:7,people:4},{storyNext:null}),
+  play("ชวนโรงงานแบ่งปันประสบการณ์ให้เด็กคนอื่น","โรงงานร่วมกิจกรรมแนะแนว",{people:6,business:5},{...buff("factory"),storyNext:null})]]
+],{needsKind:"factory",minLevel:2});
+// Calls outside office hours: no extra story unless expressly written.
+CITY_PLAY_EVENTS.push(
+ event("night-fire","admin","ไฟไหม้ที่ {target}!","มีควันไฟออกจากอาคาร คนโทรขอความช่วยเหลือด่วน",[
+  spend("ส่งทีมช่วยเหลือและงบฉุกเฉิน",60000,"ทีมช่วยเหลือควบคุมไฟได้",{admin:8,people:6}),
+  gamble("ขอทีมเสริมจากจังหวัด",.75,result("ทีมเสริมมาทัน",{government:6,admin:5}),result("ทีมมาช้า การเดินทางสะดุด",{admin:-8,people:-5},drop("all"))),
+  play("รอดูเหตุการณ์","ไฟลุกลามก่อนทีมช่วยเหลือมาถึง",{admin:-12,people:-8},drop("all"))],{emergencyOnly:true,target:["home","shop","restaurant","office","factory","hotel","mall","pub","casino"],ignored:result("ไม่มีคำสั่งทันเวลา ชาวเมืองเดือดร้อน",{admin:-10,people:-6},drop("all"))}),
+ event("night-road","admin","รถติดหนักกลางคืน","รถหลายคันต่อคิวยาว คนกลับบ้านโทรเข้ามาร้องเรียน",[
+  spend("ส่งทีมช่วยจัดการ 25,000 บาท",25000,"ทีมออกไปช่วยดูแลการจราจร",{admin:6,people:4}),
+  play("ขอให้ทุกคนอดทนอีกหน่อย","บางคนไม่พอใจ แต่ทีมงานยังทำหน้าที่",{admin:-4,people:-3})],{emergencyOnly:true,ignored:result("ชาวเมืองรอคำตอบแต่ไม่ได้รับ",{admin:-8,people:-5})}),
+ event("night-hotel","fame","แขกติดอยู่ที่โรงแรม","แขกของ {target} บ่นว่ากลับที่พักไม่ทันเพราะรถติด",[
+  play("โทรขอโทษและประสานทีมช่วย","แขกประทับใจที่เมืองใส่ใจ",{fame:5,image:4}),
+  play("บอกให้โรงแรมจัดการเอง","โรงแรมขอโทษแขกและผิดหวังในตัวนายก",{business:-5,fame:-5})],{emergencyOnly:true,target:["hotel"],ignored:result("แขกโพสต์ร้องเรียนเรื่องการเดินทาง",{fame:-8,business:-4})}),
+ event("night-pub","people","เพื่อนบ้านนอนไม่หลับ","คนใกล้ {target} โทรมาแจ้งว่าเสียงดังมาก ขอให้ช่วยก่อนคืนนี้จะจบ",[
+  play("ขอให้ลดเสียงทันที","ชุมชนขอบคุณ ผับเสียลูกค้าบางส่วน",{people:6,business:-4},drop("pub",-100)),
+  play("ให้จัดงานจนจบ","ผับขายดี แต่ชาวบ้านไม่พอใจ",{business:4,people:-8},buff("pub"))],{emergencyOnly:true,target:["pub"],ignored:result("ชาวบ้านร้องเรียนเรื่องเสียงดังต่อ",{people:-7,image:-4})}),
+ event("night-power","business","ไฟดับที่ {target}","เจ้าของกิจการโทรมาขอความช่วยเหลือ ลูกค้ากำลังรออยู่",[
+  spend("ช่วยค่าแก้เหตุฉุกเฉิน 35,000 บาท",35000,"ทีมช่างช่วยแก้สถานการณ์ได้",{business:7,admin:5}),
+  gamble("ขอให้ทีมช่างเดิมเข้าช่วย",.65,result("ทีมช่างมาทัน",{admin:4,business:4}),result("กิจการเสียเวลาและลูกค้า",{business:-7,admin:-4}))],{emergencyOnly:true,target:["shop","restaurant","office","factory","hotel","mall","pub","casino"],ignored:result("กิจการต้องรอความช่วยเหลือ",{business:-7,admin:-4})})
+);
+for(const d of CITY_PLAY_EVENTS){
+ d.playEvent=true;d.offerCooldown??=3;
+ if(["play-factory-late","play-hotel-review","play-map","play-night-road","play-night-hotel"].includes(d.id))d.maxPerformance=90;
+ if(d.id==="story-play-midnight-money-conflict")d.ignored=result("คุณภพไม่ได้คำตอบ จึงขอเงินคืนทั้งหมด",{integrity:-4},{refund:2000000,storyNext:null});
+ if(d.id==="story-play-ai-mystery-conflict")d.ignored=result("คุณนัทถอนโควต้าที่ให้มา",{integrity:-4},{returnAI:1,storyNext:null});
+}
+MAYOR_EVENTS.push(...CITY_PLAY_EVENTS);
+
 function createMayorCore(definitions, random=Math.random){
 const keys=["admin","image","fame","government","people","business","integrity"], byId=new Map(definitions.map(d=>[d.id,d]));
 const clone=x=>JSON.parse(JSON.stringify(x));
 const dayAt=t=>Math.floor((t-360)/1440), start=d=>d*1440+360, deadline=d=>start(d)+600;
 const grade=v=>v>=86?"A":v>=71?"B":v>=51?"C":v>=26?"D":"F";
 const clamp=v=>Math.max(0,Math.min(100,Math.trunc(v)));
-function fresh(t){return {version:1,day:dayAt(t),lastTime:t,scores:Object.fromEntries(keys.map(k=>[k,60])),issues:[],effects:[],history:[],flags:[],suspendedUntil:null,sequence:0,unpaid:0,audits:[],offerDays:{},started:false,nightAt:null,nightDay:null,stories:[],exploreQuota:{day:dayAt(t),used:{}}};}
+function fresh(t){return {version:1,playEdition:1,day:dayAt(t),lastTime:t,scores:Object.fromEntries(keys.map(k=>[k,60])),issues:[],effects:[],history:[],flags:[],suspendedUntil:null,sequence:0,unpaid:0,audits:[],offerDays:{},started:false,nightAt:null,nightDay:null,stories:[],exploreQuota:{day:dayAt(t),used:{}}};}
 function restore(saved,t){
  if(!saved||saved.version!==1)return fresh(t);
  const s={...fresh(t),...clone(saved)};s.scores=s.scores&&typeof s.scores==="object"?s.scores:{};
@@ -10823,6 +11120,12 @@ function restore(saved,t){
  for(const k of ["issues","effects","history","flags","stories","audits"])if(!Array.isArray(s[k]))s[k]=[];
  s.unpaid=Math.max(0,Number.isFinite(s.unpaid)?Math.floor(s.unpaid):0);
  if(!saved.offerDays||typeof saved.offerDays!=="object"){s.offerDays={};for(const h of s.history){const d=byId.get(h.eventId);if(d?.offerCooldown&&["success","failed"].includes(h.status)&&h.source!=="audit"){const day=h.day??dayAt(h.at);if(Number.isFinite(day))s.offerDays[h.eventId]=Math.max(s.offerDays[h.eventId]??-Infinity,day);}}}
+ if(saved.playEdition!==1){
+  // Preserve balances, scores, old results, accepted jobs and pending repayments.
+  s.issues=s.issues.filter(i=>i.status!=="pending"||byId.get(i.eventId)?.playEvent);
+  for(const x of s.stories)if(x.status==="active"&&!String(x.arc||"").startsWith(PLAY_PREFIX)){x.status="ended";x.endedDay=s.day;x.dueDay=null;x.closedIds=[];}
+  s.nightAt=null;s.nightDay=null;s.playEdition=1;
+ }
  reconcileExploreQuota(s,true);stories(s);return s;
 }
 const active=(s,t)=>s.suspendedUntil!==null&&t<s.suspendedUntil;
@@ -10831,14 +11134,22 @@ function count(level){if(level<=5)return 1;if(level<=10)return 1+(random()<.5?1:
 
 function stories(s){if(!Array.isArray(s.stories))s.stories=[];return s.stories;}
 function arcEligible(s,a,city){
- const list=stories(s);if(list.filter(x=>x.status==="active").length>=7||list.some(x=>x.status==="active"&&x.category===a.category))return false;
+ const list=stories(s);if(list.filter(x=>x.status==="active").length>=2||list.some(x=>x.status==="active"&&x.category===a.category))return false;
  if(list.some(x=>x.arc===a.id&&x.status==="ended"&&s.day-(x.endedDay??s.day)<10))return false;
  if(s.issues.some(i=>i.status==="pending"&&i.source!=="story"&&byId.get(i.eventId)?.storyArc&&i.category===a.category))return false;
  if(a.id==="restaurants"&&!Object.keys(city.buildingCounts||{}).some(k=>buildGroup(k,city)==="restaurant"&&city.buildingCounts[k]>0))return false;
  return true;
 }
+function kindPresent(city,kind){return Object.entries(city.buildingCounts||{}).some(([k,n])=>n>0&&city.catalog?.[k]?.kind===kind);}
+function playFits(d,city){
+ if(d.needsKind&&!kindPresent(city,d.needsKind))return false;
+ if(d.alsoKind&&!kindPresent(city,d.alsoKind))return false;
+ if(d.minPerformance!=null&&!(Number.isFinite(city.recentPerformance)&&city.recentPerformance>=d.minPerformance))return false;
+ if(d.maxPerformance!=null&&!(Number.isFinite(city.recentPerformance)&&city.recentPerformance<d.maxPerformance))return false;
+ return true;
+}
 function storyEventAllowed(s,d,city){
- if(d.storyOnly)return false;
+ if(!d.playEvent||d.storyOnly||!playFits(d,city))return false;
  if(d.offerCooldown&&Number.isFinite(s.offerDays?.[d.id])&&s.day-s.offerDays[d.id]<d.offerCooldown)return false;
  if(!d.storyArc)return true;
  return arcEligible(s,MAYOR_STORY_META[d.storyArc],city)&&!s.issues.some(i=>i.status==="pending"&&byId.get(i.eventId)?.storyArc&&i.category===d.category);
@@ -10852,6 +11163,8 @@ function storyCloseIds(x,city){
 function storyHook(s,i,r,city,t,cashDelta){
  const d=byId.get(i.eventId);let x=i.storyId?stories(s).find(y=>y.id===i.storyId):null;
  let node=r.storyNext,arc=d?.storyArc;
+ if(!d?.playEvent)return "";
+ if(!node&&!x)return "";
  if(!arc&&!x){
   if(i.eventId==="business-restaurant"){arc="restaurants";node=(i.selected===3||i.status==="expired"||i.status==="failed")?"conflict":i.selected===2?"good":null;}
   else if(i.eventId==="integrity-contract"&&i.selected===5&&cashDelta>0){arc="two-million";node="conflict";}
@@ -10876,17 +11189,18 @@ function storyHook(s,i,r,city,t,cashDelta){
  if(x.turns>=8&&node!==null)node="final";
  if(x.node==="final")node=null;
  x.history.push({day:s.day,eventId:i.eventId,issueId:i.id,choice:i.selected??null,choiceTitle:d?.choices?.[i.selected]?.title||"ไม่ได้ตอบตามกำหนด",report:r.report||"",cashDelta,scores:clone(r.scores||{})});
- if(node){x.dueDay=storyNextDay(s,x,node);x.node=node;return (x.closedIds.length?" ร้านอาหารที่หยุดรับลูกค้าใหม่ "+x.closedIds.length+" แห่ง":"")+" · เลขานุการบันทึกเรื่องไว้เพื่อติดตามต่อ";}
- x.status="ended";x.endedDay=s.day;x.dueDay=null;x.closedIds=[];return " · เลขานุการปิดเรื่องนี้และเก็บประวัติไว้";
+ if(node){x.dueDay=storyNextDay(s,x,node);x.node=node;return "";}
+ x.status="ended";x.endedDay=s.day;x.dueDay=null;x.closedIds=[];return "";
 }
 function storyPulse(s,city,t){
  if(active(s,t)||t>=deadline(s.day))return;
  for(const x of stories(s)){
   if(x.status!=="active"||x.dueDay==null||x.dueDay>s.day||s.issues.some(i=>i.storyId===x.id&&i.status==="pending"))continue;
   const d=byId.get("story-"+x.arc+"-"+x.node);if(!d)continue;
+  if(d.needsKind&&!kindPresent(city,d.needsKind)){x.status="ended";x.endedDay=s.day;x.dueDay=null;x.closedIds=[];continue;}
   const prior=x.history.at(-1);
    const i={id:++s.sequence,eventId:d.id,category:d.category,status:"pending",source:"story",day:s.day,storyId:x.id,
-    context:prior?"เรื่องนี้สืบเนื่องจากวันที่ "+(prior.day+1)+" ที่นายกเลือก: "+prior.choiceTitle+" — ผู้ประสานงานเดิมคือ "+x.actor:""};
+    context:prior?"ครั้งก่อน: "+prior.choiceTitle:""};
    s.issues.push(i);
  }
 }
@@ -10928,17 +11242,34 @@ function buildTaskBlock(s,o,city,issue=null){
  if(need.capacity>0&&task.count*unit>need.deficit+Math.max(1,Math.ceil(unit/2)))return "ขนาดโครงการเกินความต้องการ";
  return "";
 }
-function eligibleOption(s,o,city,issue=null){if(o.cost>0&&city.money<o.cost)return false;if(o.grant>0&&s.unpaid>0)return false;if(!Object.entries(o.requires||{}).every(([k,n])=>s.scores[k]>=n)||!hasBuildings(o.requiresBuildings,city))return false;if(o.task?.kind==="build"){if(buildTaskBlock(s,o,city,issue))return false;const b=city.catalog?.[o.task.key];if(!b||!b.unlocked||!Number.isFinite(b.cost)||b.cost<0||city.canBuild?.(o.task.key,o.task.count)!==true)return false;const net=Math.max(0,b.cost*o.task.count-(o.grant||0));if(net>Math.floor(Math.max(0,city.money)*.2))return false;}return true;}
-function options(s,issue,city){const d=byId.get(issue.eventId);return d.choices.map((o,i)=>({index:i,...clone(o),enabled:eligibleOption(s,o,city,issue),capacityBlock:buildTaskBlock(s,o,city,issue),payable:Math.max(0,Math.floor(o.cost||0)),debtBlock:!!(o.grant>0&&s.unpaid>0)}));}
-function candidates(s,city,category){const pool=definitions.filter(d=>storyEventAllowed(s,d,city)&&(!category||d.category===category)&&city.level>=d.minLevel&&hasBuildings(d.requiresBuildings,city)&&!s.issues.some(i=>i.eventId===d.id)&&(!d.choices.some(o=>o.task?.kind==="build")||d.choices.some(o=>o.task?.kind==="build"&&eligibleOption(s,o,city))));const regular=pool.filter(d=>!d.emergencyOnly&&!d.moralOnly);const normal=regular.filter(d=>!d.fallbackOnly);return normal.length?normal:regular;}
-function issue(s,city,category,source){const a=candidates(s,city,category);if(!a.length)return null;const roots=a.filter(d=>d.storyArc),regular=a.filter(d=>!d.storyArc);const pool=roots.length&&(!regular.length||random()<.35)?roots:regular.length?regular:a;const d=pool[Math.min(pool.length-1,Math.floor(random()*pool.length))];const i={id:++s.sequence,eventId:d.id,category:d.category,status:"pending",source,day:s.day};
- if(d.storyArc){const last=stories(s).filter(x=>x.arc===d.storyArc&&x.status==="ended").at(-1);
-  if(last)i.context="เคยดำเนินเรื่องนี้ในวันที่ "+(last.startedDay+1)+"–"+(last.endedDay+1)+" ครั้งนี้เป็นข้อเสนอรอบใหม่ ผู้ประสานงานทราบข้อสรุปครั้งก่อน: "+(last.history?.at(-1)?.report||"ปิดเรื่องแล้ว");}
- s.issues.push(i);return i;}
-function ensureDailyCoverage(s,city,t){if(active(s,t)||t>=deadline(s.day))return;for(const category of keys)if(!s.issues.some(i=>i.category===category))issue(s,city,category,"daily");}
+function eligibleOption(s,o,city,issue=null){if(o.cost>0&&city.money<o.cost)return false;if(o.grant>0&&s.unpaid>0)return false;if(!Object.entries(o.requires||{}).every(([k,n])=>s.scores[k]>=n)||!hasBuildings(o.requiresBuildings,city))return false;if(o.task?.kind==="build"){if(buildTaskBlock(s,o,city,issue))return false;const b=city.catalog?.[o.task.key];if(!b||!b.unlocked||!Number.isFinite(b.cost)||b.cost<0||city.canBuild?.(o.task.key,o.task.count)!==true)return false;const net=Math.max(0,b.cost*o.task.count-(o.grant||0));if(net>Math.max(0,city.money))return false;}return true;}
+function options(s,issue,city){
+ const d=byId.get(issue.eventId);if(!d)return [];
+ return d.choices.map((o,i)=>({index:i,...clone(o),enabled:eligibleOption(s,o,city,issue),capacityBlock:buildTaskBlock(s,o,city,issue),payable:Math.max(0,Math.floor(o.cost||0)),debtBlock:!!(o.grant>0&&s.unpaid>0)}));
+}
+function candidates(s,city,category){
+ const pool=definitions.filter(d=>storyEventAllowed(s,d,city)&&(!category||d.category===category)&&city.level>=d.minLevel&&hasBuildings(d.requiresBuildings,city)&&!s.issues.some(i=>i.eventId===d.id)&&(!d.choices.some(o=>o.task?.kind==="build")||d.choices.some(o=>o.task?.kind==="build"&&eligibleOption(s,o,city))));
+ return pool.filter(d=>!d.emergencyOnly&&!d.moralOnly);
+}
+function issue(s,city,category,source){
+ let a=candidates(s,city,category);
+ if(source==="daily")a=a.filter(d=>!s.issues.some(i=>i.day===s.day&&i.category===d.category&&["pending","working"].includes(i.status)));
+ if(!a.length)return null;
+ const build=a.filter(d=>d.choices.some(o=>o.task?.kind==="build")),quick=a.filter(d=>!d.storyArc&&!d.choices.some(o=>o.task?.kind==="build")),roots=a.filter(d=>d.storyArc);
+ const roll=random(),pool=roll<.45&&build.length?build:roll>.95&&roots.length?roots:quick.length?quick:build.length?build:roots.length?roots:a;
+ const d=pool[Math.min(pool.length-1,Math.floor(random()*pool.length))];
+ const i={id:++s.sequence,eventId:d.id,category:d.category,status:"pending",source,day:s.day};s.issues.push(i);return i;
+}
+function ensureDailyCoverage(s,city,t){
+ if(active(s,t)||t>=deadline(s.day))return;
+ const limit=city.level>=15?5:4;
+ // Count today's completed events too; do not refill after each answer.
+ const daily=s.issues.filter(i=>i.source==="daily"&&byId.get(i.eventId)?.playEvent).length;
+ for(let n=daily;n<limit;n++)if(!issue(s,city,null,"daily"))break;
+}
 function specialIssue(s,city,kind,t){const pool=definitions.filter(d=>d[kind]&&city.level>=d.minLevel&&storyEventAllowed(s,d,city)&&hasBuildings(d.requiresBuildings,city)&&!s.issues.some(i=>i.eventId===d.id)&&(!d.target||Object.keys(city.buildingIds||{}).some(k=>d.target.includes(city.catalog?.[k]?.kind)&&city.buildingIds[k].length)));if(!pool.length)return null;const d=pool[Math.min(pool.length-1,Math.floor(random()*pool.length))];const i={id:++s.sequence,eventId:d.id,category:d.category,status:"pending",source:kind==="emergencyOnly"?"night":"moral",day:s.day};if(i.source==="night"){i.openedAt=t;i.deadline=Math.min(start(s.day+1),t+120);if(d.target){const targets=Object.keys(city.buildingIds).filter(k=>d.target.includes(city.catalog[k]?.kind)).flatMap(k=>city.buildingIds[k].map(id=>({id,name:city.catalog[k].name+" #"+id})));i.target=targets[Math.min(targets.length-1,Math.floor(random()*targets.length))];}}s.issues.push(i);return i;}
-function planNight(s,t){if(s.nightDay===s.day)return;s.nightDay=s.day;s.nightAt=null;if(active(s,t))return;const first=start(s.day)+720,last=start(s.day)+960;if(t<=last){const earliest=Math.max(first,Math.ceil(t));s.nightAt=earliest+Math.floor(random()*(last-earliest+1));}}
-function startDay(s,city,t){s.started=true;planNight(s,t);if(active(s,t)||t>=deadline(s.day))return;storyPulse(s,city,t);ensureDailyCoverage(s,city,t);for(let i=1,n=count(city.level);i<n;i++)if(!issue(s,city,null,"daily"))break;specialIssue(s,city,"moralOnly",t);}
+function planNight(s,t){if(s.nightDay===s.day)return;s.nightDay=s.day;s.nightAt=null;if(active(s,t))return;const first=start(s.day)+720,last=start(s.day)+960;if(t<=last){const earliest=Math.max(first,Math.ceil(t));if(random()<.55)s.nightAt=earliest+Math.floor(random()*(last-earliest+1));}}
+function startDay(s,city,t){s.started=true;planNight(s,t);if(active(s,t)||t>=deadline(s.day))return;storyPulse(s,city,t);ensureDailyCoverage(s,city,t);if(random()<.65)specialIssue(s,city,"moralOnly",t);}
 function issueDeadline(i){return i.source==="night"&&Number.isFinite(i.deadline)?i.deadline:deadline(i.day);}
 function needsAdvance(s,t){return !s?.started||s.day!==dayAt(t)||s.nightDay!==s.day||s.lastTime<deadline(s.day)&&t>=deadline(s.day)||Number.isFinite(s.nightAt)&&t>=s.nightAt||s.issues.some(i=>i.source==="night"&&i.status==="pending"&&t>=issueDeadline(i));}
 function nightPulse(s,city,t){if(!Number.isFinite(s.nightAt)||t<s.nightAt)return;const at=s.nightAt;s.nightAt=null;if(active(s,at))return;specialIssue(s,city,"emergencyOnly",at);}
@@ -10947,9 +11278,12 @@ function cancelInvalidNight(s,city,t){
   i.status="deferred";record(s,i,"อาคารเป้าหมายไม่มีอยู่แล้ว เจ้าหน้าที่ยุติคำขอเดิมโดยไม่คิดคะแนนหรือรางวัล",t,{cashDelta:0,scoreChanges:{}});
  }
 }
-function record(s,i,report,t,details=null){if(byId.get(i.eventId)?.offerCooldown&&["success","failed"].includes(i.status)&&i.source!=="audit"){s.offerDays??={};s.offerDays[i.eventId]=dayAt(t);}s.history.push({id:i.id,eventId:i.eventId,category:i.category,status:i.status,report,at:t,source:i.source,day:i.day,...(i.storyId?{storyId:i.storyId}:{}),...(i.task?{task:clone(i.task)}:{}),...(i.target?{target:clone(i.target)}:{}),...(details?{details}: {})});}
-function apply(s,i,result,city,t,cashBefore=city.money){const r=result||{},before={...s.scores},aiBefore=city.aiCredits;if(r.money)city.money+=r.money;if(r.aiCredits&&Number.isFinite(city.aiCredits))city.aiCredits=Math.min(100000,Math.max(0,city.aiCredits+r.aiCredits));score(s,r.scores,t);const scoreChanges=Object.fromEntries(Object.keys(r.scores||{}).filter(k=>keys.includes(k)).map(k=>[k,{before:before[k],after:s.scores[k],delta:s.scores[k]-before[k]}]));for(const e of r.effects||[]){if(["floodDamage","fillPopulation"].includes(e.kind)){city.applyEffect?.(clone(e));}else if(t<start(i.day+1)){s.effects.push({...clone(e),expires:start(i.day+1),source:i.id});}}for(const flag of r.flags||[])if(!s.flags.includes(flag))s.flags.push(flag);const cashDelta=city.money-cashBefore,aiDelta=Number.isFinite(aiBefore)?city.aiCredits-aiBefore:0;const storyNote=i.source==="audit"||i.source==="debt"?"":storyHook(s,i,r,city,t,cashDelta);const report=mayorV72Narrative(i,r,scoreChanges,cashDelta,aiDelta)+storyNote;record(s,i,report,t,{money:r.money||0,scores:clone(r.scores||{}),effects:clone(r.effects||[]),paid:i.paid||0,grant:i.grant||0,scoreChanges,cashDelta,aiCredits:aiDelta});if(i.source!=="audit"&&i.source!=="debt"&&i.selected!=null)registerAudit(s,i,r,t,aiDelta);return report;}
-function choose(s,id,index,city,t){cancelInvalidNight(s,city,t);const i=s.issues.find(x=>x.id===id);if(!i||i.status!=="pending"||active(s,t)||dayAt(t)!==i.day||t>=issueDeadline(i))return {ok:false};const o=options(s,i,city)[index];if(!o?.enabled)return {ok:false};const cashBefore=city.money;if(o.payable)city.money-=o.payable;if(o.grant)city.money+=o.grant;i.selected=index;i.paid=o.payable;i.grant=o.grant||0;if(o.task){i.status="working";i.task=clone(o.task);if(o.task.kind==="build"){i.baseline=(city.buildingIds?.[o.task.key]||[]).slice();buildTaskDays(s,city)[buildGroup(o.task.key,city)]=s.day;}const objective=o.task.kind==="build"?"ก่อสร้าง "+(city.catalog?.[o.task.key]?.name||o.task.key)+" จำนวน "+o.task.count+" แห่ง":"ทำให้ภารกิจเดินทางสำเร็จถึง "+o.task.target+"%";const report="เทศบาลรับข้อเสนอแล้ว เจ้าหน้าที่จะติดตามเป้าหมาย "+objective+" ก่อน 06:00 วันถัดไป"+(i.paid?" และอนุมัติงบ "+i.paid.toLocaleString("th-TH")+" บาท":"")+(i.grant?" โดยได้รับเงินสนับสนุน "+i.grant.toLocaleString("th-TH")+" บาท ซึ่งต้องคืนหากไม่ผ่านเงื่อนไข":"")+" คะแนนจะสรุปเมื่อภารกิจสิ้นสุด";record(s,i,report,t,{money:0,scores:{},effects:[],paid:i.paid,grant:i.grant,scoreChanges:{},cashDelta:city.money-cashBefore});return {ok:true,working:true,report};}const won=o.chance===undefined||random()<o.chance;i.status=won?"success":"failed";i.rollWon=won;return {ok:true,won,report:apply(s,i,won?o.success:o.failure,city,t,cashBefore)};}
+function record(s,i,report,t,details=null){if(byId.get(i.eventId)?.offerCooldown&&["success","failed","expired"].includes(i.status)&&i.source!=="audit"){s.offerDays??={};s.offerDays[i.eventId]=dayAt(t);}s.history.push({id:i.id,eventId:i.eventId,category:i.category,status:i.status,report,at:t,source:i.source,day:i.day,...(i.storyId?{storyId:i.storyId}:{}),...(i.task?{task:clone(i.task)}:{}),...(i.target?{target:clone(i.target)}:{}),...(details?{details}: {})});}
+function apply(s,i,result,city,t,cashBefore=city.money){const r={...(result||{})},before={...s.scores},aiBefore=city.aiCredits;if(r.money)city.money+=r.money;if(r.refund>0||r.returnAI>0){
+ let amount=r.refund||0;if(r.returnAI>0){const n=Math.min(r.returnAI,Math.max(0,city.aiCredits||0));city.aiCredits-=n;amount+=(r.returnAI-n)*100000;}
+ if(amount){const refund=repay(s,city,amount);r.report=(r.report||"คืนเงิน")+" · คืนแล้ว "+refund.paid.toLocaleString("th-TH")+" บาท"+(refund.remaining?" ค้างคืน "+refund.remaining.toLocaleString("th-TH")+" บาท":"");}
+ }if(r.aiCredits&&Number.isFinite(city.aiCredits))city.aiCredits=Math.min(100000,Math.max(0,city.aiCredits+r.aiCredits));score(s,r.scores,t);const scoreChanges=Object.fromEntries(Object.keys(r.scores||{}).filter(k=>keys.includes(k)).map(k=>[k,{before:before[k],after:s.scores[k],delta:s.scores[k]-before[k]}]));for(const e of r.effects||[]){if(["floodDamage","fillPopulation"].includes(e.kind)){city.applyEffect?.(clone(e));}else if(t<start(i.day+1)||i.task&&byId.get(i.eventId)?.playEvent){s.effects.push({...clone(e),expires:start(dayAt(t)+1),source:i.id});}}for(const flag of r.flags||[])if(!s.flags.includes(flag))s.flags.push(flag);const cashDelta=city.money-cashBefore,aiDelta=Number.isFinite(aiBefore)?city.aiCredits-aiBefore:0;const storyNote=i.source==="audit"||i.source==="debt"?"":storyHook(s,i,r,city,t,cashDelta);const report=mayorV72Narrative(i,r,scoreChanges,cashDelta,aiDelta)+storyNote;record(s,i,report,t,{money:r.money||0,scores:clone(r.scores||{}),effects:clone(r.effects||[]),paid:i.paid||0,grant:i.grant||0,scoreChanges,cashDelta,aiCredits:aiDelta});if(i.source!=="audit"&&i.source!=="debt"&&i.selected!=null)registerAudit(s,i,r,t,aiDelta);return report;}
+function choose(s,id,index,city,t){cancelInvalidNight(s,city,t);const i=s.issues.find(x=>x.id===id);if(!i||i.status!=="pending"||active(s,t)||dayAt(t)!==i.day||t>=issueDeadline(i))return {ok:false};const o=options(s,i,city)[index];if(!o?.enabled)return {ok:false};const cashBefore=city.money;if(o.payable)city.money-=o.payable;if(o.grant)city.money+=o.grant;i.selected=index;i.paid=o.payable;i.grant=o.grant||0;if(o.task){i.status="working";i.task=clone(o.task);if(o.task.kind==="build"){i.baseline=(city.buildingIds?.[o.task.key]||[]).slice();buildTaskDays(s,city)[buildGroup(o.task.key,city)]=s.day;}const objective=o.task.kind==="build"?"ก่อสร้าง "+(city.catalog?.[o.task.key]?.name||o.task.key)+" จำนวน "+o.task.count+" แห่ง":"ทำให้ภารกิจเดินทางสำเร็จถึง "+o.task.target+"%";const report="รับภารกิจแล้ว! "+objective+" ก่อน 06:00 วันถัดไป"+(i.paid?" และอนุมัติงบ "+i.paid.toLocaleString("th-TH")+" บาท":"")+(i.grant?" โดยได้รับเงินสนับสนุน "+i.grant.toLocaleString("th-TH")+" บาท ซึ่งต้องคืนหากไม่ผ่านเงื่อนไข":"")+" คะแนนจะสรุปเมื่อภารกิจสิ้นสุด";record(s,i,report,t,{money:0,scores:{},effects:[],paid:i.paid,grant:i.grant,scoreChanges:{},cashDelta:city.money-cashBefore});return {ok:true,working:true,report};}const won=o.chance===undefined||random()<o.chance;i.status=won?"success":"failed";i.rollWon=won;return {ok:true,won,report:apply(s,i,won?o.success:o.failure,city,t,cashBefore)};}
 function repay(s,city,amount){
  const due=Math.max(0,Math.floor(amount||0)),paid=Math.min(Math.max(0,Math.floor(city.money)),due);
  city.money-=paid;s.unpaid+=due-paid;return {paid,remaining:due-paid};
@@ -11001,7 +11335,7 @@ function expire(s,city,t){
   if(i.status!=="pending"||t<issueDeadline(i))continue;
   const at=issueDeadline(i),d=byId.get(i.eventId);
   if(active(s,at)){i.status="deferred";record(s,i,"อยู่ระหว่างพักอำนาจ เจ้าหน้าที่รับเรื่องไว้โดยไม่หักคะแนนซ้ำ",at,{cashDelta:0,scoreChanges:{}});continue;}
-  i.status="expired";const r=(i.source==="night"||i.source==="story"||d?.storyArc)?d?.ignored:null;
+  i.status="expired";const r=d?.playEvent||i.source==="night"||i.source==="story"||d?.storyArc?d?.ignored:null;
   apply(s,i,r||{scores:{[i.category]:-10},report:"ละเลยการตัดสินใจก่อน 16:00",...(d?.storyArc?{storyNext:"conflict"}:{})},city,at);
  }
 }
