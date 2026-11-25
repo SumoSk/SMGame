@@ -237,3 +237,77 @@
 #mayorPanel .mayor-question-facts>span{background:var(--my-soft);border-radius:4px;padding:3px 6px}
 @media(min-width:850px) and (pointer:fine){#mayorPanel[data-mode="issues"][data-detail="true"] .mayor-story h3{font-size:19px}#mayorPanel .mayor-story p.mayor-question-text,#mayorPanel .mayor-story p.mayor-question-extra{font-size:15px}}
 @media(max-width:600px){#mayorPanel .mayor-story h3{font-size:16px}#mayorPanel .mayor-story p.mayor-question-text,#mayorPanel .mayor-story p.mayor-question-extra{font-size:14px;line-height:1.6}#mayorPanel .mayor-question-facts{font-size:11px}}
+
+/* Mobile mission window: readable, compact game UI, not a dashboard.
+   Desktop styling and all decision controls are unchanged. */
+@media (max-width:720px), (max-width:1000px) and (max-height:520px) and (pointer:coarse) {
+ html body #mayorPanel{
+  font-size:11px;line-height:1.4;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%;
+  border-radius:10px;box-shadow:0 5px 20px #142c2838;
+ }
+ #mayorPanel .mayor-body{padding:6px 7px 7px}
+ #mayorPanel header{padding:4px 7px;gap:5px}
+ #mayorPanel header>b{font-size:12px;font-weight:650}
+ #mayorPanel .mayor-header-icon{width:23px;height:23px;font-size:13px;border-radius:6px}
+ #mayorPanel .mayor-time{font-size:10px}
+ #mayorPanel button.mayor-close{width:36px;height:36px;min-height:36px;font-size:16px}
+ #mayorPanel .mayor-issue-top{gap:4px;margin-bottom:4px;flex-wrap:nowrap}
+ #mayorPanel .mayor-issue-top .mayor-category-label{font-size:10px;font-weight:500}
+ #mayorPanel button.mayor-back{font-size:10px;min-height:30px;padding:2px 3px}
+ #mayorPanel .mayor-category-icon{width:17px;height:17px;font-size:11px;border-radius:4px}
+ #mayorPanel .mayor-story{padding:8px 9px 7px;margin-bottom:6px;border:0;border-left:2px solid var(--my-accent);border-radius:4px 7px 7px 4px}
+ #mayorPanel .mayor-story h3{font-size:14px;line-height:1.35;font-weight:700;margin:0 0 5px}
+ #mayorPanel .mayor-story p.mayor-question-text,#mayorPanel .mayor-story p.mayor-question-extra{
+  font-size:12px;line-height:1.5;font-weight:400;margin:0 0 4px;overflow-wrap:break-word;
+ }
+ #mayorPanel .mayor-story p.mayor-question-extra{font-size:11px;color:var(--my-muted)}
+ #mayorPanel .mayor-question-facts{gap:2px 7px;padding-top:4px;margin-top:4px;font-size:10px;line-height:1.4;align-items:baseline}
+ #mayorPanel .mayor-question-facts>b{flex-basis:auto;font-size:10px;font-weight:550;color:var(--my-muted)}
+ #mayorPanel .mayor-question-facts>span{padding:0;background:transparent;border-radius:0;color:var(--my-text)}
+ #mayorPanel .mayor-choice-bar{margin:0 1px 4px}
+ #mayorPanel .mayor-choice-bar>b{font-size:11px;font-weight:650}
+ #mayorPanel .mayor-choice-bar small{font-size:10px}
+ #mayorPanel .mayor-options{gap:3px}
+ #mayorPanel .mayor-blind-option{
+  min-height:44px;padding:5px 7px;border-radius:6px;
+  border:1px solid var(--my-line);background:var(--my-surface);
+ }
+ #mayorPanel .mayor-blind-option .mayor-option-head{gap:6px;align-items:center}
+ #mayorPanel .mayor-blind-option .mayor-option-head b{font-size:12px;line-height:1.4;font-weight:500;padding:0}
+ #mayorPanel .mayor-option-number{width:19px;height:18px;line-height:18px;font-size:9px;font-weight:600;border-radius:4px}
+ #mayorPanel .mayor-blind-option .mayor-choice-type{font-size:12px;padding:0 2px;color:var(--my-muted)}
+ #mayorPanel .mayor-blind-option .mayor-meta{font-size:10px;line-height:1.35;margin-top:2px;padding-left:25px;gap:1px 6px}
+ #mayorPanel .mayor-lock-reason{font-size:10px;line-height:1.35;padding:1px 0 0 25px}
+ #mayorPanel .mayor-blind-option:disabled{background:var(--my-soft);border-style:solid}
+ #mayorPanel .mayor-primary{min-height:38px;font-size:12px;font-weight:600;margin-top:5px;border-radius:6px}
+ #mayorPanel .mayor-hero{padding:6px 8px;margin-bottom:5px;border:0;border-radius:7px}
+ #mayorPanel .mayor-hero strong{font-size:20px;font-weight:650}
+ #mayorPanel .mayor-hero-icon{width:33px;height:33px;font-size:18px;border-radius:7px}
+ #mayorPanel .mayor-category{margin-top:6px;gap:4px}
+ #mayorPanel .mayor-category-label{font-size:11px;font-weight:550}
+ #mayorPanel .mayor-list-item{min-height:34px;padding:4px 6px;margin-bottom:3px;border-radius:5px;font-size:11px}
+ #mayorPanel .mayor-category button{font-size:10px;min-height:28px}
+ #mayorPanel .mayor-section{padding:4px 1px 6px}
+ #mayorPanel .mayor-status-row{padding:4px 5px 5px}
+ #mayorPanel .mayor-result{padding:6px;margin:4px 0 6px;border-radius:7px}
+ #mayorPanel .mayor-result-hero{padding:6px;gap:6px;border-radius:5px}
+ #mayorPanel .mayor-result-symbol{width:25px;height:25px;font-size:15px}
+ #mayorPanel .mayor-result-hero h3{font-size:14px;font-weight:700}
+ #mayorPanel .mayor-result-choice{padding:5px 1px 2px;gap:1px;font-size:11px}
+ #mayorPanel .mayor-result-report{font-size:12px;font-weight:400;line-height:1.5;padding:3px 1px}
+ #mayorPanel .mayor-result-section{padding:4px 1px 2px;margin-top:3px}
+ #mayorPanel .mayor-result-section>b{font-size:10px;margin-bottom:2px}
+ #mayorPanel .mayor-result-row{min-height:23px;padding:2px 0;gap:4px}
+ #mayorPanel .mayor-result-transition{font-size:10px}
+ #mayorPanel .mayor-result-row>strong{font-size:13px;font-weight:650}
+ #mayorPanel .mayor-result-chips .mayor-chip{font-size:10px;padding:2px 4px}
+ #mayorPanel .mayor-result-progress{padding:5px;gap:2px}
+ #mayorPanel .mayor-result-progress small,#mayorPanel .mayor-result-neutral{font-size:10px}
+ #mayorPanel .mayor-urgent-call{padding:5px;margin:4px 0 6px;font-size:11px}
+ #mayorPanel .mayor-urgent-call small{font-size:10px}
+ #mayorPanel .mayor-suspension-head h3,#mayorPanel .mayor-afternoon-head h3{font-size:14px;line-height:1.35}
+ #mayorPanel .mayor-suspension-cause{font-size:11px;font-weight:650}
+ #mayorPanel .mayor-suspension-time b{font-size:13px}
+ #mayorPanel .mayor-afternoon p,#mayorPanel .mayor-suspension-body p{font-size:11px;line-height:1.4}
+}
