@@ -9,4 +9,4 @@ await import('./save-storage.js?v=legacy-save-off-20261110');
 
 
 
-await import('./developer-chat.js?v=smcity-capacity-count-chat-20261124');
+await import('./developer-chat.js?v=city-rail-chat-1');

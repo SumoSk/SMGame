@@ -1,15 +1,13 @@
 // Compact developer chat; never runs inside the simulation or render loop.
 (()=>{
- const bar=document.getElementById('cityAdvisorTicker'),button=document.getElementById('developerChatOpen'),badge=document.getElementById('developerChatBadge');
- if(!bar||!button||!badge)return;
+ const button=document.getElementById('developerChatOpen'),badge=document.getElementById('developerChatBadge');
+ if(!button||!badge)return;
  const endpoint='https://jeqbyhzbpivscsduwkcj.supabase.co/functions/v1/smgame-developer-chat';
  const key='sb_publishable_yEaGo1wDqb4qehdi702eMQ_ZqyVcHuf';
  const dialog=document.createElement('dialog');dialog.id='developerChatDialog';dialog.setAttribute('aria-label','แชทกับผู้พัฒนา');
  dialog.innerHTML="<header><span class=\"dc-avatar\" aria-hidden=\"true\">💬</span><div class=\"dc-heading\"><strong id=\"dcTitle\">แชทกับผู้พัฒนา</strong><small>SMCITY · ข้อความส่วนตัว</small></div><button id=\"dcClose\" type=\"button\" aria-label=\"หุบแชท\" title=\"หุบแชท\">⌄</button></header><div id=\"dcNav\"><button id=\"dcBack\" type=\"button\" hidden>‹ กล่องข้อความ</button><button id=\"dcAdmin\" type=\"button\" hidden>กล่องข้อความผู้พัฒนา</button><button id=\"dcRefresh\" type=\"button\" aria-label=\"รีเฟรชข้อความ\" title=\"รีเฟรชข้อความ\">↻</button><button id=\"dcResolve\" type=\"button\" hidden></button></div><p id=\"dcStatus\" role=\"status\" aria-live=\"polite\"></p><div id=\"dcInbox\" hidden></div><button id=\"dcMore\" type=\"button\" hidden>ดูข้อความก่อนหน้า</button><div id=\"dcMessages\" aria-live=\"off\"></div><form id=\"dcForm\"><div class=\"dc-options\"><select id=\"dcCategory\" aria-label=\"ประเภทข้อความ\"><option value=\"message\">ข้อความทั่วไป</option><option value=\"bug\">แจ้งบัค</option><option value=\"idea\">เสนอไอเดีย</option></select><span id=\"dcAttachment\"></span><button id=\"dcRemoveImage\" type=\"button\" hidden aria-label=\"เอาภาพแนบออก\">×</button></div><div class=\"dc-compose\"><label class=\"dc-photo\" title=\"แนบภาพ\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"4\"/><circle cx=\"8\" cy=\"9\" r=\"1.5\"/><path d=\"m3 17 5-4 4 3 4-6 5 7\"/></svg><input id=\"dcImage\" type=\"file\" accept=\"image/jpeg,image/png,image/webp\" aria-label=\"แนบภาพ\"></label><textarea id=\"dcText\" maxlength=\"2000\" rows=\"1\" placeholder=\"พิมพ์ข้อความ…\" aria-label=\"ข้อความ\"></textarea><button id=\"dcSend\" type=\"submit\" aria-label=\"ส่งข้อความ\" title=\"ส่งข้อความ\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M3.3 3.7a1 1 0 0 0-1.2 1.2l2.5 6.2 9.8.9-9.8.9-2.5 6.2a1 1 0 0 0 1.2 1.2l18-7.4a1 1 0 0 0 0-1.8z\"/></svg></button></div></form>";
  document.body.appendChild(dialog);
  const css=document.createElement('style');css.textContent=`
- body>.bottom>#cityAdvisorTicker{width:296px;max-width:calc(100vw - 24px)}
- #developerChatOpen{border:0;justify-content:flex-start;width:100%;margin:0}
  #developerChatBadge{margin-left:auto;min-width:17px;text-align:center;border-radius:8px;font-size:9px;background:#1679b7;color:#fff;padding:0 3px}
  #developerChatBadge[hidden],#developerChatDialog [hidden]{display:none!important}
  #developerChatDialog{
@@ -69,14 +67,12 @@
  const draftKey=()=>mode==='admin'?'admin:'+peer:mode==='player'?'player':null;
  function saveDraft(){const k=draftKey();if(k&&lastToken&&token()===lastToken)drafts.set(k,{text:$('dcText').value,category:$('dcCategory').value,attachment,sendId});}
  function restoreDraft(){const d=drafts.get(draftKey());if(!d)return;$('dcText').value=d.text;$('dcCategory').value=d.category;attachment=d.attachment;sendId=d.sendId;$('dcAttachment').textContent=attachment?'แนบภาพแล้ว':'';$('dcRemoveImage').hidden=!attachment;}
- function positionChat(){if(!dialog.open)return;const rect=bar.getBoundingClientRect(),vv=window.visualViewport,top=vv?.offsetTop||0,bottom=Math.min(rect.top-6,top+(vv?.height||innerHeight)-8);const available=bottom-top-8;const end=available>=210?bottom:top+(vv?.height||innerHeight)-8;dialog.style.setProperty('--dc-bottom',Math.max(0,innerHeight-end)+'px');dialog.style.setProperty('--dc-room',Math.max(80,end-top-8)+'px');}
+ function positionChat(){if(!dialog.open)return;const rect=document.querySelector(".bottom").getBoundingClientRect(),vv=window.visualViewport,top=vv?.offsetTop||0,bottom=Math.min(rect.top-6,top+(vv?.height||innerHeight)-8);const available=bottom-top-8;const end=available>=210?bottom:top+(vv?.height||innerHeight)-8;dialog.style.setProperty('--dc-bottom',Math.max(0,innerHeight-end)+'px');dialog.style.setProperty('--dc-room',Math.max(80,end-top-8)+'px');}
  function resizeText(){const t=$('dcText');t.style.height='auto';t.style.height=Math.min(76,Math.max(34,t.scrollHeight))+'px';}
  const status=t=>{$('dcStatus').textContent=t||'';};
- const launcherText=button.querySelector('.city-advisor-text');
  function updateRole(isDeveloper){
   dev=isDeveloper===true;
   const label=dev?'กล่องข้อความผู้พัฒนา':'พิมพ์ข้อความถึงผู้พัฒนา…';
-  if(launcherText)launcherText.textContent=label;
   button.setAttribute('aria-label',dev?'เปิดกล่องข้อความผู้พัฒนา':'เปิดแชทกับผู้พัฒนา');
   button.title=label;
  }
