@@ -1930,14 +1930,116 @@ function mayorOutcomeParts(o){
  return arr;
 }
 function mayorChips(o){const a=mayorOutcomeParts(o);return a.length?a.map(v=>'<span class="mayor-chip '+v.tone+'">'+mayorEsc(v.text)+'</span>').join(''):'<span class="mayor-chip neutral">ไม่เปลี่ยนแปลง</span>';}
-function mayorChoiceMarkup(o,c,s){
+// Presentation only: stable per issue; preserve original indices used by choose() and saved tasks.
+function mayorDisplayOptions(options,issue){
+ const a=options.slice();
+ let seed=2166136261;
+ const key=String(issue.eventId)+'|'+String(issue.id)+'|'+String(issue.day);
+ for(let j=0;j<key.length;j++)seed=Math.imul(seed^key.charCodeAt(j),16777619)>>>0;
+ for(let j=a.length-1;j>0;j--){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const k=Math.floor(seed/4294967296*(j+1));[a[j],a[k]]=[a[k],a[j]];}
+ return a;
+}
+const MAYOR_BRIEF_CONTEXT={
+  "admin-rain": "เจ้าหน้าที่ต้องตัดสินใจจากการคาดการณ์ล่วงหน้า ยังไม่ยืนยันว่าฝนจะตกหนักเพียงใด การเตรียมอุปกรณ์ต้องเริ่มก่อนเกิดเหตุ",
+  "admin-traffic": "ตัวแทนผู้ใช้ถนนต้องการเห็นผลภายในวันนี้ ฝ่ายบริหารสามารถประสานงานหรือรับเป้าหมายที่วัดจากอัตราภารกิจเดินทางจริงของเมือง",
+  "image-interview": "นักข่าวต้องการทราบที่มาของงบและการอนุมัติรายจ่าย ผู้ผลิตรายการเสนอเงิน 700,000 บาท แต่ยังไม่ได้ชี้แจงขอบเขตการควบคุมเนื้อหา",
+  "image-party": "งานนี้จัดเพื่อรับรองนายก ไม่ใช่กิจกรรมบริการประชาชน กลุ่มผู้สนับสนุนเสนองบงานและเงินเข้าคลัง 80,000 บาท หากจัดงานตามรูปแบบที่เสนอ",
+  "fame-food": "พื้นที่จัดงานเป็นพื้นที่สาธารณะ ร้านอาหารรายย่อยและผู้จัดงานต่างต้องการเข้าร่วม ผู้จัดเสนอเงิน 1,500,000 บาทหากได้สิทธิคัดเลือกร้านเอง",
+  "fame-news": "สื่อต้องการข้อมูลสถานที่ท่องเที่ยวและการประสานงานจากเทศบาล โดยยังไม่ได้ตกลงว่าใครจะเป็นผู้กำหนดเนื้อหาที่เผยแพร่",
+  "government-home": "ต้องสร้างอาคารตามจำนวนที่ระบุในข้อเสนอ และตรวจผลงานก่อน 06:00 น. วันถัดไป หากรับงบแล้วทำไม่สำเร็จ ต้องคืนเงินสนับสนุนตามเงื่อนไขเดิม",
+  "government-landmark": "เงินอุดหนุนผูกกับการก่อสร้างตึกมหานครตามจำนวนที่กำหนด ไม่ใช่เงินให้เปล่า หากทำไม่เสร็จภายในกำหนดต้องคืนเงินสนับสนุน",
+  "people-cost": "การช่วยค่าครองชีพอาจใช้งบเมืองโดยตรงหรือปรับรายได้จากการเดินทางชั่วคราว เครือข่ายค้าปลีกเสนอ 1,400,000 บาท แต่ขอให้เมืองประชาสัมพันธ์เฉพาะโครงการของตน",
+  "business-restaurant": "รายได้พื้นฐานจากภารกิจเดินทางสำเร็จอยู่ที่ 500 บาทก่อนผลปรับพิเศษ สมาคมต้องการลดภาระรายได้ที่จัดเก็บจากการเดินทางไปยังร้านอาหารเฉพาะวันนี้",
+  "business-pub": "ผู้ประกอบการขอลดรายได้จากภารกิจไปยังผับเฉพาะวันนี้ นายกสามารถเจรจาอัตราอื่นหรือเพิ่มพื้นที่บริการแทนได้",
+  "integrity-donor": "วงเงินที่เสนอคือ 150,000 บาทเข้าคลังเมือง นักธุรกิจต้องการให้ข้อตกลงเป็นความลับและคาดหวังการพิจารณาพิเศษในอนาคต ยังไม่มีรายละเอียดว่าสิทธิพิเศษจะเป็นอะไร",
+  "integrity-audit": "ยอดเงินที่ต้องตรวจสอบและเรียกคืนตามเอกสารเบื้องต้นคือ 50,000 บาท มีผู้เสนอเงิน 150,000 บาทหากนายกยุติการตรวจสอบ",
+  "admin-crossing": "ตัวแทนผู้ใช้ถนนขอให้แก้การรอคอยสะสม บริษัทอุปกรณ์จราจรเสนอเงิน 1,200,000 บาทหากเมืองยอมทดลองระบบของบริษัทก่อน ยังไม่มีผลเปรียบเทียบกับระบบอื่น",
+  "admin-office": "เจ้าหน้าที่เสนอเพิ่มอุปกรณ์เพื่อลดภาระงาน แต่ยังมีทางเลือกจัดสรรกำลังคนเดิมหรือขอความร่วมมือส่วนกลาง",
+  "admin-inspection": "คณะประเมินใช้ผลภารกิจเดินทางของเมืองเป็นหลัก ผู้เล่นต้องพิจารณาความสามารถปัจจุบันก่อนรับเป้าหมาย",
+  "admin-park": "ครอบครัวต้องการพื้นที่พักผ่อนเพิ่ม ทั้งการสร้างสวนและการใช้พื้นที่ที่มีอยู่เป็นข้อเสนอที่อยู่ระหว่างพิจารณา",
+  "admin-restaurant": "คำร้องเกี่ยวข้องกับการเข้าถึงบริการอาหาร ไม่ได้ระบุว่าต้องสร้างร้านใหม่เท่านั้น สมาคมร้านอาหารพร้อมร่วมประสานงาน",
+  "admin-shops": "ชุมชนต้องการเข้าถึงร้านค้าพื้นฐานสะดวกขึ้น ฝ่ายบริหารเสนอทั้งการเพิ่มร้านและการสำรวจจุดบริการเดิม",
+  "admin-audit-cost": "ยังไม่มีข้อสรุปว่ารายจ่ายรายการใดผิดปกติ เจ้าหน้าที่ต้องเลือกระหว่างใช้ทีมภายใน จ้างผู้ตรวจสอบ หรือขอความช่วยเหลือจากส่วนกลาง",
+  "admin-office-supply": "ผู้ประสานงานเสนอเพิ่มสถานที่ทำงาน แต่ยังสามารถสำรวจความต้องการแรงงานและใช้แผนประสานงานแทนได้",
+  "admin-city-fair": "การเข้าประเมินมีเป้าหมายผลการเดินทาง 90% ภายในรอบวัน ผู้ประเมินยังเสนอให้เข้ารับคำแนะนำโดยไม่ต้องแข่งขันชิงรางวัล",
+  "admin-bridge-review": "การตรวจนี้เป็นการตรวจเชิงป้องกัน ยังไม่มีรายงานยืนยันความเสียหายของสะพาน นายกต้องเลือกระหว่างตรวจใหม่ ใช้ข้อมูลเดิม หรือชะลอ",
+  "admin-paper": "เอกสารค้างหลายรายการต้องได้รับการพิจารณา เจ้าหน้าที่เสนอทั้งการจัดทีมตรวจ การขอกำลังเสริม และการเร่งอนุมัติ",
+  "admin-training": "การอบรมเป็นงานเสริมจากงานประจำ สถาบันการศึกษาเสนอทุน 250,000 บาทโดยไม่กำหนดผู้รับเหมา",
+  "image-birthday": "เป็นงานวันเกิดส่วนตัวของนายก คณะทำงานเสนอใช้งบเทศบาล ส่วนกลุ่มทุนเสนอเงินเข้าคลัง 100,000 บาทหากจัดงานตามข้อเสนอ",
+  "image-photo": "ภาพรถหรูเพียงอย่างเดียวยังไม่ยืนยันว่ามีการใช้งบผิดปกติ นักข่าวต้องการคำชี้แจงและหลักฐานค่าใช้จ่าย",
+  "image-walk": "ชาวเมืองต้องการช่องทางพูดคุยโดยตรง นายกสามารถลงพื้นที่เอง มอบหมายเจ้าหน้าที่ หรือจัดเวทีโดยใช้ทรัพยากรของชุมชน",
+  "image-award": "สมาคมเสนอรางวัลพร้อมเงิน 80,000 บาทเข้าคลัง หากไม่ขึ้นเวที ผู้จัดยังมีข้อเสนอสนับสนุน 50,000 บาท รายละเอียดการประเมินยังไม่เปิดเผยต่อสาธารณะ",
+  "image-rumor": "ข่าวลือยังไม่ใช่หลักฐานการทุจริต สื่อกำลังขอเอกสารและคำชี้แจงจากเทศบาล",
+  "image-friend": "กิจกรรมที่ขอรับงบเป็นกิจกรรมส่วนตัวของเพื่อนนายก ยังไม่ได้ผ่านเกณฑ์การสนับสนุนสาธารณะ",
+  "image-gift": "ของขวัญส่งถึงสำนักงานนายกจากผู้ประกอบการ ไม่ใช่รางวัลตามโครงการรัฐ นายกต้องกำหนดวิธีรับ คืน หรือบันทึกให้ตรวจสอบได้",
+  "image-survey": "สำนักข่าวต้องการเผยแพร่ผลสำรวจความคิดเห็นทั้งด้านบวกและลบ นายกมีทางเลือกว่าจะให้ความร่วมมือและเผยแพร่ข้อมูลอย่างไร",
+  "image-community": "ผู้ประกอบการในงานเสนอเงินสนับสนุน 40,000 บาท อีกข้อเสนอจากผู้จัดคือ 350,000 บาทสมทบกองทุนชุมชนโดยไม่ขอเปลี่ยนแผนงาน",
+  "fame-tour-film": "กองถ่ายต้องการใช้ภาพและสถานที่ของเมือง อีกทางเลือกคือเรียกค่าธรรมเนียมตามประกาศเทศบาล 900,000 บาท",
+  "fame-hotel-guide": "สมาคมที่พักต้องการเผยแพร่ข้อมูลโรงแรมและดึงดูดนักท่องเที่ยว เมืองเลือกได้ว่าจะออกงบเอง ให้เอกชนสนับสนุน หรือตรวจข้อมูลก่อนเผยแพร่",
+  "fame-visitor": "ผู้มาเยือนร้องเรียนคุณภาพบริการ ตัวแทนกลุ่มทัวร์ต้องการคำตอบและแนวทางจัดการ ไม่ใช่เพียงการประชาสัมพันธ์เมือง",
+  "fame-festival-sponsor": "ผู้จัดเสนอ 200,000 บาทแลกพื้นที่ประชาสัมพันธ์ หากปรับรูปแบบเพื่อลดการรบกวนชุมชน มีข้อเสนอวงเงิน 100,000 บาท",
+  "government-visit": "การหารือเป็นเรื่องแผนพัฒนาและการประสานงานทั่วไป ส่วนกลางมีข้อเสนอเงินอุดหนุนทั่วไป 1,000,000 บาทโดยไม่ผูกกับการจัดซื้อ",
+  "government-fund-return": "ส่วนกลางขอความร่วมมือช่วยพื้นที่อื่น มีทางเลือกสมทบ 100,000 หรือ 25,000 บาท หรือประสานผู้บริจาคแทน นายกต้องประเมินเงินในคลังของเมืองด้วย",
+  "people-housing": "ข้อเรียกร้องมุ่งเพิ่มโอกาสเข้าถึงที่อยู่อาศัย นายกต้องพิจารณาจำนวนบ้านเดิมและความพร้อมของพื้นที่ก่อสร้างก่อนรับภารกิจ",
+  "people-food": "ผู้ร้องต้องการร้านอาหารที่เข้าถึงได้ ไม่ได้เสนอให้ลดรายได้เมืองเป็นวิธีเดียว สามารถเลือกเพิ่มบริการหรือมาตรการระยะสั้นได้",
+  "people-shopping": "เป้าหมายคือให้ชาวเมืองเข้าถึงของใช้ประจำวันได้ง่ายขึ้น การเพิ่มร้านต้องพิจารณาความพร้อมของพื้นที่และถนนด้วย",
+  "people-green": "ครอบครัวต้องการพื้นที่พักผ่อนเพิ่มขึ้น ทั้งการสร้างสวนและการปรับกิจกรรมบนพื้นที่เดิมอยู่ระหว่างพิจารณา",
+  "people-jobs": "ตัวแทนแรงงานต้องการเพิ่มโอกาสทำงาน นายกต้องคำนึงถึงงบสร้างสถานที่ทำงานและการเดินทางของประชาชน",
+  "people-night-noise": "ชาวบ้านต้องการลดเสียงรบกวน ขณะผู้ประกอบการยังต้องดำเนินกิจการ ทั้งสองฝ่ายมีผลประโยชน์ที่ต้องนำมาพิจารณา",
+  "people-casino": "ชุมชนตั้งคำถามเรื่องสิทธิสนับสนุนกิจการคาสิโน ไม่ใช่เพียงการเปิดหรือปิดกิจการ นายกต้องชั่งน้ำหนักระหว่างรายได้ธุรกิจกับข้อกังวลของชุมชน",
+  "people-fairness": "ประชาชนต้องการทราบหลักเกณฑ์การจัดสรรงบ ไม่ได้กำหนดให้เทศบาลต้องเพิ่มรายจ่ายทันที",
+  "people-commute": "ผู้พักอาศัยต้องการผลการเดินทางดีขึ้นในวันนี้ เป้าหมายที่ระบุในตัวเลือกใช้ผลสำเร็จของภารกิจเดินทางจริง",
+  "people-family": "คำขอเกี่ยวข้องกับกิจกรรมสำหรับเด็กและครอบครัว การอนุมัติงบเป็นเพียงหนึ่งในแนวทางที่เสนอ",
+  "people-petition": "ผู้สนใจย้ายเข้ายังต้องการข้อมูลเกี่ยวกับสิ่งอำนวยความสะดวก ไม่ได้ยืนยันว่าจะย้ายเข้าทันที",
+  "people-recreation": "มูลนิธิเสนอเงินสมทบ 600,000 บาท โดยให้ทุกชุมชนเข้าร่วมได้ ไม่ได้ขอสิทธิเลือกผู้เข้าร่วม",
+  "people-complaint": "คำร้องยังรอการจัดลำดับและคำตอบ องค์กรสาธารณประโยชน์เสนอเงินสมทบระบบรับเรื่อง 300,000 บาทโดยไม่ขอเข้าถึงข้อมูล",
+  "business-food-cost": "ร้านอาหารกังวลต้นทุนวัตถุดิบ ผู้ค้าส่งเสนอ 1,600,000 บาทหากเมืองแนะนำร้านค้าให้ซื้อจากรายเดียว",
+  "business-mall-sponsor": "ผู้จัดงานต้องการใช้กิจกรรมลดราคาเพื่อดึงลูกค้า อีกข้อเสนอคือจ่ายค่าธรรมเนียมจัดงาน 850,000 บาทตามระเบียบเดียวกับผู้จัดรายอื่น",
+  "business-casino-deal": "กลุ่มทุนเสนอเงิน 200,000 บาทในข้อเสนอหลัก หรือเจรจาข้อตกลงทั่วไปวงเงิน 80,000 บาท พร้อมขอสนับสนุนกิจการ",
+  "business-invest-office": "เงินสนับสนุนของนักลงทุนผูกกับการเพิ่มสำนักงานตามเป้าหมายที่เสนอ ไม่ใช่การบริจาคโดยไม่มีเงื่อนไข",
+  "business-monopoly": "ผู้ค้ารายใหญ่เสนอ 180,000 บาท หากเมืองลดการสนับสนุนร้านรายย่อย และมีทางเจรจาแบบไม่ผูกขาดวงเงิน 60,000 บาท",
+  "integrity-gift-supplier": "ผู้รับเหมาเสนอ 160,000 บาทนอกข้อตกลง หรือเปลี่ยนเป็นเงินบริจาคเปิดเผย 50,000 บาท หากยอมปรับรูปแบบการสนับสนุน",
+  "integrity-contract": "ฝ่ายกฎหมายทักท้วงเงื่อนไขที่อาจทำให้คู่สัญญาได้เปรียบ ข้อเสนอเดิมมีเงิน 120,000 บาท ส่วนข้อเสนอค่าชดเชยสูงสุด 2,000,000 บาทยังผูกกับการใช้ข้อความเดิม",
+  "integrity-relative": "คนใกล้ชิดต้องการข้ามการพิจารณาตามปกติ และเสนอเงินเข้าคลัง 100,000 บาทหากอนุมัติผลประโยชน์",
+  "integrity-documents": "เอกสารค่าใช้จ่ายบางส่วนต้องได้รับการตรวจสอบก่อนรับรองบัญชี ยังไม่มีข้อสรุปว่าการขาดเอกสารเกิดจากความผิดพลาดหรือเจตนา",
+  "integrity-public-ledger": "สื่อขอให้ประชาชนตรวจสอบรายการเงินเข้าออก มีกองทุนเสนอทุนระบบบัญชีเปิด 550,000 บาทพร้อมเปิดเผยผู้ให้ทุน",
+  "integrity-donation": "ยอดที่ผู้ติดต่อเสนอคือ 90,000 บาทโดยไม่ระบุชื่อผู้ให้ อีกแนวทางคือให้ตรวจสอบที่มาและรับอย่างเปิดเผย",
+  "integrity-secret-deal": "ตัวแทนเสนอเงิน 250,000 บาทแลกกับการพิจารณาเป็นพิเศษ หรือเจรจาเปลี่ยนเป็นสัญญาเปิดเผยวงเงิน 80,000 บาท",
+  "integrity-clerk": "มีเงินที่ต้องเรียกคืน 50,000 บาท และข้อเสนอ 180,000 บาทหากยุติเรื่องโดยไม่เดินหน้าตรวจสอบ",
+  "integrity-tender": "ผู้เสนอราคารายหนึ่งเสนอ 150,000 บาทแลกการพิจารณาก่อนคู่แข่ง ขณะยังไม่มีผลการประมูลที่ยืนยันผู้ชนะ",
+  "integrity-audit-government": "หน่วยตรวจสอบจากส่วนกลางต้องการตรวจเอกสารบัญชี มีงบสนับสนุนการจัดทำเอกสาร 150,000 บาทตามระเบียบ",
+  "integrity-compensation": "กลุ่มธุรกิจเสนอ 120,000 บาทเข้าคลังเพื่อให้เทศบาลยุติเรื่องร้องเรียน โดยยังไม่มีข้อยุติจากการพิจารณาข้อพิพาทตามปกติ",
+  "integrity-ethics": "ข้อเสนอเกี่ยวข้องกับกติกาการรับผลประโยชน์ของเทศบาลในอนาคต ไม่ใช่การตรวจสอบผู้กระทำผิดรายใดรายหนึ่ง",
+  "government-liaison-daily": "ส่วนกลางมีเงินสนับสนุนงานประสานราชการ 200,000 บาทตามสิทธิที่ประกาศ โดยไม่ต้องมีโครงการก่อสร้างพร้อมรับงบ",
+  "business-new-market-daily": "สมาคมการค้าเสนอเงินสมทบ 450,000 บาทโดยไม่ขอสิทธิพิเศษด้านที่ดินหรือใบอนุญาต ผู้ลงทุนรายใหม่ยังรอความชัดเจนของนโยบาย",
+  "night-power": "ทีมช่างตามขั้นตอนปกติต้องใช้งบ 65,000 บาท ผู้รับเหมารายเดิมเสนอเข้าช่วยทันทีในวงเงิน 35,000 บาทโดยขอข้ามการเปรียบเทียบราคา",
+  "night-road": "เจ้าหน้าที่กำลังประเมินเหตุขัดข้อง ยังไม่ทราบว่าจะคลี่คลายได้เองหรือจำเป็นต้องจัดทีมเข้าช่วย",
+  "night-aid": "ความช่วยเหลือต้องดำเนินการคืนนี้ แต่ยังมีคำขอที่เอกสารไม่ครบ นายกต้องตัดสินใจทั้งเรื่องความเร็วและเกณฑ์การเข้าถึง",
+  "night-tourist": "มีข้อเสนอชดเชยผ่านช่องทางตรวจสอบได้ 65,000 บาท อีกข้อเสนอใช้งบ 45,000 บาทแลกกับการไม่เผยแพร่เรื่อง",
+  "night-leak": "เอกสารที่สื่อได้รับยังเป็นเพียงบางส่วน จึงยังไม่มีข้อยุติว่ารายการที่ถูกตั้งคำถามผิดปกติจริงหรือไม่",
+  "moral-envelope": "จำนวนที่เสนอเบื้องต้นคือ 750,000 บาทเข้าคลังเมือง ยังไม่มีเอกสารระบุชื่อผู้ให้หรือรายละเอียดที่มาของเงิน",
+  "moral-community": "ทั้งสองฝ่ายขอความช่วยเหลือจากงบก้อนเดียวกัน การอนุมัติให้ฝ่ายหนึ่งอาจทำให้อีกฝ่ายได้รับงบน้อยลง"
+};
+function mayorQuestionMarkup(i,d,c){
+ const story=String(d?.story||'').replaceAll('{target}',i.target?.name||'อาคารในเมือง');
+ let extra=MAYOR_BRIEF_CONTEXT[i.eventId]||'';
+ if(!extra&&i.eventId.startsWith('government-grant-'))extra='วงเงินแต่ละทางเลือกผูกกับจำนวนอาคารที่ต้องสร้าง หากรับงบแล้วไม่ทำตามเงื่อนไขภายใน 06:00 น. วันถัดไป ต้องคืนเงินสนับสนุน';
+ if(!extra&&i.eventId.startsWith('business-association-'))extra='ข้อเรียกร้องมีผลเฉพาะรอบวันนี้ การเพิ่มพื้นที่บริการเป็นอีกแนวทางหนึ่งที่นายกต้องประเมินจากจำนวนอาคารและงบเมือง';
+ const tasks=(d?.choices||[]).map(o=>o.task).filter(Boolean);
+ const buildKeys=[...new Set(tasks.filter(t=>t.kind==='build').map(t=>t.key))];
+ const facts=['เงินในคลัง '+mayorFmt(c.money)+' บาท'];
+ if(tasks.some(t=>t.kind==='performance')&&Number.isFinite(c.performance))facts.push('ภารกิจเดินทางสำเร็จขณะนี้ '+Math.round(c.performance)+'%');
+ for(const key of buildKeys){const name=c.catalog[key]?.name||key;facts.push(name+' ที่มี '+(c.buildingCounts[key]||0)+' แห่ง');}
+ return '<p class="mayor-question-text">'+mayorEsc(story)+'</p>'+(extra?'<p class="mayor-question-extra">'+mayorEsc(extra)+'</p>':'')+'<div class="mayor-question-facts"><b>ข้อมูลประกอบการตัดสินใจ</b>'+facts.map(v=>'<span>'+mayorEsc(v)+'</span>').join('')+'</div>';
+}
+function mayorChoiceMarkup(o,c,s,position=o.index){
  const req=Object.entries(o.requires||{}).map(([k,v])=>mayorModule.MAYOR_CATEGORIES[k]+' '+mayorGrade(v)+' ขึ้นไป').join(' · ');
  const need=Object.entries(o.requiresBuildings||{}).map(([key,n])=>(c.catalog[key]?.name||key)+' '+n+' แห่ง').join(' · ');
  const build=o.task?.kind==='build'?c.catalog[o.task.key]?.cost*o.task.count:0;
  const locked=!o.enabled||mayorLocked();
  const meta=(req?'<span>'+mayorEsc(req)+'</span>':'')+(need?'<span>ต้องมี '+mayorEsc(need)+'</span>':'')+(o.cost?'<span class="mayor-cost">งบที่ต้องอนุมัติ '+mayorFmt(o.payable)+' บาท</span>':'')+(o.task&&o.grant?'<span>งบตามข้อเสนอ '+mayorFmt(o.grant)+' บาท</span>':'')+(build?'<span>ค่าก่อสร้าง '+mayorFmt(build)+' บาท</span>':'')+(o.task?.kind==='performance'?'<span>เป้าหมาย '+o.task.target+'%</span>':'')+(o.task?'<span>ก่อน 06:00 วันถัดไป</span>':'');
  let reason='';if(locked){if(mayorLocked())reason='พักอำนาจ';else if(Object.entries(o.requires||{}).some(([k,n])=>s.scores[k]<n))reason='เกรดไม่ถึง';else if(Object.entries(o.requiresBuildings||{}).some(([key,n])=>(c.buildingCounts[key]||0)<n))reason='จำนวนอาคารไม่ครบ';else if(o.task?.kind==='build'&&!c.canBuild(o.task.key,o.task.count))reason='โควตาก่อสร้างไม่พอ';else reason='งบหรือเงื่อนไขไม่ครบ';}
- return '<button type="button" class="mayor-choice mayor-option mayor-blind-option" data-mayor-choice="'+o.index+'" '+(locked?'disabled':'')+'><span class="mayor-option-head"><span class="mayor-option-number">'+String(o.index+1).padStart(2,'0')+'</span><b>'+mayorEsc(o.title)+'</b><span class="mayor-choice-type">'+(locked?mayorIcon('lock'):mayorIcon('next'))+'</span></span>'+(meta?'<span class="mayor-meta">'+meta+'</span>':'')+(reason?'<small class="mayor-lock-reason">'+mayorEsc(reason)+'</small>':'')+'</button>';
+ return '<button type="button" class="mayor-choice mayor-option mayor-blind-option" data-mayor-choice="'+o.index+'" '+(locked?'disabled':'')+'><span class="mayor-option-head"><span class="mayor-option-number">'+String(position+1).padStart(2,'0')+'</span><b>'+mayorEsc(o.title)+'</b><span class="mayor-choice-type">'+(locked?mayorIcon('lock'):mayorIcon('next'))+'</span></span>'+(meta?'<span class="mayor-meta">'+meta+'</span>':'')+(reason?'<small class="mayor-lock-reason">'+mayorEsc(reason)+'</small>':'')+'</button>';
 }
 function mayorIssueTitle(i,d=mayorModule.MAYOR_EVENTS.find(x=>x.id===i.eventId)){return (d?.title||'เหตุการณ์บริหารเมือง').replaceAll('{target}',i.target?.name||'อาคารในเมือง');}
 
@@ -2094,8 +2196,8 @@ function mayorUI(force=false){
  if(k==='history'){const recent=s.history.slice(-30);const sums={};for(const h of recent){const day=mayorEngine.dayAt(h.at)+1;const item=sums[day]||={ok:0,fail:0};if(h.status==='success')item.ok++;if(['failed','expired'].includes(h.status))item.fail++;}const days=Object.entries(sums).slice(-7);if(days.length)body+='<small>ผลการบริหาร 7 วันล่าสุด</small>'+days.map(([d,r])=>'<div class="mayor-stat"><small>วันที่ '+d+'</small><span>สำเร็จ '+r.ok+' / ไม่สำเร็จ '+r.fail+'</span></div><div class="mayor-meter"><i style="width:'+(100*r.ok/Math.max(1,r.ok+r.fail))+'%"></i></div>').join('');body+=s.history.slice(-40).reverse().map(h=>'<p><small>วันที่ '+(mayorEngine.dayAt(h.at)+1)+' · '+mayorEsc(mayorModule.MAYOR_CATEGORIES[h.category])+'</small><br>'+mayorEsc(h.report)+'</p>').join('')||'<p>ยังไม่มีประวัติ</p>';}
  if(k==='issues'){
   const i=s.issues.find(x=>x.id===mayorViewedIssue);
-  if(i){const d=mayorModule.MAYOR_EVENTS.find(x=>x.id===i.eventId);body+='<div class="mayor-issue-top"><button class="mayor-back" data-mayor-action="back">'+mayorIcon('back')+' ทุกหมวด</button><span class="mayor-category-label">'+mayorCategoryLabel(i.category)+'</span><small>'+(s.issues.indexOf(i)+1)+' / '+s.issues.length+'</small></div><div class="mayor-story"><h3>' +mayorEsc(mayorIssueTitle(i,d))+'</h3>'+(i.status==='pending'?'<p>'+mayorEsc(d.story)+'</p>':'')+'</div>';
-   if(i.status==='pending'){if(i.source==='night')body+='<div class="mayor-urgent-call">'+mayorIcon('clock')+'<b>สายด่วนถึงนายก · นอกเวลางาน</b><small>เหลือ '+Math.max(0,Math.ceil(mayorEngine.issueDeadline(i)-state.time))+' นาทีในเกม</small></div>';body+='<div class="mayor-choice-bar"><b>คุณจะตัดสินใจอย่างไร?</b><small>'+mayorIcon('clock')+' ก่อน '+timeText(mayorEngine.issueDeadline(i))+'</small></div>';const c=mayorCity();body+='<div class="mayor-options">'+mayorEngine.options(s,i,c).map(o=>mayorChoiceMarkup(o,c,s)).join('')+'</div>';}
+  if(i){const d=mayorModule.MAYOR_EVENTS.find(x=>x.id===i.eventId);body+='<div class="mayor-issue-top"><button class="mayor-back" data-mayor-action="back">'+mayorIcon('back')+' ทุกหมวด</button><span class="mayor-category-label">'+mayorCategoryLabel(i.category)+'</span><small>'+(s.issues.indexOf(i)+1)+' / '+s.issues.length+'</small></div><div class="mayor-story"><h3>' +mayorEsc(mayorIssueTitle(i,d))+'</h3>'+(i.status==='pending'?mayorQuestionMarkup(i,d,mayorCity()):'')+'</div>';
+   if(i.status==='pending'){if(i.source==='night')body+='<div class="mayor-urgent-call">'+mayorIcon('clock')+'<b>สายด่วนถึงนายก · นอกเวลางาน</b><small>เหลือ '+Math.max(0,Math.ceil(mayorEngine.issueDeadline(i)-state.time))+' นาทีในเกม</small></div>';body+='<div class="mayor-choice-bar"><b>คุณจะตัดสินใจอย่างไร?</b><small>'+mayorIcon('clock')+' ก่อน '+timeText(mayorEngine.issueDeadline(i))+'</small></div>';const c=mayorCity();body+='<div class="mayor-options">'+mayorDisplayOptions(mayorEngine.options(s,i,c),i).map((o,position)=>mayorChoiceMarkup(o,c,s,position)).join('')+'</div>';}
    else if(i.status==='working'){const t=i.task,city=mayorCity();const progress=t.kind==='build'?(city.buildingIds[t.key]||[]).filter(x=>!i.baseline.includes(x)).length+'/'+t.count:Math.round(currentMissionScore()||0)+'% / '+t.target+'%';const log=s.history.filter(h=>h.id===i.id).at(-1);body+=mayorResultMarkup(i,log,s,progress);}
    else{const log=s.history.filter(h=>h.id===i.id).at(-1);body+=mayorResultMarkup(i,log,s);}
    const next=pending.find(x=>x.id!==i.id);if(next)body+='<button class="mayor-primary mayor-next" data-mayor-open="'+next.id+'">เรื่องถัดไป '+mayorIcon('next')+'</button>';
