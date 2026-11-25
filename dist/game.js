@@ -1947,6 +1947,7 @@ function beginGuide(){
   if(guide.step==='tourist'){cancelInteraction();guide.step='hotel';}
   if(guide.step==='score'){guide.step='signal';cancelInteraction();const [x,y]=xy(guide.node);cam.x=x;cam.y=y;}
   else if(guide.step==='trip')guide.step='score';
+  else if(guide.step==='residentRules')guide.step='tourist';
   updateGuide();
  };
  updateGuide();guideTimer=setInterval(updateGuide,220);
@@ -2034,11 +2035,13 @@ function updateGuide(){
   else if(tool!=='erase'){selector=shortcut('erase');message='กดเครื่องมือรื้อถอน เพื่อลองดูขั้นตอนก่อนยืนยัน';}
   else{message='แตะอาคารหนึ่งหลังเพื่อดูหน้าต่างยืนยันการรื้อถอน';}
  }else if(step==='people'){
-  if(selected?.kind==='citizen')return advance('tourist');
+  if(selected?.kind==='citizen')return advance('residentRules');
   if(tool==='citizenDashboard'){selector='[data-citizen-id]';message='กดชื่อประชาชนหนึ่งคน เพื่อดูตารางชีวิตและการเดินทาง';}
   else{selector=shortcut('citizenDashboard');message='กดประชาชน เพื่อดูตารางชีวิตของชาวเมือง';}
+ }else if(step==='residentRules'){
+  manual=true;message=`ทุกวันเวลา 06:00 เกมจะดูภารกิจของแต่ละคน ใครทำสำเร็จต่ำกว่า 40% จะเตรียมย้ายออก เมื่อย้ายออกแล้ว ที่ว่างในบ้านของคนนั้นจะรับคนใหม่ได้อีกครั้งหลัง ${EMIGRATION_QUOTA_COOLDOWN/1440} วันในเกม เมืองจะรับคนย้ายเข้าได้เมื่อคะแนนภารกิจรวมถึง ${TOURISM.residentHappiness}%`;
  }else if(step==='tourist'){
-  selector=shortcut('touristDashboard');message='กดนักท่องเที่ยวเพื่อดูผู้มาเยือน นักท่องเที่ยวไม่มีผลต่อคะแนนภารกิจของประชาชน สร้างโรงแรมสำหรับผู้ที่ต้องการค้างคืนได้ที่ ที่อยู่อาศัย → โรงแรม';
+  selector=shortcut('touristDashboard');message=`กดนักท่องเที่ยวเพื่อดูผู้มาเยือน เมืองจะเริ่มรับนักท่องเที่ยวได้เมื่อคะแนนภารกิจของชาวเมืองถึง ${TOURISM.happiness}% ทริปของนักท่องเที่ยวไม่นำมาคิดคะแนนนี้ เตรียมโรงแรมไว้สำหรับผู้ที่ต้องการค้างคืน`;
   manual=tool==='touristDashboard';
  }else{
   if(category!=='home'){selector=categoryButton('home');message='กดหมวดที่อยู่อาศัย เพื่อหาที่พักสำหรับนักท่องเที่ยว';}
