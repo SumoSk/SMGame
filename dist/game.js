@@ -1409,7 +1409,7 @@ function initialRoadGraph(city,legacy=false){
   // Northern Phuket / Phang Nga is the upper-right of the default view.
   // One entry highway reaches the existing starter collector; no other edge roads.
   const mainY=150-PHUKET_START_SHIFT;
-  segment(PHUKET_ENTRY_X,0,PHUKET_ENTRY_X,mainY+36);
+  segment(PHUKET_ENTRY_X,0,PHUKET_ENTRY_X,mainY+5);
   return {roads,gates:[id(PHUKET_ENTRY_X,0)],entryLayout:PHUKET_NORTH_ENTRY};
  }
  segment(150,0,150,299);segment(0,150,299,150);
@@ -1991,15 +1991,26 @@ function updateGuide(){
    const cacheKey=key+':'+state.version+':'+state.buildingVisualVersion;
    if(guide.plotKey!==cacheKey){
     guide.plotKey=cacheKey;guide.plot=null;
-    for(const [n,r] of state.roads){
-     if(r.type!=='medium'||guide.plot)continue;
+    // Walk only the new collector connected to the tutorial junction.
+    // Reverse breadth-first order tries plots furthest along that road first.
+    const branch=[guide.node],seen=new Set(branch);
+    for(let i=0;i<branch.length;i++){
+     for(const neighbor of state.roads.get(branch[i])?.links||[]){
+      const road=state.roads.get(neighbor);
+      if(!seen.has(neighbor)&&road?.type==='medium'&&!road.main){
+       seen.add(neighbor);branch.push(neighbor);
+      }
+     }
+    }
+    for(const n of branch.slice(1).reverse()){
+     if(guide.plot)break;
      const [x,y]=xy(n);
      for(const [dx,dy] of [[0,-4],[0,2],[-4,0],[2,0],[0,-5],[0,1]]){
       if(!checkBuilding(key,x+dx,y+dy).error){guide.plot=[x+dx+1,y+dy+1];break;}
      }
     }
    }
-   pos=guide.plot;message='วาง'+name+'เริ่มต้นริมถนนกลาง ให้ทางเข้าลานจอดติดถนน แล้วกดยืนยัน';}
+   pos=guide.plot;message='วาง'+name+'เริ่มต้นใกล้ปลายถนนกลางตามวง ให้ทางเข้าลานจอดติดถนน แล้วกดยืนยัน';}
   else if(openBuildingKind!==step){selector='[data-build-kind="'+step+'"]';message='กด '+name+' เพื่อเลือกขนาด';}
   else{selector='[data-tool="'+key+'"]';message='เลือก '+CATALOG[key].name;}
  }else if(step==='trip'){
