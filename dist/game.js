@@ -1998,8 +1998,13 @@ function mayorLayout(){
  const sample=nav.querySelector('button[data-city-shortcut="citizenDashboard"]'),first=nav.querySelector('button[data-city-shortcut]');if(!sample||!first)return;
  const st=getComputedStyle(sample),box=first.getBoundingClientRect(),railbox=left.getBoundingClientRect(),ns=getComputedStyle(nav);
  if(!box.width||!box.height)return;
- rail.style.top=Math.max(0,box.top)+'px';rail.style.right=Math.max(0,railbox.left)+'px';rail.style.width=ns.width;rail.style.gap=ns.gap;
- rail.style.maxHeight=Math.max(0,Math.min(innerHeight-box.top-115,railbox.bottom-box.top))+'px';
+ // Match the visible left rail, not merely its unscaled CSS sizes.
+ const mobile=window.matchMedia('(max-width:720px), (pointer:coarse)').matches;
+ const scale=mobile&&first.offsetWidth>0?Math.min(1,box.width/first.offsetWidth):1;
+ rail.style.top=Math.max(0,box.top)+'px';rail.style.right=mobile?'calc('+ (window.matchMedia('(max-width:720px)').matches?5:9) +'px + env(safe-area-inset-right,0px))':Math.max(0,railbox.left)+'px';rail.style.width=ns.width;rail.style.gap=ns.gap;
+ rail.style.transform=mobile?'scale('+scale+')':'';
+ rail.style.transformOrigin=mobile?'top right':'';
+ rail.style.maxHeight=(Math.max(0,Math.min(innerHeight-box.top-115,railbox.bottom-box.top))/scale)+'px';
  rail.style.setProperty('--mayor-rail-w',box.width+'px');rail.style.setProperty('--mayor-rail-h',box.height+'px');
  const hud=$('mayorScoreHud');if(hud){hud.style.top=Math.max(8,box.top)+'px';hud.style.right=Math.max(0,railbox.left+box.width+8)+'px';}
  const panel=$('mayorPanel');if(panel)panel.style.setProperty('--mayor-hud-top',Math.max(8,box.top)+'px');
@@ -2007,6 +2012,8 @@ function mayorLayout(){
   for(const prop of ['width','height','minWidth','minHeight','maxWidth','maxHeight','borderRadius','padding','gap','background','border','boxShadow','color','fontSize','lineHeight','fontFamily'])btn.style[prop]=st[prop];
   const icon=btn.querySelector('.quick-mode-icon'),name=btn.querySelector('.quick-mode-name'),leftIcon=sample.querySelector('.quick-mode-icon'),leftName=sample.querySelector('.quick-mode-name');
   if(icon&&leftIcon)icon.style.fontSize=getComputedStyle(leftIcon).fontSize;if(name&&leftName)name.style.fontSize=getComputedStyle(leftName).fontSize;
+  if(mobile){if(icon)icon.style.lineHeight=leftIcon?getComputedStyle(leftIcon).lineHeight:'1';if(name)name.style.lineHeight=leftName?getComputedStyle(leftName).lineHeight:'1.15';}
+  else{if(icon)icon.style.lineHeight='';if(name)name.style.lineHeight='';}
  }
 }
 function mayorUI(force=false){
