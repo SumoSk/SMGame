@@ -152,22 +152,23 @@
 
 @layer citySkin {
   @media(max-width:720px),(max-width:1000px) and (max-height:520px) and (pointer:coarse) {
+    /* Keep each device's original dock height; share it between the two rows. */
     .control-deck:not(.tools-collapsed) {
-      height:auto!important;grid-template-rows:auto minmax(48px,auto)!important;
+      grid-template-rows:minmax(0,1.1fr) minmax(0,1fr)!important;
     }
     .control-deck:not(.tools-collapsed)>.city-dashboard {
       height:auto!important;min-height:0!important;max-height:none!important;
-      grid-template-rows:28px auto!important;padding:3px 5px!important;
+      grid-template-rows:26px minmax(0,1fr)!important;padding:1px 5px!important;
     }
     .control-deck:not(.tools-collapsed)>.city-control-mini {contain:size;align-self:stretch!important;height:auto!important;max-height:none!important;min-height:0!important}
     .control-deck:not(.tools-collapsed) #citySummaryStats {
       height:auto!important;min-height:0!important;max-height:none!important;align-self:start!important;
       grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)!important;grid-template-rows:auto auto!important;
-      gap:2px 4px!important;padding:1px 0 3px!important;background:transparent!important;border:0!important;box-shadow:none!important;
+      gap:0 4px!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;
     }
     #citySummaryStats button.city-metric {
       display:grid!important;grid-template-columns:14px minmax(0,1fr)!important;align-items:center!important;
-      gap:3px!important;width:100%!important;height:auto!important;min-height:28px!important;
+      gap:3px!important;width:100%!important;height:auto!important;min-height:0!important;
       padding:1px!important;margin:0!important;background:transparent!important;border:0!important;
       box-shadow:none!important;border-radius:3px!important;text-align:left!important;
     }
@@ -188,7 +189,7 @@
     }
     #citySummaryStats .city-metric .metric-text>small {
       white-space:normal!important;overflow:visible!important;text-overflow:clip!important;
-      color:var(--city-muted)!important;font-size:10px!important;line-height:1.35!important;text-align:left!important;
+      color:var(--city-muted)!important;font-size:10px!important;line-height:1.2!important;text-align:left!important;
     }
     #citySummaryStats .city-metric .metric-text>strong {
       color:var(--city-ink)!important;font-size:14px!important;line-height:1.18!important;max-width:100%!important;
