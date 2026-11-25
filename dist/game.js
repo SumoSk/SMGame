@@ -1906,64 +1906,136 @@ const initial=initialRoadGraph(city,legacy);state.roads=initial.roads;state.gate
 // Independent opt-in showcase: do not alter existing city presets or saves.
 // New-city preset only. reset() remains the empty simulation initializer used
 // by save loading; saved roads, buildings, citizens and camera are restored as-is.
+let guide=null, guideTimer=0, highlighted=null;
+const guideBox=()=>document.getElementById('cityLesson');
+function stopGuide(){
+ if(guideTimer)clearInterval(guideTimer);
+ const previous=guide;guideTimer=0;guide=null;
+ if(previous?.city===state&&state)for(const c of state.citizens.values())if(c.lessonFirstWork&&c.resident)scheduleDay(c,Math.floor(state.time/1440));
+ highlighted?.classList.remove('lesson-focus');highlighted=null;
+ guideBox()?.remove();document.getElementById('lessonPoint')?.remove();
+}
 function startNewCity(city='phuket'){
- if(city!=='phuket')throw Error('ปัจจุบันเปิดให้เล่นเฉพาะแผนที่ภูเก็ต');
- reset(city);
- // Preserve the starter village; the single northern highway feeds its collector.
- // One continuous medium (4-lane) collector connects the main road to the village.
- // The remaining village streets stay small (2-lane).
- // Extend the medium approach while keeping the same village layout and building mix.
- const approachExtension=8,shift=city==='phuket'?PHUKET_START_SHIFT:0,mainY=150-shift,villageY=y=>y-approachExtension-shift;
- if(!buildRoad(lineCells(id(164,mainY),id(164,villageY(132))),'medium',true))throw Error('Starter village collector could not be placed');
- const streets=[[[164,132],[176,132]],[[176,132],[176,144]],[[176,144],[164,144]],[[164,138],[176,138]]];
- for(const [a,b] of streets)if(!buildRoad(lineCells(id(a[0],villageY(a[1])),id(b[0],villageY(b[1]))),'small',true))throw Error('Starter village road could not be placed');
- const plots=[
-  ['home_starter',167,128,0],['home_starter',171,128,0],
-  ['home_starter',167,133,2],['park_starter',171,133,2],
-  ['restaurant_starter',167,140,0],['shop_starter',171,140,0],
-  ['mall_starter',167,145,2],['office_starter',171,145,2],
-  ['factory_starter',160,134,3],['hotel_starter',160,140,3],
-  ['pub_starter',177,134,1],['casino_starter',177,140,1]
- ];
- const homes=[];
- for(const [key,x,y,rotation] of plots){
-  const building=buildBuilding(key,x,villageY(y),true);if(!building)throw Error('Starter village building could not be placed: '+key);
-  // West-side factory and hotel access the medium collector; all other
-  // starter buildings continue to face the original small side streets.
-  building.rotation=rotation;building.access=accessFor(building);
-  const accessRoadType=x===160?'medium':'small';
-  if(building.access.length<2||building.access.some(a=>state.roads.get(a.node)?.type!==accessRoadType))throw Error('Starter building has invalid street access: '+key);
-  if(key==='home_starter')homes.push(building);
+ stopGuide();reset(city);
+ cam.x=184;cam.y=44;cam.z=innerWidth<700?.95:1.45;
+ state.speed=0;
+ const fresh=state;
+ const offer=()=>{
+  if(state!==fresh)return;
+  modal('<h2>ให้อริสพาสร้างเมืองแรกไหม?</h2><p>ลองสร้างถนน บ้าน และที่ทำงาน แล้วตามรถคันแรกไปด้วยกันค่ะ</p><div class="actions"><button id="lessonSkip">ข้ามและเล่นเอง</button><button id="lessonStart" class="primary">เริ่มสอนเล่น</button></div>');
+  const onCancel=()=>{if(state===fresh)state.speed=1;};
+  const begin=teach=>{$('dialog').removeEventListener('cancel',onCancel);closeModal();state.speed=1;if(teach)beginGuide();updateUI();};
+  $('lessonSkip').onclick=()=>begin(false);$('lessonStart').onclick=()=>begin(true);
+  $('dialog').addEventListener('cancel',onCancel,{once:true});
+ };
+ if($('smcityWelcome')?.hidden===false)window.addEventListener('smcity-welcome-closed',offer,{once:true});
+ else offer();
+ return state;
+}
+function beginGuide(){
+ guide={city:state,step:'road',node:null};
+ const box=document.createElement('aside');box.id='cityLesson';
+ box.innerHTML='<button type="button" class="lesson-exit" aria-label="ออกจากบทสอน">×</button><strong>อริสสอนเล่น</strong><div role="status"></div><button type="button" class="lesson-next" hidden>ต่อไป</button>';
+ const point=document.createElement('i');point.id='lessonPoint';point.hidden=true;
+ document.body.append(box,point);box.querySelector('.lesson-exit').onclick=stopGuide;
+ box.querySelector('.lesson-next').onclick=()=>{
+  if(!guide)return;
+  if(guide.step==='hotel'){cancelInteraction();stopGuide();return;}
+  if(guide.step==='tourist'){cancelInteraction();guide.step='hotel';}
+  if(guide.step==='score'){guide.step='signal';cancelInteraction();const [x,y]=xy(guide.node);cam.x=x;cam.y=y;}
+  else if(guide.step==='trip')guide.step='score';
+  updateGuide();
+ };
+ updateGuide();guideTimer=setInterval(updateGuide,220);
+}
+function updateGuide(){
+ if(!guide||guide.city!==state){stopGuide();return;}
+ const box=guideBox(),point=$('lessonPoint'),next=box.querySelector('.lesson-next');
+ let message='',selector='',pos=null,manual=false;
+ const step=guide.step;
+ const categoryButton=k=>'#subcategories [data-category="'+k+'"]';
+ const shortcut=k=>'[data-city-shortcut="'+k+'"]';
+ const has=k=>[...state.buildings.values()].some(b=>b.key===k);
+ function advance(s){guide.step=s;updateGuide();}
+ if(step==='road'){
+  if(state.version!==guide.version){
+   guide.version=state.version;
+   for(const [n,r] of state.roads)if(r.main&&junction(n)>=3&&[...r.links].some(k=>state.roads.get(k)?.type==='medium')){guide.node=n;break;}
+  }
+  if(guide.node!=null)return advance('cancel');
+  if(category!=='roads'){selector=categoryButton('roads');message='กดหมวด ถนน';}
+  else if(tool!=='medium'){selector='[data-tool="medium"]';message='เลือก ถนนกลาง เพื่อต่อจากถนนใหญ่';}
+  else{
+   const start=roadDrawAnchor?.node??id(PHUKET_ENTRY_X,44);
+   pos=roadDrawAnchor?[174,xy(start)[1]]:xy(start);
+   message=matchMedia('(pointer:coarse)').matches?'ลากจากวงบนถนนใหญ่ไปทางซ้ายประมาณ 20 ช่อง แล้วกดยืนยัน':'คลิกซ้ายที่วงบนถนนใหญ่ เลื่อนเมาส์ไปทางซ้ายประมาณ 20 ช่อง คลิกจุดปลาย แล้วกดยืนยัน';
+  }
+ }else if(step==='cancel'){
+  if(tool==='hand')return advance('home');
+  selector='[data-tool="medium"]';message='ลองออกจากเครื่องมือถนน กดปุ่มถนนกลางซ้ำ หรือคลิกขวาบนแผนที่หรือกด Esc';
+ }else if(['home','office','factory'].includes(step)){
+  const key=step+'_starter',cat=step==='home'?'home':'work',name=KINDS[step].name;
+  if(has(key)){
+   if(step==='home'){
+    guide.home=[...state.buildings.values()].find(b=>b.key===key).id;
+    immigration();
+   }
+   if(step==='factory'){cancelInteraction();guide.jobsReady=true;for(const c of state.citizens.values())if(c.resident&&c.homeId===guide.home)scheduleDay(c,Math.floor(state.time/1440));}
+   return advance(({home:'office',office:'factory',factory:'trip'})[step]);
+  }
+  if(category!==cat){selector=categoryButton(cat);message='กดหมวด '+(cat==='home'?'ที่อยู่อาศัย':'งานและโรงงาน');}
+  else if(tool===key){
+   const cacheKey=key+':'+state.version+':'+state.buildingVisualVersion;
+   if(guide.plotKey!==cacheKey){
+    guide.plotKey=cacheKey;guide.plot=null;
+    for(const [n,r] of state.roads){
+     if(r.type!=='medium'||guide.plot)continue;
+     const [x,y]=xy(n);
+     for(const [dx,dy] of [[0,-4],[0,2],[-4,0],[2,0],[0,-5],[0,1]]){
+      if(!checkBuilding(key,x+dx,y+dy).error){guide.plot=[x+dx+1,y+dy+1];break;}
+     }
+    }
+   }
+   pos=guide.plot;message='วาง'+name+'เริ่มต้นริมถนนกลาง ให้ทางเข้าลานจอดติดถนน แล้วกดยืนยัน';}
+  else if(openBuildingKind!==step){selector='[data-build-kind="'+step+'"]';message='กด '+name+' เพื่อเลือกขนาด';}
+  else{selector='[data-tool="'+key+'"]';message='เลือก '+CATALOG[key].name;}
+ }else if(step==='trip'){
+  const v=[...state.vehicles.values()].find(v=>v.kind==='work');
+  if(v){const p=vehiclePosition(v);if(p)pos=[p.x,p.y];}
+  message='แตะรถชาวเมืองที่กำลังไปทำงานเพื่อดูปลายทาง มีเวลาเดินทาง 3 ชั่วโมงในเกม ถ้าทัน เมืองได้เงิน 500 บาท ถ้าสายจะไม่ได้รางวัล';
+  manual=ensurePerformance().current.ontime>0;
+  if(manual)message='ภารกิจสำเร็จ เมืองได้รับ 500 บาท ถ้าไปสายจะไม่ได้รางวัล กดต่อไปเพื่อดูเป้าหมายเมือง';
+ }else if(step==='score'){
+  selector='#cityLevelButton';message='แตะเลเวลเมืองเพื่อดูเป้าหมาย ทุก ๆ 20 คน และภารกิจสำเร็จอย่างน้อย 80% จะขึ้นเลเวล ดูช่อง “ขาด” เพื่อเตรียมบริการที่แต่ละคนต้องการ';manual=true;
+ }else if(step==='signal'){
+  if(!guide.credit){ensureCityLevel().aiCredits++;guide.credit=true;updateUI();}
+  if(!state.roads.has(guide.node)||junction(guide.node)<3){guide.node=null;guide.version=null;return advance('road');}
+  if(signalSettings(guide.node).mode==='smart')return advance('erase');
+  if($('dialog').open&&$('confirmAiCredit')){selector='#confirmAiCredit';message='กดใช้โควต้า AI ฟรี 1 จุด';}
+  else if(selected?.kind==='road'&&selected.id===guide.node){selector='[data-action="signal-ai-buy"]';message='กดอัปเกรดแยก AI แล้วเลือกใช้โควต้าฟรี';}
+  else{pos=xy(guide.node);message='แตะกลางสามแยกในวง เพื่อเปิดห้องควบคุมไฟแดง';}
+ }else if(step==='erase'){
+  if($('dialog').classList.contains('demolition-confirm')){selector='#cancelDialog';message='กด “ไม่ลบ” เพื่อเก็บอาคารไว้';guide.preview=true;}
+  else if(guide.preview){cancelInteraction();return advance('people');}
+  else if(tool!=='erase'){selector=shortcut('erase');message='กดเครื่องมือรื้อถอน เพื่อลองดูขั้นตอนก่อนยืนยัน';}
+  else{message='แตะอาคารหนึ่งหลังเพื่อดูหน้าต่างยืนยันการรื้อถอน';}
+ }else if(step==='people'){
+  if(selected?.kind==='citizen')return advance('tourist');
+  if(tool==='citizenDashboard'){selector='[data-citizen-id]';message='กดชื่อประชาชนหนึ่งคน เพื่อดูตารางชีวิตและการเดินทาง';}
+  else{selector=shortcut('citizenDashboard');message='กดประชาชน เพื่อดูตารางชีวิตของชาวเมือง';}
+ }else if(step==='tourist'){
+  selector=shortcut('touristDashboard');message='กดนักท่องเที่ยวเพื่อดูผู้มาเยือน นักท่องเที่ยวไม่มีผลต่อคะแนนภารกิจของประชาชน สร้างโรงแรมสำหรับผู้ที่ต้องการค้างคืนได้ที่ ที่อยู่อาศัย → โรงแรม';
+  manual=tool==='touristDashboard';
+ }else{
+  if(category!=='home'){selector=categoryButton('home');message='กดหมวดที่อยู่อาศัย เพื่อหาที่พักสำหรับนักท่องเที่ยว';}
+  else{selector='[data-build-kind="hotel"]';message='กดโรงแรมเพื่อดูขนาดที่สร้างได้ แล้วกดจบบทสอน';manual=openBuildingKind==='hotel'||CATALOG[tool]?.kind==='hotel';}
  }
- for(const home of homes)for(let n=0;n<CATALOG[home.key].residents;n++){
-  const c=newCitizen(home);c.resident=true;c.arrivedAt=state.time;c.locationId=home.id;c.location='home';c.state='อยู่บ้าน';
-  home.residents.add(c.id);home.parked.add(c.id);assignJob(c);
- }
- for(const c of state.citizens.values()){scheduleDay(c,0);scheduleDay(c,1);}
- // Only the primary T-junction where the eight-lane highway meets the
- // four-lane collector receives free AI. The other junctions remain normal.
- if(!installAISignal(id(164,mainY)))
-  throw Error('Starter main AI junction is incomplete');
- // One complimentary example of each of the four purchasable car classes.
- // Trait 0 = diligent, 1 = chill, 2 = partygoer, 3 = wealthy.
- for(const [trait,tech] of [[0,'speed'],[1,'smart'],[2,'fly'],[3,'warp']])
-  state.vehicleTechLevels[trait][tech]=1;
- syncParkingSlots();syncCitizenVehicleTech();
- for(const [trait,tech] of [[0,'speed'],[1,'smart'],[2,'fly'],[3,'warp']])
-  if(vehicleTechCounts(trait).counts[tech]!==1)
-   throw Error('Starter vehicle showcase is incomplete: '+tech);
- // Roads and buildings are an included starting package, not a hidden charge.
- state.money=500000;state.missionStats=newMissionStats();state.lastImmigration=state.time;state.lastPass=state.time;
- // Keep the original zoom, angle and elevation. Pan halfway between the village
- // and main junction so that the longer approach remains visible at startup.
- const cameraFocusY=138.5-approachExtension/2-shift;
- cam={x:169.5,y:cameraFocusY,z:innerWidth<700?1.25:innerWidth<1100?1.65:2.05,angle:Math.PI/4,elevation:Math.PI*50/180};
- // Frame the village above the bottom controls rather than behind them.
- if(renderer3d)renderer3d.updateCamera(cam);
- const anchor=world(innerWidth*.5,innerHeight*(innerWidth<700?.29:.34));
- cam.x+=169.5-anchor[0];cam.y+=cameraFocusY-anchor[1];
- news=[];addNews('หมู่บ้านโชว์ของพร้อมแล้ว · สามแยกหลัก AI 1 จุด · รถพิเศษ 4 ประเภท · ชาวเมือง 18 คน');
- updateUI();renderTools();return state;
+ if($('dialog').open&&$('confirmDialog')&&!['signal','erase'].includes(step)){selector='#confirmDialog';pos=null;}
+ const target=selector?document.querySelector(selector):null;
+ if(highlighted!==target){highlighted?.classList.remove('lesson-focus');target?.classList.add('lesson-focus');highlighted=target;}
+ const label=box.querySelector('[role=status]');if(label.textContent!==message)label.textContent=message;
+ next.hidden=!manual;next.textContent=step==='hotel'?'จบบทสอน':'ต่อไป';
+ point.hidden=!pos;if(pos){const [x,y]=screen(...pos);point.style.left=x+'px';point.style.top=y+'px';}
 }
 function link(a,b){if(a===b)return;state.roads.get(a)?.links.add(b);state.roads.get(b)?.links.add(a);}
 // Road centerlines sit on grid boundaries; the narrow carriageway still
@@ -4165,7 +4237,7 @@ function removeSelectedVehicle(id){
 }
 
 // Show junction AI pins when a page session starts.
-let aiPinsVisible=true;
+let aiPinsVisible=false;
 let aiPinExpanded=null,aiPinPopover=null;
 let aiPinState=null,aiPinVersion=-1,aiPinNodes=[],aiPinLast=-Infinity,aiPinProjection='';
 let aiLastActivatedNode=null,aiLastActivatedAt=-Infinity;
@@ -4314,7 +4386,7 @@ if(renderer3d){renderer3d.render({state,cam,mapCover:mapCoverPreview(),hover:vis
 drawPlanningCoverage2D(planningCoverageData(visualHover),'highlights');
  drawDemolitionPreview2D(demolitionPreview);
 if(hover&&tool!=='hand'&&!ROADS[tool]){if(CATALOG[tool])drawBuilding({key:tool,x:visualHover.x,y:visualHover.y,rotation:placement.rotation||0},true);else if(!demolitionPreview){const cells=drag?.cells||[owner(id(hover.x,hover.y))];for(const i of cells){const [x,y]=xy(i),s=screen(x,y);ctx.fillStyle=tool.startsWith('erase')?'#df7e6c99':'#fbe3989c';ctx.fillRect(s[0],s[1],T*cam.z,T*cam.z*.78);}}}
-if(state.buildings.size===0){const p=screen(154,143);ctx.fillStyle='#214c3ac9';ctx.font=`500 ${Math.max(12,14*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillText('เมืองใหม่ เริ่มจากถนนเส้นแรก',p[0],p[1]);ctx.font=`${Math.max(10,11*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillStyle='#3f6148';ctx.fillText('ถนนหลัก 8 เลนพร้อมแล้ว · เลือกถนนเล็ก แล้วลากต่อออกมา',p[0],p[1]+22*cam.z);}
+if(state.buildings.size===0){const p=screen(154,143);ctx.fillStyle='#214c3ac9';ctx.font=`500 ${Math.max(12,14*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillText('เมืองใหม่ เริ่มจากถนนเส้นแรก',p[0],p[1]);ctx.font=`${Math.max(10,11*cam.z)}px 'Noto Sans Thai',Tahoma`;ctx.fillStyle='#3f6148';ctx.fillText('ถนนหลัก 8 เลนพร้อมแล้ว · เลือกถนนกลางเพื่อต่อเข้าเมือง',p[0],p[1]+22*cam.z);}
 }
 function owner(i){return state.roads.has(i)?i:state.footprint[i]>=0?state.footprint[i]:i;}
 function addNews(text){news.unshift({time:state.time,text});news=news.slice(0,15);}
@@ -6368,9 +6440,16 @@ function migrateActivity251(){
 }
 
 function scheduleDay(c,day){
+ if(c.lessonFirstWork&&guide?.city===state&&!guide.jobsReady&&day===Math.floor(state.time/1440))return;
  if(c.scheduled.has(day)||c.removed||c.movingOut){if(day===Math.floor(state.time/1440)&&c.lifePlans?.[day])c.dailyPlan=c.lifePlans[day];return;}
  assignJob(c);c.scheduled.add(day);if(c.scheduled.size>4)c.scheduled.delete(Math.min(...c.scheduled));
- const plan=planForDay(c,day);if(day===Math.floor(state.time/1440)||!c.dailyPlan)c.dailyPlan=plan;
+ const plan=planForDay(c,day);
+ if(c.lessonFirstWork&&c.workId&&day===Math.floor(state.time/1440)){
+  const at=state.time-day*1440+1,until=at+240;
+  plan.steps=[{kind:'work',at,until,deadline:at+180,workId:c.workId},{kind:'home',at:until,until:until+240}];
+  delete c.lessonFirstWork;
+ }
+ if(day===Math.floor(state.time/1440)||!c.dailyPlan)c.dailyPlan=plan;
  if(!c.lifePlans)c.lifePlans={};c.lifePlans[day]=plan;
  for(const key of Object.keys(c.lifePlans))if(+key<day-1&&+key!==c.lifeRun?.day)delete c.lifePlans[key];
  if(plan.steps.length)schedule(c,Math.max(state.time+.5,day*1440+plan.steps[0].at),'lifeStart',{day,token:plan.token});
@@ -6756,6 +6835,12 @@ function newCitizen(home){
   movingOut:false,journeyRuleVersion:25,activityVersion:251,happy:82,state:'กำลังย้ายเข้า',vehicleId:null,queued:null,
   pending:null,late:false,unemployed:0,problem:'',history:[],scheduled:new Set(),
   pain:0,failKinds:new Set()};
+ if(guide?.city===state&&guide.home===home.id&&guide.gifts!==6){
+  const i=guide.gifts||0;guide.gifts=i+1;c.profile=profile(i%3);
+  c.vehicleTech=['speed','smart','fly','warp','speed','smart'][i];
+  state.vehicleTechLevels[c.profile.trait][c.vehicleTech]=(state.vehicleTechLevels[c.profile.trait][c.vehicleTech]||0)+1;
+  c.lessonFirstWork=true;
+ }
  ensureRoutine(c);state.citizens.set(c.id,c);return c;
 }
 // Priority heap avoids resorting thousands of events for every citizen.
@@ -9453,7 +9538,7 @@ function moveBuilding(buildingId,x,y,confirmed=false,preferredRotation=null){
  syncParkingSlots();movingBuildingId=null;hover=null;selectTool('hand');selected={kind:'building',id:b.id};updateBuildingQuickActions();updateUI();toast('ย้ายอาคารแล้ว · ฟรี');return true;
 }
 
-function buildBuilding(key,x,y,confirmed=false,preferredRotation=null){if(buildingQuotaStatus(key).locked){showBuildingQuotaWarning(key);return false;}const check=checkParkingBuilding(key,x,y,null,preferredRotation),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true,preferredRotation));positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,shopCompactLotV1:key==='shop_large',starterCompact:key==='home_starter',starterFrontRowV2:key==='home_starter',starterParkingV3:key==='home_starter',starterCottageV4:key==='home_starter',starterCottage3x3:key==='home_starter',starterGroundV6:key==='home_starter',starterExitV1:key==='home_starter',grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,mahanakhonCompactPlotV2:key==='home_mahanakhon',mahanakhonExpandedPlotV3:key==='home_mahanakhon',compactLotV2:key==='home_dual'||!!t.dualParking,compactLotV3:key==='home_dual'||!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,moveOutCooldowns:[],queue:[],arrivals:0};state.buildings.set(b.id,b);recordBuildingQuota(key);clearDemandNoticeForBuild(t);renderTools();state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;markBuildingPlot(b,b.id);state.money-=t.cost;missionMoney('buildingCost',t.cost);missionCount('buildingsBuilt');for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
+function buildBuilding(key,x,y,confirmed=false,preferredRotation=null){if(buildingQuotaStatus(key).locked){showBuildingQuotaWarning(key);return false;}const check=checkParkingBuilding(key,x,y,null,preferredRotation),t=CATALOG[key];if(check.error){toast(check.error);return false;}if(!confirmed){confirmAction('สร้าง'+t.name,`ค่าก่อสร้าง ${money(t.cost)} · ค่าดูแล ${money(t.maint)} / วัน<br>พื้นที่รวมลานจอด ${check.bounds.w} × ${check.bounds.h} ช่อง · ที่จอด ${t.parkingCapacity} คัน<br>${t.beds?'รองรับผู้พัก '+t.beds+' คน':t.residents?'รองรับผู้อยู่อาศัย '+t.residents+' คน':t.jobs+' ตำแหน่งงาน'+(t.service?' · บริการ '+t.service+' คน':'')}`,()=>buildBuilding(key,x,y,true,preferredRotation));positionConstructionAtWorld(x+check.bounds.w/2,y+check.bounds.h/2);return;}const b={id:state.nextId++,key,x,y,rotation:check.rotation,shopCompactLotV1:key==='shop_large',starterCompact:key==='home_starter',starterFrontRowV2:key==='home_starter',starterParkingV3:key==='home_starter',starterCottageV4:key==='home_starter',starterCottage3x3:key==='home_starter',starterGroundV6:key==='home_starter',starterExitV1:key==='home_starter',grandFrontLayout:!!t.stackedParking,grandFrontageV3:!!t.stackedParking,mahanakhonCompactPlotV2:key==='home_mahanakhon',mahanakhonExpandedPlotV3:key==='home_mahanakhon',compactLotV2:key==='home_dual'||!!t.dualParking,compactLotV3:key==='home_dual'||!!t.dualParking,parkingSlots:Array(t.parkingCapacity).fill(null),access:check.access,residents:new Set(),workers:new Set(),visitors:new Set(),guests:new Set(),parked:new Set(),reservedResidents:0,reservedService:0,moveOutCooldowns:[],queue:[],arrivals:0};state.buildings.set(b.id,b);if(guide?.city===state&&guide.step==='home'&&key==='home_starter'&&guide.home==null)guide.home=b.id;recordBuildingQuota(key);clearDemandNoticeForBuild(t);renderTools();state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;markBuildingPlot(b,b.id);state.money-=t.cost;missionMoney('buildingCost',t.cost);missionCount('buildingsBuilt');for(const c of state.citizens.values()){if(c.resident)assignJob(c);if(c.pending)c.pending.next=state.time+.5;}addNews('เปิด'+t.name+'ใหม่'+(t.jobs?' · เพิ่ม '+t.jobs+' งาน':''));toast('สร้าง'+t.name+'แล้ว');updateUI();return b;}
 function demolishBuilding(b,confirmed=false,anchor=null){if(!b||!state.buildings.has(b.id))return false;const t=CATALOG[b.key],fee=0;if(!confirmed){const details=t.residents?'ผู้อยู่อาศัยในบ้านนี้จะออกจากเมือง':'พนักงานต้องหางานใหม่ และการเดินทางมาที่นี่จะถูกยกเลิก';confirmDemolition('รื้อ'+t.name+'?',details,()=>demolishBuilding(b,true),anchor||screen(b.x+buildingBounds(b).w/2,b.y+buildingBounds(b).h/2));pendingDemolitionPreview={cells:[],eraseBuildingId:b.id};return true;}prepareTouristDemolition(b);if(t.residents)for(const c of [...state.citizens.values()])if(c.homeId===b.id)removeCitizen(c);for(const v of [...state.vehicles.values()])if(v.fromId===b.id||v.toId===b.id){const c=state.citizens.get(v.citizenId);if(c?.tourist)continue;cancelVehicle(v);if(c){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);resumeCancelledLife(c,v,'อาคารต้นทางหรือปลายทางถูกรื้อ');}}for(const c of state.citizens.values()){if(c.tourist)continue;if(c.workId===b.id)c.workId=null;if(c.locationId===b.id){c.locationId=c.homeId;c.location='home';c.state='อยู่บ้าน';state.buildings.get(c.homeId)?.parked.add(c.id);}}
 state.buildings.delete(b.id);rebuildBuildingGrid();state.buildingVisualVersion=(state.buildingVisualVersion||0)+1;state.money-=fee;missionCount('buildingsRemoved');for(const c of state.citizens.values())assignJob(c);reconcile();selected=null;$('inspector').classList.add('hidden');toast('รื้ออาคารแล้ว');updateUI();}
 // Freehand demolition follows every crossed cell, even between sparse pointer samples.
@@ -9826,29 +9911,6 @@ $('cityQuickModes').onclick=event=>{
 };
 $('toggleDock').onclick=()=>setDockCollapsed(!$('buildDock').classList.contains('is-collapsed'));
 // Removing label nodes is decisive: CSS-only hiding was not reliable here.
-function toggleBuildingLabels(){buildingLabelsVisible=!buildingLabelsVisible;syncBuildingLabelVisibility();}
-function syncBuildingLabelVisibility(){
- const hidden=!buildingLabelsVisible;
- const button=$('toggleBuildingLabels');
- button.classList.toggle('is-hidden',hidden);
- button.setAttribute('aria-pressed',String(hidden));
- button.setAttribute('aria-label',hidden?'เปิดป้ายอาคารบนแผนที่':'ปิดป้ายอาคารบนแผนที่');
- button.title=hidden?'แสดงชื่อและตัวเลขอาคารอีกครั้ง':'ซ่อนชื่อและตัวเลขบนป้ายอาคาร';
- $('toggleBuildingLabelsText').textContent=hidden?'เปิดป้าย':'ปิดป้าย';
- if(hidden){
-  // Physically remove all building overlays, not just individual hidden flags.
-  // Keep the separate red no-route warnings untouched.
-  for(const label of placeLabels.values())label.element.remove();
-  placeLabels.clear();
-  if(placeLabelLayer)for(const node of placeLabelLayer.querySelectorAll('.place-building-label'))node.remove();
- }else{
-  placeLabelAt=0;
-  updatePlaceLabels();
- }
- document.documentElement?.classList.toggle('building-labels-off',hidden);
-}
-$('toggleBuildingLabels').onclick=toggleBuildingLabels;
-syncBuildingLabelVisibility();
 function toggleCarStatusDiamonds(){carStatusDiamondsVisible=!carStatusDiamondsVisible;syncCarStatusDiamondVisibility();}
 function syncCarStatusDiamondVisibility(){
  const hidden=!carStatusDiamondsVisible,button=$('toggleCarDiamonds');
@@ -10883,7 +10945,7 @@ async function openCloudSaveDialog(){
  });
 }
 function openNewCityDialog(){
- modal('<span class="eyebrow">NEW CITY</span><h2>เริ่มเมืองใหม่ · ภูเก็ต</h2><p>เริ่มเมืองบนเกาะภูเก็ต พร้อมหมู่บ้านเริ่มต้นและเงิน 500,000 บาท</p><div class="actions"><button id="newCity" class="primary">เริ่มเมืองใหม่</button><button id="newCityCancel">ยกเลิก</button></div>');
+ modal('<span class="eyebrow">NEW CITY</span><h2>เริ่มเมืองใหม่ · ภูเก็ต</h2><p>เริ่มเมืองบนเกาะภูเก็ต พร้อมถนนหลัก 8 เลนและเงิน 500,000 บาท</p><div class="actions"><button id="newCity" class="primary">เริ่มเมืองใหม่</button><button id="newCityCancel">ยกเลิก</button></div>');
  $('newCityCancel').onclick=closeModal;
  $('newCity').onclick=()=>confirmAction('เริ่มเมืองใหม่','เมืองปัจจุบันที่ยังไม่ได้บันทึกจะหายไป เซฟเดิมที่บันทึกไว้ไม่เปลี่ยนแปลง',()=>startNewCity('phuket'));
 }
