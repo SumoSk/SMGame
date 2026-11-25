@@ -190,3 +190,31 @@
 }
 
 #mayorPanel .mayor-category button[data-mayor-explore]{white-space:nowrap;flex:none}
+
+/* v7.2: persistent mayor suspension notice, independent of penalty rules. */
+#mayorPanel[data-suspended="true"]{border-color:#b94749;box-shadow:0 8px 28px #591a2450}
+#mayorPanel[data-suspended="true"] header{border-bottom-color:#e0aaaa}
+#mayorPanel[data-suspended="true"] .mayor-header-icon{color:#a12f37;background:#f9e3e3}
+#mayorPanel .mayor-suspension{margin:0 0 9px;border:1px solid #bc5053;border-radius:9px;background:#fff4f3;color:#742b30;overflow:hidden}
+#mayorPanel .mayor-suspension-head{display:flex;align-items:center;gap:9px;background:#962d37;color:#fff;padding:10px}
+#mayorPanel .mayor-suspension-head small{color:#ffe5e5;font-weight:600;font-size:10px}
+#mayorPanel .mayor-suspension-head h3{margin:2px 0 0;font-size:19px;line-height:1.25;color:#fff;font-weight:800}
+#mayorPanel .mayor-suspension-icon{width:30px;height:30px;border:2px solid #fff;border-radius:50%;display:grid;place-items:center;flex:none;font-size:20px;font-weight:800}
+#mayorPanel .mayor-suspension-body{padding:8px 10px}
+#mayorPanel .mayor-suspension-cause{display:block;font-size:13px;line-height:1.45;font-weight:800}
+#mayorPanel .mayor-suspension-scores{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0}
+#mayorPanel .mayor-suspension-scores span{display:flex;align-items:center;gap:5px;font-size:10px;border-radius:4px;background:#f6d9da;padding:3px 5px}
+#mayorPanel .mayor-suspension-scores b{font-variant-numeric:tabular-nums}
+#mayorPanel .mayor-suspension-time{display:grid;gap:2px;background:#fff;border:1px solid #edc5c5;border-radius:7px;margin:7px 0;padding:7px 9px;font-variant-numeric:tabular-nums}
+#mayorPanel .mayor-suspension-time b{font-size:16px;color:#9b3038}
+#mayorPanel .mayor-suspension-time span,#mayorPanel .mayor-suspension-body p{font-size:11px;line-height:1.5}
+#mayorPanel .mayor-suspension-limit{display:grid;gap:3px;padding:6px 0;border-top:1px solid #edd0d0}
+#mayorPanel .mayor-suspension-detail{background:#fff;border:1px solid #edc5c5;padding:7px;border-radius:6px;margin-top:6px;font-size:11px}
+#mayorPanel .mayor-suspension-actions{display:flex;gap:5px;margin-top:7px}
+#mayorPanel .mayor-suspension-actions button{flex:1;background:#fff;color:#8e2d35;border:1px solid #d7a1a1;font-weight:700}
+#mayorPanel .mayor-suspension-actions button[data-mayor-action="ack-suspension"]{background:#962d37;color:#fff;border-color:#962d37}
+#mayorPanel .mayor-grade[data-grade="F"]{padding:0 5px;white-space:nowrap}
+#mayorRail button[data-suspended="true"]{outline:2px solid #b63f46;outline-offset:-2px}
+#mayorRail [data-suspended="true"]::after{background:#962d37}
+#mayorScoreHud .mayor-hud-suspended{background:#962d37;color:#fff;border-radius:4px;padding:4px;margin-top:4px}
+@media(max-width:600px){#mayorPanel .mayor-suspension-head{padding:8px}#mayorPanel .mayor-suspension-head h3{font-size:16px}#mayorPanel .mayor-suspension-body{padding:7px}#mayorPanel .mayor-suspension-cause{font-size:12px}}
