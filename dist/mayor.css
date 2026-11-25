@@ -124,3 +124,15 @@
 }
 @media(max-height:660px) and (min-width:850px) and (pointer:fine){#mayorPanel:not([data-detail="true"]){top:calc(var(--mayor-hud-top,90px) + 184px);max-height:max(130px,calc(100dvh - var(--mayor-hud-top,90px) - 265px))}}
 @media(max-width:600px){#mayorPanel .mayor-result{padding:7px}#mayorPanel .mayor-result-hero{padding:7px}#mayorPanel .mayor-result-hero h3{font-size:17px}#mayorPanel .mayor-result-report{font-size:13px}#mayorPanel .mayor-result-row>strong{font-size:15px}}
+
+/* Decisions remain blind until resolved; urgent calls use a distinct visual cue. */
+#mayorPanel .mayor-blind-option{padding:11px 9px;min-height:43px}
+#mayorPanel .mayor-blind-option .mayor-option-head{align-items:center}
+#mayorPanel .mayor-blind-option .mayor-option-head b{font-size:13px;line-height:1.5}
+#mayorPanel .mayor-blind-option .mayor-choice-type{background:transparent;font-size:15px}
+#mayorPanel .mayor-blind-option .mayor-meta{margin-top:5px}
+#mayorPanel .mayor-urgent-call{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fce9e8;color:#a83c3f;border:1px solid #e9bbba;border-radius:7px;padding:8px;margin:6px 0 9px}
+#mayorPanel .mayor-urgent-call small{margin-left:auto;color:#a83c3f;font-size:11px}
+#mayorPanel[data-urgent="true"]{border-color:#be5353;box-shadow:0 12px 42px #52232260}
+#mayorPanel[data-urgent="true"] .mayor-header-icon{color:#a83c3f;background:#fce9e8}
+@media(max-width:600px){#mayorPanel .mayor-blind-option{padding:8px 6px}#mayorPanel .mayor-blind-option .mayor-option-head b{font-size:12px}}

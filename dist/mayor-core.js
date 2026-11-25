@@ -8789,13 +8789,1245 @@ const MAYOR_EXTRA_CHOICES = {
   ]
 };
 for(const event of MAYOR_EVENTS)event.choices.push(...(MAYOR_EXTRA_CHOICES[event.id]||[]));
+// Free guaranteed large score rewards now have political opportunity costs, without changing saved choice indices.
+const MAYOR_POLITICAL_TRADEOFF={admin:['people','ความรวดเร็วทำให้ชุมชนบางส่วนรู้สึกว่าไม่ได้รับฟัง'],image:['admin','ฝ่ายบริหารต้องโยกเวลาจากงานประจำ'],fame:['people','ชุมชนบางส่วนกังวลว่าทรัพยากรถูกใช้เพื่อชื่อเสียง'],government:['admin','ฝ่ายบริหารต้องปรับแผนเพื่อประสานส่วนกลาง'],people:['business','ผู้ประกอบการบางส่วนมองว่าภาระเพิ่มขึ้น'],business:['people','ประชาชนบางส่วนรู้สึกว่าธุรกิจได้รับความสำคัญมากกว่า'],integrity:['admin','การตรวจสอบเพิ่มภาระให้ฝ่ายบริหาร']};
+for(const event of MAYOR_EVENTS)for(const option of event.choices){const r=option.success,values=Object.values(r?.scores||{});if(!r||option.cost||option.task||option.chance!==undefined||option.grant||!values.some(v=>v>=10)||values.some(v=>v<0))continue;const [key,report]=MAYOR_POLITICAL_TRADEOFF[event.category];if(Object.hasOwn(r.scores,key))continue;r.scores[key]=-5;r.report=(r.report||'')+' แต่'+report;}
+MAYOR_EVENTS.push(...[
+  {
+    "id": "night-fire",
+    "category": "admin",
+    "title": "ด่วน! เพลิงไหม้ที่ {target}",
+    "story": "ศูนย์ประสานงานโทรแจ้งว่าพบควันไฟในอาคาร เจ้าหน้าที่ขอคำสั่งทันที งบฉุกเฉินมีจำกัดและยังไม่ทราบว่าควบคุมเหตุได้หรือไม่",
+    "choices": [
+      {
+        "title": "อนุมัติงบฉุกเฉินและส่งทีมช่วยเหลือ",
+        "success": {
+          "report": "ทีมประสานงานควบคุมเหตุได้ แต่ต้องโยกงบส่วนอื่น",
+          "scores": {
+            "admin": 10,
+            "people": 5,
+            "business": -5
+          }
+        },
+        "cost": 120000
+      },
+      {
+        "title": "ขอทีมเสริมจากจังหวัด",
+        "success": {
+          "report": "ทีมเสริมมาถึงทัน",
+          "scores": {
+            "government": 10,
+            "admin": 5
+          }
+        },
+        "chance": 0.65,
+        "failure": {
+          "report": "ทีมเสริมมาช้า บริการหยุดชะงัก",
+          "scores": {
+            "admin": -10,
+            "people": -8
+          },
+          "money": -25000,
+          "effects": [
+            {
+              "kind": "tripDelta",
+              "scope": "all",
+              "value": -100
+            }
+          ]
+        }
+      },
+      {
+        "title": "ให้ผู้ประกอบการร่วมรับผิดชอบค่าใช้จ่าย",
+        "success": {
+          "report": "เจ้าหน้าที่จัดการเหตุได้ แต่ผู้ประกอบการไม่พอใจ",
+          "scores": {
+            "admin": 5,
+            "business": -12,
+            "people": 5
+          }
+        }
+      },
+      {
+        "title": "ให้เจ้าหน้าที่จัดการตามงบเดิม",
+        "success": {
+          "report": "ทีมเดิมจัดการได้",
+          "scores": {
+            "admin": 5
+          }
+        },
+        "chance": 0.4,
+        "failure": {
+          "report": "ทรัพยากรไม่พอ เมืองเสียค่าประสานงาน",
+          "scores": {
+            "admin": -15,
+            "people": -10
+          },
+          "money": -35000,
+          "effects": [
+            {
+              "kind": "tripDelta",
+              "scope": "all",
+              "value": -150
+            }
+          ]
+        }
+      },
+      {
+        "title": "ลงพื้นที่ประสานการช่วยเหลือด้วยตนเอง",
+        "success": {
+          "report": "ชุมชนชื่นชม แต่ภารกิจฝ่ายบริหารอื่นล่าช้า",
+          "scores": {
+            "image": 8,
+            "people": 8,
+            "admin": -5
+          }
+        },
+        "cost": 30000
+      }
+    ],
+    "ignored": {
+      "report": "ไม่มีคำสั่งทันเวลา ต้องเบิกงบสำรอง",
+      "scores": {
+        "admin": -15,
+        "people": -10
+      },
+      "money": -30000,
+      "effects": [
+        {
+          "kind": "tripDelta",
+          "scope": "all",
+          "value": -100
+        }
+      ]
+    },
+    "target": [
+      "home",
+      "shop",
+      "restaurant",
+      "office",
+      "factory",
+      "hotel",
+      "mall",
+      "pub",
+      "casino"
+    ],
+    "minLevel": 1,
+    "emergencyOnly": true
+  },
+  {
+    "id": "night-power",
+    "category": "admin",
+    "title": "ไฟฟ้าขัดข้องที่ {target}",
+    "story": "ผู้ดูแลอาคารแจ้งเหตุไฟดับ ผู้รับเหมารายเดิมเสนอเข้าช่วยทันทีหากไม่ต้องรอขั้นตอนเปรียบเทียบราคา",
+    "choices": [
+      {
+        "title": "เรียกทีมช่างตามขั้นตอนปกติ",
+        "success": {
+          "report": "ประสานงานสำเร็จ แต่เจ้าของกิจการต้องรอ",
+          "scores": {
+            "admin": 8,
+            "integrity": 5,
+            "business": -5
+          }
+        },
+        "cost": 65000
+      },
+      {
+        "title": "อนุมัติผู้รับเหมารายเดิมทันที",
+        "success": {
+          "report": "แก้เหตุได้รวดเร็ว แต่เอกสารถูกทักท้วง",
+          "scores": {
+            "admin": 10,
+            "integrity": -15,
+            "business": 5
+          }
+        },
+        "cost": 35000
+      },
+      {
+        "title": "ขอแรงสนับสนุนจากจังหวัด",
+        "success": {
+          "report": "จังหวัดส่งทีมช่วยทัน",
+          "scores": {
+            "government": 10,
+            "admin": 5
+          }
+        },
+        "chance": 0.6,
+        "failure": {
+          "report": "ทีมไม่พร้อมตามเวลา",
+          "scores": {
+            "admin": -12,
+            "people": -8
+          },
+          "effects": [
+            {
+              "kind": "tripDelta",
+              "scope": "all",
+              "value": -100
+            }
+          ]
+        }
+      },
+      {
+        "title": "ให้ผู้ประกอบการรับผิดชอบเอง",
+        "success": {
+          "report": "ผู้ประกอบการดำเนินการ แต่ไม่พอใจเมือง",
+          "scores": {
+            "business": -12,
+            "admin": 3
+          }
+        }
+      },
+      {
+        "title": "รอประเมินสาเหตุก่อนอนุมัติงบ",
+        "success": {
+          "report": "ปัญหาแก้ไขได้โดยทีมเดิม",
+          "scores": {
+            "admin": 5
+          }
+        },
+        "chance": 0.35,
+        "failure": {
+          "report": "การรอเพิ่มข้อร้องเรียน",
+          "scores": {
+            "admin": -10,
+            "people": -10
+          },
+          "effects": [
+            {
+              "kind": "tripDelta",
+              "scope": "all",
+              "value": -100
+            }
+          ]
+        }
+      }
+    ],
+    "ignored": {
+      "report": "ข้อร้องเรียนเพิ่มขึ้นเพราะไม่ได้รับคำตอบ",
+      "scores": {
+        "admin": -10,
+        "business": -10
+      },
+      "effects": [
+        {
+          "kind": "tripDelta",
+          "scope": "all",
+          "value": -100
+        }
+      ]
+    },
+    "target": [
+      "shop",
+      "restaurant",
+      "office",
+      "factory",
+      "hotel",
+      "mall",
+      "pub",
+      "casino"
+    ],
+    "minLevel": 1,
+    "emergencyOnly": true
+  },
+  {
+    "id": "night-road",
+    "category": "admin",
+    "title": "ด่วน! รายงานอุบัติเหตุบนถนนหลัก",
+    "story": "เจ้าหน้าที่ได้รับรายงานรถเสียและการเดินทางติดขัด ทีมประสานงานขอคำสั่งจัดการเหตุคืนนี้",
+    "choices": [
+      {
+        "title": "อนุมัติทีมช่วยเหลือฉุกเฉิน",
+        "success": {
+          "report": "ทีมประสานงานรับมือเหตุได้รวดเร็ว",
+          "scores": {
+            "admin": 10,
+            "people": 5
+          }
+        },
+        "cost": 80000
+      },
+      {
+        "title": "ขอให้จังหวัดส่งเจ้าหน้าที่",
+        "success": {
+          "report": "จังหวัดช่วยประสานเหตุ",
+          "scores": {
+            "government": 8,
+            "admin": 5
+          }
+        },
+        "chance": 0.65,
+        "failure": {
+          "report": "ทีมจังหวัดติดภารกิจอื่น",
+          "scores": {
+            "admin": -10,
+            "people": -8
+          },
+          "effects": [
+            {
+              "kind": "tripDelta",
+              "scope": "all",
+              "value": -100
+            }
+          ]
+        }
+      },
+      {
+        "title": "ขอผู้ประกอบการช่วยค่าใช้จ่าย",
+        "success": {
+          "report": "ได้ความร่วมมือแต่ธุรกิจไม่พอใจ",
+          "scores": {
+            "admin": 7,
+            "business": -10
+          }
+        }
+      },
+      {
+        "title": "ประกาศชี้แจงและใช้ทีมที่มีอยู่",
+        "success": {
+          "report": "ประชาชนพอใจการสื่อสาร แต่ฝ่ายบริหารงานล่าช้า",
+          "scores": {
+            "people": 5,
+            "image": 5,
+            "admin": -5
+          }
+        }
+      },
+      {
+        "title": "รอให้การเดินทางเบาบางเอง",
+        "success": {
+          "report": "ข้อร้องเรียนลดลงเอง",
+          "scores": {
+            "admin": 3
+          }
+        },
+        "chance": 0.35,
+        "failure": {
+          "report": "ปัญหายืดเยื้อและเสียงวิจารณ์เพิ่ม",
+          "scores": {
+            "admin": -15,
+            "image": -8
+          },
+          "effects": [
+            {
+              "kind": "tripDelta",
+              "scope": "all",
+              "value": -150
+            }
+          ]
+        }
+      }
+    ],
+    "ignored": {
+      "report": "เมืองถูกตำหนิว่าขาดการประสานงาน",
+      "scores": {
+        "admin": -12,
+        "people": -8
+      },
+      "effects": [
+        {
+          "kind": "tripDelta",
+          "scope": "all",
+          "value": -100
+        }
+      ]
+    },
+    "minLevel": 1,
+    "emergencyOnly": true
+  },
+  {
+    "id": "night-aid",
+    "category": "people",
+    "title": "สายด่วนจากชุมชน",
+    "story": "ตัวแทนชุมชนขอเงินช่วยเหลือกรณีฉุกเฉินคืนนี้ เอกสารบางส่วนไม่ครบ อีกกลุ่มขอให้ตรวจสอบเพื่อความเป็นธรรม",
+    "choices": [
+      {
+        "title": "อนุมัติผ่านคณะทำงานฉุกเฉิน",
+        "success": {
+          "report": "ชุมชนได้รับการดูแล แต่ต้องเลื่อนงบงานอื่น",
+          "scores": {
+            "people": 10,
+            "admin": -5,
+            "integrity": 5
+          }
+        },
+        "cost": 75000
+      },
+      {
+        "title": "ขอจังหวัดตรวจเอกสารและสมทบ",
+        "success": {
+          "report": "จังหวัดช่วยประสานได้ทัน",
+          "scores": {
+            "government": 8,
+            "people": 5
+          }
+        },
+        "chance": 0.6,
+        "failure": {
+          "report": "เอกสารไม่ทันเวลา ชุมชนผิดหวัง",
+          "scores": {
+            "people": -12,
+            "image": -5
+          }
+        }
+      },
+      {
+        "title": "โอนตามรายชื่อที่ตัวแทนส่งมา",
+        "success": {
+          "report": "เงินถึงผู้ขอ แต่พบรายชื่อที่ตรวจสอบไม่ได้",
+          "scores": {
+            "people": 10,
+            "integrity": -15
+          }
+        },
+        "cost": 50000
+      },
+      {
+        "title": "ให้ภาคธุรกิจช่วยหาเงินแทนเมือง",
+        "success": {
+          "report": "ชุมชนได้รับความช่วยเหลือ แต่ธุรกิจไม่พอใจ",
+          "scores": {
+            "people": 8,
+            "business": -8
+          }
+        }
+      },
+      {
+        "title": "รอเอกสารครบก่อนดำเนินการ",
+        "success": {
+          "report": "ขั้นตอนถูกต้อง แต่ครอบครัวบางส่วนผิดหวัง",
+          "scores": {
+            "integrity": 10,
+            "people": -10,
+            "image": -5
+          }
+        }
+      }
+    ],
+    "ignored": {
+      "report": "ชุมชนไม่ได้คำตอบและร้องเรียนต่อสื่อ",
+      "scores": {
+        "people": -15,
+        "image": -8
+      }
+    },
+    "minLevel": 1,
+    "emergencyOnly": true
+  },
+  {
+    "id": "night-tourist",
+    "category": "fame",
+    "title": "ด่วน! นักท่องเที่ยวร้องเรียนที่ {target}",
+    "story": "ผู้มาเยือนร้องเรียนเรื่องบริการ ผู้ประกอบการขอให้เมืองช่วยออกค่าใช้จ่ายและไม่เปิดเผยชื่อสถานที่",
+    "choices": [
+      {
+        "title": "ชดเชยผ่านช่องทางที่ตรวจสอบได้",
+        "success": {
+          "report": "ผู้มาเยือนพอใจและขั้นตอนโปร่งใส",
+          "scores": {
+            "fame": 10,
+            "integrity": 5
+          }
+        },
+        "cost": 65000
+      },
+      {
+        "title": "ให้ผู้ประกอบการรับผิดชอบตามข้อตกลง",
+        "success": {
+          "report": "ผู้มาเยือนได้รับการดูแล แต่เจ้าของกิจการไม่พอใจ",
+          "scores": {
+            "fame": 5,
+            "business": -12
+          }
+        }
+      },
+      {
+        "title": "จ่ายเงินแลกกับการไม่เผยแพร่เรื่อง",
+        "success": {
+          "report": "ข่าวไม่ลุกลาม แต่ข้อตกลงไม่โปร่งใส",
+          "scores": {
+            "fame": 8,
+            "integrity": -15
+          }
+        },
+        "cost": 45000
+      },
+      {
+        "title": "เปิดเผยข้อร้องเรียนและข้อเท็จจริง",
+        "success": {
+          "report": "การเปิดเผยได้รับคำชม แต่เมืองและธุรกิจเสียภาพลักษณ์",
+          "scores": {
+            "integrity": 12,
+            "fame": -8,
+            "business": -5
+          }
+        }
+      },
+      {
+        "title": "ให้คู่กรณีตกลงกันเอง",
+        "success": {
+          "report": "ทั้งสองฝ่ายตกลงกันได้",
+          "scores": {
+            "fame": 3
+          }
+        },
+        "chance": 0.4,
+        "failure": {
+          "report": "ข้อร้องเรียนแพร่กระจาย",
+          "scores": {
+            "fame": -15,
+            "image": -5
+          }
+        }
+      }
+    ],
+    "ignored": {
+      "report": "ข้อร้องเรียนแพร่กระจายโดยไม่มีคำชี้แจง",
+      "scores": {
+        "fame": -15,
+        "business": -5
+      }
+    },
+    "target": [
+      "hotel",
+      "restaurant",
+      "mall",
+      "pub",
+      "casino"
+    ],
+    "minLevel": 1,
+    "emergencyOnly": true
+  },
+  {
+    "id": "night-leak",
+    "category": "integrity",
+    "title": "ด่วน! เอกสารภายในรั่วไหล",
+    "story": "นักข่าวมีเอกสารงบประมาณบางส่วนและจะเผยแพร่คืนนี้ ผู้ประสานงานเสนอช่วยเจรจาให้เงียบ",
+    "choices": [
+      {
+        "title": "เผยแพร่เอกสารที่ตรวจสอบแล้ว",
+        "success": {
+          "report": "ประชาชนเห็นความโปร่งใส แต่ประเด็นงบกระทบภาพลักษณ์",
+          "scores": {
+            "integrity": 12,
+            "image": -8
+          }
+        },
+        "cost": 30000
+      },
+      {
+        "title": "ขอหน่วยงานรัฐตรวจข้อเท็จจริง",
+        "success": {
+          "report": "รัฐส่งผู้ตรวจมา แต่ข่าวยังกระทบชื่อเสียงเมือง",
+          "scores": {
+            "government": 8,
+            "integrity": 6,
+            "fame": -5
+          }
+        }
+      },
+      {
+        "title": "ให้ผู้ประสานงานเจรจาเป็นการภายใน",
+        "success": {
+          "report": "ข่าวเงียบลงชั่วคราว",
+          "scores": {
+            "image": 5,
+            "integrity": -8
+          }
+        },
+        "cost": 25000,
+        "chance": 0.4,
+        "failure": {
+          "report": "การเจรจาถูกเปิดเผยซ้ำ",
+          "scores": {
+            "integrity": -25,
+            "image": -15
+          }
+        }
+      },
+      {
+        "title": "ปฏิเสธทันทีโดยไม่ตรวจเอกสาร",
+        "success": {
+          "report": "สื่อยอมรับคำปฏิเสธ",
+          "scores": {
+            "image": 5
+          }
+        },
+        "chance": 0.3,
+        "failure": {
+          "report": "หลักฐานเพิ่มเติมขัดกับคำปฏิเสธ",
+          "scores": {
+            "integrity": -20,
+            "image": -15
+          }
+        }
+      },
+      {
+        "title": "ยอมรับข้อจำกัดและขอเวลาตรวจสอบ",
+        "success": {
+          "report": "สื่อยอมรับคำชี้แจง แต่บางส่วนวิจารณ์ความล่าช้า",
+          "scores": {
+            "integrity": 8,
+            "image": -5,
+            "admin": -5
+          }
+        }
+      }
+    ],
+    "ignored": {
+      "report": "ข่าวถูกเผยแพร่โดยไม่มีคำชี้แจง",
+      "scores": {
+        "image": -12,
+        "integrity": -10
+      }
+    },
+    "minLevel": 1,
+    "emergencyOnly": true
+  },
+  {
+    "id": "night-protest",
+    "category": "people",
+    "title": "ด่วน! ประชาชนขอพบนายก",
+    "story": "ชุมชนร้องเรียนการใช้งบช่วยธุรกิจ ผู้ประกอบการยืนยันว่าตนกำลังเดือดร้อน ทั้งสองฝ่ายต้องการคำตอบคืนนี้",
+    "choices": [
+      {
+        "title": "จัดเวทีร่วมทั้งสองฝ่าย",
+        "success": {
+          "report": "ทั้งสองฝ่ายได้พูด แต่ฝ่ายบริหารต้องโยกกำลังงาน",
+          "scores": {
+            "people": 7,
+            "business": 5,
+            "admin": -6
+          }
+        },
+        "cost": 30000
+      },
+      {
+        "title": "ให้คำมั่นเพิ่มความช่วยเหลือชุมชน",
+        "success": {
+          "report": "ชุมชนพอใจ ธุรกิจมองว่าเมืองเลือกข้าง",
+          "scores": {
+            "people": 12,
+            "business": -12
+          }
+        },
+        "cost": 45000
+      },
+      {
+        "title": "ยืนยันมาตรการช่วยธุรกิจตามเดิม",
+        "success": {
+          "report": "ธุรกิจพอใจ ผู้ร้องเรียนผิดหวัง",
+          "scores": {
+            "business": 12,
+            "people": -12
+          }
+        }
+      },
+      {
+        "title": "มอบให้ตัวแทนรัฐบาลไกล่เกลี่ย",
+        "success": {
+          "report": "ทั้งสองฝ่ายยอมรับคนกลาง",
+          "scores": {
+            "government": 8,
+            "people": 3
+          }
+        },
+        "chance": 0.6,
+        "failure": {
+          "report": "การเจรจาล้มเหลว",
+          "scores": {
+            "government": -5,
+            "people": -10,
+            "business": -8
+          }
+        }
+      },
+      {
+        "title": "ไม่รับข้อเสนอใดจนกว่าจะมีข้อมูลครบ",
+        "success": {
+          "report": "รักษาความเป็นกลาง แต่ทั้งสองฝ่ายไม่พอใจ",
+          "scores": {
+            "integrity": 8,
+            "people": -7,
+            "business": -7
+          }
+        }
+      }
+    ],
+    "ignored": {
+      "report": "เหตุการณ์กลายเป็นข่าว ทั้งสองฝ่ายไม่พอใจ",
+      "scores": {
+        "people": -12,
+        "image": -10
+      }
+    },
+    "minLevel": 1,
+    "emergencyOnly": true
+  },
+  {
+    "id": "moral-public-grant",
+    "category": "integrity",
+    "title": "เงินสนับสนุนจากกองทุนพัฒนาเมือง",
+    "story": "กองทุนจดทะเบียนส่งหนังสือระบุเงิน 350,000 บาท มีเลขเอกสาร อนุญาตเปิดเผยผู้สนับสนุน และไม่มีข้อกำหนดเลือกผู้รับเหมา",
+    "choices": [
+      {
+        "title": "รับเงินเข้าคลังตามหนังสือ",
+        "success": {
+          "report": "เอกสารผ่านการตรวจ เงินเข้าคลังโดยไม่มีผลเสีย",
+          "scores": {},
+          "money": 350000
+        }
+      },
+      {
+        "title": "ขอตรวจเอกสารกับส่วนกลางก่อนรับ",
+        "success": {
+          "report": "ส่วนกลางยืนยันที่มา เงินเข้าคลัง",
+          "scores": {
+            "integrity": 5,
+            "government": 3
+          },
+          "money": 350000
+        },
+        "cost": 10000
+      },
+      {
+        "title": "ขอเปิดเผยรายชื่อผู้สนับสนุนเพิ่มเติม",
+        "success": {
+          "report": "กองทุนยินดีเปิดข้อมูลและโอนเงิน",
+          "scores": {
+            "integrity": 8
+          },
+          "money": 350000
+        }
+      },
+      {
+        "title": "ปฏิเสธตามหลักเกณฑ์ของเมือง",
+        "success": {
+          "report": "กองทุนรับทราบ เมืองไม่ได้งบ",
+          "scores": {
+            "integrity": 3,
+            "government": -3
+          }
+        }
+      },
+      {
+        "title": "ขอเพิ่มยอดโดยไม่แจ้งเหตุผล",
+        "success": {
+          "report": "กองทุนยุติการพิจารณา",
+          "scores": {
+            "integrity": -10,
+            "government": -8
+          }
+        }
+      }
+    ],
+    "ignored": null,
+    "minLevel": 1,
+    "moralOnly": true
+  },
+  {
+    "id": "moral-envelope",
+    "category": "integrity",
+    "title": "ข้อเสนอเงิน 750,000 บาท",
+    "story": "ตัวแทนกลุ่มทุนเสนอเงินช่วยเมือง ขอไม่ลงชื่อผู้ให้ในเอกสารและนัดส่งผ่านคนกลาง ย้ำว่าไม่มีอะไรต้องตอบแทนในตอนนี้",
+    "choices": [
+      {
+        "title": "รับเงินตามข้อเสนอ",
+        "success": {
+          "report": "เงินเข้าคลัง แต่การตรวจพบผู้ให้ที่ไม่เปิดเผยทำลายความน่าเชื่อถือ",
+          "scores": {
+            "integrity": -25,
+            "image": -10
+          },
+          "money": 750000
+        }
+      },
+      {
+        "title": "ขอเปิดเผยชื่อและรับผ่านบัญชีทางการ",
+        "success": {
+          "report": "กลุ่มทุนถอนข้อเสนอ",
+          "scores": {
+            "integrity": 8,
+            "business": -8
+          }
+        }
+      },
+      {
+        "title": "ปฏิเสธและแจ้งหน่วยตรวจสอบ",
+        "success": {
+          "report": "หน่วยตรวจรับเรื่อง กลุ่มทุนไม่พอใจ",
+          "scores": {
+            "integrity": 12,
+            "business": -15,
+            "government": 5
+          }
+        }
+      },
+      {
+        "title": "ขอเอกสารชี้แจงที่มาก่อนพิจารณา",
+        "success": {
+          "report": "ตัวแทนยุติการติดต่อ",
+          "scores": {
+            "integrity": 5,
+            "business": -5
+          }
+        }
+      },
+      {
+        "title": "ขอเจรจาเพิ่มยอดตามเงื่อนไขเดิม",
+        "success": {
+          "report": "เงินเข้าคลังแต่เกิดข้อสงสัยหนัก",
+          "scores": {
+            "integrity": -30,
+            "image": -12
+          },
+          "money": 950000
+        },
+        "chance": 0.45,
+        "failure": {
+          "report": "ข้อเสนอถูกเปิดเผยก่อนโอนเงิน",
+          "scores": {
+            "integrity": -25,
+            "image": -15
+          }
+        }
+      }
+    ],
+    "ignored": null,
+    "minLevel": 1,
+    "moralOnly": true
+  },
+  {
+    "id": "moral-ai-official",
+    "category": "government",
+    "title": "โควต้าแยก AI จากโครงการทดลอง",
+    "story": "หนังสือจังหวัดระบุโควต้า AI 1 จุดสำหรับเมืองที่เข้าร่วมโครงการสาธารณะ ไม่มีค่าใช้จ่ายหรือเงื่อนไขส่วนตัว",
+    "choices": [
+      {
+        "title": "ตอบรับตามหนังสือ",
+        "success": {
+          "report": "ได้รับโควต้า AI ที่ถูกต้อง ไม่มีผลเสีย",
+          "scores": {},
+          "aiCredits": 1
+        }
+      },
+      {
+        "title": "ขอเผยแพร่หนังสือให้ประชาชนตรวจสอบ",
+        "success": {
+          "report": "ได้รับโควต้าและเปิดข้อมูลต่อชุมชน",
+          "scores": {
+            "integrity": 5
+          },
+          "aiCredits": 1
+        }
+      },
+      {
+        "title": "ขอให้จังหวัดชี้แจงรายละเอียด",
+        "success": {
+          "report": "จังหวัดยืนยันสิทธิ์และส่งโควต้า",
+          "scores": {
+            "government": 3
+          },
+          "aiCredits": 1
+        }
+      },
+      {
+        "title": "ปฏิเสธและให้เมืองพึ่งตนเอง",
+        "success": {
+          "report": "จังหวัดจัดโควต้าให้เมืองอื่น",
+          "scores": {
+            "government": -5
+          }
+        }
+      },
+      {
+        "title": "ขอเพิ่มอีกหนึ่งจุดนอกหลักเกณฑ์",
+        "success": {
+          "report": "จังหวัดไม่อนุมัติเพิ่ม แต่ให้โควต้าเดิม",
+          "scores": {
+            "government": -8,
+            "integrity": -5
+          },
+          "aiCredits": 1
+        }
+      }
+    ],
+    "ignored": null,
+    "minLevel": 1,
+    "moralOnly": true
+  },
+  {
+    "id": "moral-ai-private",
+    "category": "integrity",
+    "title": "โควต้า AI ฟรีจากผู้รับเหมา",
+    "story": "ผู้รับเหมารายหนึ่งเสนอจัดหาโควต้า AI 1 จุดให้ทันที ขอเพียงให้จดชื่อบริษัทเป็นผู้รับเหมาที่ควรได้รับการพิจารณาก่อนในอนาคต",
+    "choices": [
+      {
+        "title": "รับข้อเสนอและตกลงจดชื่อบริษัท",
+        "success": {
+          "report": "ได้รับโควต้า แต่เงื่อนไขเอื้อประโยชน์ถูกทักท้วง",
+          "scores": {
+            "integrity": -22,
+            "image": -8,
+            "business": 5
+          },
+          "aiCredits": 1
+        }
+      },
+      {
+        "title": "ขอรับโดยไม่มีสิทธิพิเศษและลงเอกสาร",
+        "success": {
+          "report": "บริษัทถอนข้อเสนอ",
+          "scores": {
+            "integrity": 8,
+            "business": -5
+          }
+        }
+      },
+      {
+        "title": "ปฏิเสธและเปิดเผยข้อเสนอ",
+        "success": {
+          "report": "ชุมชนชื่นชม ผู้รับเหมาไม่พอใจ",
+          "scores": {
+            "integrity": 12,
+            "business": -12
+          }
+        }
+      },
+      {
+        "title": "ขอให้รัฐบาลพิจารณาแทนเมือง",
+        "success": {
+          "report": "รัฐบาลไม่อนุมัติ แต่ชื่นชมการส่งตรวจ",
+          "scores": {
+            "government": 5,
+            "integrity": 5,
+            "business": -5
+          }
+        }
+      },
+      {
+        "title": "ขอเงินสนับสนุนเพิ่มเติมด้วย",
+        "success": {
+          "report": "ได้โควต้าและเงิน แต่การเอื้อประโยชน์ถูกเปิดเผย",
+          "scores": {
+            "integrity": -30,
+            "image": -12
+          },
+          "money": 150000,
+          "aiCredits": 1
+        },
+        "chance": 0.5,
+        "failure": {
+          "report": "บริษัทเปิดเผยการต่อรอง",
+          "scores": {
+            "integrity": -20,
+            "image": -15
+          }
+        }
+      }
+    ],
+    "ignored": null,
+    "minLevel": 1,
+    "moralOnly": true
+  },
+  {
+    "id": "moral-ai-anonymous",
+    "category": "integrity",
+    "title": "โควต้า AI จากผู้สนับสนุนไม่เปิดชื่อ",
+    "story": "ข้อความแจ้งว่าจะส่งโควต้า AI ฟรี 1 จุดผ่านโครงการเอกชน ไม่ขอตอบแทนชัดเจน แต่ช่องผู้สนับสนุนเว้นว่างและเร่งให้ตอบ",
+    "choices": [
+      {
+        "title": "รับโควต้าทันที",
+        "success": {
+          "report": "ตรวจภายหลังพบว่าเป็นทุนสาธารณะจริง",
+          "scores": {},
+          "aiCredits": 1
+        },
+        "chance": 0.45,
+        "failure": {
+          "report": "ตรวจพบความเชื่อมโยงกับผู้เสนอราคาในเมือง",
+          "scores": {
+            "integrity": -20,
+            "image": -8
+          },
+          "aiCredits": 1
+        }
+      },
+      {
+        "title": "ขอเลขเอกสารโครงการก่อนรับ",
+        "success": {
+          "report": "เอกสารยืนยันสิทธิ์และเมืองได้โควต้า",
+          "scores": {
+            "integrity": 6
+          },
+          "aiCredits": 1
+        },
+        "chance": 0.65,
+        "failure": {
+          "report": "ผู้เสนอไม่ส่งหลักฐานและยกเลิก",
+          "scores": {
+            "integrity": 3,
+            "business": -5
+          }
+        }
+      },
+      {
+        "title": "ขอให้หน่วยงานรัฐรับโควต้าแทน",
+        "success": {
+          "report": "รัฐบาลรับเรื่อง แต่เมืองยังไม่ได้โควต้า",
+          "scores": {
+            "government": 5,
+            "integrity": 5
+          }
+        }
+      },
+      {
+        "title": "ปฏิเสธโดยไม่ให้เหตุผล",
+        "success": {
+          "report": "เมืองไม่รับความเสี่ยง แต่เสียโอกาส",
+          "scores": {
+            "integrity": 3
+          }
+        }
+      },
+      {
+        "title": "เปิดเผยข้อความต่อสาธารณะ",
+        "success": {
+          "report": "ประชาชนชื่นชม แต่ผู้ให้ทุนสุจริตบางรายกังวล",
+          "scores": {
+            "integrity": 10,
+            "business": -6,
+            "image": 3
+          }
+        }
+      }
+    ],
+    "ignored": null,
+    "minLevel": 1,
+    "moralOnly": true
+  },
+  {
+    "id": "moral-money-sponsor",
+    "category": "integrity",
+    "title": "เงินสนับสนุนกิจกรรมจากผู้จัดงาน",
+    "story": "ผู้จัดงานเสนอเงิน 450,000 บาท ให้เมืองช่วยประชาสัมพันธ์ และขอไม่กล่าวถึงข้อร้องเรียนเก่าของผู้จัดในประกาศ",
+    "choices": [
+      {
+        "title": "รับเงินและทำตามคำขอ",
+        "success": {
+          "report": "เงินเข้าคลัง แต่เมืองถูกทักท้วงเรื่องปิดบังข้อมูล",
+          "scores": {
+            "integrity": -20,
+            "image": -8,
+            "business": 5
+          },
+          "money": 450000
+        }
+      },
+      {
+        "title": "รับเฉพาะเมื่อเปิดเผยข้อเสนอและข้อร้องเรียน",
+        "success": {
+          "report": "ผู้จัดยอมลดเงื่อนไขและโอนเงิน",
+          "scores": {
+            "integrity": 5,
+            "business": -5
+          },
+          "money": 250000
+        },
+        "chance": 0.6,
+        "failure": {
+          "report": "ผู้จัดถอนตัว",
+          "scores": {
+            "business": -10,
+            "integrity": 5
+          }
+        }
+      },
+      {
+        "title": "ปฏิเสธการรับเงิน",
+        "success": {
+          "report": "รักษาความเป็นอิสระ แต่ธุรกิจไม่พอใจ",
+          "scores": {
+            "integrity": 8,
+            "business": -8
+          }
+        }
+      },
+      {
+        "title": "ขอผู้ตรวจอิสระตรวจเอกสาร",
+        "success": {
+          "report": "พบข้อขัดแย้ง เมืองไม่รับเงิน",
+          "scores": {
+            "integrity": 10,
+            "admin": -5
+          }
+        },
+        "cost": 25000
+      },
+      {
+        "title": "เสนอเงินบริจาคผ่านชุมชนแทน",
+        "success": {
+          "report": "ชุมชนได้รับความช่วยเหลือ แต่เมืองไม่ได้งบ",
+          "scores": {
+            "people": 8,
+            "business": -5
+          }
+        }
+      }
+    ],
+    "ignored": null,
+    "minLevel": 1,
+    "moralOnly": true
+  },
+  {
+    "id": "moral-community",
+    "category": "people",
+    "title": "งบช่วยชุมชนหรือช่วยกิจการ",
+    "story": "งบมีจำกัด ชุมชนขอความช่วยเหลือค่าครองชีพ ธุรกิจขอช่วยค่าใช้จ่ายเพื่อรักษางาน ทั้งสองฝ่ายมีข้อมูลสมเหตุสมผล",
+    "choices": [
+      {
+        "title": "จัดงบทั้งหมดให้ชุมชน",
+        "success": {
+          "report": "ชุมชนพอใจ ธุรกิจรู้สึกถูกละเลย",
+          "scores": {
+            "people": 12,
+            "business": -12
+          }
+        },
+        "cost": 90000
+      },
+      {
+        "title": "จัดงบทั้งหมดให้ธุรกิจ",
+        "success": {
+          "report": "ธุรกิจได้รับความช่วยเหลือ ชุมชนไม่พอใจ",
+          "scores": {
+            "business": 12,
+            "people": -12
+          }
+        },
+        "cost": 90000
+      },
+      {
+        "title": "แบ่งงบตามเกณฑ์ที่เปิดเผย",
+        "success": {
+          "report": "ทั้งสองฝ่ายได้บางส่วน ฝ่ายบริหารถูกกดดัน",
+          "scores": {
+            "integrity": 8,
+            "people": 4,
+            "business": 4,
+            "admin": -7
+          }
+        },
+        "cost": 90000
+      },
+      {
+        "title": "ขอรัฐบาลสมทบก่อนตัดสินใจ",
+        "success": {
+          "report": "รัฐบาลช่วยประสาน แต่เงินยังไม่เข้า",
+          "scores": {
+            "government": 7,
+            "people": -5,
+            "business": -5
+          }
+        }
+      },
+      {
+        "title": "เก็บงบไว้สำหรับเหตุฉุกเฉิน",
+        "success": {
+          "report": "เมืองรักษางบ แต่ทั้งสองฝ่ายผิดหวัง",
+          "scores": {
+            "admin": 8,
+            "people": -8,
+            "business": -8
+          }
+        }
+      }
+    ],
+    "ignored": null,
+    "minLevel": 1,
+    "moralOnly": true
+  },
+  {
+    "id": "moral-friend",
+    "category": "business",
+    "title": "คำขอจากเพื่อนเก่าของนายก",
+    "story": "เพื่อนเก่าที่ทำธุรกิจเสนอเงิน 600,000 บาท หากบริษัทมีสิทธิ์เข้าหารือก่อนรายอื่น ไม่ได้ขอให้ข้ามกฎหมายโดยตรง",
+    "choices": [
+      {
+        "title": "รับเงินและตกลงให้เข้าหารือก่อน",
+        "success": {
+          "report": "เงินเข้าคลัง แต่สิทธิ์ไม่เท่าเทียมถูกวิจารณ์",
+          "scores": {
+            "integrity": -20,
+            "business": 5,
+            "image": -10
+          },
+          "money": 600000
+        }
+      },
+      {
+        "title": "ให้ทุกบริษัทหารือพร้อมกันโดยไม่รับเงิน",
+        "success": {
+          "report": "รักษาความเท่าเทียม แต่เพื่อนเก่าผิดหวัง",
+          "scores": {
+            "integrity": 10,
+            "business": -8
+          }
+        }
+      },
+      {
+        "title": "เสนอรับเงินโดยไม่ให้สิทธิพิเศษ",
+        "success": {
+          "report": "เพื่อนยอมสนับสนุนผ่านช่องทางปกติ",
+          "scores": {
+            "integrity": 5
+          },
+          "money": 300000
+        },
+        "chance": 0.5,
+        "failure": {
+          "report": "เพื่อนถอนข้อเสนอ",
+          "scores": {
+            "business": -5
+          }
+        }
+      },
+      {
+        "title": "ขอคณะกรรมการอิสระพิจารณา",
+        "success": {
+          "report": "เป็นกลาง แต่เกิดความล่าช้า",
+          "scores": {
+            "integrity": 8,
+            "admin": -5
+          }
+        },
+        "cost": 20000
+      },
+      {
+        "title": "ไม่ตอบรับและไม่เปิดเผยข้อเสนอ",
+        "success": {
+          "report": "ไม่มีเงินเข้าเมือง แต่ข้อสงสัยยังอยู่",
+          "scores": {
+            "image": -5,
+            "business": -5
+          }
+        }
+      }
+    ],
+    "ignored": null,
+    "minLevel": 1,
+    "moralOnly": true
+  }
+]);
 function createMayorCore(definitions, random=Math.random){
 const keys=["admin","image","fame","government","people","business","integrity"], byId=new Map(definitions.map(d=>[d.id,d]));
 const clone=x=>JSON.parse(JSON.stringify(x));
 const dayAt=t=>Math.floor((t-360)/1440), start=d=>d*1440+360, deadline=d=>start(d)+600;
 const grade=v=>v>=86?"A":v>=71?"B":v>=51?"C":v>=26?"D":"F";
 const clamp=v=>Math.max(0,Math.min(100,Math.trunc(v)));
-function fresh(t){return {version:1,day:dayAt(t),lastTime:t,scores:Object.fromEntries(keys.map(k=>[k,60])),issues:[],effects:[],history:[],flags:[],suspendedUntil:null,sequence:0,unpaid:0,started:false};}
+function fresh(t){return {version:1,day:dayAt(t),lastTime:t,scores:Object.fromEntries(keys.map(k=>[k,60])),issues:[],effects:[],history:[],flags:[],suspendedUntil:null,sequence:0,unpaid:0,started:false,nightAt:null,nightDay:null};}
 function restore(saved,t){if(!saved||saved.version!==1)return fresh(t);const s=clone(saved);for(const k of keys)s.scores[k]=clamp(Number.isFinite(s.scores[k])?s.scores[k]:60);return s;}
 const active=(s,t)=>s.suspendedUntil!==null&&t<s.suspendedUntil;
 function score(s,changes,t){let crossed=false;for(const [k,delta] of Object.entries(changes||{})){if(!keys.includes(k))continue;const before=s.scores[k];s.scores[k]=clamp(before+delta);if(before>25&&s.scores[k]<=25)crossed=true;}if(crossed&&!active(s,t))s.suspendedUntil=start(dayAt(t)+2);}
@@ -8803,20 +10035,25 @@ function count(level){if(level<=5)return 1;if(level<=10)return 1+(random()<.5?1:
 function hasBuildings(need,city){return Object.entries(need||{}).every(([key,n])=>(city.buildingCounts?.[key]||0)>=n);}
 function eligibleOption(s,o,city){if(!Object.entries(o.requires||{}).every(([k,n])=>s.scores[k]>=n)||!hasBuildings(o.requiresBuildings,city))return false;if(o.task?.kind==="build"){const b=city.catalog?.[o.task.key];if(!b||!b.unlocked||!Number.isFinite(b.cost)||b.cost<0||city.canBuild?.(o.task.key,o.task.count)!==true)return false;const net=Math.max(0,b.cost*o.task.count-(o.grant||0));if(net>Math.floor(Math.max(0,city.money)*.2))return false;}return true;}
 function options(s,issue,city){const d=byId.get(issue.eventId);return d.choices.map((o,i)=>({index:i,...clone(o),enabled:eligibleOption(s,o,city),payable:Math.min(Math.max(0,Math.floor(o.cost||0)),Math.floor(Math.max(0,city.money)*.2))}));}
-function candidates(s,city,category){const pool=definitions.filter(d=>(!category||d.category===category)&&city.level>=d.minLevel&&hasBuildings(d.requiresBuildings,city)&&!s.issues.some(i=>i.eventId===d.id)&&(!d.choices.some(o=>o.task?.kind==="build")||d.category!=="government"||d.choices.some(o=>o.task?.kind==="build"&&eligibleOption(s,o,city))));const normal=pool.filter(d=>!d.fallbackOnly);return normal.length?normal:pool;}
+function candidates(s,city,category){const pool=definitions.filter(d=>(!category||d.category===category)&&city.level>=d.minLevel&&hasBuildings(d.requiresBuildings,city)&&!s.issues.some(i=>i.eventId===d.id)&&(!d.choices.some(o=>o.task?.kind==="build")||d.category!=="government"||d.choices.some(o=>o.task?.kind==="build"&&eligibleOption(s,o,city))));const regular=pool.filter(d=>!d.emergencyOnly&&!d.moralOnly);const normal=regular.filter(d=>!d.fallbackOnly);return normal.length?normal:regular;}
 function issue(s,city,category,source){const a=candidates(s,city,category);if(!a.length)return null;const d=a[Math.min(a.length-1,Math.floor(random()*a.length))];const i={id:++s.sequence,eventId:d.id,category:d.category,status:"pending",source,day:s.day};s.issues.push(i);return i;}
 function ensureDailyCoverage(s,city,t){if(active(s,t)||t>=deadline(s.day))return;for(const category of keys)if(!s.issues.some(i=>i.category===category))issue(s,city,category,"daily");}
-function startDay(s,city,t){s.started=true;if(active(s,t)||t>=deadline(s.day))return;ensureDailyCoverage(s,city,t);for(let i=1,n=count(city.level);i<n;i++)if(!issue(s,city,null,"daily"))break;}
-function record(s,i,report,t,details=null){s.history.push({id:i.id,eventId:i.eventId,category:i.category,status:i.status,report,at:t,...(details?{details}: {})});}
-function apply(s,i,result,city,t,cashBefore=city.money){const r=result||{},before={...s.scores};if(r.money)city.money+=r.money;score(s,r.scores,t);const scoreChanges=Object.fromEntries(Object.keys(r.scores||{}).filter(k=>keys.includes(k)).map(k=>[k,{before:before[k],after:s.scores[k],delta:s.scores[k]-before[k]}]));for(const e of r.effects||[]){if(["floodDamage","fillPopulation"].includes(e.kind)){city.applyEffect?.(clone(e));}else if(t<start(i.day+1)){s.effects.push({...clone(e),expires:start(i.day+1),source:i.id});}}for(const flag of r.flags||[])if(!s.flags.includes(flag))s.flags.push(flag);record(s,i,r.report||"",t,{money:r.money||0,scores:clone(r.scores||{}),effects:clone(r.effects||[]),paid:i.paid||0,grant:i.grant||0,scoreChanges,cashDelta:city.money-cashBefore});return r.report||"";}
-function choose(s,id,index,city,t){const i=s.issues.find(x=>x.id===id);if(!i||i.status!=="pending"||active(s,t)||dayAt(t)!==i.day||t>=deadline(i.day))return {ok:false};const o=options(s,i,city)[index];if(!o?.enabled)return {ok:false};const cashBefore=city.money;if(o.payable)city.money-=o.payable;if(o.grant)city.money+=o.grant;i.selected=index;i.paid=o.payable;i.grant=o.grant||0;if(o.task){i.status="working";i.task=clone(o.task);if(o.task.kind==="build")i.baseline=(city.buildingIds?.[o.task.key]||[]).slice();record(s,i,"รับภารกิจแล้ว",t,{money:0,scores:{},effects:[],paid:i.paid,grant:i.grant,scoreChanges:{},cashDelta:city.money-cashBefore});return {ok:true,working:true};}const won=o.chance===undefined||random()<o.chance;i.status=won?"success":"failed";i.rollWon=won;return {ok:true,won,report:apply(s,i,won?o.success:o.failure,city,t,cashBefore)};}
+function specialIssue(s,city,kind,t){const pool=definitions.filter(d=>d[kind]&&city.level>=d.minLevel&&!s.issues.some(i=>i.eventId===d.id)&&(!d.target||Object.keys(city.buildingIds||{}).some(k=>d.target.includes(city.catalog?.[k]?.kind)&&city.buildingIds[k].length)));if(!pool.length)return null;const d=pool[Math.min(pool.length-1,Math.floor(random()*pool.length))];const i={id:++s.sequence,eventId:d.id,category:d.category,status:"pending",source:kind==="emergencyOnly"?"night":"moral",day:s.day};if(i.source==="night"){i.openedAt=t;i.deadline=Math.min(start(s.day+1),t+120);if(d.target){const targets=Object.keys(city.buildingIds).filter(k=>d.target.includes(city.catalog[k]?.kind)).flatMap(k=>city.buildingIds[k].map(id=>({id,name:city.catalog[k].name+" #"+id})));i.target=targets[Math.min(targets.length-1,Math.floor(random()*targets.length))];}}s.issues.push(i);return i;}
+function planNight(s,t){if(s.nightDay===s.day)return;s.nightDay=s.day;s.nightAt=null;if(active(s,t))return;const first=start(s.day)+720,last=start(s.day)+960;if(t<=last){const earliest=Math.max(first,Math.ceil(t));s.nightAt=earliest+Math.floor(random()*(last-earliest+1));}}
+function startDay(s,city,t){s.started=true;planNight(s,t);if(active(s,t)||t>=deadline(s.day))return;ensureDailyCoverage(s,city,t);for(let i=1,n=count(city.level);i<n;i++)if(!issue(s,city,null,"daily"))break;specialIssue(s,city,"moralOnly",t);}
+function issueDeadline(i){return i.source==="night"&&Number.isFinite(i.deadline)?i.deadline:deadline(i.day);}
+function needsAdvance(s,t){return !s?.started||s.day!==dayAt(t)||s.nightDay!==s.day||s.lastTime<deadline(s.day)&&t>=deadline(s.day)||Number.isFinite(s.nightAt)&&t>=s.nightAt||s.issues.some(i=>i.source==="night"&&i.status==="pending"&&t>=issueDeadline(i));}
+function nightPulse(s,city,t){if(!Number.isFinite(s.nightAt)||t<s.nightAt)return;const at=s.nightAt;s.nightAt=null;if(active(s,t)||t>=at+120||t>=start(s.day+1))return;specialIssue(s,city,"emergencyOnly",at);}
+function record(s,i,report,t,details=null){s.history.push({id:i.id,eventId:i.eventId,category:i.category,status:i.status,report,at:t,source:i.source,...(i.target?{target:clone(i.target)}:{}),...(details?{details}: {})});}
+function apply(s,i,result,city,t,cashBefore=city.money){const r=result||{},before={...s.scores},aiBefore=city.aiCredits;if(r.money)city.money+=r.money;if(r.aiCredits&&Number.isFinite(city.aiCredits))city.aiCredits=Math.min(100000,Math.max(0,city.aiCredits+r.aiCredits));score(s,r.scores,t);const scoreChanges=Object.fromEntries(Object.keys(r.scores||{}).filter(k=>keys.includes(k)).map(k=>[k,{before:before[k],after:s.scores[k],delta:s.scores[k]-before[k]}]));for(const e of r.effects||[]){if(["floodDamage","fillPopulation"].includes(e.kind)){city.applyEffect?.(clone(e));}else if(t<start(i.day+1)){s.effects.push({...clone(e),expires:start(i.day+1),source:i.id});}}for(const flag of r.flags||[])if(!s.flags.includes(flag))s.flags.push(flag);record(s,i,r.report||"",t,{money:r.money||0,scores:clone(r.scores||{}),effects:clone(r.effects||[]),paid:i.paid||0,grant:i.grant||0,scoreChanges,cashDelta:city.money-cashBefore,aiCredits:Number.isFinite(aiBefore)?city.aiCredits-aiBefore:0});return r.report||"";}
+function choose(s,id,index,city,t){const i=s.issues.find(x=>x.id===id);if(!i||i.status!=="pending"||active(s,t)||dayAt(t)!==i.day||t>=issueDeadline(i))return {ok:false};const o=options(s,i,city)[index];if(!o?.enabled)return {ok:false};const cashBefore=city.money;if(o.payable)city.money-=o.payable;if(o.grant)city.money+=o.grant;i.selected=index;i.paid=o.payable;i.grant=o.grant||0;if(o.task){i.status="working";i.task=clone(o.task);if(o.task.kind==="build")i.baseline=(city.buildingIds?.[o.task.key]||[]).slice();record(s,i,"รับภารกิจแล้ว",t,{money:0,scores:{},effects:[],paid:i.paid,grant:i.grant,scoreChanges:{},cashDelta:city.money-cashBefore});return {ok:true,working:true};}const won=o.chance===undefined||random()<o.chance;i.status=won?"success":"failed";i.rollWon=won;return {ok:true,won,report:apply(s,i,won?o.success:o.failure,city,t,cashBefore)};}
 function finish(s,i,city,t,won){if(i.status!=="working")return false;const o=byId.get(i.eventId).choices[i.selected];i.status=won?"success":"failed";const cashBefore=city.money;if(!won&&i.grant){const paid=Math.min(Math.max(0,city.money),i.grant);city.money-=paid;s.unpaid+=i.grant-paid;}apply(s,i,won?o.success:o.failure,city,t,cashBefore);return true;}
 function checkTasks(s,city,t){for(const i of s.issues){if(i.status!=="working"||t>=start(i.day+1))continue;const task=i.task;let success=false;if(task.kind==="build"){const old=new Set(i.baseline);success=new Set((city.buildingIds?.[task.key]||[]).filter(id=>!old.has(id))).size>=task.count;}else if(task.kind==="performance"){success=Number.isFinite(city.performance)&&city.performance>=task.target;}if(success)finish(s,i,city,t,true);}}
-function expire(s,city,t){for(const i of s.issues){if(i.status==="pending"&&t>=deadline(i.day)){i.status="expired";apply(s,i,{scores:{[i.category]:-10},report:"ละเลยการตัดสินใจก่อน 16:00"},city,deadline(i.day));}}}
-function advance(s,city,t){if(t<s.lastTime)throw new Error("Mayor clock cannot run backward");if(!s.started)startDay(s,city,s.lastTime);while(s.day<dayAt(t)){const boundary=start(s.day+1);expire(s,city,boundary);for(const i of s.issues)if(i.status==="working")finish(s,i,city,boundary,false);s.effects=s.effects.filter(e=>e.expires>boundary);s.issues=[];s.day++;startDay(s,city,boundary);}ensureDailyCoverage(s,city,t);expire(s,city,t);checkTasks(s,city,t);s.lastTime=t;}
+function expire(s,city,t){for(const i of s.issues){if(i.status==="pending"&&t>=issueDeadline(i)){i.status="expired";const r=i.source==="night"?byId.get(i.eventId)?.ignored:null;apply(s,i,r||{scores:{[i.category]:-10},report:"ละเลยการตัดสินใจก่อน 16:00"},city,issueDeadline(i));}}}
+function advance(s,city,t){if(t<s.lastTime)throw new Error("Mayor clock cannot run backward");if(!s.started)startDay(s,city,s.lastTime);while(s.day<dayAt(t)){const boundary=start(s.day+1);expire(s,city,boundary);for(const i of s.issues)if(i.status==="working")finish(s,i,city,boundary,false);s.effects=s.effects.filter(e=>e.expires>boundary);s.issues=[];s.day++;startDay(s,city,boundary);}planNight(s,t);ensureDailyCoverage(s,city,t);expire(s,city,t);nightPulse(s,city,t);checkTasks(s,city,t);s.lastTime=t;}
 function explore(s,city,category,t){if(!keys.includes(category)||active(s,t)||t>=deadline(s.day)||dayAt(t)!==s.day||s.issues.some(i=>i.category===category&&["pending","working"].includes(i.status)))return null;return issue(s,city,category,"explore");}
 function tripReward(s,base,scope,isTourist,t){const es=s.effects.filter(e=>t<e.expires&&(e.scope==="all"||e.scope===scope||isTourist&&e.scope==="tourist"));const multipliers=es.filter(e=>e.kind==="tripMultiplier"||e.kind==="touristMultiplier").map(e=>e.value);const delta=Math.min(0,...es.filter(e=>e.kind==="tripDelta").map(e=>e.value));return Math.max(0,Math.floor(base*Math.max(1,...multipliers)+delta));}
-return {fresh,restore,grade,dayAt,start,deadline,noon:deadline,active,options,advance,explore,choose,checkTasks,tripReward};
+return {fresh,restore,grade,dayAt,start,deadline,issueDeadline,needsAdvance,noon:deadline,active,options,advance,explore,choose,checkTasks,tripReward};
 }
 if(typeof window!=='undefined')window.SMMayorCore={createMayorCore,MAYOR_EVENTS,MAYOR_CATEGORIES};
 if(typeof module!=='undefined'&&module.exports)module.exports={createMayorCore,MAYOR_EVENTS,MAYOR_CATEGORIES};
