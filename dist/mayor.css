@@ -311,3 +311,8 @@
  #mayorPanel .mayor-suspension-time b{font-size:13px}
  #mayorPanel .mayor-afternoon p,#mayorPanel .mayor-suspension-body p{font-size:11px;line-height:1.4}
 }
+
+/* Phones: keep the right edge for mayor actions only; touch camera gestures remain available. */
+@media (max-width:720px) and (pointer:coarse), (max-width:1000px) and (max-height:520px) and (pointer:coarse) {
+ html body #cameraPitchRail{display:none!important;pointer-events:none!important}
+}
