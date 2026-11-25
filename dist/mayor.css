@@ -228,3 +228,12 @@
 #mayorPanel .mayor-afternoon p{font-size:11px;padding:0 8px;margin:6px 0;line-height:1.55}
 #mayorPanel .mayor-afternoon button{display:flex;align-items:center;justify-content:center;gap:5px;width:calc(100% - 16px);margin:7px 8px 8px;min-height:35px;background:#9f581b;border-color:#9f581b;color:white;font-weight:700}
 #mayorPanel .mayor-afternoon button:hover{background:#874914;color:white}
+
+/* v7.2: readable question briefing; no pre-decision score or outcome hints. */
+#mayorPanel .mayor-story h3{font-size:17px;line-height:1.4;color:var(--my-text);font-weight:800;margin:0 0 7px}
+#mayorPanel .mayor-story p.mayor-question-text,#mayorPanel .mayor-story p.mayor-question-extra{font-size:14px;line-height:1.65;color:var(--my-text);font-weight:500;margin:0 0 7px}
+#mayorPanel .mayor-question-facts{display:flex;flex-wrap:wrap;gap:4px 8px;border-top:1px solid var(--my-line);padding-top:6px;margin-top:7px;font-size:12px;line-height:1.5;color:var(--my-text)}
+#mayorPanel .mayor-question-facts>b{flex-basis:100%;font-weight:750;font-size:11px}
+#mayorPanel .mayor-question-facts>span{background:var(--my-soft);border-radius:4px;padding:3px 6px}
+@media(min-width:850px) and (pointer:fine){#mayorPanel[data-mode="issues"][data-detail="true"] .mayor-story h3{font-size:19px}#mayorPanel .mayor-story p.mayor-question-text,#mayorPanel .mayor-story p.mayor-question-extra{font-size:15px}}
+@media(max-width:600px){#mayorPanel .mayor-story h3{font-size:16px}#mayorPanel .mayor-story p.mayor-question-text,#mayorPanel .mayor-story p.mayor-question-extra{font-size:14px;line-height:1.6}#mayorPanel .mayor-question-facts{font-size:11px}}
