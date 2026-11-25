@@ -5925,6 +5925,2870 @@ MAYOR_EVENTS.push(...[
     ]
   }
 ]);
+// Append only: saved choice indices from 7.0 remain unchanged.
+const MAYOR_EXTRA_CHOICES = {
+  "admin-rain": [
+    {
+      "title": "ประสานทีมอาสาสมัคร",
+      "success": {
+        "report": "ทีมชุมชนพร้อมรับมือฝน",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ตั้งศูนย์รับแจ้งเหตุ",
+      "success": {
+        "report": "เจ้าหน้าที่พร้อมรับเรื่องฉุกเฉิน",
+        "scores": {
+          "admin": 5,
+          "people": 3
+        }
+      },
+      "cost": 30000
+    }
+  ],
+  "admin-traffic": [
+    {
+      "title": "ขอความร่วมมือประชาชนจัดระเบียบการเดินทาง",
+      "success": {
+        "report": "ตัวแทนชุมชนยอมประสานงาน",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ลดเงินรางวัลเดินทาง 100 บาท แลกงบประสานงานวันนี้",
+      "success": {
+        "report": "เมืองประหยัดงบจากภารกิจในวันนี้",
+        "scores": {
+          "admin": 5,
+          "people": -5
+        },
+        "effects": [
+          {
+            "scope": "all",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    }
+  ],
+  "image-interview": [
+    {
+      "title": "เชิญผู้แทนประชาชนร่วมให้ข้อมูล",
+      "success": {
+        "report": "สื่อรับฟังข้อมูลจากทั้งสองฝ่าย",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    }
+  ],
+  "image-party": [
+    {
+      "title": "ให้ชุมชนเป็นเจ้าภาพโดยไม่ใช้งบเมือง",
+      "success": {
+        "report": "ประชาชนจัดงานเรียบง่ายเอง",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "จัดงานปิด ไม่เปิดเผยรายชื่อผู้สนับสนุน",
+      "chance": 0.3,
+      "success": {
+        "report": "งานผ่านไปโดยไม่มีเสียงวิจารณ์",
+        "scores": {
+          "image": 5
+        }
+      },
+      "failure": {
+        "report": "ข้อมูลผู้สนับสนุนกลายเป็นประเด็นข่าว",
+        "scores": {
+          "image": -15,
+          "integrity": -5
+        }
+      }
+    }
+  ],
+  "fame-food": [
+    {
+      "title": "เก็บรายได้ร้านอาหารลดลง 100 บาทวันนี้ เพื่อร่วมงาน",
+      "success": {
+        "report": "สมาคมตอบรับส่วนลด",
+        "scores": {
+          "fame": 5,
+          "business": 5
+        },
+        "effects": [
+          {
+            "scope": "restaurant",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    },
+    {
+      "title": "ให้ผู้จัดโปรโมตงานด้วยตนเอง",
+      "chance": 0.3,
+      "success": {
+        "report": "งานได้รับความสนใจเกินคาด",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "failure": {
+        "report": "ผู้จัดทำประชาสัมพันธ์ไม่สำเร็จ",
+        "scores": {
+          "fame": -10
+        }
+      }
+    }
+  ],
+  "fame-news": [
+    {
+      "title": "ขอความร่วมมือสมาคมธุรกิจส่งข้อมูลท่องเที่ยว",
+      "success": {
+        "report": "สมาคมส่งข้อมูลให้สื่อโดยไม่ใช้งบ",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ให้สื่อเลือกมุมโปรโมตเองทั้งหมด",
+      "chance": 0.3,
+      "success": {
+        "report": "ข่าวได้รับความนิยม",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "failure": {
+        "report": "เมืองถูกนำเสนอในแง่ลบ",
+        "scores": {
+          "fame": -10,
+          "image": -5
+        }
+      }
+    }
+  ],
+  "government-home": [
+    {
+      "title": "เจรจารับงบ 144,000 บาท สร้างบ้านเริ่มต้น 3 หลัง",
+      "task": {
+        "kind": "build",
+        "key": "home_starter",
+        "count": 3
+      },
+      "grant": 144000,
+      "requires": {
+        "government": 86
+      },
+      "success": {
+        "report": "ส่งมอบบ้านเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบบ้านเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอรับงบ 24,000 บาท สร้างบ้านเริ่มต้น 1 หลัง",
+      "task": {
+        "kind": "build",
+        "key": "home_starter",
+        "count": 1
+      },
+      "grant": 24000,
+      "requires": {
+        "government": 51
+      },
+      "success": {
+        "report": "ส่งมอบบ้านเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบบ้านเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ใช้งบเมืองเอง สร้างบ้านเริ่มต้น 1 หลัง",
+      "task": {
+        "kind": "build",
+        "key": "home_starter",
+        "count": 1
+      },
+      "success": {
+        "report": "ส่งมอบบ้านเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบบ้านเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    }
+  ],
+  "people-welcome": [
+    {
+      "title": "ให้ชุมชนช่วยต้อนรับผู้สมัคร",
+      "success": {
+        "report": "ชุมชนร่วมประสานผู้สนใจ",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "image": 71
+      }
+    },
+    {
+      "title": "เปิดจุดให้คำปรึกษาการย้ายถิ่น",
+      "success": {
+        "report": "ผู้สนใจได้รับข้อมูลครบถ้วน",
+        "scores": {
+          "people": 5
+        }
+      },
+      "cost": 20000
+    }
+  ],
+  "people-cost": [
+    {
+      "title": "ขอธุรกิจร่วมช่วยเหลือโดยไม่ใช้งบเมือง",
+      "success": {
+        "report": "เจ้าของกิจการยอมร่วมประสานมาตรการ",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ลดรายได้จากร้านค้า 150 บาทวันนี้",
+      "success": {
+        "report": "ชุมชนได้รับมาตรการลดรายได้เฉพาะร้านค้า",
+        "scores": {
+          "people": 5,
+          "business": -5
+        },
+        "effects": [
+          {
+            "scope": "shop",
+            "kind": "tripDelta",
+            "value": -150
+          }
+        ]
+      }
+    }
+  ],
+  "business-pub": [
+    {
+      "title": "ออกเงินสนับสนุนการประสานงานกับชุมชน",
+      "success": {
+        "report": "สมาคมผับพอใจกับมาตรการ",
+        "scores": {
+          "business": 10,
+          "people": 5
+        }
+      },
+      "cost": 45000
+    }
+  ],
+  "integrity-donor": [
+    {
+      "title": "แจ้งหน่วยงานตรวจสอบข้อเสนอ",
+      "success": {
+        "report": "เจ้าหน้าที่รับเรื่องและตรวจสอบ",
+        "scores": {
+          "integrity": 15,
+          "government": 5,
+          "business": -5
+        }
+      },
+      "cost": 50000
+    }
+  ],
+  "integrity-audit": [
+    {
+      "title": "เชิญผู้แทนรัฐบาลตรวจเอกสารร่วมกัน",
+      "success": {
+        "report": "เจ้าหน้าที่ส่วนกลางช่วยตรวจสอบ",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "รับรองบัญชีตามเอกสารเดิม",
+      "chance": 0.3,
+      "success": {
+        "report": "การตรวจเอกสารผ่านโดยไม่มีข้อทักท้วง",
+        "scores": {
+          "integrity": 3
+        }
+      },
+      "failure": {
+        "report": "ความคลาดเคลื่อนถูกเปิดเผย",
+        "scores": {
+          "integrity": -15,
+          "image": -5
+        }
+      }
+    }
+  ],
+  "admin-crossing": [
+    {
+      "title": "ประสานตัวแทนผู้ใช้ถนนโดยตรง",
+      "success": {
+        "report": "ผู้แทนร่วมแก้ข้อร้องเรียน",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "รับเรื่องแต่ไม่อนุมัติงบเพิ่ม",
+      "success": {
+        "report": "ข้อร้องเรียนยังไม่ได้แก้ครบ",
+        "scores": {
+          "admin": -5,
+          "people": -3
+        }
+      }
+    }
+  ],
+  "admin-office": [
+    {
+      "title": "ให้หัวหน้าฝ่ายจัดสรรคนใหม่",
+      "success": {
+        "report": "ทีมงานจัดคิวงานได้ดีขึ้น",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "admin": 71
+      }
+    },
+    {
+      "title": "ยกเลิกงานเอกสารบางส่วนโดยไม่หารือ",
+      "chance": 0.3,
+      "success": {
+        "report": "งานค้างลดลง",
+        "scores": {
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "งานสำคัญตกหล่น",
+        "scores": {
+          "admin": -15,
+          "integrity": -5
+        }
+      }
+    }
+  ],
+  "admin-inspection": [
+    {
+      "title": "ขอผู้ตรวจประเมินให้คำแนะนำก่อนเริ่ม",
+      "success": {
+        "report": "ทีมประเมินยอมให้คำแนะนำฟรี",
+        "scores": {
+          "admin": 5
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ส่งเจ้าหน้าที่อบรมมาตรฐานการตรวจ",
+      "success": {
+        "report": "ทีมงานเข้าใจมาตรฐานมากขึ้น",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "cost": 40000
+    }
+  ],
+  "admin-park": [
+    {
+      "title": "ขอสมาคมชุมชนร่วมดูแลพื้นที่เดิม",
+      "success": {
+        "report": "ชุมชนช่วยจัดการพื้นที่สาธารณะ",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ลดรายได้จากสวน 100 บาทวันนี้",
+      "success": {
+        "report": "ประชาชนพอใจกับมาตรการชั่วคราว",
+        "scores": {
+          "admin": 5,
+          "people": 5
+        },
+        "effects": [
+          {
+            "scope": "park",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    }
+  ],
+  "admin-restaurant": [
+    {
+      "title": "ขอสมาคมร้านอาหารช่วยประสานคำร้อง",
+      "success": {
+        "report": "สมาคมร่วมจัดการปัญหาบริการ",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ลดรายได้ร้านอาหาร 150 บาทวันนี้",
+      "success": {
+        "report": "ประชาชนพอใจกับข้อตกลงชั่วคราว",
+        "scores": {
+          "admin": 5,
+          "people": 5
+        },
+        "effects": [
+          {
+            "scope": "restaurant",
+            "kind": "tripDelta",
+            "value": -150
+          }
+        ]
+      }
+    }
+  ],
+  "admin-shops": [
+    {
+      "title": "เชิญร้านค้าช่วยสำรวจจุดบริการ",
+      "success": {
+        "report": "สมาคมส่งข้อมูลให้เทศบาล",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ลดรายได้ร้านค้า 100 บาทวันนี้",
+      "success": {
+        "report": "เมืองช่วยบรรเทาข้อร้องเรียน",
+        "scores": {
+          "admin": 5,
+          "people": 5
+        },
+        "effects": [
+          {
+            "scope": "shop",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    }
+  ],
+  "admin-audit-cost": [
+    {
+      "title": "ขอให้ส่วนกลางส่งผู้ตรวจงบ",
+      "success": {
+        "report": "ผู้ตรวจจากรัฐบาลช่วยทบทวนงบ",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ข้ามการตรวจและรับรองรายจ่ายเดิม",
+      "chance": 0.3,
+      "success": {
+        "report": "รายจ่ายผ่านการตรวจรอบแรก",
+        "scores": {
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "พบรายการที่อธิบายไม่ได้",
+        "scores": {
+          "admin": -15,
+          "integrity": -10
+        }
+      }
+    }
+  ],
+  "admin-office-supply": [
+    {
+      "title": "ขอบริษัทช่วยสำรวจความต้องการแรงงาน",
+      "success": {
+        "report": "ภาคธุรกิจร่วมส่งข้อมูล",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ลดรายได้ภารกิจไปสำนักงาน 100 บาทวันนี้",
+      "success": {
+        "report": "เกิดมาตรการช่วยเหลือสำนักงาน",
+        "scores": {
+          "admin": 5,
+          "business": 5
+        },
+        "effects": [
+          {
+            "scope": "office",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    }
+  ],
+  "admin-city-fair": [
+    {
+      "title": "ขอรับการประเมินเบื้องต้นโดยไม่ชิงรางวัล",
+      "success": {
+        "report": "กรรมการช่วยประเมินโดยไม่ใช้งบ",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ประกาศว่าเมืองผ่านมาตรฐานก่อนประเมิน",
+      "chance": 0.3,
+      "success": {
+        "report": "ข่าวได้รับการตอบรับ",
+        "scores": {
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "กรรมการออกมาทักท้วง",
+        "scores": {
+          "admin": -15,
+          "fame": -10
+        }
+      }
+    }
+  ],
+  "admin-bridge-review": [
+    {
+      "title": "ให้ทีมช่างเมืองนำเสนอรายงานเดิม",
+      "success": {
+        "report": "ทีมงานยืนยันรายการตรวจสอบ",
+        "scores": {
+          "admin": 5
+        }
+      },
+      "requires": {
+        "admin": 71
+      }
+    },
+    {
+      "title": "เปิดช่องให้ประชาชนแจ้งจุดเสี่ยง",
+      "success": {
+        "report": "ได้รับข้อมูลจุดเสี่ยงเพิ่มเติม",
+        "scores": {
+          "admin": 5,
+          "people": 5
+        }
+      },
+      "cost": 20000
+    }
+  ],
+  "admin-paper": [
+    {
+      "title": "ขอส่วนกลางส่งเจ้าหน้าที่ประสานงาน",
+      "success": {
+        "report": "ส่วนกลางช่วยจัดลำดับเอกสาร",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "อนุมัติเอกสารค้างโดยไม่ตรวจทีละฉบับ",
+      "chance": 0.3,
+      "success": {
+        "report": "เอกสารผ่านไปโดยไม่มีปัญหา",
+        "scores": {
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "เอกสารผิดเงื่อนไขถูกตรวจพบ",
+        "scores": {
+          "admin": -15,
+          "integrity": -10
+        }
+      }
+    }
+  ],
+  "admin-public-work": [
+    {
+      "title": "ขอชุมชนช่วยจัดกิจกรรมในพื้นที่เดิม",
+      "success": {
+        "report": "ชุมชนตกลงช่วยโดยไม่ใช้งบ",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ลดรายได้จากสวน 150 บาทวันนี้",
+      "success": {
+        "report": "ชุมชนยอมรับมาตรการชั่วคราว",
+        "scores": {
+          "admin": 5,
+          "people": 5
+        },
+        "effects": [
+          {
+            "scope": "park",
+            "kind": "tripDelta",
+            "value": -150
+          }
+        ]
+      }
+    }
+  ],
+  "admin-training": [
+    {
+      "title": "ขอหัวหน้าฝ่ายสอนงานภายใน",
+      "success": {
+        "report": "ทีมงานจัดอบรมภายในสำเร็จ",
+        "scores": {
+          "admin": 10
+        }
+      },
+      "requires": {
+        "admin": 71
+      }
+    },
+    {
+      "title": "รับรองว่าทีมผ่านอบรมโดยไม่จัดจริง",
+      "chance": 0.3,
+      "success": {
+        "report": "ไม่มีผู้ทักท้วงใบรับรอง",
+        "scores": {
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "เอกสารถูกตรวจพบว่าไม่ตรงจริง",
+        "scores": {
+          "admin": -15,
+          "integrity": -10
+        }
+      }
+    }
+  ],
+  "image-birthday": [
+    {
+      "title": "ให้ชุมชนร่วมจัดงานเล็ก ๆ โดยไม่ใช้งบเมือง",
+      "success": {
+        "report": "ชุมชนจัดงานเอง",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "จัดงานเฉพาะผู้สนับสนุนรายใหญ่",
+      "chance": 0.3,
+      "success": {
+        "report": "งานผ่านไปอย่างเงียบ ๆ",
+        "scores": {
+          "image": 5
+        }
+      },
+      "failure": {
+        "report": "รายชื่อแขกทำให้สื่อวิจารณ์",
+        "scores": {
+          "image": -15,
+          "integrity": -5
+        }
+      }
+    }
+  ],
+  "image-photo": [
+    {
+      "title": "ให้ตัวแทนชุมชนร่วมตรวจข้อเท็จจริง",
+      "success": {
+        "report": "ชุมชนยืนยันข้อมูลต่อสื่อ",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ยอมรับว่าการรับรองไม่เหมาะสม",
+      "success": {
+        "report": "สื่อชื่นชมการยอมรับข้อบกพร่อง",
+        "scores": {
+          "image": 5,
+          "integrity": 5
+        }
+      }
+    }
+  ],
+  "image-walk": [
+    {
+      "title": "ลงพื้นที่ร่วมกับตัวแทนชุมชนโดยไม่จัดงาน",
+      "success": {
+        "report": "ประชาชนได้พูดคุยกับนายกโดยตรง",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "จัดเฉพาะการพบปะผู้สนับสนุน",
+      "chance": 0.3,
+      "success": {
+        "report": "กิจกรรมได้รับการตอบรับ",
+        "scores": {
+          "image": 5
+        }
+      },
+      "failure": {
+        "report": "ผู้ร้องเรียนรู้สึกถูกกันออก",
+        "scores": {
+          "image": -15,
+          "people": -5
+        }
+      }
+    }
+  ],
+  "image-award": [
+    {
+      "title": "ชวนคณะกรรมการประเมินผลงานต่อหน้าประชาชน",
+      "success": {
+        "report": "คณะกรรมการยอมเปิดเผยการประเมิน",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "integrity": 71
+      }
+    },
+    {
+      "title": "รับเงินจากผู้จัดงานแต่ไม่ขึ้นเวที",
+      "success": {
+        "report": "เมืองได้เงินแต่พลาดการพบปะชุมชน",
+        "scores": {
+          "image": -5,
+          "integrity": -5
+        },
+        "money": 50000
+      }
+    }
+  ],
+  "image-rumor": [
+    {
+      "title": "ให้รัฐบาลช่วยยืนยันข้อมูล",
+      "success": {
+        "report": "ส่วนกลางยืนยันเอกสารที่เกี่ยวข้อง",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ยอมรับว่ามีขั้นตอนที่ยังต้องปรับปรุง",
+      "success": {
+        "report": "สื่อยอมรับคำชี้แจงตรงไปตรงมา",
+        "scores": {
+          "image": 5,
+          "integrity": 5
+        }
+      }
+    }
+  ],
+  "image-speech": [
+    {
+      "title": "ชวนตัวแทนชุมชนขึ้นเวทีร่วมกัน",
+      "success": {
+        "report": "เวทีได้รับคำชื่นชม",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ประกาศผลงานเกินกว่าที่ทำได้",
+      "chance": 0.3,
+      "success": {
+        "report": "ผู้ฟังตอบรับคำพูด",
+        "scores": {
+          "image": 5
+        }
+      },
+      "failure": {
+        "report": "ข้อมูลถูกทักท้วงหลังงาน",
+        "scores": {
+          "image": -15,
+          "integrity": -5
+        }
+      }
+    }
+  ],
+  "image-friend": [
+    {
+      "title": "ให้คณะกรรมการอิสระพิจารณาคำขอ",
+      "success": {
+        "report": "คำขอได้รับการพิจารณาตามเกณฑ์",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "integrity": 71
+      }
+    },
+    {
+      "title": "ให้สิทธิพิเศษโดยไม่ลงเอกสาร",
+      "chance": 0.3,
+      "success": {
+        "report": "ไม่มีข้อร้องเรียนในวันนี้",
+        "scores": {
+          "image": 5
+        }
+      },
+      "failure": {
+        "report": "ข้อตกลงถูกเปิดเผย",
+        "scores": {
+          "image": -15,
+          "integrity": -10
+        }
+      }
+    }
+  ],
+  "image-camera": [
+    {
+      "title": "เปิดให้ผู้แทนชุมชนร่วมเล่าเรื่องเมือง",
+      "success": {
+        "report": "สารคดีสะท้อนชีวิตชุมชน",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ขายสิทธิ์ประชาสัมพันธ์ให้ผู้ผลิต",
+      "success": {
+        "report": "คลังได้เงินแต่สื่อบางส่วนวิจารณ์",
+        "scores": {
+          "image": -5,
+          "integrity": -5
+        },
+        "money": 80000
+      }
+    }
+  ],
+  "image-promise": [
+    {
+      "title": "ขอผู้แทนชุมชนร่วมกำหนดเป้าหมาย",
+      "success": {
+        "report": "ชุมชนชื่นชมการตั้งเป้าหมายร่วมกัน",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "จัดเวทีติดตามผลต่อสาธารณะ",
+      "success": {
+        "report": "ประชาชนได้รับข้อมูลอย่างเป็นระบบ",
+        "scores": {
+          "image": 5,
+          "integrity": 5
+        }
+      },
+      "cost": 25000
+    }
+  ],
+  "image-gift": [
+    {
+      "title": "ขอเจ้าหน้าที่รัฐรับรองการส่งคืนของขวัญ",
+      "success": {
+        "report": "การส่งคืนมีหลักฐานเปิดเผย",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ให้ผู้ส่งเปลี่ยนเป็นของขวัญส่วนตัว",
+      "chance": 0.3,
+      "success": {
+        "report": "เรื่องไม่ถูกนำเสนอในข่าว",
+        "scores": {
+          "image": 3
+        }
+      },
+      "failure": {
+        "report": "สื่อพบการรับของขวัญ",
+        "scores": {
+          "image": -15,
+          "integrity": -10
+        }
+      }
+    }
+  ],
+  "image-survey": [
+    {
+      "title": "ขอชุมชนร่วมตรวจวิธีสำรวจ",
+      "success": {
+        "report": "ตัวแทนชุมชนยอมรับกระบวนการ",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "เผยแพร่เฉพาะผลสำรวจด้านบวก",
+      "chance": 0.3,
+      "success": {
+        "report": "ข่าวได้รับความนิยม",
+        "scores": {
+          "image": 5
+        }
+      },
+      "failure": {
+        "report": "ผู้สำรวจเปิดเผยข้อมูลที่ถูกตัดออก",
+        "scores": {
+          "image": -15,
+          "integrity": -5
+        }
+      }
+    }
+  ],
+  "image-critic": [
+    {
+      "title": "เชิญผู้วิจารณ์มาร่วมรับฟังข้อเท็จจริง",
+      "success": {
+        "report": "ผู้วิจารณ์ยอมรับการพูดคุย",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ยอมรับข้อผิดพลาดพร้อมเปิดข้อมูล",
+      "success": {
+        "report": "ความน่าเชื่อถือกลับมาบางส่วน",
+        "scores": {
+          "image": 5,
+          "integrity": 5
+        }
+      }
+    }
+  ],
+  "image-community": [
+    {
+      "title": "ขอชุมชนจัดงานด้วยทรัพยากรที่มี",
+      "success": {
+        "report": "งานจัดได้โดยไม่ใช้งบเมือง",
+        "scores": {
+          "image": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "รับเงินสนับสนุนจากผู้ประกอบการในงาน",
+      "success": {
+        "report": "คลังได้เงินแต่ชุมชนบางส่วนไม่พอใจ",
+        "scores": {
+          "image": 5,
+          "people": -5
+        },
+        "money": 40000
+      }
+    }
+  ],
+  "fame-tour-film": [
+    {
+      "title": "ขอผู้ผลิตนำเสนอเมืองโดยใช้เรื่องราวชุมชน",
+      "success": {
+        "report": "ผู้ผลิตยอมรับรูปแบบที่เมืองเสนอ",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "อนุญาตให้ใช้ชื่อเมืองโดยไม่ตรวจเนื้อหา",
+      "chance": 0.3,
+      "success": {
+        "report": "ภาพยนตร์โปรโมตเมืองได้ดี",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "failure": {
+        "report": "เนื้อหาทำให้เมืองเสียชื่อเสียง",
+        "scores": {
+          "fame": -15
+        }
+      }
+    }
+  ],
+  "fame-hotel-guide": [
+    {
+      "title": "ลดรายได้นักท่องเที่ยวชั่วคราวไม่ได้ จึงใช้ส่วนลดภารกิจโรงแรม 100 บาท",
+      "success": {
+        "report": "สมาคมที่พักยอมรับการสนับสนุน",
+        "scores": {
+          "fame": 5,
+          "business": 5
+        },
+        "effects": [
+          {
+            "scope": "hotel",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    },
+    {
+      "title": "ให้สมาคมเผยแพร่คู่มือโดยไม่ตรวจทาน",
+      "chance": 0.3,
+      "success": {
+        "report": "คู่มือได้รับความนิยม",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "failure": {
+        "report": "ข้อมูลที่พักผิดพลาดและถูกตำหนิ",
+        "scores": {
+          "fame": -10
+        }
+      }
+    }
+  ],
+  "fame-restaurant-star": [
+    {
+      "title": "ชวนสมาคมร้านอาหารดูแลการต้อนรับ",
+      "success": {
+        "report": "สมาคมจัดกิจกรรมให้เอง",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ลดรายได้ร้านอาหาร 100 บาทวันนี้",
+      "success": {
+        "report": "ร้านอาหารได้รับการสนับสนุนชั่วคราว",
+        "scores": {
+          "fame": 5,
+          "business": 5
+        },
+        "effects": [
+          {
+            "scope": "restaurant",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    }
+  ],
+  "fame-shopping": [
+    {
+      "title": "ใช้เครือข่ายรัฐบาลช่วยเผยแพร่ข่าวงาน",
+      "success": {
+        "report": "หน่วยงานกลางช่วยประชาสัมพันธ์",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ให้ผู้จัดโฆษณาเกินจริงเพื่อเรียกความสนใจ",
+      "chance": 0.3,
+      "success": {
+        "report": "งานเป็นกระแส",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "failure": {
+        "report": "นักท่องเที่ยวตำหนิโฆษณา",
+        "scores": {
+          "fame": -15,
+          "integrity": -5
+        }
+      }
+    }
+  ],
+  "fame-night": [
+    {
+      "title": "ให้ชุมชนช่วยกำหนดแนวทางกิจกรรม",
+      "success": {
+        "report": "ชุมชนยอมรับแผนประชาสัมพันธ์",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "รับสปอนเซอร์จากผู้จัดงาน",
+      "success": {
+        "report": "คลังได้เงิน แต่ชุมชนกังวลเรื่องงาน",
+        "scores": {
+          "fame": 5,
+          "people": -5
+        },
+        "money": 80000
+      }
+    }
+  ],
+  "fame-coast": [
+    {
+      "title": "ขอเครือข่ายส่วนกลางช่วยรณรงค์",
+      "success": {
+        "report": "รัฐบาลสนับสนุนการประชาสัมพันธ์",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "เผยแพร่ภาพชายฝั่งโดยไม่ตรวจสภาพ",
+      "chance": 0.3,
+      "success": {
+        "report": "ภาพได้รับการแชร์",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "failure": {
+        "report": "สื่อทักท้วงสภาพพื้นที่จริง",
+        "scores": {
+          "fame": -15,
+          "image": -5
+        }
+      }
+    }
+  ],
+  "fame-rival": [
+    {
+      "title": "ขอภาคธุรกิจร่วมทำแคมเปญ",
+      "success": {
+        "report": "ผู้ประกอบการช่วยเผยแพร่เมือง",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ประกาศว่าเมืองดีกว่าคู่แข่งโดยไม่เปรียบเทียบข้อมูล",
+      "chance": 0.3,
+      "success": {
+        "report": "แคมเปญได้รับความสนใจ",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "failure": {
+        "report": "เกิดกระแสวิจารณ์การกล่าวอ้าง",
+        "scores": {
+          "fame": -15,
+          "image": -5
+        }
+      }
+    }
+  ],
+  "fame-landmark": [
+    {
+      "title": "ขอส่วนกลางช่วยเผยแพร่ผลงานสถาปัตยกรรม",
+      "success": {
+        "report": "เมืองได้รับการประชาสัมพันธ์จากส่วนกลาง",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "รับเงินสนับสนุนงานนำเสนอแบบมีผู้สนับสนุน",
+      "success": {
+        "report": "คลังได้รับเงินและชื่อเมืองถูกกล่าวถึง",
+        "scores": {
+          "fame": 5,
+          "image": -5
+        },
+        "money": 100000
+      }
+    }
+  ],
+  "fame-park": [
+    {
+      "title": "ให้ตัวแทนครอบครัวจัดกิจกรรมเอง",
+      "success": {
+        "report": "ชุมชนร่วมจัดงานโดยไม่ใช้งบเมือง",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ลดรายได้จากสวน 100 บาทวันนี้",
+      "success": {
+        "report": "ผู้จัดได้รับการสนับสนุน",
+        "scores": {
+          "fame": 5,
+          "people": 5
+        },
+        "effects": [
+          {
+            "scope": "park",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    }
+  ],
+  "fame-visitor": [
+    {
+      "title": "ขอผู้แทนธุรกิจร่วมไกล่เกลี่ย",
+      "success": {
+        "report": "กลุ่มทัวร์ยอมรับคำชี้แจงร่วมกัน",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ยอมรับปัญหาอย่างเปิดเผย",
+      "success": {
+        "report": "ผู้ร้องเรียนเห็นว่าเมืองรับผิดชอบ",
+        "scores": {
+          "fame": 5,
+          "integrity": 5
+        }
+      }
+    }
+  ],
+  "fame-press-trip": [
+    {
+      "title": "ขอเครือข่ายรัฐบาลช่วยประสานสื่อ",
+      "success": {
+        "report": "ส่วนกลางช่วยต้อนรับคณะสื่อ",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ให้สปอนเซอร์รับผิดชอบงานต้อนรับ",
+      "success": {
+        "report": "เมืองได้รับเงินสนับสนุนแต่สื่อบางส่วนไม่พอใจ",
+        "scores": {
+          "fame": 5,
+          "image": -5
+        },
+        "money": 70000
+      }
+    }
+  ],
+  "fame-city-award": [
+    {
+      "title": "ขอผู้ประเมินแนะนำโดยไม่เข้าชิง",
+      "success": {
+        "report": "เมืองได้รับคำแนะนำโดยไม่ใช้งบ",
+        "scores": {
+          "fame": 5
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "อ้างรางวัลก่อนผลประเมิน",
+      "chance": 0.3,
+      "success": {
+        "report": "ข่าวได้รับการตอบรับ",
+        "scores": {
+          "fame": 5
+        }
+      },
+      "failure": {
+        "report": "คณะกรรมการปฏิเสธคำกล่าวอ้าง",
+        "scores": {
+          "fame": -15,
+          "integrity": -10
+        }
+      }
+    }
+  ],
+  "fame-festival-sponsor": [
+    {
+      "title": "ให้ชุมชนกำหนดขอบเขตประชาสัมพันธ์",
+      "success": {
+        "report": "ผู้สนับสนุนยอมรับแนวทางชุมชน",
+        "scores": {
+          "fame": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ขอเงินสนับสนุนเพิ่มโดยยืนยันสิทธิ์ผู้จัด",
+      "chance": 0.3,
+      "success": {
+        "report": "ผู้จัดยอมเพิ่มเงิน",
+        "scores": {
+          "fame": 5
+        },
+        "money": 120000
+      },
+      "failure": {
+        "report": "ผู้จัดถอนตัวและข่าวแพร่ออกไป",
+        "scores": {
+          "fame": -15,
+          "business": -5
+        }
+      }
+    }
+  ],
+  "government-grant-shop": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างร้านค้าเริ่มต้น 3 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "shop_starter",
+        "count": 3
+      },
+      "success": {
+        "report": "ส่งมอบร้านค้าเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบร้านค้าเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-grant-food": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างร้านอาหารเริ่มต้น 3 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "restaurant_starter",
+        "count": 3
+      },
+      "success": {
+        "report": "ส่งมอบร้านอาหารเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบร้านอาหารเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-grant-office": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างสำนักงานเริ่มต้น 2 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "office_starter",
+        "count": 2
+      },
+      "success": {
+        "report": "ส่งมอบสำนักงานเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบสำนักงานเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-grant-park": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างสวนเริ่มต้น 3 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "park_starter",
+        "count": 3
+      },
+      "success": {
+        "report": "ส่งมอบสวนเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบสวนเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-grant-hotel": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างโรงแรมเริ่มต้น 2 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "hotel_starter",
+        "count": 2
+      },
+      "success": {
+        "report": "ส่งมอบโรงแรมเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบโรงแรมเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-grant-factory": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างโรงงานเริ่มต้น 2 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "factory_starter",
+        "count": 2
+      },
+      "success": {
+        "report": "ส่งมอบโรงงานเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบโรงงานเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-grant-mall": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างห้างเริ่มต้น 2 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "mall_starter",
+        "count": 2
+      },
+      "success": {
+        "report": "ส่งมอบห้างเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบห้างเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-grant-pub": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างผับเริ่มต้น 2 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "pub_starter",
+        "count": 2
+      },
+      "success": {
+        "report": "ส่งมอบผับเริ่มต้นตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบผับเริ่มต้นไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-grant-home-small": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างบ้านเล็ก 1 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "home_large",
+        "count": 1
+      },
+      "success": {
+        "report": "ส่งมอบบ้านเล็กตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบบ้านเล็กไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-grant-pub-large": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างผับใหญ่ 1 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "pub_large",
+        "count": 1
+      },
+      "success": {
+        "report": "ส่งมอบผับใหญ่ตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบผับใหญ่ไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-grant-mall-large": [
+    {
+      "title": "ใช้งบเมืองเอง สร้างห้างใหญ่ 1 แห่ง",
+      "task": {
+        "kind": "build",
+        "key": "mall_large",
+        "count": 1
+      },
+      "success": {
+        "report": "ส่งมอบห้างใหญ่ตามข้อตกลงแล้ว",
+        "scores": {
+          "government": 10,
+          "admin": 5
+        }
+      },
+      "failure": {
+        "report": "ส่งมอบห้างใหญ่ไม่ครบตามเวลาที่กำหนด",
+        "scores": {
+          "government": -10,
+          "admin": -5
+        }
+      }
+    },
+    {
+      "title": "ขอชะลอโครงการโดยส่งแผนพัฒนาแทน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อจำกัดและเลื่อนโครงการ",
+        "scores": {
+          "government": -3,
+          "admin": 3
+        }
+      }
+    }
+  ],
+  "government-visit": [
+    {
+      "title": "ใช้ความโปร่งใสของเมืองนำเสนอข้อมูลโดยตรง",
+      "success": {
+        "report": "รัฐบาลชื่นชมเอกสารที่ตรวจสอบได้",
+        "scores": {
+          "government": 10
+        }
+      },
+      "requires": {
+        "integrity": 71
+      }
+    },
+    {
+      "title": "เสนอผลงานเกินจริงเพื่อสร้างความประทับใจ",
+      "chance": 0.3,
+      "success": {
+        "report": "คณะดูงานตอบรับดี",
+        "scores": {
+          "government": 5
+        }
+      },
+      "failure": {
+        "report": "เจ้าหน้าที่ตรวจพบข้อมูลไม่ตรง",
+        "scores": {
+          "government": -15,
+          "integrity": -10
+        }
+      }
+    }
+  ],
+  "government-fund-return": [
+    {
+      "title": "ประสานผู้บริจาคในเมืองแทนเงินเทศบาล",
+      "success": {
+        "report": "ภาคธุรกิจช่วยประสานเงินสนับสนุน",
+        "scores": {
+          "government": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "เสนอช่วยด้านข้อมูลโดยไม่สมทบเงิน",
+      "success": {
+        "report": "รัฐบาลรับทราบข้อเสนอ",
+        "scores": {
+          "government": 3
+        }
+      }
+    }
+  ],
+  "people-housing": [
+    {
+      "title": "ขอชุมชนช่วยประสานผู้สมัคร",
+      "success": {
+        "report": "ชุมชนให้ข้อมูลบ้านที่ว่างจริง",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "image": 71
+      }
+    },
+    {
+      "title": "รับเรื่องและแจ้งข้อจำกัดพื้นที่อย่างเปิดเผย",
+      "success": {
+        "report": "ประชาชนเข้าใจข้อจำกัด",
+        "scores": {
+          "people": 5,
+          "integrity": 5
+        }
+      }
+    }
+  ],
+  "people-food": [
+    {
+      "title": "ประสานสมาคมร้านอาหารร่วมรับฟัง",
+      "success": {
+        "report": "สมาคมตกลงประสานปัญหา",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ลดรายได้ร้านอาหาร 150 บาทวันนี้",
+      "success": {
+        "report": "ชุมชนได้รับมาตรการชั่วคราว",
+        "scores": {
+          "people": 5,
+          "business": 3
+        },
+        "effects": [
+          {
+            "scope": "restaurant",
+            "kind": "tripDelta",
+            "value": -150
+          }
+        ]
+      }
+    }
+  ],
+  "people-shopping": [
+    {
+      "title": "เชิญสมาคมร้านค้าหารือกับชุมชน",
+      "success": {
+        "report": "สมาคมยอมรับข้อเสนอชุมชน",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ลดรายได้จากร้านค้า 150 บาทวันนี้",
+      "success": {
+        "report": "เมืองสนับสนุนร้านค้าชั่วคราว",
+        "scores": {
+          "people": 5
+        },
+        "effects": [
+          {
+            "scope": "shop",
+            "kind": "tripDelta",
+            "value": -150
+          }
+        ]
+      }
+    }
+  ],
+  "people-green": [
+    {
+      "title": "ขออาสาสมัครร่วมดูแลพื้นที่เดิม",
+      "success": {
+        "report": "ชุมชนร่วมจัดพื้นที่กิจกรรม",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "image": 71
+      }
+    },
+    {
+      "title": "ลดรายได้จากสวน 100 บาทวันนี้",
+      "success": {
+        "report": "ประชาชนพอใจกับมาตรการ",
+        "scores": {
+          "people": 5
+        },
+        "effects": [
+          {
+            "scope": "park",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    }
+  ],
+  "people-jobs": [
+    {
+      "title": "ขอภาคธุรกิจช่วยรับฟังความต้องการงาน",
+      "success": {
+        "report": "ภาคธุรกิจร่วมประสาน",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ลดรายได้ภารกิจไปสำนักงาน 100 บาทวันนี้",
+      "success": {
+        "report": "คนทำงานได้รับมาตรการชั่วคราว",
+        "scores": {
+          "people": 5,
+          "business": 5
+        },
+        "effects": [
+          {
+            "scope": "office",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    }
+  ],
+  "people-night-noise": [
+    {
+      "title": "ไกล่เกลี่ยกับสมาคมผับโดยตรง",
+      "success": {
+        "report": "ผู้ประกอบการยอมร่วมแก้คำร้องเรียน",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ขู่กลุ่มผู้ร้องเรียนให้หยุดประท้วง",
+      "chance": 0.3,
+      "success": {
+        "report": "กลุ่มผู้ร้องเรียนยุติการประท้วง",
+        "scores": {
+          "people": 5
+        }
+      },
+      "failure": {
+        "report": "คำขู่ถูกเผยแพร่ต่อสาธารณะ",
+        "scores": {
+          "people": -15,
+          "image": -10
+        }
+      }
+    }
+  ],
+  "people-casino": [
+    {
+      "title": "ให้ส่วนกลางร่วมตรวจข้อร้องเรียน",
+      "success": {
+        "report": "รัฐบาลส่งผู้ประสานงานให้",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "กล่าวว่าผู้ประท้วงบิดเบือนข้อมูล",
+      "chance": 0.3,
+      "success": {
+        "report": "การประท้วงยุติลง",
+        "scores": {
+          "people": 5
+        }
+      },
+      "failure": {
+        "report": "ชุมชนรวมตัวต่อต้านหนักขึ้น",
+        "scores": {
+          "people": -15,
+          "image": -10
+        }
+      }
+    }
+  ],
+  "people-fairness": [
+    {
+      "title": "เปิดรายการใช้งบให้ชุมชนตรวจสอบ",
+      "success": {
+        "report": "ชุมชนพอใจความโปร่งใส",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "integrity": 71
+      }
+    },
+    {
+      "title": "จ้างผู้ประสานอิสระรับฟังทุกกลุ่ม",
+      "success": {
+        "report": "ข้อร้องเรียนได้รับการรับฟัง",
+        "scores": {
+          "people": 5,
+          "integrity": 5
+        }
+      },
+      "cost": 25000
+    }
+  ],
+  "people-commute": [
+    {
+      "title": "ให้ผู้แทนแรงงานและธุรกิจร่วมเจรจา",
+      "success": {
+        "report": "ทั้งสองฝ่ายยอมรับการประสานงาน",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "ลดรายได้ภารกิจทั้งหมด 100 บาทวันนี้",
+      "success": {
+        "report": "เมืองยอมลดการจัดเก็บชั่วคราว",
+        "scores": {
+          "people": 5
+        },
+        "effects": [
+          {
+            "scope": "all",
+            "kind": "tripDelta",
+            "value": -100
+          }
+        ]
+      }
+    }
+  ],
+  "people-family": [
+    {
+      "title": "ขอผู้ประกอบการช่วยสนับสนุนกิจกรรมเด็ก",
+      "success": {
+        "report": "ผู้ประกอบการร่วมช่วยโดยไม่ใช้งบเมือง",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "business": 71
+      }
+    },
+    {
+      "title": "รับปากจัดเงินช่วยเหลือโดยไม่อนุมัติงบ",
+      "chance": 0.3,
+      "success": {
+        "report": "ครอบครัวยอมรับการชี้แจง",
+        "scores": {
+          "people": 3
+        }
+      },
+      "failure": {
+        "report": "ครอบครัวไม่พอใจที่ไม่ได้รับความช่วยเหลือ",
+        "scores": {
+          "people": -15,
+          "image": -5
+        }
+      }
+    }
+  ],
+  "people-petition": [
+    {
+      "title": "ขอตัวแทนชุมชนช่วยดูแลผู้สมัคร",
+      "success": {
+        "report": "ตัวแทนร่วมประสานโดยไม่ใช้งบ",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "image": 71
+      }
+    },
+    {
+      "title": "เปิดจุดรับคำปรึกษาที่อยู่อาศัย",
+      "success": {
+        "report": "ผู้สมัครได้รับคำแนะนำ",
+        "scores": {
+          "people": 5
+        }
+      },
+      "cost": 20000
+    }
+  ],
+  "people-recreation": [
+    {
+      "title": "ให้ชุมชนเป็นผู้จัดกิจกรรมเอง",
+      "success": {
+        "report": "ชุมชนช่วยจัดงานโดยไม่ใช้งบ",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "image": 71
+      }
+    },
+    {
+      "title": "รับผู้สนับสนุนที่ขอพื้นที่โฆษณาเพิ่ม",
+      "success": {
+        "report": "คลังได้เงินแต่ผู้ร่วมงานบางส่วนไม่พอใจ",
+        "scores": {
+          "people": -5,
+          "business": 5
+        },
+        "money": 50000
+      }
+    }
+  ],
+  "people-complaint": [
+    {
+      "title": "เปิดข้อมูลคำร้องให้ตัวแทนชุมชนตรวจสอบ",
+      "success": {
+        "report": "ชุมชนเห็นความคืบหน้า",
+        "scores": {
+          "people": 10
+        }
+      },
+      "requires": {
+        "integrity": 71
+      }
+    },
+    {
+      "title": "เพิ่มช่องทางรับฟังผ่านผู้ประสานอิสระ",
+      "success": {
+        "report": "ประชาชนได้รับช่องทางสื่อสารเพิ่มเติม",
+        "scores": {
+          "people": 5
+        }
+      },
+      "cost": 30000
+    }
+  ],
+  "business-food-cost": [
+    {
+      "title": "ขอภาครัฐช่วยประสานข้อเรียกร้อง",
+      "success": {
+        "report": "รัฐบาลช่วยเจรจากับสมาคม",
+        "scores": {
+          "business": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ขู่ว่าจะไม่รับข้อเรียกร้องอีก",
+      "chance": 0.3,
+      "success": {
+        "report": "สมาคมถอนคำร้อง",
+        "scores": {
+          "business": 5
+        }
+      },
+      "failure": {
+        "report": "สมาคมวิจารณ์นโยบายของเมือง",
+        "scores": {
+          "business": -15,
+          "image": -5
+        }
+      }
+    }
+  ],
+  "business-mall-sponsor": [
+    {
+      "title": "ขอส่วนกลางช่วยประชาสัมพันธ์งาน",
+      "success": {
+        "report": "รัฐบาลช่วยโปรโมตงาน",
+        "scores": {
+          "business": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ให้ห้างซื้อสิทธิ์ประชาสัมพันธ์ในวันนี้",
+      "success": {
+        "report": "เมืองได้รับเงินสนับสนุน",
+        "scores": {
+          "business": 5,
+          "image": -5
+        },
+        "money": 80000
+      }
+    }
+  ],
+  "business-night-event": [
+    {
+      "title": "ให้ชุมชนร่วมกำหนดเงื่อนไขงาน",
+      "success": {
+        "report": "ชุมชนยอมรับการประสานงาน",
+        "scores": {
+          "business": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "เรียกเงินสนับสนุนเพิ่มจากผู้จัด",
+      "chance": 0.3,
+      "success": {
+        "report": "ผู้จัดตกลงโอนเพิ่ม",
+        "scores": {
+          "business": 5
+        },
+        "money": 60000
+      },
+      "failure": {
+        "report": "ผู้จัดถอนข้อเสนอและวิจารณ์เมือง",
+        "scores": {
+          "business": -15,
+          "image": -5
+        }
+      }
+    }
+  ],
+  "business-casino-deal": [
+    {
+      "title": "ขอรัฐบาลร่วมตรวจเงื่อนไขก่อนรับข้อเสนอ",
+      "success": {
+        "report": "ข้อตกลงได้รับการพิจารณาอย่างเปิดเผย",
+        "scores": {
+          "business": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ขอเงินเพิ่มแลกกับการประชาสัมพันธ์เฉพาะกลุ่ม",
+      "chance": 0.3,
+      "success": {
+        "report": "กลุ่มทุนตกลงเพิ่มเงิน",
+        "scores": {
+          "business": 5
+        },
+        "money": 150000
+      },
+      "failure": {
+        "report": "ข้อเสนอถูกเปิดเผยและถูกวิจารณ์",
+        "scores": {
+          "business": -15,
+          "integrity": -10
+        }
+      }
+    }
+  ],
+  "business-invest-office": [
+    {
+      "title": "ขอส่วนกลางช่วยประสานนักลงทุน",
+      "success": {
+        "report": "นักลงทุนพอใจการเจรจา",
+        "scores": {
+          "business": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "แจ้งข้อจำกัดการก่อสร้างตรงไปตรงมา",
+      "success": {
+        "report": "นักลงทุนรับทราบเงื่อนไขเมือง",
+        "scores": {
+          "business": 5,
+          "integrity": 5
+        }
+      }
+    }
+  ],
+  "business-monopoly": [
+    {
+      "title": "ให้รัฐบาลร่วมตรวจข้อเสนอ",
+      "success": {
+        "report": "มีการหารือเงื่อนไขโดยเปิดเผย",
+        "scores": {
+          "business": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "เรียกเงินเพิ่มแลกสิทธิ์ประชาสัมพันธ์",
+      "chance": 0.3,
+      "success": {
+        "report": "ผู้ค้ารายใหญ่ตกลงจ่ายเพิ่ม",
+        "scores": {
+          "business": 5
+        },
+        "money": 100000
+      },
+      "failure": {
+        "report": "ผู้ค้ารายย่อยเปิดเผยการต่อรอง",
+        "scores": {
+          "business": -15,
+          "integrity": -10
+        }
+      }
+    }
+  ],
+  "integrity-gift-supplier": [
+    {
+      "title": "ขอหน่วยงานรัฐรับรองกระบวนการปฏิเสธ",
+      "success": {
+        "report": "เจ้าหน้าที่ส่วนกลางร่วมตรวจสอบ",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ขอเปลี่ยนเป็นเงินสนับสนุนโดยไม่ลงรายชื่อ",
+      "chance": 0.3,
+      "success": {
+        "report": "ผู้ให้โอนเงิน",
+        "scores": {
+          "integrity": -5
+        },
+        "money": 80000
+      },
+      "failure": {
+        "report": "รายละเอียดผู้ให้ถูกเปิดเผย",
+        "scores": {
+          "integrity": -20,
+          "image": -10
+        }
+      }
+    }
+  ],
+  "integrity-contract": [
+    {
+      "title": "ให้คณะกรรมการประชาชนร่วมอ่านสัญญา",
+      "success": {
+        "report": "ตัวแทนชุมชนร่วมตรวจเอกสาร",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ระงับสัญญาจนกว่าจะชี้แจงได้",
+      "success": {
+        "report": "เมืองยังไม่รับข้อผูกพัน",
+        "scores": {
+          "integrity": 5,
+          "admin": -5
+        }
+      }
+    }
+  ],
+  "integrity-relative": [
+    {
+      "title": "ขอรัฐบาลส่งผู้ประเมินอิสระ",
+      "success": {
+        "report": "ส่วนกลางช่วยพิจารณาคำขอ",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ให้ญาติได้รับสิทธิ์โดยไม่เปิดเผย",
+      "chance": 0.3,
+      "success": {
+        "report": "ข้อตกลงผ่านไปโดยไม่มีข่าว",
+        "scores": {
+          "integrity": -5
+        },
+        "money": 70000
+      },
+      "failure": {
+        "report": "หลักฐานความสัมพันธ์ถูกเปิดเผย",
+        "scores": {
+          "integrity": -20,
+          "image": -10
+        }
+      }
+    }
+  ],
+  "integrity-documents": [
+    {
+      "title": "ขอส่วนกลางส่งสำเนาเอกสารที่เกี่ยวข้อง",
+      "success": {
+        "report": "ได้รับเอกสารยืนยันจากส่วนกลาง",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "พักการอนุมัติรายการที่เอกสารไม่ครบ",
+      "success": {
+        "report": "เมืองไม่อนุมัติรายการที่ตรวจสอบไม่ได้",
+        "scores": {
+          "integrity": 5,
+          "admin": -5
+        }
+      }
+    }
+  ],
+  "integrity-public-ledger": [
+    {
+      "title": "เชิญตัวแทนชุมชนตรวจบัญชี",
+      "success": {
+        "report": "ชุมชนได้ตรวจข้อมูลโดยไม่ใช้งบ",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "เผยแพร่เฉพาะรายการที่ตรวจง่าย",
+      "chance": 0.3,
+      "success": {
+        "report": "การเผยแพร่ไม่มีข้อทักท้วง",
+        "scores": {
+          "integrity": 3
+        }
+      },
+      "failure": {
+        "report": "สื่อพบรายการที่ไม่เปิดเผย",
+        "scores": {
+          "integrity": -15,
+          "image": -10
+        }
+      }
+    }
+  ],
+  "integrity-donation": [
+    {
+      "title": "ขอรัฐบาลตรวจแหล่งที่มาให้",
+      "success": {
+        "report": "เจ้าหน้าที่ตรวจสอบและรับรองผู้ให้",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ขอเงินเพิ่มโดยยอมไม่เปิดเผยชื่อ",
+      "chance": 0.3,
+      "success": {
+        "report": "ผู้บริจาคโอนเพิ่ม",
+        "scores": {
+          "integrity": -5
+        },
+        "money": 120000
+      },
+      "failure": {
+        "report": "มีการเปิดเผยการต่อรอง",
+        "scores": {
+          "integrity": -20,
+          "image": -5
+        }
+      }
+    }
+  ],
+  "integrity-secret-deal": [
+    {
+      "title": "ส่งข้อเสนอให้คณะตรวจสอบ",
+      "success": {
+        "report": "เจ้าหน้าที่รับเรื่องตรวจสอบ",
+        "scores": {
+          "integrity": 15,
+          "government": 5,
+          "business": -5
+        }
+      },
+      "cost": 50000
+    },
+    {
+      "title": "ขอเงื่อนไขเพิ่มเติมโดยไม่เปิดเผย",
+      "chance": 0.3,
+      "success": {
+        "report": "ตัวแทนยอมเพิ่มเงิน",
+        "scores": {
+          "integrity": -10
+        },
+        "money": 180000
+      },
+      "failure": {
+        "report": "ตัวแทนเปิดเผยการต่อรอง",
+        "scores": {
+          "integrity": -20,
+          "image": -10
+        }
+      }
+    }
+  ],
+  "integrity-clerk": [
+    {
+      "title": "ขอส่วนกลางส่งผู้สอบสวน",
+      "success": {
+        "report": "รัฐบาลส่งเจ้าหน้าที่มาตรวจสอบ",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ให้เจ้าหน้าที่ชี้แจงภายในโดยไม่เปิดผล",
+      "chance": 0.3,
+      "success": {
+        "report": "เรื่องยุติโดยไม่มีข่าว",
+        "scores": {
+          "integrity": 3
+        }
+      },
+      "failure": {
+        "report": "ข้อมูลการสอบสวนรั่วไหล",
+        "scores": {
+          "integrity": -15,
+          "image": -5
+        }
+      }
+    }
+  ],
+  "integrity-tender": [
+    {
+      "title": "ให้ตัวแทนประชาชนร่วมสังเกตการณ์",
+      "success": {
+        "report": "ขั้นตอนพิจารณาเปิดเผยมากขึ้น",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "ขอเงินเพิ่มจากผู้เสนอสิทธิ์พิเศษ",
+      "chance": 0.3,
+      "success": {
+        "report": "บริษัทเพิ่มข้อเสนอ",
+        "scores": {
+          "integrity": -10
+        },
+        "money": 120000
+      },
+      "failure": {
+        "report": "คู่แข่งเปิดเผยการต่อรอง",
+        "scores": {
+          "integrity": -20,
+          "image": -10
+        }
+      }
+    }
+  ],
+  "integrity-audit-government": [
+    {
+      "title": "เปิดเอกสารต่อสาธารณะพร้อมการตรวจ",
+      "success": {
+        "report": "ส่วนกลางและประชาชนเห็นข้อมูลตรงกัน",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "พักรายการที่ยังตรวจสอบไม่เสร็จ",
+      "success": {
+        "report": "รายการค้างถูกพักเพื่อรอข้อมูล",
+        "scores": {
+          "integrity": 5,
+          "admin": -5
+        }
+      }
+    }
+  ],
+  "integrity-press-ethics": [
+    {
+      "title": "ขอรัฐบาลร่วมตอบคำถามต่อสื่อ",
+      "success": {
+        "report": "รัฐบาลยืนยันขั้นตอนตรวจสอบ",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "จ้างผู้ตรวจสอบอิสระเผยแพร่ผล",
+      "success": {
+        "report": "สื่อได้รับผลการตรวจสอบ",
+        "scores": {
+          "integrity": 15,
+          "image": 5
+        }
+      },
+      "cost": 60000
+    }
+  ],
+  "integrity-compensation": [
+    {
+      "title": "ให้ตัวแทนชุมชนร่วมพิจารณาข้อพิพาท",
+      "success": {
+        "report": "ตัวแทนร่วมตรวจเงื่อนไข",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    },
+    {
+      "title": "เรียกเงินเพิ่มแลกการยุติเรื่อง",
+      "chance": 0.3,
+      "success": {
+        "report": "กลุ่มธุรกิจยอมเพิ่มเงิน",
+        "scores": {
+          "integrity": -10
+        },
+        "money": 100000
+      },
+      "failure": {
+        "report": "รายละเอียดการต่อรองถูกเปิดเผย",
+        "scores": {
+          "integrity": -20,
+          "image": -10
+        }
+      }
+    }
+  ],
+  "integrity-ethics": [
+    {
+      "title": "ขอรัฐบาลร่วมรับรองหลักเกณฑ์",
+      "success": {
+        "report": "รัฐบาลช่วยรับรองแนวทาง",
+        "scores": {
+          "integrity": 10
+        }
+      },
+      "requires": {
+        "government": 71
+      }
+    },
+    {
+      "title": "ประกาศหลักเกณฑ์ที่ไม่ผ่านการตรวจ",
+      "chance": 0.3,
+      "success": {
+        "report": "ไม่มีผู้ทักท้วง",
+        "scores": {
+          "integrity": 3
+        }
+      },
+      "failure": {
+        "report": "เจ้าหน้าที่พบข้อกำหนดที่ไม่เป็นธรรม",
+        "scores": {
+          "integrity": -15,
+          "government": -5
+        }
+      }
+    }
+  ],
+  "government-liaison-daily": [
+    {
+      "title": "เปิดแผนพัฒนาให้ชุมชนร่วมตรวจสอบก่อนส่ง",
+      "success": {
+        "report": "ส่วนกลางชื่นชมข้อมูลที่เปิดเผย",
+        "scores": {
+          "government": 10
+        }
+      },
+      "requires": {
+        "integrity": 71
+      }
+    }
+  ],
+  "business-new-market-daily": [
+    {
+      "title": "ให้ชุมชนร่วมเจรจาเงื่อนไขการลงทุน",
+      "success": {
+        "report": "ผู้สนใจลงทุนชื่นชมการมีส่วนร่วม",
+        "scores": {
+          "business": 10
+        }
+      },
+      "requires": {
+        "people": 71
+      }
+    }
+  ]
+};
+for(const event of MAYOR_EVENTS)event.choices.push(...(MAYOR_EXTRA_CHOICES[event.id]||[]));
 function createMayorCore(definitions, random=Math.random){
 const keys=["admin","image","fame","government","people","business","integrity"], byId=new Map(definitions.map(d=>[d.id,d]));
 const clone=x=>JSON.parse(JSON.stringify(x));
