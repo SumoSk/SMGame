@@ -2029,7 +2029,7 @@ function mayorQuestionMarkup(i,d,c){
  const buildKeys=[...new Set(tasks.filter(t=>t.kind==='build').map(t=>t.key))];
  const facts=['เงินในคลัง '+mayorFmt(c.money)+' บาท'];
  if(tasks.some(t=>t.kind==='performance')&&Number.isFinite(c.performance))facts.push('ภารกิจเดินทางสำเร็จขณะนี้ '+Math.round(c.performance)+'%');
- for(const key of buildKeys){const name=c.catalog[key]?.name||key;facts.push(name+' ที่มี '+(c.buildingCounts[key]||0)+' แห่ง');}
+ for(const key of buildKeys){const name=c.catalog[key]?.name||key;facts.push(name+' ที่มี '+(c.buildingCounts[key]||0)+' แห่ง');const kind=c.catalog[key]?.kind,group=kind==='office'||kind==='factory'?'work':kind;const demand=c.capacityNeed?.(group);if(demand&&!facts.some(v=>v.startsWith('ความจุรวม '+group+' '))) {const label=group==='work'?'งาน':(KINDS[group]?.name||name);facts.push(label+' · ว่าง '+mayorFmt(demand.free)+' / '+mayorFmt(demand.capacity)+' ที่ · ขาด '+mayorFmt(demand.deficit)+' ที่');}}
  return '<p class="mayor-question-text">'+mayorEsc(story)+'</p>'+(extra?'<p class="mayor-question-extra">'+mayorEsc(extra)+'</p>':'')+'<div class="mayor-question-facts"><b>ข้อมูลประกอบการตัดสินใจ</b>'+facts.map(v=>'<span>'+mayorEsc(v)+'</span>').join('')+'</div>';
 }
 function mayorChoiceMarkup(o,c,s,position=o.index){
@@ -2038,7 +2038,7 @@ function mayorChoiceMarkup(o,c,s,position=o.index){
  const build=o.task?.kind==='build'?c.catalog[o.task.key]?.cost*o.task.count:0;
  const locked=!o.enabled||mayorLocked();
  const meta=(req?'<span>'+mayorEsc(req)+'</span>':'')+(need?'<span>ต้องมี '+mayorEsc(need)+'</span>':'')+(o.cost?'<span class="mayor-cost">งบที่ต้องอนุมัติ '+mayorFmt(o.payable)+' บาท</span>':'')+(o.task&&o.grant?'<span>งบตามข้อเสนอ '+mayorFmt(o.grant)+' บาท</span>':'')+(build?'<span>ค่าก่อสร้าง '+mayorFmt(build)+' บาท</span>':'')+(o.task?.kind==='performance'?'<span>เป้าหมาย '+o.task.target+'%</span>':'')+(o.task?'<span>ก่อน 06:00 วันถัดไป</span>':'');
- let reason='';if(locked){if(mayorLocked())reason='พักอำนาจ';else if(Object.entries(o.requires||{}).some(([k,n])=>s.scores[k]<n))reason='เกรดไม่ถึง';else if(Object.entries(o.requiresBuildings||{}).some(([key,n])=>(c.buildingCounts[key]||0)<n))reason='จำนวนอาคารไม่ครบ';else if(o.task?.kind==='build'&&!c.canBuild(o.task.key,o.task.count))reason='โควตาก่อสร้างไม่พอ';else reason='งบหรือเงื่อนไขไม่ครบ';}
+ let reason='';if(locked){if(mayorLocked())reason='พักอำนาจ';else if(Object.entries(o.requires||{}).some(([k,n])=>s.scores[k]<n))reason='เกรดไม่ถึง';else if(Object.entries(o.requiresBuildings||{}).some(([key,n])=>(c.buildingCounts[key]||0)<n))reason='จำนวนอาคารไม่ครบ';else if(o.capacityBlock)reason=o.capacityBlock;else if(o.task?.kind==='build'&&!c.canBuild(o.task.key,o.task.count))reason='โควตาก่อสร้างไม่พอ';else reason='งบหรือเงื่อนไขไม่ครบ';}
  return '<button type="button" class="mayor-choice mayor-option mayor-blind-option" data-mayor-choice="'+o.index+'" '+(locked?'disabled':'')+'><span class="mayor-option-head"><span class="mayor-option-number">'+String(position+1).padStart(2,'0')+'</span><b>'+mayorEsc(o.title)+'</b><span class="mayor-choice-type">'+(locked?mayorIcon('lock'):mayorIcon('next'))+'</span></span>'+(meta?'<span class="mayor-meta">'+meta+'</span>':'')+(reason?'<small class="mayor-lock-reason">'+mayorEsc(reason)+'</small>':'')+'</button>';
 }
 function mayorIssueTitle(i,d=mayorModule.MAYOR_EVENTS.find(x=>x.id===i.eventId)){return (d?.title||'เหตุการณ์บริหารเมือง').replaceAll('{target}',i.target?.name||'อาคารในเมือง');}
@@ -2079,10 +2079,30 @@ function mayorResultMarkup(i,log,s,progress=''){
 }
 
 function mayorState(){if(!mayorEngine||!state)return null;if(!state.mayor)state.mayor=mayorEngine.fresh(state.time);return state.mayor;}
+// Reuse actual service demand (including incoming reservations), not building count.
+function mayorCapacityDemand(){
+ const d=cityDemand(),out={};
+ const set=(kind,capacity,free,waiting)=>{capacity=Math.max(0,capacity||0);free=Math.max(0,free||0);waiting=Math.max(0,waiting||0);out[kind]={capacity,free,waiting,deficit:Math.max(0,waiting-free)};};
+ const home=d.housing;
+ // Keep a modest 10% housing buffer for the population already living here.
+ set('home',home.capacity,home.free,home.people+Math.ceil(home.used*.1));
+ set('work',d.jobs.capacity,d.jobs.free,d.jobs.people);
+ const touristWaiting={};let hotelCapacity=0,hotelBooked=0,hotelWaiting=0;
+ for(const b of state.buildings.values()){const t=CATALOG[b.key];if(t?.beds){hotelCapacity+=t.beds;hotelBooked+=b.guests?.size||0;}}
+ for(const c of state.citizens.values()){
+  if(!c.tourist||c.removed||c.enteredAt==null||c.returning)continue;
+  if(!c.hotelId&&c.wantsHotel&&c.nights<c.maxNights)hotelWaiting++;
+  const step=c.itinerary?.[c.tourIndex];
+  if(!state.vehicles.get(c.vehicleId)&&c.tourRetries>0&&step&&step.at<=state.time&&state.time<c.tourEnd&&/เต็ม|ไม่มีอาคาร/.test(c.problem||'')&&!/ไม่มีเส้นทาง|ปิดบริการ/.test(c.problem||''))touristWaiting[step.kind]=(touristWaiting[step.kind]||0)+1;
+ }
+ for(const r of d.services)set(r.kind,r.capacity,r.free,r.missing+r.full+(touristWaiting[r.kind]||0));
+ set('hotel',hotelCapacity,hotelCapacity-hotelBooked,hotelWaiting);
+ return out;
+}
 function mayorCity(){
  const counts={},ids={};for(const b of state.buildings.values()){counts[b.key]=(counts[b.key]||0)+1;(ids[b.key]||=[]).push(b.id);}
- const catalog={};for(const [k,t] of Object.entries(CATALOG))catalog[k]={name:t.name,kind:t.kind,cost:t.cost,unlocked:!t.legacyOnly&&!['home_small','home_medium'].includes(k)&&!buildingQuotaStatus(k).locked};
- return {get money(){return state.money},set money(v){state.money=v},get aiCredits(){return ensureCityLevel().aiCredits},set aiCredits(v){ensureCityLevel().aiCredits=v},level:ensureCityLevel().level,buildingCounts:counts,buildingIds:ids,catalog,performance:currentMissionScore(),canBuild:(k,n)=>{const q=buildingQuotaStatus(k);return !!catalog[k]?.unlocked&&(!q.limited||q.remaining>=n);}};
+ let capacity=null;const catalog={};for(const [k,t] of Object.entries(CATALOG))catalog[k]={name:t.name,kind:t.kind,cost:t.cost,residents:t.residents,jobs:t.jobs,service:t.service,beds:t.beds,unlocked:!t.legacyOnly&&!['home_small','home_medium'].includes(k)&&!buildingQuotaStatus(k).locked};
+ return {get money(){return state.money},set money(v){state.money=v},get aiCredits(){return ensureCityLevel().aiCredits},set aiCredits(v){ensureCityLevel().aiCredits=v},level:ensureCityLevel().level,buildingCounts:counts,buildingIds:ids,catalog,capacityNeed:k=>(capacity??=mayorCapacityDemand())[k],performance:currentMissionScore(),canBuild:(k,n)=>{const q=buildingQuotaStatus(k);return !!catalog[k]?.unlocked&&(!q.limited||q.remaining>=n);}};
 }
 function mayorEffect(kind){const s=state?.mayor;return !!s?.effects.some(e=>e.kind===kind&&e.expires>state.time);}
 function mayorLocked(){const s=state?.mayor;return !!(s&&mayorEngine.active(s,state.time));}
