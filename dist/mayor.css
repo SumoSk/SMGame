@@ -136,3 +136,23 @@
 #mayorPanel[data-urgent="true"]{border-color:#be5353;box-shadow:0 12px 42px #52232260}
 #mayorPanel[data-urgent="true"] .mayor-header-icon{color:#a83c3f;background:#fce9e8}
 @media(max-width:600px){#mayorPanel .mayor-blind-option{padding:8px 6px}#mayorPanel .mayor-blind-option .mayor-option-head b{font-size:12px}}
+
+/* v7.2 mobile: mirror the scaled left buttons, keep camera pitch independently tappable. */
+@media(max-width:720px), (pointer:coarse){
+ #mayorRail{pointer-events:none;overscroll-behavior:contain;touch-action:pan-y}
+ #mayorRail button{pointer-events:auto;touch-action:pan-y}
+ #mayorRail button svg{width:1em;height:1em}
+}
+@media(pointer:coarse){
+ body:has(#mayorRail:not([hidden])) #cameraPitchRail{right:calc(74px + env(safe-area-inset-right,0px))}
+ body:has(#mayorPanel:not([hidden])) #cameraPitchRail{opacity:0;pointer-events:none}
+}
+@media(max-width:720px) and (pointer:coarse){
+ body:has(#mayorRail:not([hidden])) #cameraPitchRail{right:calc(64px + env(safe-area-inset-right,0px))}
+}
+@media(max-width:1000px) and (max-height:520px) and (pointer:coarse){
+ body:has(#mayorRail:not([hidden])) #cameraPitchRail{right:calc(64px + env(safe-area-inset-right,0px))}
+}
+@media(max-width:520px) and (pointer:coarse){
+ body:has(#mayorRail:not([hidden])) #cameraPitchRail{right:calc(52px + env(safe-area-inset-right,0px))}
+}
