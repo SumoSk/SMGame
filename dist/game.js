@@ -1897,6 +1897,7 @@ const mayorEngine=mayorModule?.createMayorCore(
  ()=>{state.mayorSeed=(Math.imul(state.mayorSeed||1723951,1664525)+1013904223)>>>0;return state.mayorSeed/4294967296;}
 );
 let mayorPanelMode='',mayorViewedIssue=null,mayorAutoCity=null,mayorAutoDay=null,mayorReport='',mayorRenderKey='',mayorNextTaskCheck=-Infinity;
+let mayorSuspensionSeen=null,mayorSuspensionDetails=false;
 const mayorTitles={level:'ภารกิจหลัก',status:'สถานะนายก',issues:'บริหารเมือง',effects:'สถานะพิเศษ',history:'ประวัติ'};
 
 const MAYOR_ICON_PATHS={
@@ -1947,7 +1948,7 @@ function mayorScoreHud(s){
  hud.hidden=false;
  const locked=mayorEngine.active(s,state.time),key=Object.values(s.scores).join(',')+'|'+locked+'|'+s.suspendedUntil;
  if(hud.dataset.renderKey===key)return;hud.dataset.renderKey=key;
- hud.innerHTML='<div class="mayor-hud-head">'+mayorIcon('status')+'<b>สถานะนายก</b><small> / 100</small></div>'+Object.keys(mayorModule.MAYOR_CATEGORIES).map(k=>{const value=s.scores[k],grade=mayorGrade(value);return '<div class="mayor-hud-row" data-grade="'+grade+'" title="'+mayorEsc(mayorModule.MAYOR_CATEGORIES[k])+'"><span class="mayor-hud-icon">'+mayorIcon(k)+'</span><span class="mayor-hud-name">'+mayorEsc(MAYOR_SHORT_LABELS[k])+'</span><strong>'+value+'</strong><b class="mayor-hud-grade">'+grade+'</b></div>';}).join('')+(locked?'<div class="mayor-hud-suspended">พักอำนาจ</div>':'');
+ hud.innerHTML='<div class="mayor-hud-head">'+mayorIcon('status')+'<b>สถานะนายก</b><small> / 100</small></div>'+Object.keys(mayorModule.MAYOR_CATEGORIES).map(k=>{const value=s.scores[k],grade=mayorGrade(value);return '<div class="mayor-hud-row" data-grade="'+grade+'" title="'+mayorEsc(mayorModule.MAYOR_CATEGORIES[k])+'"><span class="mayor-hud-icon">'+mayorIcon(k)+'</span><span class="mayor-hud-name">'+mayorEsc(MAYOR_SHORT_LABELS[k])+'</span><strong>'+value+'</strong><b class="mayor-hud-grade">'+grade+'</b></div>';}).join('')+(locked?'<div class="mayor-hud-suspended">ถูกพักอำนาจ · ถึง 06:00 วันที่ '+(mayorEngine.dayAt(s.suspendedUntil)+1)+'</div>':'');
 }
 function mayorResultMarkup(i,log,s,progress=''){
  const status=i.status,d=log?.details||{},event=mayorModule.MAYOR_EVENTS.find(x=>x.id===i.eventId),choice=event?.choices?.[i.selected];
@@ -2024,6 +2025,22 @@ function mayorLayout(){
   else{if(icon)icon.style.lineHeight='';if(name)name.style.lineHeight='';}
  }
 }
+function mayorSuspensionInfo(s,t){
+ const until=s.suspendedUntil,day=mayorEngine.dayAt(until)+1;
+ const f=Object.keys(mayorModule.MAYOR_CATEGORIES).filter(k=>s.scores[k]<=25);
+ const triggerDay=mayorEngine.dayAt(until)-2;
+ const trigger=(s.history||[]).find(h=>mayorEngine.dayAt(h.at)===triggerDay&&Object.values(h.details?.scoreChanges||{}).some(v=>v.before>25&&v.after<=25));
+ const causes=trigger?Object.keys(trigger.details.scoreChanges).filter(k=>trigger.details.scoreChanges[k].before>25&&trigger.details.scoreChanges[k].after<=25):f;
+ const minutes=Math.max(0,Math.ceil(until-t));
+ return {day,f,causes,trigger,remaining:Math.floor(minutes/60)+' ชม. '+minutes%60+' นาที'};
+}
+function mayorSuspensionMarkup(s,t){
+ const x=mayorSuspensionInfo(s,t),names=x.causes.map(k=>mayorModule.MAYOR_CATEGORIES[k]||k).join(' และ ');
+ const scores=x.f.map(k=>'<span>'+mayorEsc(mayorModule.MAYOR_CATEGORIES[k])+' <b>'+mayorFmt(s.scores[k])+'/100 · F</b></span>').join('');
+ const headline=names?'คุณบริหารด้าน'+names+'ติด F':'คะแนนการบริหารต่ำกว่ามาตรฐาน';
+ const reason=x.trigger?mayorEsc(x.trigger.report):'คะแนนหมวดใดหมวดหนึ่งลดลงถึงระดับ F (0–25 คะแนน) ระบบจึงระงับอำนาจบริหารชั่วคราว';
+ return '<section class="mayor-suspension" role="region" aria-label="ประกาศพักอำนาจนายก"><div class="mayor-suspension-head"><span class="mayor-suspension-icon" aria-hidden="true">!</span><div><small>ประกาศระงับอำนาจบริหารเมือง</small><h3>คุณถูกพักงาน 1 วัน</h3></div></div><div class="mayor-suspension-body"><strong class="mayor-suspension-cause">'+mayorEsc(headline)+'</strong>'+(scores?'<div class="mayor-suspension-scores">'+scores+'</div>':'')+'<div class="mayor-suspension-time"><small>คืนอำนาจอีกครั้ง</small><b>06:00 น. วันที่ '+x.day+'</b><span>เหลือ '+x.remaining+' ในเกม</span></div><p>นับจากวันที่ถูกลงโทษ จะถูกพักอำนาจจนหมดวันนั้นและอีกหนึ่งวันเต็ม</p><p class="mayor-suspension-limit"><b>ระหว่างนี้คุณไม่สามารถ</b><span>สร้างหรือรื้อถอนถนน · สร้าง รื้อถอน หรือย้ายอาคาร · ขยายเมือง · ควบคุมไฟจราจร · ตัดสินใจบริหารเมือง</span></p><p>ประชาชนยังเดินทางตามปกติ และคะแนนเดิมจะไม่ถูกรีเซ็ตเมื่อพ้นโทษ</p>'+(mayorSuspensionDetails?'<div class="mayor-suspension-detail"><b>สาเหตุการพักอำนาจ</b><p>'+reason+'</p></div>':'')+'<div class="mayor-suspension-actions"><button type="button" data-mayor-action="suspension-details" aria-expanded="'+mayorSuspensionDetails+'">'+(mayorSuspensionDetails?'ซ่อนรายละเอียด':'ดูสาเหตุ')+'</button><button type="button" data-mayor-action="ack-suspension">รับทราบ</button></div></div></section>';
+}
 function mayorUI(force=false){
  if(!mayorEngine||!state||typeof document.createElement!=='function'||!document.body?.appendChild||!$('cityLeftRail'))return;
  if(window.SMGameAuthLocked){mayorClose();if($('mayorRail'))$('mayorRail').hidden=true;if($('mayorScoreHud'))$('mayorScoreHud').hidden=true;return;}
@@ -2039,16 +2056,24 @@ function mayorUI(force=false){
  const pending=s.issues.filter(i=>i.status==='pending');
  const urgent=pending.find(i=>i.source==='night'&&!i.alerted);
  const badge=rail.querySelector('[data-mayor-tab="issues"]');if(badge)badge.dataset.pending=pending.length||'';
- if(mayorAutoCity!==state){mayorAutoCity=state;mayorAutoDay=null;mayorClose();}
- if(!mayorLocked()&&urgent&&!$('dialog')?.open&&!$('missionDailyAuto')){urgent.alerted=true;mayorAutoDay=s.day;mayorPanelMode='issues';mayorViewedIssue=urgent.id;mayorReport='';force=true;}
+ if(mayorAutoCity!==state){mayorAutoCity=state;mayorAutoDay=null;mayorSuspensionSeen=null;mayorSuspensionDetails=false;mayorClose();}
+ const locked=mayorLocked();
+ if(badge){badge.dataset.suspended=String(locked);if(locked)badge.dataset.pending='!';}
+ if(!locked){mayorSuspensionSeen=null;mayorSuspensionDetails=false;}
+ else if(mayorSuspensionSeen!==s.suspendedUntil&&(mayorPanelMode||(!$('dialog')?.open&&!$('missionDailyAuto')))){
+  mayorSuspensionSeen=s.suspendedUntil;mayorSuspensionDetails=false;
+  if(!mayorPanelMode){mayorPanelMode='issues';mayorViewedIssue=null;mayorReport='';}
+  force=true;
+ }
+ if(!locked&&urgent&&!$('dialog')?.open&&!$('missionDailyAuto')){urgent.alerted=true;mayorAutoDay=s.day;mayorPanelMode='issues';mayorViewedIssue=urgent.id;mayorReport='';force=true;}
  else if(!mayorLocked()&&pending.length&&mayorAutoDay!==s.day&&!$('missionDailyAuto')&&!$('dialog')?.open){mayorAutoDay=s.day;mayorPanelMode='issues';mayorViewedIssue=pending[0].id;force=true;}
  for(const btn of rail.querySelectorAll('button'))btn.setAttribute('aria-pressed',String(btn.dataset.mayorTab===mayorPanelMode));
  if(!mayorPanelMode){panel.hidden=true;return;}
- const k=mayorPanelMode,signature=[k,mayorViewedIssue,mayorReport,s.day,s.history.length,s.issues.map(i=>i.status).join(','),s.effects.length,s.suspendedUntil,Math.floor(state.time/10),Math.floor(state.money),ensureCityLevel().level].join('|');
+ const k=mayorPanelMode,signature=[k,mayorViewedIssue,mayorReport,s.day,s.history.length,s.issues.map(i=>i.status).join(','),s.effects.length,s.suspendedUntil,Math.floor(state.time/(locked?1:10)),Math.floor(state.money),ensureCityLevel().level,mayorSuspensionDetails,Object.values(s.scores).join(',')].join('|');
  if(!force&&signature===mayorRenderKey)return;mayorRenderKey=signature;
- const scroll=panel.scrollTop;panel.hidden=false;panel.dataset.mode=k;panel.dataset.detail=String(k==='issues'&&mayorViewedIssue!==null);panel.dataset.result=String(k==='issues'&&s.issues.some(i=>i.id===mayorViewedIssue&&i.status!=='pending'));panel.dataset.urgent=String(k==='issues'&&s.issues.some(i=>i.id===mayorViewedIssue&&i.source==='night'&&i.status==='pending'));let body='';
- const grade=(v)=>'<b class="mayor-grade" data-grade="'+mayorGrade(v)+'">'+mayorGrade(v)+'</b>';
- if(mayorLocked())body+='<p class="mayor-bad">พักอำนาจถึง 06:00 วันที่ '+(mayorEngine.dayAt(s.suspendedUntil)+1)+'</p>';
+ const scroll=panel.scrollTop;panel.hidden=false;panel.dataset.mode=k;panel.dataset.suspended=String(locked);panel.dataset.detail=String(k==='issues'&&mayorViewedIssue!==null);panel.dataset.result=String(k==='issues'&&s.issues.some(i=>i.id===mayorViewedIssue&&i.status!=='pending'));panel.dataset.urgent=String(k==='issues'&&s.issues.some(i=>i.id===mayorViewedIssue&&i.source==='night'&&i.status==='pending'));let body='';
+ const grade=(v)=>'<b class="mayor-grade" data-grade="'+mayorGrade(v)+'">'+(v<=25?'F · วิกฤต':mayorGrade(v))+'</b>';
+ if(locked)body+=mayorSuspensionMarkup(s,state.time);
  if(k==='level'){const l=cityLevelStatus();body+='<div class="mayor-hero"><div><small>เลเวลเมือง</small><strong>LV '+l.level+' <i>→ '+(l.level+1)+'</i></strong></div><div class="mayor-hero-icon">'+mayorIcon('level')+'</div></div><div class="mayor-section"><div class="mayor-stat"><span>ประชาชนเพิ่มอีก</span><b>'+mayorFmt(l.remaining)+' คน</b></div><div class="mayor-meter"><i style="width:'+l.progress+'%"></i></div><div class="mayor-stat"><span>ภารกิจสำเร็จ</span><b>'+(l.missionRate===null?'—':Math.round(l.missionRate)+'%')+' / 80%</b></div><div class="mayor-meter"><i style="width:'+Math.min(100,Math.max(0,(l.missionRate||0)/80*100))+'%"></i></div></div><button class="mayor-primary" data-mayor-action="level">ดูรางวัลเลเวล</button>';}
  if(k==='status'){body+=Object.entries(mayorModule.MAYOR_CATEGORIES).map(([id,n])=>'<div class="mayor-status-row"><div class="mayor-stat"><span class="mayor-category-label">'+mayorCategoryLabel(id)+'</span><small>'+s.scores[id]+'/100</small>'+grade(s.scores[id])+'</div><div class="mayor-meter" data-grade="'+mayorGrade(s.scores[id])+'"><i style="width:'+s.scores[id]+'%"></i></div></div>').join('');}
  if(k==='effects'){body+=s.effects.length?s.effects.map(e=>'<div class="mayor-effect-row"><div class="mayor-outcomes">'+mayorChips({effects:[e]})+'</div><small>'+mayorIcon('clock')+' ถึง 06:00</small></div>').join(''):'<div class="mayor-empty">'+mayorIcon('effects')+'<span>ไม่มีสถานะพิเศษ</span></div>';if(s.unpaid)body+='<p>เงินสนับสนุนค้างคืน '+mayorFmt(s.unpaid)+' บาท</p>';}
@@ -2063,7 +2088,7 @@ function mayorUI(force=false){
   }else{body+='<div class="mayor-hero"><div><small>เรื่องรอตัดสินใจ</small><strong>'+pending.length+' <i>/ '+s.issues.length+'</i></strong></div><div class="mayor-hero-icon">'+mayorIcon('issues')+'</div></div><div class="mayor-meter mayor-progress"><i style="width:'+(100*(s.issues.length-pending.length)/Math.max(1,s.issues.length))+'%"></i></div><small class="mayor-subtle">'+(state.time>=mayorEngine.deadline(s.day)?'ปิดงานประจำวัน · เฝ้าระวังสายด่วนช่วงค่ำ':'ก่อน 16:00 น.')+'</small>';for(const [id,n] of Object.entries(mayorModule.MAYOR_CATEGORIES)){const list=s.issues.filter(i=>i.category===id),remaining=mayorEngine.exploreRemaining(s,id);body+='<div class="mayor-category"><b class="mayor-category-label">'+mayorCategoryLabel(id)+'</b>'+grade(s.scores[id])+'<button data-mayor-explore="'+id+'" '+(!remaining||mayorLocked()||state.time>=mayorEngine.deadline(s.day)||list.some(i=>['pending','working'].includes(i.status))?'disabled':'')+'>'+(!remaining?'ครบ 3/3':'แก้ปัญหาเพิ่ม · '+remaining+'/3')+'</button></div>'+list.map(i=>'<button class="mayor-choice mayor-list-item" data-state="'+i.status+'" data-mayor-open="'+i.id+'"><span>'+mayorEsc((i.source==='night'?'[ด่วน] ':'')+mayorIssueTitle(i))+'</span> <small>'+({pending:'รอตัดสินใจ',working:'กำลังทำ',success:'เสร็จ',failed:'ล้มเหลว',expired:'หมดเวลา'}[i.status]||'')+'</small></button>').join('');}}
  }
  panel.innerHTML='<header><span class="mayor-header-icon">'+mayorIcon(k)+'</span><b>'+mayorTitles[k]+'</b><small class="mayor-time">'+mayorIcon('clock')+' '+timeText(state.time)+'</small><button class="mayor-close" data-mayor-action="close" aria-label="ปิด">'+mayorIcon('close')+'</button></header><div class="mayor-body">'+body+'</div>';panel.scrollTop=force?0:scroll;
- panel.onclick=e=>{const btn=e.target.closest('button');if(!btn||btn.disabled)return;const a=btn.dataset.mayorAction;if(a==='close')return mayorClose();if(a==='back')return mayorOpen('issues');if(a==='level'){$('cityLevelButton')?.click();return mayorClose();}if(btn.dataset.mayorOpen)return mayorOpen('issues',Number(btn.dataset.mayorOpen));if(btn.dataset.mayorExplore){mayorAdvance();const i=mayorEngine.explore(s,mayorCity(),btn.dataset.mayorExplore,state.time);if(i)mayorOpen('issues',i.id);else{toast(mayorEngine.exploreRemaining(s,btn.dataset.mayorExplore)?'วันนี้ไม่มีเรื่องใหม่ที่เข้าเงื่อนไขในหมวดนี้':'ใช้สิทธิ์แก้ปัญหาเพิ่มครบ 3 ครั้งแล้ว');mayorUI(true);}return;}if(btn.dataset.mayorChoice!==undefined){mayorAdvance();const r=mayorEngine.choose(s,mayorViewedIssue,Number(btn.dataset.mayorChoice),mayorCity(),state.time);if(r.ok){mayorReport=r.report||'รับภารกิจแล้ว';toast(mayorReport);mayorRenderKey='';mayorUI(true);}else toast('ตัวเลือกไม่พร้อมใช้งาน');}};
+ panel.onclick=e=>{const btn=e.target.closest('button');if(!btn||btn.disabled)return;const a=btn.dataset.mayorAction;if(a==='close'||a==='ack-suspension')return mayorClose();if(a==='suspension-details'){mayorSuspensionDetails=!mayorSuspensionDetails;mayorRenderKey='';mayorUI(false);return;}if(a==='back')return mayorOpen('issues');if(a==='level'){$('cityLevelButton')?.click();return mayorClose();}if(btn.dataset.mayorOpen)return mayorOpen('issues',Number(btn.dataset.mayorOpen));if(btn.dataset.mayorExplore){mayorAdvance();const i=mayorEngine.explore(s,mayorCity(),btn.dataset.mayorExplore,state.time);if(i)mayorOpen('issues',i.id);else{toast(mayorEngine.exploreRemaining(s,btn.dataset.mayorExplore)?'วันนี้ไม่มีเรื่องใหม่ที่เข้าเงื่อนไขในหมวดนี้':'ใช้สิทธิ์แก้ปัญหาเพิ่มครบ 3 ครั้งแล้ว');mayorUI(true);}return;}if(btn.dataset.mayorChoice!==undefined){mayorAdvance();const r=mayorEngine.choose(s,mayorViewedIssue,Number(btn.dataset.mayorChoice),mayorCity(),state.time);if(r.ok){mayorReport=r.report||'รับภารกิจแล้ว';toast(mayorReport);mayorRenderKey='';mayorUI(true);}else toast('ตัวเลือกไม่พร้อมใช้งาน');}};
 }
 
 function reset(city='phuket',legacy=false){
