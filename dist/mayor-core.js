@@ -5827,6 +5827,104 @@ MAYOR_EVENTS.push(...[
     ]
   }
 ]);
+MAYOR_EVENTS.push(...[
+  {
+    "id": "government-liaison-daily",
+    "category": "government",
+    "minLevel": 1,
+    "fallbackOnly": true,
+    "title": "หนังสือประสานงานจากส่วนกลาง",
+    "story": "รัฐบาลขอข้อมูลแผนพัฒนาเมืองและเชิญนายกหารือเรื่องการสนับสนุนโครงการในอนาคต แม้เมืองยังไม่มีอาคารพร้อมรับโครงการ",
+    "choices": [
+      {
+        "title": "จัดทีมจัดทำแผนและประสานงาน",
+        "cost": 25000,
+        "success": {
+          "report": "รัฐบาลได้รับแผนและชื่นชมความร่วมมือ",
+          "scores": {
+            "government": 10
+          }
+        }
+      },
+      {
+        "title": "หารือด้วยข้อมูลที่มีอยู่",
+        "requires": {
+          "government": 71
+        },
+        "success": {
+          "report": "รัฐบาลยอมรับข้อมูลโดยไม่ต้องใช้งบ",
+          "scores": {
+            "government": 10
+          }
+        }
+      },
+      {
+        "title": "ตอบหนังสือรับทราบโดยไม่ขอรับโครงการ",
+        "success": {
+          "report": "รัฐบาลรับทราบ เมืองยังไม่มีภาระผูกพัน",
+          "scores": {}
+        }
+      },
+      {
+        "title": "ไม่ให้ความร่วมมือ",
+        "success": {
+          "report": "ส่วนกลางไม่พอใจการปฏิเสธ",
+          "scores": {
+            "government": -10
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "business-new-market-daily",
+    "category": "business",
+    "minLevel": 1,
+    "fallbackOnly": true,
+    "title": "ผู้ประกอบการกลุ่มแรกอยากเข้ามาลงทุน",
+    "story": "กลุ่มผู้สนใจเปิดร้านค้าในเมืองขอให้นายกชี้แจงแนวทางสนับสนุนธุรกิจ ก่อนตัดสินใจเข้ามาลงทุน",
+    "choices": [
+      {
+        "title": "จัดเวทีรับฟังผู้สนใจลงทุน",
+        "cost": 20000,
+        "success": {
+          "report": "กลุ่มธุรกิจชื่นชมการเปิดรับความคิดเห็น",
+          "scores": {
+            "business": 10
+          }
+        }
+      },
+      {
+        "title": "เจรจาโดยใช้ความสัมพันธ์ที่มีอยู่",
+        "requires": {
+          "business": 71
+        },
+        "success": {
+          "report": "ผู้สนใจลงทุนยอมรับแนวทางของเมือง",
+          "scores": {
+            "business": 10
+          }
+        }
+      },
+      {
+        "title": "รับข้อเสนอไว้โดยไม่ผูกพันงบเมือง",
+        "success": {
+          "report": "ผู้ประกอบการได้รับคำตอบและจะพิจารณาแผนของตนต่อไป",
+          "scores": {}
+        }
+      },
+      {
+        "title": "ปฏิเสธการเข้าพบ",
+        "success": {
+          "report": "กลุ่มผู้ประกอบการผิดหวัง",
+          "scores": {
+            "business": -10
+          }
+        }
+      }
+    ]
+  }
+]);
 function createMayorCore(definitions, random=Math.random){
 const keys=["admin","image","fame","government","people","business","integrity"], byId=new Map(definitions.map(d=>[d.id,d]));
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -5841,16 +5939,17 @@ function count(level){if(level<=5)return 1;if(level<=10)return 1+(random()<.5?1:
 function hasBuildings(need,city){return Object.entries(need||{}).every(([key,n])=>(city.buildingCounts?.[key]||0)>=n);}
 function eligibleOption(s,o,city){if(!Object.entries(o.requires||{}).every(([k,n])=>s.scores[k]>=n)||!hasBuildings(o.requiresBuildings,city))return false;if(o.task?.kind==="build"){const b=city.catalog?.[o.task.key];if(!b||!b.unlocked||!Number.isFinite(b.cost)||b.cost<0||city.canBuild?.(o.task.key,o.task.count)!==true)return false;const net=Math.max(0,b.cost*o.task.count-(o.grant||0));if(net>Math.floor(Math.max(0,city.money)*.2))return false;}return true;}
 function options(s,issue,city){const d=byId.get(issue.eventId);return d.choices.map((o,i)=>({index:i,...clone(o),enabled:eligibleOption(s,o,city),payable:Math.min(Math.max(0,Math.floor(o.cost||0)),Math.floor(Math.max(0,city.money)*.2))}));}
-function candidates(s,city,category){return definitions.filter(d=>(!category||d.category===category)&&city.level>=d.minLevel&&hasBuildings(d.requiresBuildings,city)&&!s.issues.some(i=>i.eventId===d.id)&&(!d.choices.some(o=>o.task?.kind==="build")||d.category!=="government"||d.choices.some(o=>o.task?.kind==="build"&&eligibleOption(s,o,city))));}
+function candidates(s,city,category){const pool=definitions.filter(d=>(!category||d.category===category)&&city.level>=d.minLevel&&hasBuildings(d.requiresBuildings,city)&&!s.issues.some(i=>i.eventId===d.id)&&(!d.choices.some(o=>o.task?.kind==="build")||d.category!=="government"||d.choices.some(o=>o.task?.kind==="build"&&eligibleOption(s,o,city))));const normal=pool.filter(d=>!d.fallbackOnly);return normal.length?normal:pool;}
 function issue(s,city,category,source){const a=candidates(s,city,category);if(!a.length)return null;const d=a[Math.min(a.length-1,Math.floor(random()*a.length))];const i={id:++s.sequence,eventId:d.id,category:d.category,status:"pending",source,day:s.day};s.issues.push(i);return i;}
-function startDay(s,city,t){s.started=true;if(active(s,t)||t>=noon(s.day))return;for(let i=0,n=count(city.level);i<n;i++)if(!issue(s,city,null,"daily"))break;}
+function ensureDailyCoverage(s,city,t){if(active(s,t)||t>=noon(s.day))return;for(const category of keys)if(!s.issues.some(i=>i.category===category))issue(s,city,category,"daily");}
+function startDay(s,city,t){s.started=true;if(active(s,t)||t>=noon(s.day))return;ensureDailyCoverage(s,city,t);for(let i=1,n=count(city.level);i<n;i++)if(!issue(s,city,null,"daily"))break;}
 function record(s,i,report,t,details=null){s.history.push({id:i.id,eventId:i.eventId,category:i.category,status:i.status,report,at:t,...(details?{details}: {})});}
 function apply(s,i,result,city,t){const r=result||{};if(r.money)city.money+=r.money;score(s,r.scores,t);for(const e of r.effects||[]){if(["floodDamage","fillPopulation"].includes(e.kind)){city.applyEffect?.(clone(e));}else if(t<start(i.day+1)){s.effects.push({...clone(e),expires:start(i.day+1),source:i.id});}}for(const flag of r.flags||[])if(!s.flags.includes(flag))s.flags.push(flag);record(s,i,r.report||"",t,{money:r.money||0,scores:clone(r.scores||{}),effects:clone(r.effects||[]),paid:i.paid||0,grant:i.grant||0});return r.report||"";}
 function choose(s,id,index,city,t){const i=s.issues.find(x=>x.id===id);if(!i||i.status!=="pending"||active(s,t)||dayAt(t)!==i.day||t>=noon(i.day))return {ok:false};const o=options(s,i,city)[index];if(!o?.enabled)return {ok:false};if(o.payable)city.money-=o.payable;if(o.grant)city.money+=o.grant;i.selected=index;i.paid=o.payable;i.grant=o.grant||0;if(o.task){i.status="working";i.task=clone(o.task);if(o.task.kind==="build")i.baseline=(city.buildingIds?.[o.task.key]||[]).slice();record(s,i,"รับภารกิจแล้ว",t);return {ok:true,working:true};}const won=o.chance===undefined||random()<o.chance;i.status=won?"success":"failed";i.rollWon=won;return {ok:true,won,report:apply(s,i,won?o.success:o.failure,city,t)};}
 function finish(s,i,city,t,won){if(i.status!=="working")return false;const o=byId.get(i.eventId).choices[i.selected];i.status=won?"success":"failed";if(!won&&i.grant){const paid=Math.min(Math.max(0,city.money),i.grant);city.money-=paid;s.unpaid+=i.grant-paid;}apply(s,i,won?o.success:o.failure,city,t);return true;}
 function checkTasks(s,city,t){for(const i of s.issues){if(i.status!=="working"||t>=start(i.day+1))continue;const task=i.task;let success=false;if(task.kind==="build"){const old=new Set(i.baseline);success=new Set((city.buildingIds?.[task.key]||[]).filter(id=>!old.has(id))).size>=task.count;}else if(task.kind==="performance"){success=Number.isFinite(city.performance)&&city.performance>=task.target;}if(success)finish(s,i,city,t,true);}}
 function expire(s,city,t){for(const i of s.issues){if(i.status==="pending"&&t>=noon(i.day)){i.status="expired";apply(s,i,{scores:{[i.category]:-10},report:"ละเลยการตัดสินใจก่อนเที่ยง"},city,noon(i.day));}}}
-function advance(s,city,t){if(t<s.lastTime)throw new Error("Mayor clock cannot run backward");if(!s.started)startDay(s,city,s.lastTime);while(s.day<dayAt(t)){const boundary=start(s.day+1);expire(s,city,boundary);for(const i of s.issues)if(i.status==="working")finish(s,i,city,boundary,false);s.effects=s.effects.filter(e=>e.expires>boundary);s.issues=[];s.day++;startDay(s,city,boundary);}expire(s,city,t);checkTasks(s,city,t);s.lastTime=t;}
+function advance(s,city,t){if(t<s.lastTime)throw new Error("Mayor clock cannot run backward");if(!s.started)startDay(s,city,s.lastTime);while(s.day<dayAt(t)){const boundary=start(s.day+1);expire(s,city,boundary);for(const i of s.issues)if(i.status==="working")finish(s,i,city,boundary,false);s.effects=s.effects.filter(e=>e.expires>boundary);s.issues=[];s.day++;startDay(s,city,boundary);}ensureDailyCoverage(s,city,t);expire(s,city,t);checkTasks(s,city,t);s.lastTime=t;}
 function explore(s,city,category,t){if(!keys.includes(category)||active(s,t)||t>=noon(s.day)||dayAt(t)!==s.day||s.issues.some(i=>i.category===category&&["pending","working"].includes(i.status)))return null;return issue(s,city,category,"explore");}
 function tripReward(s,base,scope,isTourist,t){const es=s.effects.filter(e=>t<e.expires&&(e.scope==="all"||e.scope===scope||isTourist&&e.scope==="tourist"));const multipliers=es.filter(e=>e.kind==="tripMultiplier"||e.kind==="touristMultiplier").map(e=>e.value);const delta=Math.min(0,...es.filter(e=>e.kind==="tripDelta").map(e=>e.value));return Math.max(0,Math.floor(base*Math.max(1,...multipliers)+delta));}
 return {fresh,restore,grade,dayAt,start,noon,active,options,advance,explore,choose,checkTasks,tripReward};
