@@ -1409,8 +1409,7 @@ function initialRoadGraph(city,legacy=false){
   // Northern Phuket / Phang Nga is the upper-right of the default view.
   // One entry highway reaches the existing starter collector; no other edge roads.
   const mainY=150-PHUKET_START_SHIFT;
-  segment(PHUKET_ENTRY_X,0,PHUKET_ENTRY_X,mainY);
-  segment(PHUKET_ENTRY_X,mainY,159,mainY);
+  segment(PHUKET_ENTRY_X,0,PHUKET_ENTRY_X,mainY+36);
   return {roads,gates:[id(PHUKET_ENTRY_X,0)],entryLayout:PHUKET_NORTH_ENTRY};
  }
  segment(150,0,150,299);segment(0,150,299,150);
@@ -1922,11 +1921,15 @@ function startNewCity(city='phuket'){
  const fresh=state;
  const offer=()=>{
   if(state!==fresh)return;
-  modal('<h2>ให้อริสพาสร้างเมืองแรกไหม?</h2><p>ลองสร้างถนน บ้าน และที่ทำงาน แล้วตามรถคันแรกไปด้วยกันค่ะ</p><div class="actions"><button id="lessonSkip">ข้ามและเล่นเอง</button><button id="lessonStart" class="primary">เริ่มสอนเล่น</button></div>');
-  const onCancel=()=>{if(state===fresh)state.speed=1;};
-  const begin=teach=>{$('dialog').removeEventListener('cancel',onCancel);closeModal();state.speed=1;if(teach)beginGuide();updateUI();};
+  const prompt=$('lessonChoice');
+  const begin=teach=>{
+   prompt.oncancel=null;prompt.close();
+   if(state!==fresh)return;
+   state.speed=1;if(teach)beginGuide();updateUI();
+  };
   $('lessonSkip').onclick=()=>begin(false);$('lessonStart').onclick=()=>begin(true);
-  $('dialog').addEventListener('cancel',onCancel,{once:true});
+  prompt.oncancel=e=>{e.preventDefault();begin(false);};
+  if(!prompt.open)prompt.showModal();
  };
  if($('smcityWelcome')?.hidden===false)window.addEventListener('smcity-welcome-closed',offer,{once:true});
  else offer();
@@ -11153,7 +11156,7 @@ function openGraphicsMenu(){
 }
 function openMainMenu(){
  const developerId=bugReportDeveloperId();
- modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b></span><span class="menu-chevron">›</span></button><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b></span><span class="menu-chevron">›</span></button>'+(developerId?'<button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>รายงานรถบัค</b><small>บันทึกหลักฐาน: '+(bugCaptureEnabled?'เปิด':'ปิด')+'</small></span><span class="menu-chevron">›</span></button>':'')+'<button type="button" id="graphicsMenu"><span class="menu-symbol">◈</span><span><b>ตั้งค่ากราฟิก</b></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
+ modal('<div class="menu-heading"><span class="menu-logo">S</span><div><span class="eyebrow">SMCITY</span><h2>เมนูหลัก</h2></div></div><div class="smcity-menu-list" role="group" aria-label="เมนูหลัก"><button type="button" id="lessonMenu"><span class="menu-symbol">▷</span><b>สอนเล่น</b></button><button type="button" id="newCityMenu"><span class="menu-symbol">＋</span><span><b>เริ่มเมืองใหม่</b></span><span class="menu-chevron">›</span></button><button type="button" id="saveMenu"><span class="menu-symbol">▣</span><span><b>เซป/โหลด</b></span><span class="menu-chevron">›</span></button><button type="button" id="accountMenu"><span class="menu-symbol">♙</span><span><b>บัญชีผู้ใช้</b></span><span class="menu-chevron">›</span></button>'+(developerId?'<button type="button" id="reportMenu"><span class="menu-symbol">▤</span><span><b>รายงานรถบัค</b><small>บันทึกหลักฐาน: '+(bugCaptureEnabled?'เปิด':'ปิด')+'</small></span><span class="menu-chevron">›</span></button>':'')+'<button type="button" id="graphicsMenu"><span class="menu-symbol">◈</span><span><b>ตั้งค่ากราฟิก</b></span><span class="menu-chevron">›</span></button></div><button type="button" class="primary menu-resume" id="menuClose">กลับไปเล่น</button>');
  const creatorAnchor=$('reportMenu');
  if(creatorAnchor){
   creatorAnchor.dataset.developerId=developerId;
@@ -11168,6 +11171,7 @@ function openMainMenu(){
  $('saveMenu').onclick=openCloudSaveDialog;
  if(creatorAnchor)creatorAnchor.onclick=openReportMenu;
  $('newCityMenu').onclick=openNewCityDialog;
+ $('lessonMenu').onclick=()=>confirmAction('เริ่มบทสอนในเมืองใหม่?','เมืองที่ยังไม่ได้บันทึกจะถูกแทนที่ กรุณาบันทึกก่อนหากต้องการเก็บเมืองนี้',()=>{startNewCity();$('lessonStart').click();});
  $('graphicsMenu').onclick=openGraphicsMenu;
 }
 $('menu').onclick=openMainMenu;

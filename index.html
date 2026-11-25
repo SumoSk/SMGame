@@ -1302,7 +1302,7 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
 
 
 
-<style>#cityLesson{position:fixed;z-index:12000;top:env(safe-area-inset-top,0px);left:50%;transform:translateX(-50%);width:min(360px,82vw);background:#173d37;color:white;padding:9px 32px 9px 12px;border-radius:12px;font:13px/1.45 system-ui;box-shadow:0 3px 14px #0004}#cityLesson button{cursor:pointer;color:#153d35;background:#f3edcf;border:0;border-radius:6px;padding:3px 8px}.lesson-exit{position:absolute;right:5px;top:5px}.lesson-focus{outline:3px solid #ffad23!important;outline-offset:-3px}#lessonPoint{position:fixed;border:4px solid #ffb321;border-radius:100%;width:32px;height:32px;transform:translate(-50%,-50%);pointer-events:none;z-index:900;box-shadow:0 0 0 2px #fff}#cityLesson [hidden],#lessonPoint[hidden]{display:none}</style></head>
+<style>#cityLesson{position:fixed;z-index:12000;top:env(safe-area-inset-top,0px);left:50%;transform:translateX(-50%);width:min(360px,82vw);background:#173d37;color:white;padding:9px 32px 9px 12px;border-radius:12px;font:13px/1.45 system-ui;box-shadow:0 3px 14px #0004}#cityLesson button{cursor:pointer;color:#153d35;background:#f3edcf;border:0;border-radius:6px;padding:3px 8px}.lesson-exit{position:absolute;right:5px;top:5px}.lesson-focus{outline:3px solid #ffad23!important;outline-offset:-3px}#lessonPoint{position:fixed;border:4px solid #ffb321;border-radius:100%;width:32px;height:32px;transform:translate(-50%,-50%);pointer-events:none;z-index:900;box-shadow:0 0 0 2px #fff}#cityLesson [hidden],#lessonPoint[hidden]{display:none}</style><style>#lessonChoice{position:fixed;inset:0;margin:auto;width:min(350px,86vw);height:fit-content;padding:22px;border:0;border-radius:15px;background:#fff;color:#183c34;box-shadow:0 12px 50px #0004}#lessonChoice:not([open]){display:none}#lessonChoice::backdrop{background:#10282088}#lessonChoice h2{font-size:19px;margin:0}#lessonChoice p{margin:8px 0 16px}#lessonChoice button{padding:8px 12px;border:0;border-radius:8px;cursor:pointer}#lessonStart{background:#185e48;color:white}</style></head>
 <body>
 <canvas id="world" aria-label="แผนที่เมือง ลากเพื่อเลื่อน เลือกเครื่องมือเพื่อสร้างถนนและอาคาร"></canvas>
 <aside id="cameraPitchRail" aria-label="ควบคุมมุมก้มเงยกล้อง" hidden>
@@ -1406,6 +1406,7 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
  </section>
 </dialog>
 
+<dialog id="lessonChoice" aria-labelledby="lessonTitle"><h2 id="lessonTitle">ให้อริสพาสร้างเมืองแรกไหม?</h2><p>เริ่มจากต่อถนนกลาง แล้วพาชาวเมืองไปทำงานค่ะ</p><div><button type="button" id="lessonStart">เริ่มสอนเล่น</button> <button type="button" id="lessonSkip">ข้ามและเล่นเอง</button></div></dialog>
 <section id="smcityWelcome" aria-label="ยินดีต้อนรับสู่ SMCITY">
  <div class="smcity-welcome-card" id="smcityWelcomeCard">
   <img class="smcity-welcome-image" id="smcityWelcomeImage" src="assets/smcity-welcome.webp?v=traffic-city" width="1536" height="1024" alt="SMCITY เกมแก้ปัญหารถติดและขยายเมืองในแบบคุณ วางถนน สร้างเมือง ดูแลทุกการเดินทาง อัปเกรดแยก AI อัปเกรดบ้าน อัปเกรดรถ กดเพื่อเริ่มเล่น" role="button" tabindex="0" aria-label="เริ่มสร้างเมืองของคุณ">
@@ -1536,7 +1537,7 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
  <button id="landscapeQuickMove" type="button" data-landscape-action="move" aria-label="ย้ายของตกแต่งชิ้นนี้" title="ย้ายชิ้นที่เลือก">✥</button>
  <button id="landscapeQuickDelete" type="button" data-landscape-action="delete" class="decor-delete" aria-label="ลบของตกแต่งชิ้นนี้" title="ลบชิ้นที่เลือก">⌫</button>
 </div>
-<script type="module" src="dist/bootstrap.js?v=city-lesson-1"></script></body></html>
+<script type="module" src="dist/bootstrap.js?v=straight-entry-lesson-2"></script></body></html>
 
 
 
