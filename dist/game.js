@@ -4682,7 +4682,7 @@ function updateCityAdvisor(){
  ];
  const html=needs.map(r=>{
   const value=-Math.max(0,r.waiting);
-  return '<div class="mini-need'+(value<0?' shortage':'')+'" data-need-kind="'+r.kind+'" title="'+e(r.label)+' · ความจุ '+fmt(r.capacity)+' · กำลังใช้ '+fmt(r.busy)+' · ความต้องการ '+value+'"><span>'+e(r.label)+'</span><div class="mini-need-values"><b class="mini-need-capacity">'+fmt(r.capacity)+'</b><b class="mini-need-busy">'+fmt(r.busy)+'</b><strong class="mini-need-missing">'+value+'</strong></div></div>';
+  return '<div class="mini-need'+(value<0?' shortage':'')+'" data-need-kind="'+r.kind+'" title="'+e(r.label)+' · ความจุ '+fmt(r.capacity)+' · กำลังใช้ '+fmt(r.busy)+' · ความต้องการ '+value+'"><span><i class="demand-kind-icon" aria-hidden="true">'+cityKindIcon(r.kind)+'</i> '+e(r.label)+'</span><div class="mini-need-values"><b class="mini-need-capacity">'+fmt(r.capacity)+'</b><b class="mini-need-busy">'+fmt(r.busy)+'</b><strong class="mini-need-missing">'+value+'</strong></div></div>';
  }).join('');
  // Show category rows only. Detailed reports remain available in their own panels.
  set('demand',html);
@@ -4816,7 +4816,8 @@ function openVehicleUpgrade(){
 // Read-only planning view. A city day always runs from 06:00 to 06:00.
 // Counts are scheduled activity starts, not measured arrivals or simultaneous use.
 const LIFE_VIEW_KINDS=['work','restaurant','shop','mall','park','pub','casino','hotel','home'];
-const LIFE_VIEW_ICONS={work:'🏢',restaurant:'🍜',shop:'🛍️',mall:'🏬',park:'🌳',pub:'🎵',casino:'🎲',hotel:'🛎️',home:'🏡'};
+const LIFE_VIEW_ICONS={work:'🏢',office:'🏢',factory:'🏭',restaurant:'🍜',shop:'🛍️',mall:'🏬',park:'🌳',pub:'🎵',casino:'🎲',hotel:'🛎️',home:'🏡'};
+function cityKindIcon(kind){return LIFE_VIEW_ICONS[kind]||KINDS[kind]?.icon||'';}
 const LIFE_VIEW_NAMES={work:'ไปทำงาน',restaurant:'ร้านอาหาร',shop:'ร้านค้า',mall:'ห้างสรรพสินค้า',park:'สวนสาธารณะ',pub:'ผับ',casino:'คาสิโน',hotel:'โรงแรม',home:'กลับบ้าน'};
 function cityLifeForecast(tourists=false){
  const day=performanceDay(),start=day*1440+360,end=start+1440;
@@ -5650,7 +5651,7 @@ window.addEventListener('pagehide',()=>{if(travelRecording)travelLogStop('ปิ
 function dockItems(currentCategory){
  if(currentCategory==='civic')return []; // retired build category; never fall back to homes
  if(currentCategory==='reports')return bugReportDeveloperId()?[{key:'cityReport',name:'รายงานรถบัค',icon:'▤',price:'ดูหลักฐานที่ผู้เล่นส่ง'}]:[];
- let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[{key:'landscapeSelect',name:'จับ/ย้ายของตกแต่ง',icon:'✋',price:'แตะซ้ำเพื่อวนเลือกชิ้นที่ซ้อนกัน'},{key:'snapDecor',name:landscapeSnap?'Snap: เปิด':'Snap: ปิด',icon:landscapeSnap?'🧲':'🎯',price:landscapeSnap?'ยึดกึ่งกลางช่อง · กดเพื่อปิด':'วางอิสระละเอียด 0.01 ช่อง · กดเพื่อเปิด'},...LANDSCAPE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อวางทีละชิ้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub','casino']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home','hotel'];items=Object.values(CATALOG).filter(t=>!t.legacyOnly&&kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand','home_mahanakhon'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:KINDS[t.kind].icon,capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
+ let items=[];if(currentCategory==='roads'){items=['small','medium','large'].map(k=>({key:k,name:ROADS[k].name,icon:'═',price:fmt(ROADS[k].cost)}));}else if(currentCategory==='landscape'){items=[{key:'landscapeSelect',name:'จับ/ย้ายของตกแต่ง',icon:'✋',price:'แตะซ้ำเพื่อวนเลือกชิ้นที่ซ้อนกัน'},{key:'snapDecor',name:landscapeSnap?'Snap: เปิด':'Snap: ปิด',icon:landscapeSnap?'🧲':'🎯',price:landscapeSnap?'ยึดกึ่งกลางช่อง · กดเพื่อปิด':'วางอิสระละเอียด 0.01 ช่อง · กดเพื่อเปิด'},...LANDSCAPE_KINDS.map(t=>({key:'tree:'+t.key,name:t.name,icon:t.icon,sub:'แตะเพื่อวางทีละชิ้น',price:'ตกแต่งฟรี'})),{key:'treeRow',name:'ปลูกเป็นแนว',icon:'🌱',sub:'ลากเพื่อปลูกเป็นแถว · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'treeBrush',name:'ปลูกเป็นกลุ่ม',icon:'🌿',sub:'ลากเพื่อปลูกเป็นกลุ่ม · '+LANDSCAPE_KINDS.find(t=>t.key===currentTreeKind).name,price:'ตกแต่งฟรี'},{key:'eraseTree',name:'ลบต้นไม้',icon:'⌫',sub:'แตะเพื่อลบต้นไม้ที่ปลูก หรือเว้นบริเวณต้นไม้อัตโนมัติ',price:'ไม่มีค่ารื้อ'}];}else{const kinds=currentCategory==='work'?['office','factory']:currentCategory==='food'?['shop','restaurant','mall']:currentCategory==='leisure'?['park','pub','casino']:currentCategory==='hotel'?['hotel']:currentCategory==='casino'?['casino']:['home','hotel'];items=Object.values(CATALOG).filter(t=>!t.legacyOnly&&kinds.includes(t.kind)&&(t.kind!=='home'||['home_starter','home_large','home_dual','home_grand','home_mahanakhon'].includes(t.key))).sort((a,b)=>kinds.indexOf(a.kind)-kinds.indexOf(b.kind)||(a.starterTier?0:1)-(b.starterTier?0:1)||(a.kind==='home'?a.residents-b.residents:0)).map(t=>({key:t.key,name:t.name,icon:cityKindIcon(t.kind),capacity:t.beds||t.residents||t.service||t.jobs,price:fmt(t.cost)}));}
  return items.filter(t=>t.key!=='hand');
 }
 // Construction categories are always visible, without an extra top-level dock row.
@@ -5776,7 +5777,7 @@ function dockTypeItems(currentCategory){
  const variants=dockItems(currentCategory);
  return (BUILD_DOCK_KINDS[currentCategory]||[]).map(kind=>{
   const matches=variants.filter(t=>CATALOG[t.key]?.kind===kind);
-  return matches.length?{kind,name:KINDS[kind].name,icon:KINDS[kind].icon,count:matches.length,category:currentCategory}:null;
+  return matches.length?{kind,name:KINDS[kind].name,icon:cityKindIcon(kind),count:matches.length,category:currentCategory}:null;
  }).filter(Boolean);
 }
 function closeBuildingVariants(){
@@ -5829,7 +5830,7 @@ function renderBuildingVariants(){
  if(!variants.length){closeBuildingVariants();return;}
  popup.hidden=false;
  popup.setAttribute('aria-label','เลือกขนาด'+KINDS[openBuildingKind].name);
- popup.innerHTML='<header class="build-variants-header"><strong>'+KINDS[openBuildingKind].icon+' '+KINDS[openBuildingKind].name+'</strong><span>'+variants.length+' ขนาด</span><button type="button" data-close-variants aria-label="ปิดรายการขนาด">×</button></header>'+
+ popup.innerHTML='<header class="build-variants-header"><strong>'+cityKindIcon(openBuildingKind)+' '+KINDS[openBuildingKind].name+'</strong><span>'+variants.length+' ขนาด</span><button type="button" data-close-variants aria-label="ปิดรายการขนาด">×</button></header>'+
   variants.map(t=>'<button type="button" class="tool '+(buildingQuotaStatus(t.key).locked?'quota-locked ':'')+(tool===t.key?'active':'')+'" data-tool="'+t.key+'" aria-pressed="'+(tool===t.key)+'" aria-disabled="'+buildingQuotaStatus(t.key).locked+'" title="'+(buildingQuotaStatus(t.key).message||t.name)+'"><span class="tool-icon">'+t.icon+'</span><span class="build-variant-info"><strong class="tool-name">'+t.name+(t.capacity?' <span class="tool-capacity">'+t.capacity+'</span>':'')+'</strong><small class="tool-price">'+t.price+'</small>'+buildingQuotaMarkup(t.key)+'</span></button>').join('');
  positionBuildingVariants();
 }
