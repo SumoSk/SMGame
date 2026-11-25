@@ -1537,60 +1537,7 @@ html body>.bottom>.control-deck:not(.tools-collapsed){height:116px!important;min
  <button id="landscapeQuickMove" type="button" data-landscape-action="move" aria-label="ย้ายของตกแต่งชิ้นนี้" title="ย้ายชิ้นที่เลือก">✥</button>
  <button id="landscapeQuickDelete" type="button" data-landscape-action="delete" class="decor-delete" aria-label="ลบของตกแต่งชิ้นนี้" title="ลบชิ้นที่เลือก">⌫</button>
 </div>
-<style>.mini-need .demand-kind-icon{font-style:normal;font-size:1em;display:inline;line-height:1;vertical-align:baseline}</style><link rel="stylesheet" href="dist/mayor.css?v=7.2-mobile-no-pitch-1"><script type="module" src="dist/bootstrap.js?v=7.2-mayor-entry-order-1"></script><style id="smcity-mayor-mobile-direct-size">/* v7.2 mobile rail: physical dimensions, independent of script-applied transforms.
-   Right rail mirrors the left rail; camera slider occupies a separate lane. */
-@media(max-width:720px), (pointer:coarse){
- html body #mayorRail{
-  --mayor-mobile-button:52px;--mayor-mobile-width:58px;--mayor-mobile-icon:19px;
-  --mayor-mobile-label:9px;--mayor-mobile-gap:5px;--mayor-mobile-radius:12px;
-  transform:none!important;transform-origin:top right!important;zoom:1!important;
-  width:var(--mayor-mobile-width)!important;gap:var(--mayor-mobile-gap)!important;
-  padding:0!important;margin:0!important;border:0!important;background:transparent!important;
-  right:var(--mayor-mobile-edge,calc(9px + env(safe-area-inset-right,0px)))!important;
-  pointer-events:none;overscroll-behavior:contain;touch-action:pan-y;
- }
- html body #mayorRail button{
-  box-sizing:border-box!important;flex:0 0 var(--mayor-mobile-height,var(--mayor-mobile-button))!important;
-  width:var(--mayor-mobile-button)!important;min-width:var(--mayor-mobile-button)!important;max-width:var(--mayor-mobile-button)!important;
-  height:var(--mayor-mobile-height,var(--mayor-mobile-button))!important;min-height:var(--mayor-mobile-height,var(--mayor-mobile-button))!important;max-height:var(--mayor-mobile-height,var(--mayor-mobile-button))!important;
-  padding:var(--mayor-mobile-padding-y,2px) var(--mayor-mobile-padding-x,2px)!important;gap:var(--mayor-mobile-inner-gap,2px)!important;margin:0!important;
-  border-radius:var(--mayor-mobile-radius)!important;font-size:var(--mayor-mobile-label)!important;line-height:1.15!important;
-  pointer-events:auto;touch-action:pan-y;
- }
- html body #mayorRail button .quick-mode-icon{font-size:var(--mayor-mobile-icon)!important;line-height:1!important}
- html body #mayorRail button .quick-mode-icon svg{display:block;width:1em!important;height:1em!important;max-width:1em!important;max-height:1em!important}
- html body #mayorRail button .quick-mode-name{font-size:var(--mayor-mobile-label)!important;line-height:1.15!important}
-}
-@media(max-width:720px){
- html body #mayorRail{--mayor-mobile-button:48px;--mayor-mobile-width:52px;--mayor-mobile-icon:18px;--mayor-mobile-label:8px;--mayor-mobile-gap:4px;--mayor-mobile-radius:10px;right:var(--mayor-mobile-edge,calc(5px + env(safe-area-inset-right,0px)))!important}
-}
-/* The left rail is transformed to 80% in index.html at these exact breakpoints. */
-@media(max-width:520px){
- html body #mayorRail{--mayor-mobile-button:38.4px;--mayor-mobile-width:41.6px;--mayor-mobile-icon:14.4px;--mayor-mobile-label:6.4px;--mayor-mobile-gap:3.2px;--mayor-mobile-radius:8px}
-}
-@media(min-width:721px) and (max-width:1000px) and (max-height:520px) and (pointer:coarse){
- html body #mayorRail{--mayor-mobile-button:41.6px;--mayor-mobile-width:46.4px;--mayor-mobile-icon:15.2px;--mayor-mobile-label:7.2px;--mayor-mobile-gap:4px;--mayor-mobile-radius:9.6px}
-}
-@media(min-width:521px) and (max-width:720px) and (max-height:520px) and (pointer:coarse){
- html body #mayorRail{--mayor-mobile-button:38.4px;--mayor-mobile-width:41.6px;--mayor-mobile-icon:14.4px;--mayor-mobile-label:6.4px;--mayor-mobile-gap:3.2px;--mayor-mobile-radius:8px}
-}
-@media(pointer:coarse){
- html body #cameraPitchRail{right:var(--mayor-pitch-offset,calc(75px + env(safe-area-inset-right,0px)))!important;z-index:30!important}
- body:has(#mayorRail[hidden]) #cameraPitchRail,body:not(:has(#mayorRail)) #cameraPitchRail{right:calc(4px + env(safe-area-inset-right,0px))!important}
- body:has(#mayorPanel:not([hidden])) #cameraPitchRail{opacity:0;pointer-events:none}
- /* Leave the rail and camera lane clear when opening mayor details. */
- html body #mayorPanel{right:calc(110px + env(safe-area-inset-right,0px))!important;width:min(330px,calc(100vw - 120px - env(safe-area-inset-right,0px)))!important}
-}
-@media(max-width:720px) and (pointer:coarse){
- html body #mayorPanel{right:calc(102px + env(safe-area-inset-right,0px))!important;width:min(330px,calc(100vw - 112px - env(safe-area-inset-right,0px)))!important}
-}
-@media(max-width:520px) and (pointer:coarse){
- html body #mayorRail [data-pending]:not([data-pending=""])::after{font:600 7px/11px sans-serif;min-width:11px;right:1px;top:1px}
- html body #mayorPanel{right:calc(92px + env(safe-area-inset-right,0px))!important;width:min(330px,calc(100vw - 102px - env(safe-area-inset-right,0px)))!important}
-}
-
-#mayorPanel .mayor-category button[data-mayor-explore]{white-space:nowrap;flex:none}
-</style></body></html>
+<style>.mini-need .demand-kind-icon{font-style:normal;font-size:1em;display:inline;line-height:1;vertical-align:baseline}</style><link rel="stylesheet" href="dist/mayor.css?v=mayor-dialogue-2"><script type="module" src="dist/bootstrap.js?v=mayor-dialogue-2"></script></body></html>
 
 
 

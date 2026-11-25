@@ -178,24 +178,20 @@
  html body #cameraPitchRail{right:var(--mayor-pitch-offset,calc(75px + env(safe-area-inset-right,0px)))!important;z-index:30!important}
  body:has(#mayorRail[hidden]) #cameraPitchRail,body:not(:has(#mayorRail)) #cameraPitchRail{right:calc(4px + env(safe-area-inset-right,0px))!important}
  body:has(#mayorPanel:not([hidden])) #cameraPitchRail{opacity:0;pointer-events:none}
- /* Leave the rail and camera lane clear when opening mayor details. */
- html body #mayorPanel{right:calc(110px + env(safe-area-inset-right,0px))!important;width:min(330px,calc(100vw - 120px - env(safe-area-inset-right,0px)))!important}
-}
-@media(max-width:720px) and (pointer:coarse){
- html body #mayorPanel{right:calc(102px + env(safe-area-inset-right,0px))!important;width:min(330px,calc(100vw - 112px - env(safe-area-inset-right,0px)))!important}
+
 }
 @media(max-width:520px) and (pointer:coarse){
  html body #mayorRail [data-pending]:not([data-pending=""])::after{font:600 7px/11px sans-serif;min-width:11px;right:1px;top:1px}
- html body #mayorPanel{right:calc(92px + env(safe-area-inset-right,0px))!important;width:min(330px,calc(100vw - 102px - env(safe-area-inset-right,0px)))!important}
+
 }
 
 #mayorPanel .mayor-category button[data-mayor-explore]{white-space:nowrap;flex:none}
 
 /* v7.2: persistent mayor suspension notice, independent of penalty rules. */
 #mayorPanel[data-suspended="true"]{border-color:#b94749;box-shadow:0 8px 28px #591a2450}
-#mayorPanel[data-suspended="true"] header{border-bottom-color:#e0aaaa}
-#mayorPanel[data-suspended="true"] .mayor-header-icon{color:#a12f37;background:#f9e3e3}
-#mayorPanel .mayor-suspension{margin:0 0 9px;border:1px solid #bc5053;border-radius:9px;background:#fff4f3;color:#742b30;overflow:hidden}
+#mayorPanel[data-suspended="true"] header{border-bottom-color:#98636a}
+#mayorPanel[data-suspended="true"] .mayor-header-icon{color:#ffada4;background:#492c35}
+#mayorPanel .mayor-suspension{margin:0 0 9px;border:1px solid #bc5053;border-radius:9px;background:#32232c;color:#f2cecc;overflow:hidden}
 #mayorPanel .mayor-suspension-head{display:flex;align-items:center;gap:9px;background:#962d37;color:#fff;padding:10px}
 #mayorPanel .mayor-suspension-head small{color:#ffe5e5;font-weight:600;font-size:10px}
 #mayorPanel .mayor-suspension-head h3{margin:2px 0 0;font-size:19px;line-height:1.25;color:#fff;font-weight:800}
@@ -203,15 +199,15 @@
 #mayorPanel .mayor-suspension-body{padding:8px 10px}
 #mayorPanel .mayor-suspension-cause{display:block;font-size:13px;line-height:1.45;font-weight:800}
 #mayorPanel .mayor-suspension-scores{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0}
-#mayorPanel .mayor-suspension-scores span{display:flex;align-items:center;gap:5px;font-size:10px;border-radius:4px;background:#f6d9da;padding:3px 5px}
+#mayorPanel .mayor-suspension-scores span{display:flex;align-items:center;gap:5px;font-size:10px;border-radius:4px;background:#4d3038;padding:3px 5px}
 #mayorPanel .mayor-suspension-scores b{font-variant-numeric:tabular-nums}
-#mayorPanel .mayor-suspension-time{display:grid;gap:2px;background:#fff;border:1px solid #edc5c5;border-radius:7px;margin:7px 0;padding:7px 9px;font-variant-numeric:tabular-nums}
-#mayorPanel .mayor-suspension-time b{font-size:16px;color:#9b3038}
+#mayorPanel .mayor-suspension-time{display:grid;gap:2px;background:#302833;border:1px solid #67444c;border-radius:7px;margin:7px 0;padding:7px 9px;font-variant-numeric:tabular-nums}
+#mayorPanel .mayor-suspension-time b{font-size:16px;color:#ffada4}
 #mayorPanel .mayor-suspension-time span,#mayorPanel .mayor-suspension-body p{font-size:11px;line-height:1.5}
-#mayorPanel .mayor-suspension-limit{display:grid;gap:3px;padding:6px 0;border-top:1px solid #edd0d0}
-#mayorPanel .mayor-suspension-detail{background:#fff;border:1px solid #edc5c5;padding:7px;border-radius:6px;margin-top:6px;font-size:11px}
+#mayorPanel .mayor-suspension-limit{display:grid;gap:3px;padding:6px 0;border-top:1px solid #67444c}
+#mayorPanel .mayor-suspension-detail{background:#302833;border:1px solid #67444c;padding:7px;border-radius:6px;margin-top:6px;font-size:11px}
 #mayorPanel .mayor-suspension-actions{display:flex;gap:5px;margin-top:7px}
-#mayorPanel .mayor-suspension-actions button{flex:1;background:#fff;color:#8e2d35;border:1px solid #d7a1a1;font-weight:700}
+#mayorPanel .mayor-suspension-actions button{flex:1;background:#302833;color:#ffada4;border:1px solid #81545b;font-weight:700}
 #mayorPanel .mayor-suspension-actions button[data-mayor-action="ack-suspension"]{background:#962d37;color:#fff;border-color:#962d37}
 #mayorPanel .mayor-grade[data-grade="F"]{padding:0 5px;white-space:nowrap}
 #mayorRail button[data-suspended="true"]{outline:2px solid #b63f46;outline-offset:-2px}
@@ -220,7 +216,7 @@
 @media(max-width:600px){#mayorPanel .mayor-suspension-head{padding:8px}#mayorPanel .mayor-suspension-head h3{font-size:16px}#mayorPanel .mayor-suspension-body{padding:7px}#mayorPanel .mayor-suspension-cause{font-size:12px}}
 
 /* v7.2: once-daily 14:00 reminder for decisions due at 16:00. */
-#mayorPanel .mayor-afternoon{border:1px solid #d29543;border-radius:9px;background:#fff6e7;color:#714416;margin:0 0 9px;overflow:hidden}
+#mayorPanel .mayor-afternoon{border:1px solid #d29543;border-radius:9px;background:#372f26;color:#f0d2a4;margin:0 0 9px;overflow:hidden}
 #mayorPanel .mayor-afternoon-head{display:flex;align-items:center;gap:8px;background:#a76020;color:white;padding:9px}
 #mayorPanel .mayor-afternoon-head>span{display:grid;place-items:center;flex:none;width:26px;height:26px;border:2px solid currentColor;border-radius:50%;font-size:19px;font-weight:800}
 #mayorPanel .mayor-afternoon-head small{color:#fff0d8;font-size:10px}
@@ -315,4 +311,99 @@
 /* Phones: keep the right edge for mayor actions only; touch camera gestures remain available. */
 @media (max-width:720px) and (pointer:coarse), (max-width:1000px) and (max-height:520px) and (pointer:coarse) {
  html body #cameraPitchRail{display:none!important;pointer-events:none!important}
+}
+
+/* City hall uses a midnight-blue frame and brass mission insignia. */
+#mayorRail button[data-mayor-tab] {
+  color:#eee6d7;
+  background:linear-gradient(155deg,#334457,#172131 78%);
+  border:1px solid #657081;
+  box-shadow:inset 0 1px #ffffff20,0 2px 5px #0b101c66;
+}
+#mayorRail [data-mayor-tab="status"] {--insignia:#f4d482}
+#mayorRail [data-mayor-tab="effects"] {--insignia:#91d8cc}
+#mayorRail [data-mayor-tab="history"] {--insignia:#bac9e8}
+#mayorRail button .quick-mode-icon {color:var(--insignia,#edc687)}
+#mayorRail button[aria-pressed="true"] {outline-color:#efc67b;background:#374456}
+html:root #mayorPanel[data-mode] {
+  --my-bg:#131d2a; --my-surface:#213042; --my-soft:#2b3a4b;
+  --my-text:#f1eee7; --my-muted:#b3c1ce; --my-accent:#f0cb87; --my-line:#415064;
+  --my-good:#9cdec0; --my-good-bg:#213e38; --my-bad:#ffada4; --my-bad-bg:#4a2d36;
+  color-scheme:dark;
+  left:50%;top:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);
+  width:min(400px,88vw);max-height:min(72dvh,640px);
+  background:var(--my-bg);border:1px solid #8c8067;border-radius:12px;
+  box-shadow:inset 0 0 0 2px #273445,0 14px 40px #080e1ba8;
+}
+html:root #mayorPanel[data-mode="issues"][data-detail="true"] {width:min(462px,88vw)}
+#mayorPanel header {background:linear-gradient(105deg,#384454,#202d3d 78%);border-bottom-color:#756950}
+#mayorPanel header>b,#mayorPanel .mayor-story h3 {color:#ffe2a9}
+#mayorPanel .mayor-header-icon {color:#ffe0a2;background:#202b39;border:1px solid #877755;transform:rotate(-3deg)}
+#mayorPanel .mayor-story {position:relative;isolation:isolate;overflow:hidden;background:#1b2a3a;border:0;border-radius:6px;padding:10px 12px}
+#mayorPanel .mayor-story::after {
+  content:"";position:absolute;z-index:-1;right:0;bottom:0;width:92px;height:45px;background:#324457;opacity:.47;
+  clip-path:polygon(0 100%,0 74%,12% 74%,12% 45%,22% 45%,22% 65%,34% 65%,34% 32%,41% 32%,41% 22%,48% 22%,48% 55%,60% 55%,60% 42%,71% 42%,71% 68%,81% 68%,81% 18%,87% 6%,94% 18%,94% 42%,100% 42%,100% 100%);
+}
+#mayorPanel .mayor-blind-option {border-radius:4px 10px 10px 4px;border-left:3px solid #8f805f;background:linear-gradient(105deg,#2b394a,#202e3f)}
+#mayorPanel .mayor-option-number {color:#f5d79e;background:#3e403f}
+#mayorPanel .mayor-blind-option:disabled {border-left-color:#526073}
+#mayorPanel .mayor-primary,#mayorPanel .mayor-primary:hover:not(:disabled) {color:#232a31}
+#mayorPanel .mayor-category-icon[data-kind] {color:#cfbf9d}
+#mayorPanel .mayor-list-item[data-state="pending"]>small {color:var(--my-accent)}
+#mayorPanel .mayor-result[data-tone="working"] .mayor-result-hero {background:#283e55;color:#b3d4f5}
+#mayorPanel .mayor-urgent-call {background:var(--my-bad-bg);color:var(--my-bad);border-color:#915860}
+#mayorPanel .mayor-urgent-call small {color:inherit}
+html:root #mayorScoreHud {background:#192433ed;color:#f1eee7;border-color:#5a6371}
+html:root #mayorScoreHud .mayor-hud-head {border-color:#455364;color:#edc687}
+html:root #mayorScoreHud .mayor-hud-icon,html:root #mayorScoreHud .mayor-hud-head small {color:#bbc8d5}
+@media(max-width:720px),(max-height:520px) and (pointer:coarse) {
+  html:root #mayorPanel[data-mode],html:root #mayorPanel[data-mode="issues"][data-detail="true"] {
+    width:min(284px,82vw);max-height:min(62dvh,420px);
+  }
+  #mayorPanel .mayor-story {padding:7px 8px}
+  #mayorPanel .mayor-blind-option {padding:4px 6px;min-height:38px}
+}
+
+/* Illustrated mission dialogue. The map crop uses the city's own welcome art. */
+.mayor-mode-art {font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-variant-emoji:emoji;line-height:1;display:block}
+#mayorRail [data-mayor-tab="level"] {--enamel:#874846}
+#mayorRail [data-mayor-tab="status"] {--enamel:#73561e}
+#mayorRail [data-mayor-tab="issues"] {--enamel:#28618b}
+#mayorRail [data-mayor-tab="effects"] {--enamel:#516a39}
+#mayorRail [data-mayor-tab="history"] {--enamel:#6e4884}
+#mayorRail button[data-mayor-tab] {background:linear-gradient(155deg,var(--enamel),#1a2638 88%);border-color:color-mix(in srgb,var(--enamel) 70%,white)}
+#mayorRail button[aria-pressed="true"] {outline:2px solid #ffde84;outline-offset:-2px}
+#mayorPanel[data-detail="true"] .mayor-story {padding:0;background:#182737;border:1px solid #405365;border-radius:8px}
+#mayorPanel .mayor-story::after {display:none}
+#mayorPanel .mayor-scene {
+ display:flex;align-items:flex-end;min-height:76px;padding:12px;
+ background-color:#213248;
+ background-image:linear-gradient(90deg,#132435f5,#132435b8 54%,#13243524),url('../assets/smcity-welcome.webp');
+ background-size:cover,248% auto;background-position:center,right 10%;background-repeat:no-repeat;
+}
+#mayorPanel[data-mode="issues"][data-detail="true"] .mayor-scene h3 {color:#ffedc2;margin:0;text-shadow:0 2px 3px #07121f;line-height:1.4}
+#mayorPanel .mayor-story p.mayor-question-text {padding:9px 11px 2px;margin:0;line-height:1.55}
+#mayorPanel .mayor-story p.mayor-question-extra {padding:3px 11px;margin:0;color:#bdcbd8}
+#mayorPanel .mayor-question-facts {margin:6px 10px;padding:5px 0 0;font-size:10px}
+#mayorPanel .mayor-question-facts>b {flex-basis:auto;color:#b9c6cd}
+#mayorPanel .mayor-question-facts>span {background:none;padding:0}
+#mayorPanel .mayor-options {gap:5px}
+#mayorPanel button.mayor-blind-option {
+ background:linear-gradient(105deg,#294958,#203545 64%,#24394c);
+ border:1px solid #476477;border-radius:12px 12px 12px 3px;
+ box-shadow:inset 0 1px #ffffff12;
+}
+#mayorPanel button.mayor-blind-option:hover:enabled,#mayorPanel button.mayor-blind-option:focus-visible {
+ background:#364c57;border-color:#f0cb87;
+}
+#mayorPanel button.mayor-blind-option:disabled {background:#25303b;border-color:#414c58}
+#mayorPanel .mayor-reply-icon {display:grid;place-items:center;color:#86ddd3;flex:none;font-size:17px}
+#mayorPanel :disabled .mayor-reply-icon {color:#99a7b3}
+#mayorPanel .mayor-choice-bar {margin:9px 2px 5px}
+#mayorPanel .mayor-choice-bar>b {color:#f5d698}
+@media(max-width:720px),(max-height:520px) and (pointer:coarse) {
+ #mayorPanel .mayor-scene {min-height:54px;padding:7px 9px}
+ #mayorPanel .mayor-options {gap:4px}
+ #mayorPanel .mayor-story p.mayor-question-text {padding:6px 8px 0}
+ #mayorPanel .mayor-story p.mayor-question-extra {padding:2px 8px}
 }
