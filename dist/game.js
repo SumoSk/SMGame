@@ -1786,7 +1786,7 @@ function recordPerformance(c,key,kind,outcome){
 function serviceAvailability(c,kind,origin=c.locationId||c.homeId,ignoreHours=false){
  const source=state.buildings.get(origin),all=[...state.buildings.values()].filter(b=>CATALOG[b.key].kind===kind&&b.id!==origin);
  if(!all.length)return{reason:'missing'};
- const open=all.filter(b=>ignoreHours||serviceWindow(kind,state.time));if(!open.length)return{reason:'closed'};
+ const open=all.filter(b=>!mayorStoryClosed(b.id)&&(ignoreHours||serviceWindow(kind,state.time)));if(!open.length)return{reason:'closed'};
  const free=open.filter(b=>b.visitors.size+b.reservedService<CATALOG[b.key].service&&parkingFree(b)>0);
  if(!free.length)return{reason:'full',detail:open.every(b=>b.visitors.size+b.reservedService>=CATALOG[b.key].service)?'จำนวนผู้ใช้บริการและการจองเต็ม':open.every(b=>parkingFree(b)<=0)?'ที่จอดปลายทางเต็ม':'ไม่มีอาคารที่มีทั้งบริการและที่จอดว่าง'};
  free.sort((a,b)=>Math.abs(a.x-(source?.x||0))+Math.abs(a.y-(source?.y||0))+destinationRoadPenalty(a)-Math.abs(b.x-(source?.x||0))-Math.abs(b.y-(source?.y||0))-destinationRoadPenalty(b));
@@ -2104,6 +2104,7 @@ function mayorCity(){
  let capacity=null;const catalog={};for(const [k,t] of Object.entries(CATALOG))catalog[k]={name:t.name,kind:t.kind,cost:t.cost,residents:t.residents,jobs:t.jobs,service:t.service,beds:t.beds,unlocked:!t.legacyOnly&&!['home_small','home_medium'].includes(k)&&!buildingQuotaStatus(k).locked};
  return {get money(){return state.money},set money(v){state.money=v},get aiCredits(){return ensureCityLevel().aiCredits},set aiCredits(v){ensureCityLevel().aiCredits=v},level:ensureCityLevel().level,buildingCounts:counts,buildingIds:ids,catalog,capacityNeed:k=>(capacity??=mayorCapacityDemand())[k],performance:currentMissionScore(),canBuild:(k,n)=>{const q=buildingQuotaStatus(k);return !!catalog[k]?.unlocked&&(!q.limited||q.remaining>=n);}};
 }
+function mayorStoryClosed(id){return !!(state?.mayor&&mayorEngine?.storyClosed?.(state.mayor,id));}
 function mayorEffect(kind){const s=state?.mayor;return !!s?.effects.some(e=>e.kind===kind&&e.expires>state.time);}
 function mayorLocked(){const s=state?.mayor;return !!(s&&mayorEngine.active(s,state.time));}
 function mayorGuard(){if(!mayorLocked())return false;toast('นายกถูกพักอำนาจจนถึงเช้าวันที่ '+(mayorEngine.dayAt(state.mayor.suspendedUntil)+1));return true;}
@@ -2173,6 +2174,17 @@ function mayorAfternoonMarkup(s,t,items){
  const duration=Math.floor(minutes/60)+' ชม. '+minutes%60+' นาที';
  return '<section class="mayor-afternoon" role="region" aria-label="แจ้งเตือนงานบริหารค้าง"><div class="mayor-afternoon-head"><span aria-hidden="true">!</span><div><small>แจ้งเตือนก่อนหมดเวลาทำงาน</small><h3>ท่านนายก! ยังมีงานบริหารค้าง '+items.length+' เรื่อง</h3></div></div><p>กรุณาตัดสินใจภายใน 16:00 น. เหลือเวลา <b>'+duration+'</b> ในเกม</p><p>หากปล่อยให้หมดเวลา จะเสียคะแนนหมวดที่เกี่ยวข้อง <b>10 คะแนนต่อเรื่อง</b></p><button type="button" data-mayor-action="afternoon-now">แก้ปัญหาเดี๋ยวนี้ '+mayorIcon('next')+'</button></section>';
 }
+
+function mayorStoryMarkup(s){
+ const active=(s.stories||[]).filter(x=>x.status==="active"),ended=(s.stories||[]).filter(x=>x.status==="ended").slice(-8).reverse();
+ if(!active.length&&!ended.length)return "";
+ const item=x=>{
+  const pending=s.issues.find(i=>i.storyId===x.id&&i.status==="pending"),last=x.history?.at(-1);
+  const label=x.status==="ended"?"ปิดเรื่องแล้ว":pending?"รอตัดสินใจ":"รอติดตาม";
+  return '<div class="mayor-thread"><div class="mayor-thread-head"><b>'+mayorEsc(x.title)+'</b><small>'+label+'</small></div><span>'+mayorEsc(x.actor)+' · วันที่ '+(x.startedDay+1)+' เป็นต้นมา</span>'+(x.closedIds?.length?'<strong class="mayor-thread-alert">ร้านหยุดรับลูกค้า '+x.closedIds.length+' แห่ง</strong>':'')+(last?'<p>'+mayorEsc(last.choiceTitle)+' — '+mayorEsc(last.report)+'</p>':'')+(pending?'<button type="button" class="mayor-primary" data-mayor-open="'+pending.id+'">จัดการเรื่องต่อ</button>':'')+'<details><summary>ประวัติเรื่องราว ('+(x.history?.length||0)+' ตอน)</summary>'+((x.history||[]).map(h=>'<p>วันที่ '+(h.day+1)+' · '+mayorEsc(h.choiceTitle)+'<br>'+mayorEsc(h.report)+'</p>').join(''))+'</details></div>';
+ };
+ return '<section class="mayor-threads"><div class="mayor-thread-title"><b>รายงานจากเลขานุการ</b><small>'+active.length+'/7 เรื่องกำลังดำเนินอยู่</small></div>'+active.map(item).join('')+(ended.length?'<details><summary>เรื่องที่จบแล้ว '+ended.length+' เรื่องล่าสุด</summary>'+ended.map(item).join('')+'</details>':'')+'</section>';
+}
 function mayorUI(force=false){
  if(!mayorEngine||!state||typeof document.createElement!=='function'||!document.body?.appendChild||!$('cityLeftRail'))return;
  if(window.SMGameAuthLocked){mayorClose();if($('mayorRail'))$('mayorRail').hidden=true;if($('mayorScoreHud'))$('mayorScoreHud').hidden=true;return;}
@@ -2204,7 +2216,7 @@ function mayorUI(force=false){
  else if(!locked&&pending.length&&mayorAutoDay!==s.day&&!$('missionDailyAuto')&&!$('dialog')?.open){mayorAutoDay=s.day;mayorPanelMode='issues';mayorViewedIssue=pending[0].id;force=true;}
  for(const btn of rail.querySelectorAll('button'))btn.setAttribute('aria-pressed',String(btn.dataset.mayorTab===mayorPanelMode));
  if(!mayorPanelMode){panel.hidden=true;return;}
- const k=mayorPanelMode,signature=[k,mayorViewedIssue,mayorReport,s.day,s.history.length,s.issues.map(i=>i.status).join(','),s.effects.length,s.suspendedUntil,JSON.stringify(s.exploreQuota||{}),Math.floor(state.time/(locked||afternoon.length?1:10)),Math.floor(state.money),ensureCityLevel().level,mayorSuspensionDetails,Object.values(s.scores).join(','),afternoon.length,s.afternoonReminderDay].join('|');
+ const k=mayorPanelMode,signature=[k,mayorViewedIssue,mayorReport,s.day,s.history.length,s.issues.map(i=>i.status).join(','),s.effects.length,s.suspendedUntil,(s.stories||[]).map(x=>x.id+':'+x.status+':'+x.turns+':'+x.node+':'+x.closedIds.length).join(','),JSON.stringify(s.exploreQuota||{}),Math.floor(state.time/(locked||afternoon.length?1:10)),Math.floor(state.money),ensureCityLevel().level,mayorSuspensionDetails,Object.values(s.scores).join(','),afternoon.length,s.afternoonReminderDay].join('|');
  if(!force&&signature===mayorRenderKey)return;mayorRenderKey=signature;
  const scroll=panel.scrollTop;panel.hidden=false;panel.dataset.mode=k;panel.dataset.suspended=String(locked);panel.dataset.afternoon=String(afternoon.length>0);panel.dataset.detail=String(k==='issues'&&mayorViewedIssue!==null);panel.dataset.result=String(k==='issues'&&s.issues.some(i=>i.id===mayorViewedIssue&&i.status!=='pending'));panel.dataset.urgent=String(k==='issues'&&s.issues.some(i=>i.id===mayorViewedIssue&&i.source==='night'&&i.status==='pending'));let body='';
  const grade=(v)=>'<b class="mayor-grade" data-grade="'+mayorGrade(v)+'">'+(v<=25?'F · วิกฤต':mayorGrade(v))+'</b>';
@@ -2212,16 +2224,16 @@ function mayorUI(force=false){
  else if(afternoon.length&&k==='issues'&&mayorViewedIssue===null)body+=mayorAfternoonMarkup(s,state.time,afternoon);
  if(k==='level'){const l=cityLevelStatus();body+='<div class="mayor-hero"><div><small>เลเวลเมือง</small><strong>LV '+l.level+' <i>→ '+(l.level+1)+'</i></strong></div><div class="mayor-hero-icon">'+mayorIcon('level')+'</div></div><div class="mayor-section"><div class="mayor-stat"><span>ประชาชนเพิ่มอีก</span><b>'+mayorFmt(l.remaining)+' คน</b></div><div class="mayor-meter"><i style="width:'+l.progress+'%"></i></div><div class="mayor-stat"><span>ภารกิจสำเร็จ</span><b>'+(l.missionRate===null?'—':Math.round(l.missionRate)+'%')+' / 80%</b></div><div class="mayor-meter"><i style="width:'+Math.min(100,Math.max(0,(l.missionRate||0)/80*100))+'%"></i></div></div><button class="mayor-primary" data-mayor-action="level">ดูรางวัลเลเวล</button>';}
  if(k==='status'){body+=Object.entries(mayorModule.MAYOR_CATEGORIES).map(([id,n])=>'<div class="mayor-status-row"><div class="mayor-stat"><span class="mayor-category-label">'+mayorCategoryLabel(id)+'</span><small>'+s.scores[id]+'/100</small>'+grade(s.scores[id])+'</div><div class="mayor-meter" data-grade="'+mayorGrade(s.scores[id])+'"><i style="width:'+s.scores[id]+'%"></i></div></div>').join('');}
- if(k==='effects'){body+=s.effects.length?s.effects.map(e=>'<div class="mayor-effect-row"><div class="mayor-outcomes">'+mayorChips({effects:[e]})+'</div><small>'+mayorIcon('clock')+' ถึง 06:00</small></div>').join(''):'<div class="mayor-empty">'+mayorIcon('effects')+'<span>ไม่มีสถานะพิเศษ</span></div>';if(s.unpaid)body+='<p>เงินสนับสนุนค้างคืน '+mayorFmt(s.unpaid)+' บาท</p>';}
+ if(k==='effects'){body+=mayorStoryMarkup(s);body+=s.effects.length?s.effects.map(e=>'<div class="mayor-effect-row"><div class="mayor-outcomes">'+mayorChips({effects:[e]})+'</div><small>'+mayorIcon('clock')+' ถึง 06:00</small></div>').join(''):'<div class="mayor-empty">'+mayorIcon('effects')+'<span>ไม่มีสถานะพิเศษ</span></div>';if(s.unpaid)body+='<p>เงินสนับสนุนค้างคืน '+mayorFmt(s.unpaid)+' บาท</p>';}
  if(k==='history'){const recent=s.history.slice(-30);const sums={};for(const h of recent){const day=mayorEngine.dayAt(h.at)+1;const item=sums[day]||={ok:0,fail:0};if(h.status==='success')item.ok++;if(['failed','expired'].includes(h.status))item.fail++;}const days=Object.entries(sums).slice(-7);if(days.length)body+='<small>ผลการบริหาร 7 วันล่าสุด</small>'+days.map(([d,r])=>'<div class="mayor-stat"><small>วันที่ '+d+'</small><span>สำเร็จ '+r.ok+' / ไม่สำเร็จ '+r.fail+'</span></div><div class="mayor-meter"><i style="width:'+(100*r.ok/Math.max(1,r.ok+r.fail))+'%"></i></div>').join('');body+=s.history.slice(-40).reverse().map(h=>'<p><small>วันที่ '+(mayorEngine.dayAt(h.at)+1)+' · '+mayorEsc(mayorModule.MAYOR_CATEGORIES[h.category])+'</small><br>'+mayorEsc(h.report)+'</p>').join('')||'<p>ยังไม่มีประวัติ</p>';}
  if(k==='issues'){
   const i=s.issues.find(x=>x.id===mayorViewedIssue);
-  if(i){const d=mayorModule.MAYOR_EVENTS.find(x=>x.id===i.eventId);body+='<div class="mayor-issue-top"><button class="mayor-back" data-mayor-action="back">'+mayorIcon('back')+' ทุกหมวด</button><span class="mayor-category-label">'+mayorCategoryLabel(i.category)+'</span><small>'+(s.issues.indexOf(i)+1)+' / '+s.issues.length+'</small></div><div class="mayor-story"><h3>' +mayorEsc(mayorIssueTitle(i,d))+'</h3>'+(i.status==='pending'?mayorQuestionMarkup(i,d,mayorCity()):'')+'</div>';
+  if(i){const d=mayorModule.MAYOR_EVENTS.find(x=>x.id===i.eventId);const thread=(s.stories||[]).find(x=>x.id===i.storyId);if(thread)body+='<div class="mayor-thread-note">'+mayorEsc(thread.title)+' · ตอนที่ '+(thread.history.length+(i.status==='pending'?1:0))+'<br>'+mayorEsc(thread.history.at(-1)?.report||'')+'</div>';body+='<div class="mayor-issue-top"><button class="mayor-back" data-mayor-action="back">'+mayorIcon('back')+' ทุกหมวด</button><span class="mayor-category-label">'+mayorCategoryLabel(i.category)+'</span><small>'+(s.issues.indexOf(i)+1)+' / '+s.issues.length+'</small></div><div class="mayor-story"><h3>' +mayorEsc(mayorIssueTitle(i,d))+'</h3>'+(i.status==='pending'?mayorQuestionMarkup(i,d,mayorCity()):'')+'</div>';
    if(i.status==='pending'){if(i.source==='night')body+='<div class="mayor-urgent-call">'+mayorIcon('clock')+'<b>สายด่วนถึงนายก · นอกเวลางาน</b><small>เหลือ '+Math.max(0,Math.ceil(mayorEngine.issueDeadline(i)-state.time))+' นาทีในเกม</small></div>';body+='<div class="mayor-choice-bar"><b>คุณจะตัดสินใจอย่างไร?</b><small>'+mayorIcon('clock')+' ก่อน '+timeText(mayorEngine.issueDeadline(i))+'</small></div>';const c=mayorCity();body+='<div class="mayor-options">'+mayorDisplayOptions(mayorEngine.options(s,i,c),i).map((o,position)=>mayorChoiceMarkup(o,c,s,position)).join('')+'</div>';}
    else if(i.status==='working'){const t=i.task,city=mayorCity();const progress=t.kind==='build'?(city.buildingIds[t.key]||[]).filter(x=>!i.baseline.includes(x)).length+'/'+t.count:Math.round(currentMissionScore()||0)+'% / '+t.target+'%';const log=s.history.filter(h=>h.id===i.id).at(-1);body+=mayorResultMarkup(i,log,s,progress);}
    else{const log=s.history.filter(h=>h.id===i.id).at(-1);body+=mayorResultMarkup(i,log,s);}
    const next=pending.find(x=>x.id!==i.id);if(next)body+='<button class="mayor-primary mayor-next" data-mayor-open="'+next.id+'">เรื่องถัดไป '+mayorIcon('next')+'</button>';
-  }else{body+='<div class="mayor-hero"><div><small>เรื่องรอตัดสินใจ</small><strong>'+pending.length+' <i>/ '+s.issues.length+'</i></strong></div><div class="mayor-hero-icon">'+mayorIcon('issues')+'</div></div><div class="mayor-meter mayor-progress"><i style="width:'+(100*(s.issues.length-pending.length)/Math.max(1,s.issues.length))+'%"></i></div><small class="mayor-subtle">'+(state.time>=mayorEngine.deadline(s.day)?'ปิดงานประจำวัน · เฝ้าระวังสายด่วนช่วงค่ำ':'ก่อน 16:00 น.')+'</small>';for(const [id,n] of Object.entries(mayorModule.MAYOR_CATEGORIES)){const list=s.issues.filter(i=>i.category===id),remaining=mayorEngine.exploreRemaining(s,id),used=3-remaining;body+='<div class="mayor-category"><b class="mayor-category-label">'+mayorCategoryLabel(id)+'</b>'+grade(s.scores[id])+'<button data-mayor-explore="'+id+'" '+(!remaining||mayorLocked()||state.time>=mayorEngine.deadline(s.day)||list.some(i=>['pending','working'].includes(i.status))?'disabled':'')+'>'+(!remaining?'ใช้ครบ 3/3':'แก้เพิ่ม · ใช้ '+used+'/3')+'</button></div>'+list.map(i=>'<button class="mayor-choice mayor-list-item" data-state="'+i.status+'" data-mayor-open="'+i.id+'"><span>'+mayorEsc((i.source==='night'?'[ด่วน] ':i.source==='explore'?'[เพิ่มเติม] ':i.source==='moral'?'[วัดใจ] ':'[ประจำวัน] ')+mayorIssueTitle(i))+'</span> <small>'+({pending:'รอตัดสินใจ',working:'กำลังทำ',success:'เสร็จ',failed:'ล้มเหลว',expired:'หมดเวลา'}[i.status]||'')+'</small></button>').join('');}}
+  }else{body+=mayorStoryMarkup(s);body+='<div class="mayor-hero"><div><small>เรื่องรอตัดสินใจ</small><strong>'+pending.length+' <i>/ '+s.issues.length+'</i></strong></div><div class="mayor-hero-icon">'+mayorIcon('issues')+'</div></div><div class="mayor-meter mayor-progress"><i style="width:'+(100*(s.issues.length-pending.length)/Math.max(1,s.issues.length))+'%"></i></div><small class="mayor-subtle">'+(state.time>=mayorEngine.deadline(s.day)?'ปิดงานประจำวัน · เฝ้าระวังสายด่วนช่วงค่ำ':'ก่อน 16:00 น.')+'</small>';for(const [id,n] of Object.entries(mayorModule.MAYOR_CATEGORIES)){const list=s.issues.filter(i=>i.category===id),remaining=mayorEngine.exploreRemaining(s,id),used=3-remaining;body+='<div class="mayor-category"><b class="mayor-category-label">'+mayorCategoryLabel(id)+'</b>'+grade(s.scores[id])+'<button data-mayor-explore="'+id+'" '+(!remaining||mayorLocked()||state.time>=mayorEngine.deadline(s.day)||list.some(i=>['pending','working'].includes(i.status))?'disabled':'')+'>'+(!remaining?'ใช้ครบ 3/3':'แก้เพิ่ม · ใช้ '+used+'/3')+'</button></div>'+list.map(i=>'<button class="mayor-choice mayor-list-item" data-state="'+i.status+'" data-mayor-open="'+i.id+'"><span>'+mayorEsc((i.source==='night'?'[ด่วน] ':i.source==='explore'?'[เพิ่มเติม] ':i.source==='moral'?'[วัดใจ] ':i.source==='story'?'[ติดตาม] ':'[ประจำวัน] ')+mayorIssueTitle(i))+'</span> <small>'+({pending:'รอตัดสินใจ',working:'กำลังทำ',success:'เสร็จ',failed:'ล้มเหลว',expired:'หมดเวลา'}[i.status]||'')+'</small></button>').join('');}}
  }
  panel.innerHTML='<header><span class="mayor-header-icon">'+mayorIcon(k)+'</span><b>'+mayorTitles[k]+'</b><small class="mayor-time">'+mayorIcon('clock')+' '+timeText(state.time)+'</small><button class="mayor-close" data-mayor-action="close" aria-label="ปิด">'+mayorIcon('close')+'</button></header><div class="mayor-body">'+body+'</div>';panel.scrollTop=force?0:scroll;
  panel.onclick=e=>{const btn=e.target.closest('button');if(!btn||btn.disabled)return;const a=btn.dataset.mayorAction;if(a==='close'||a==='ack-suspension')return mayorClose();if(a==='suspension-details'){mayorSuspensionDetails=!mayorSuspensionDetails;mayorRenderKey='';mayorUI(false);return;}if(a==='afternoon-now'){const first=mayorAfternoonPending(s,state.time,mayorLocked())[0];if(first)return mayorOpen('issues',first.id);return mayorOpen('issues');}if(a==='back')return mayorOpen('issues');if(a==='level'){$('cityLevelButton')?.click();return mayorClose();}if(btn.dataset.mayorOpen)return mayorOpen('issues',Number(btn.dataset.mayorOpen));if(btn.dataset.mayorExplore){mayorAdvance();const current=mayorState(),i=mayorEngine.explore(current,mayorCity(),btn.dataset.mayorExplore,state.time);if(i)mayorOpen('issues',i.id);else{toast(mayorEngine.exploreRemaining(current,btn.dataset.mayorExplore)?'วันนี้ไม่มีเรื่องใหม่ที่เข้าเงื่อนไขในหมวดนี้':'ใช้สิทธิ์แก้ปัญหาเพิ่มครบ 3 ครั้งแล้ว');mayorUI(true);}return;}if(btn.dataset.mayorChoice!==undefined){mayorAdvance();const r=mayorEngine.choose(s,mayorViewedIssue,Number(btn.dataset.mayorChoice),mayorCity(),state.time);if(r.ok){mayorReport=r.report||'รับภารกิจแล้ว';toast(mayorReport);mayorRenderKey='';mayorUI(true);}else toast('ตัวเลือกไม่พร้อมใช้งาน');}};
@@ -6233,6 +6245,7 @@ else if(selected.kind==='building'){
  let detail=row('พื้นที่รวมลานจอด',buildingBounds(b).w+' × '+buildingBounds(b).h)+row('ค่าดูแล / วัน',money(t.maint));
  if(t.residents)detail+=row('กำลังย้ายเข้า',b.reservedResidents+' คน');
  if(t.beds)detail+=row('กำลังพักโรงแรม',[...(b.guests||[])].filter(id=>state.citizens.get(id)?.sleepUntil>state.time).length+' คน');
+ if(mayorStoryClosed(b.id))detail+=row('สถานะ','หยุดรับลูกค้าชั่วคราว · เรื่องราวนายก');
  if(t.service&&t.kind!=='civic')detail+=row('จองเดินทางมา',b.reservedService+' คน')+row('เปิดบริการ',['casino','civic'].includes(t.kind)?'24 ชั่วโมง':timeText(SERVICE_HOURS[t.kind][0])+'–'+timeText(SERVICE_HOURS[t.kind][1]));
  detail+=row('รอเส้นทาง',[...b.queue].filter(id=>state.vehicles.get(id)?.departureNoRoute).length+' คัน')+row('เดินทางมาถึง',b.arrivals+' ครั้ง')+'<p>เข้าออกจากขอบทางฝั่งซ้ายตามทิศรถ หากอยู่คนละฝั่ง รถต้องวนกลับตามเส้นทาง</p>';
  const capacity=t.residents||t.beds||t.jobs||t.service||0,used=t.residents?b.residents.size:t.beds?(b.guests?.size||0):t.jobs?b.workers.size:b.visitors.size;
@@ -6734,7 +6747,7 @@ function chooseCityOuting(c,requests=new Map()){
   const win=serviceWindow(kind,state.time),duration=Math.round(SERVICE_STAY[kind][0]+habitRandom(c.id,Math.floor(state.time/15),183)*30);
   const choices=[...state.buildings.values()].filter(b=>b.id!==origin.id&&CATALOG[b.key].kind===kind).sort((a,b)=>distance(id(a.x,a.y),id(origin.x,origin.y))+destinationRoadPenalty(a)-distance(id(b.x,b.y),id(origin.x,origin.y))-destinationRoadPenalty(b));
   for(const b of choices){exists=true;const held=requests.get(b.id)||0;
-   if(b.visitors.size+b.reservedService+held>=CATALOG[b.key].service)continue;
+   if(mayorStoryClosed(b.id)||b.visitors.size+b.reservedService+held>=CATALOG[b.key].service)continue;
    // This synchronous search cannot retarget vehicles. Count them only when
    // capacity first matters, and keep each destination's parked count live.
    if(!incoming){incoming=new Map();for(const v of state.vehicles.values()){const toId=v.toId;if(v.citizenId&&toId===toId)incoming.set(toId,(incoming.get(toId)||0)+1);}}
@@ -7100,7 +7113,7 @@ function arriveTourist(c,v,b){
  if(v.kind==='leisure'&&step){
   const at=v.arrivedAt??state.time,win=serviceWindow(step.kind,at),missed=at>=Math.min(c.tourEnd,v.closeAt||Infinity)-10;
   if(missed){touristActivityResult(c,step,'missed');touristTrafficFailure(c,v,step);if(step.status!=='missed-traffic'){step.status='skipped';step.reason='มาถึงหลังหมดเวลาเที่ยว';}c.tourIndex=Math.max(c.tourIndex,v.tourIndex+1);c.state='หมดเวลาใช้บริการ';touristSchedule(c,state.time+1);return;}
-  if(!win){touristActivityResult(c,step,'missed');step.status='skipped';step.reason='สถานที่ปิดบริการ';c.tourIndex=v.tourIndex+1;touristSchedule(c,state.time+1);return;}
+  if(!win||mayorStoryClosed(b.id)){touristActivityResult(c,step,'missed');step.status='skipped';step.reason='สถานที่ปิดบริการ';c.tourIndex=v.tourIndex+1;touristSchedule(c,state.time+1);return;}
   touristActivityResult(c,step,Number.isFinite(v.deadline)&&(v.arrivedAt??state.time)>v.deadline?'late':'ontime');b.visitors.add(c.id);step.status='visiting';c.state='เที่ยว'+KINDS[step.kind].name;c.problem='';c.activityUntil=Math.max(state.time+.5,Math.min(c.tourEnd,win.close,(v?.arrivedAt??state.time)+step.stay));touristSchedule(c,c.activityUntil);return;
  }
  touristSchedule(c,state.time+1);
@@ -7584,7 +7597,7 @@ function residentArrivalReason(v,c,b,outcome){
 }
 function startResidentService(c,v,b){
  const duration=v.stay||30,win=serviceWindow(v.serviceKind||CATALOG[b.key].kind,state.time);
- const reason=!win?'สถานที่ปิดเมื่อจอดเสร็จ':b.visitors.size>=CATALOG[b.key].service?'จำนวนผู้ใช้บริการเต็มเมื่อจอดเสร็จ':state.time+duration>win.close?'สถานที่จะปิดก่อนใช้บริการครบ':null;
+ const reason=mayorStoryClosed(b.id)?'ร้านหยุดให้บริการชั่วคราวตามเหตุการณ์บริหารเมือง':!win?'สถานที่ปิดเมื่อจอดเสร็จ':b.visitors.size>=CATALOG[b.key].service?'จำนวนผู้ใช้บริการเต็มเมื่อจอดเสร็จ':state.time+duration>win.close?'สถานที่จะปิดก่อนใช้บริการครบ':null;
  if(reason){journeyResult(c,v,'missed',reason);c.state='ใช้บริการไม่ได้';c.problem=reason;return state.time+.5;}
  b.visitors.add(c.id);c.state='อยู่'+KINDS[v.serviceKind||CATALOG[b.key].kind].name;
  const until=state.time+duration;
@@ -7673,7 +7686,7 @@ function runAction(c,action,extra={}){
   const nearby=b=>Math.abs(b.x-origin.x)+Math.abs(b.y-origin.y);
   function choices(k){
    return [...state.buildings.values()].filter(b=>CATALOG[b.key].kind===k&&
-    b.visitors.size+b.reservedService<CATALOG[b.key].service&&parkingFree(b)>0)
+    !mayorStoryClosed(b.id)&&b.visitors.size+b.reservedService<CATALOG[b.key].service&&parkingFree(b)>0)
     .sort((a,b)=>nearby(a)+destinationRoadPenalty(a)+(a.visitors.size+a.reservedService)/Math.max(1,CATALOG[a.key].service)*18-
       nearby(b)-destinationRoadPenalty(b)-(b.visitors.size+b.reservedService)/Math.max(1,CATALOG[b.key].service)*18);
   }
@@ -7964,7 +7977,7 @@ function startDeliveryReturn(v){
  forgetTurnLaneVehicle(v);motionPlans.delete(v);
 }
 
-function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(kind==='intercity'&&!INTERCITY_FREIGHT_ENABLED)return false;if(c?.vehicleId)return false;const destination=state.buildings.get(toId);if(destination&&kind!=='delivery'&&parkingFree(destination)<=0)return false;if(kind==='pass'&&state.vehicles.size>=8000)return false;const fromBuilding=state.buildings.get(fromId);if(c&&fromBuilding&&CATALOG[fromBuilding.key].dualParking)parkingSpace(fromBuilding,c.id,true);
+function createTrip(c,kind,fromId,toId,fromGate,toGate,deadline,extra={}){if(kind==='intercity'&&!INTERCITY_FREIGHT_ENABLED)return false;if(c?.vehicleId)return false;const destination=state.buildings.get(toId);if(kind==='leisure'&&destination&&mayorStoryClosed(destination.id))return false;if(destination&&kind!=='delivery'&&parkingFree(destination)<=0)return false;if(kind==='pass'&&state.vehicles.size>=8000)return false;const fromBuilding=state.buildings.get(fromId);if(c&&fromBuilding&&CATALOG[fromBuilding.key].dualParking)parkingSpace(fromBuilding,c.id,true);
  const to=state.buildings.get(toId),from=state.buildings.get(fromId);
  const vehicleTech=c?.resident&&!c.tourist?(c.vehicleTech||'normal'):'normal';
  const skyTrip=!!from&&!!to&&vehicleTech==='warp';
