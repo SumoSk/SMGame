@@ -10021,6 +10021,670 @@ MAYOR_EVENTS.push(...[
     "moralOnly": true
   }
 ]);
+// v7.2: ordinary decisions may include optional funding. Existing indices and event ids remain unchanged.
+const MAYOR_V72_OFFERS = {
+  "admin-rain": {
+    "title": "รับเงินสนับสนุนอุปกรณ์ระบายน้ำ 650,000 บาทจากสมาคมช่าง",
+    "success": {
+      "money": 650000,
+      "scores": {
+        "admin": 3
+      },
+      "report": "สมาคมช่างบริจาคเงินผ่านบัญชีเทศบาลโดยไม่มีเงื่อนไขและเจ้าหน้าที่ใช้แผนรับมือเดิมได้ทัน ฝ่ายบริหารได้รับคำชมเรื่องการประสานทรัพยากร ไม่พบผลประโยชน์ทับซ้อน"
+    }
+  },
+  "admin-crossing": {
+    "title": "รับ 1,200,000 บาทจากบริษัทอุปกรณ์จราจร แลกกับการทดลองใช้ระบบของบริษัทก่อน",
+    "success": {
+      "money": 1200000,
+      "scores": {
+        "admin": -8,
+        "integrity": -12,
+        "people": -5
+      },
+      "report": "บริษัทจ่ายเงินครบ แต่การทดลองโดยไม่เปรียบเทียบระบบอื่นทำให้ทีมงานต้องแก้ปัญหาจราจรซ้ำ ชาวเมืองเสียเวลาเดินทาง และผู้ตรวจสอบพบว่าผู้ขายได้เปรียบคู่แข่ง"
+    }
+  },
+  "admin-training": {
+    "title": "รับทุนอบรมจากสถาบันการศึกษา 250,000 บาท โดยไม่กำหนดผู้รับเหมา",
+    "success": {
+      "money": 250000,
+      "scores": {},
+      "report": "สถาบันโอนทุนผ่านช่องทางราชการและไม่ขอสิทธิพิเศษ ทีมงานยังทำงานตามแผนเดิม จึงไม่มีคะแนนด้านใดเปลี่ยนแปลง"
+    }
+  },
+  "image-interview": {
+    "title": "รับ 700,000 บาทจากผู้ผลิตรายการเพื่อเปิดตัวรายการสัมภาษณ์นายก",
+    "success": {
+      "money": 700000,
+      "scores": {
+        "image": -8,
+        "integrity": -5
+      },
+      "report": "รายการออกอากาศตามข้อตกลง แต่ผู้ชมพบว่าผู้สนับสนุนเป็นคู่สัญญาของเมืองและมีสิทธิอนุมัติคำถาม จึงตั้งข้อสงสัยว่าการสัมภาษณ์ไม่เป็นอิสระ"
+    }
+  },
+  "image-speech": {
+    "title": "รับเงินสนับสนุน 400,000 บาท พร้อมกล่าวขอบคุณผู้จัดงานตามกำหนด",
+    "success": {
+      "money": 400000,
+      "scores": {
+        "image": 4,
+        "business": 3
+      },
+      "report": "พิธีกรประกาศยอดสนับสนุนอย่างเปิดเผย ผู้ชมเห็นว่านายกให้เกียรติผู้ร่วมจัดงาน ขณะที่ธุรกิจพอใจกับการประชาสัมพันธ์ที่เป็นธรรม"
+    }
+  },
+  "image-community": {
+    "title": "รับเงินสมทบกองทุนชุมชน 350,000 บาทจากผู้จัดงาน",
+    "success": {
+      "money": 350000,
+      "scores": {},
+      "report": "ยอดเงินปรากฏในทะเบียนรับบริจาคและไม่มีการเปลี่ยนแผนงานหรือสิทธิของผู้บริจาค ชาวเมืองและสื่อไม่ได้มีปฏิกิริยาเพิ่มเติม"
+    }
+  },
+  "fame-food": {
+    "title": "รับ 1,500,000 บาทจากผู้จัดเทศกาล และให้ผู้จัดคัดเลือกร้านค้าเอง",
+    "success": {
+      "money": 1500000,
+      "scores": {
+        "fame": 5,
+        "business": -9,
+        "people": -5
+      },
+      "report": "เทศกาลได้รับความสนใจจากสื่อ แต่ผู้จัดคัดเฉพาะร้านในเครือ ร้านรายย่อยถูกกันออกและชาวเมืองวิจารณ์ว่าพื้นที่สาธารณะไม่ได้เปิดให้ทุกคนเท่ากัน"
+    }
+  },
+  "fame-tour-film": {
+    "title": "เก็บค่าธรรมเนียมถ่ายทำ 900,000 บาทตามประกาศเทศบาล",
+    "success": {
+      "money": 900000,
+      "scores": {
+        "fame": 4
+      },
+      "report": "กองถ่ายชำระเงินตามอัตราที่ประกาศและไม่ปิดพื้นที่เกินเวลาที่ได้รับอนุญาต ภาพเมืองออกอากาศและทำให้คนรู้จักเมืองเพิ่มขึ้น"
+    }
+  },
+  "fame-coast": {
+    "title": "รับเงินสนับสนุนเก็บขยะชายฝั่ง 500,000 บาทโดยไม่อนุญาตป้ายโฆษณาเพิ่มเติม",
+    "success": {
+      "money": 500000,
+      "scores": {},
+      "report": "ผู้บริจาคยอมรับเงื่อนไข เงินเข้าสู่คลังตามระเบียบ ขณะที่กิจกรรมยังจัดตามกำหนดและไม่เกิดกระแสใหม่ด้านชื่อเสียง"
+    }
+  },
+  "government-visit": {
+    "title": "รับงบอุดหนุนทั่วไป 1,000,000 บาท พร้อมลงนามรับทราบข้อเสนอของคณะรัฐบาล",
+    "success": {
+      "money": 1000000,
+      "scores": {
+        "government": 4
+      },
+      "report": "ส่วนกลางตรวจเอกสารครบและอนุมัติงบทั่วไปโดยไม่ผูกกับการจัดซื้อ ผู้ประสานงานเห็นว่าเทศบาลส่งข้อมูลตามกำหนดจึงทำงานร่วมกันได้ดีขึ้น"
+    }
+  },
+  "government-fund-return": {
+    "title": "ยื่นขอเงินสำรอง 1,800,000 บาทโดยระบุว่าเมืองยังขาดแคลนงบช่วยเหลือ",
+    "success": {
+      "money": 1800000,
+      "scores": {
+        "government": -12,
+        "integrity": -10
+      },
+      "report": "เงินได้รับอนุมัติจากข้อมูลเบื้องต้น แต่การตรวจภายหลังพบว่าเมืองมีเงินสำรองอยู่แล้วและไม่ได้เปิดเผย ฝ่ายรัฐบาลเสียความเชื่อถือและผู้ตรวจสอบตั้งข้อสังเกตเรื่องความครบถ้วนของข้อมูล"
+    }
+  },
+  "government-liaison-daily": {
+    "title": "รับเงินสนับสนุนงานประสานราชการ 200,000 บาทตามสิทธิที่ประกาศ",
+    "success": {
+      "money": 200000,
+      "scores": {},
+      "report": "ส่วนกลางโอนงบตามสิทธิของเทศบาลทุกแห่ง ไม่มีเงื่อนไขพิเศษหรือความขัดแย้งใหม่"
+    }
+  },
+  "people-cost": {
+    "title": "รับเงินจากเครือข่ายค้าปลีก 1,400,000 บาท แลกกับการประชาสัมพันธ์โครงการลดค่าครองชีพของเครือข่ายเท่านั้น",
+    "success": {
+      "money": 1400000,
+      "scores": {
+        "people": -8,
+        "business": -5,
+        "integrity": -6
+      },
+      "report": "ประชาชนพบว่าร้านอื่นที่เสนอราคาถูกกว่าถูกกันออกจากการประชาสัมพันธ์ ร้านรายย่อยร้องเรียนและสื่อถามเหตุใดเทศบาลจึงให้สิทธิแก่ผู้สนับสนุนรายเดียว"
+    }
+  },
+  "people-recreation": {
+    "title": "รับเงินสมทบ 600,000 บาทจากมูลนิธิ ให้ทุกชุมชนเข้าร่วมกิจกรรมได้",
+    "success": {
+      "money": 600000,
+      "scores": {
+        "people": 5
+      },
+      "report": "มูลนิธิสนับสนุนโดยไม่จำกัดผู้เข้าร่วม ครอบครัวในหลายชุมชนเข้าถึงกิจกรรมได้อย่างเท่าเทียมและแสดงความพอใจ"
+    }
+  },
+  "people-complaint": {
+    "title": "รับเงินสมทบระบบรับเรื่องร้องเรียน 300,000 บาทจากองค์กรสาธารณประโยชน์",
+    "success": {
+      "money": 300000,
+      "scores": {},
+      "report": "องค์กรสนับสนุนเงินโดยไม่เข้าถึงข้อมูลร้องเรียนหรือกำหนดลำดับคิว ระบบบริการยังทำงานตามเดิมและไม่มีคะแนนเปลี่ยนแปลง"
+    }
+  },
+  "business-food-cost": {
+    "title": "รับ 1,600,000 บาทจากผู้ค้าส่ง แลกกับการแนะนำร้านอาหารให้ซื้อวัตถุดิบจากรายเดียว",
+    "success": {
+      "money": 1600000,
+      "scores": {
+        "business": -10,
+        "integrity": -8,
+        "people": -4
+      },
+      "report": "ร้านอาหารหลายร้านพบว่าราคาและเงื่อนไขซื้อขายไม่เหมาะกับตน คู่แข่งร้องเรียนเรื่องการปิดกั้นตลาด และประชาชนกังวลว่าต้นทุนจะถูกส่งต่อมายังราคาอาหาร"
+    }
+  },
+  "business-mall-sponsor": {
+    "title": "รับ 850,000 บาทเป็นค่าธรรมเนียมจัดงานตามระเบียบเดียวกับผู้จัดรายอื่น",
+    "success": {
+      "money": 850000,
+      "scores": {
+        "business": 3
+      },
+      "report": "ผู้จัดงานจ่ายค่าธรรมเนียมตามประกาศที่ทุกกิจการเข้าถึงได้ ผู้ประกอบการพอใจที่กติกาชัดเจนและไม่มีข้อร้องเรียนเรื่องสิทธิพิเศษ"
+    }
+  },
+  "business-new-market-daily": {
+    "title": "รับเงินสมทบพัฒนาตลาด 450,000 บาทจากสมาคมการค้าโดยไม่สัญญาสิทธิพิเศษ",
+    "success": {
+      "money": 450000,
+      "scores": {},
+      "report": "เงินเข้าสู่คลังผ่านบัญชีปกติ สมาคมไม่ได้รับสิทธิในการจัดสรรที่ดินหรือใบอนุญาต คะแนนทุกด้านคงเดิม"
+    }
+  },
+  "integrity-public-ledger": {
+    "title": "รับทุนสนับสนุนระบบบัญชีเปิด 550,000 บาทและเปิดเผยผู้ให้ทุน",
+    "success": {
+      "money": 550000,
+      "scores": {
+        "integrity": 5
+      },
+      "report": "แหล่งที่มาของเงินและเงื่อนไขปรากฏในทะเบียนสาธารณะ ผู้ตรวจสอบยืนยันว่าไม่มีสิทธิแทรกแซงข้อมูล ความเชื่อถือด้านความโปร่งใสจึงเพิ่มขึ้น"
+    }
+  },
+  "integrity-contract": {
+    "title": "รับค่าชดเชย 2,000,000 บาท แลกกับการยอมใช้ข้อความในสัญญาฉบับเดิม",
+    "success": {
+      "money": 2000000,
+      "scores": {
+        "integrity": -15,
+        "admin": -8,
+        "business": -5
+      },
+      "report": "เมืองได้เงินทันที แต่ฝ่ายกฎหมายพบว่าข้อความเดิมเปิดทางให้คู่สัญญาได้เปรียบ ผู้ประกอบการอื่นคัดค้าน และฝ่ายบริหารต้องเสียเวลาทบทวนสัญญา"
+    }
+  },
+  "integrity-audit-government": {
+    "title": "รับเงินสนับสนุนการจัดทำเอกสาร 150,000 บาทจากหน่วยงานกลาง",
+    "success": {
+      "money": 150000,
+      "scores": {},
+      "report": "เงินเป็นงบเบิกจ่ายตามระเบียบ ผู้ตรวจสอบยังทำหน้าที่อย่างอิสระและไม่มีการเปลี่ยนแปลงความเชื่อถือของเมือง"
+    }
+  }
+};
+for(const event of MAYOR_EVENTS){const offer=MAYOR_V72_OFFERS[event.id];if(offer)event.choices.push(offer);}
+MAYOR_EVENTS.push(...[
+  {
+    "id": "v72-road-fund",
+    "category": "admin",
+    "minLevel": 1,
+    "title": "เงินด่วนสำหรับทางเข้าเมือง",
+    "story": "บริษัทเสนอสนับสนุนทางเข้าเมือง ขณะเจ้าหน้าที่กำลังทบทวนสภาพถนน โดยมีข้อเสนอหลายรูปแบบ",
+    "choices": [
+      {
+        "title": "อนุญาตให้บริษัทกำหนดพื้นที่ตรวจถนนเอง รับ 1,800,000 บาท",
+        "success": {
+          "money": 1800000,
+          "scores": {
+            "admin": -10,
+            "integrity": -12
+          },
+          "report": "รายงานตรวจสภาพถูกจำกัดเฉพาะพื้นที่ที่บริษัทเลือก วิศวกรเทศบาลพบจุดเสี่ยงที่ตกหล่นและคณะตรวจสอบตั้งข้อสงสัยต่อความเป็นกลาง"
+        }
+      },
+      {
+        "title": "ใช้รายงานของวิศวกรเทศบาลและเปิดรับข้อเสนอทั่วไป",
+        "success": {
+          "money": 0,
+          "scores": {
+            "admin": 6,
+            "integrity": 3
+          },
+          "report": "ทีมวิศวกรใช้หลักเกณฑ์เดียวกันในการประเมินทุกจุด จึงทำให้แผนซ่อมแซมมีความน่าเชื่อถือ"
+        }
+      },
+      {
+        "title": "เลื่อนเรื่องทั้งหมดไปก่อน",
+        "success": {
+          "money": 0,
+          "scores": {
+            "admin": -5
+          },
+          "report": "เจ้าหน้าที่ไม่มีคำสั่งให้เริ่มตรวจทางเข้าเมือง แผนงานจึงล่าช้า"
+        }
+      },
+      {
+        "title": "รับเงิน 450,000 บาทโดยไม่มีเงื่อนไขและบันทึกเป็นรายได้ทั่วไป",
+        "success": {
+          "money": 450000,
+          "scores": {},
+          "report": "บริษัทโอนเงินตามเงื่อนไขที่ไม่มีสิทธิแทรกแซง การตรวจถนนดำเนินตามแผนเดิม จึงไม่มีคะแนนเปลี่ยนแปลง"
+        }
+      },
+      {
+        "title": "ประกาศต่อประชาชนว่าถนนปลอดภัยแล้วเพื่อสร้างความมั่นใจ",
+        "success": {
+          "money": 0,
+          "scores": {
+            "image": -8,
+            "admin": -5
+          },
+          "report": "เมื่อรายงานตรวจยังไม่เสร็จ สื่อพบว่าคำประกาศเร็วเกินไป นายกต้องชี้แจงและเจ้าหน้าที่ต้องแก้ไขข้อมูล"
+        }
+      }
+    ]
+  },
+  {
+    "id": "v72-media-fund",
+    "category": "image",
+    "minLevel": 1,
+    "title": "รายการพิเศษของสถานีท้องถิ่น",
+    "story": "สถานีท้องถิ่นอยากผลิตรายการเกี่ยวกับเมือง ผู้สนับสนุนเสนอร่วมออกค่าใช้จ่าย",
+    "choices": [
+      {
+        "title": "ให้สัมภาษณ์โดยตอบคำถามจากประชาชนโดยตรง",
+        "success": {
+          "money": 0,
+          "scores": {
+            "image": 5
+          },
+          "report": "คำตอบมีทั้งข้อดีและข้อที่ยังต้องปรับปรุง ผู้ชมชื่นชมว่านายกตอบอย่างตรงไปตรงมา"
+        }
+      },
+      {
+        "title": "รับ 1,250,000 บาทและให้ผู้สนับสนุนอนุมัติคำถามก่อนออกอากาศ",
+        "success": {
+          "money": 1250000,
+          "scores": {
+            "image": -10,
+            "integrity": -8
+          },
+          "report": "รายการเผยแพร่ได้ แต่ทีมข่าวเปิดเผยว่าคำถามสำคัญถูกตัดออก ความน่าเชื่อถือของนายกและความโปร่งใสลดลง"
+        }
+      },
+      {
+        "title": "ไม่อนุญาตให้สถานีถ่ายทำ",
+        "success": {
+          "money": 0,
+          "scores": {
+            "image": -4
+          },
+          "report": "สื่อรายงานว่าสำนักงานนายกปิดโอกาสให้ประชาชนรับรู้การทำงาน"
+        }
+      },
+      {
+        "title": "รับค่าธรรมเนียมถ่ายทำ 200,000 บาทตามประกาศ",
+        "success": {
+          "money": 200000,
+          "scores": {},
+          "report": "สถานีชำระค่าธรรมเนียมปกติและยังมีอิสระในการทำข่าว ไม่มีเหตุให้คะแนนเปลี่ยน"
+        }
+      },
+      {
+        "title": "รับปากว่าทุกปัญหาจะหมดไปภายในวันนี้",
+        "success": {
+          "money": 0,
+          "scores": {
+            "image": -8,
+            "admin": -5
+          },
+          "report": "เมื่อถึงช่วงเย็นปัญหาหลายเรื่องยังไม่หมดไป สื่อเปรียบเทียบคำพูดกับผลจริงและเจ้าหน้าที่ถูกเร่งงานนอกแผน"
+        }
+      }
+    ]
+  },
+  {
+    "id": "v72-festival",
+    "category": "fame",
+    "minLevel": 1,
+    "title": "เทศกาลอาหารของเมือง",
+    "story": "ผู้จัดงานขอใช้พื้นที่สาธารณะจัดเทศกาล มีร้านค้าหลายกลุ่มอยากเข้าร่วม",
+    "choices": [
+      {
+        "title": "เปิดให้ร้านค้าสมัครด้วยเกณฑ์เดียวกัน",
+        "success": {
+          "money": 0,
+          "scores": {
+            "fame": 4,
+            "business": 5
+          },
+          "report": "งานมีร้านค้าหลากหลาย สื่อสนใจบรรยากาศและผู้ประกอบการเห็นว่าการคัดเลือกเป็นธรรม"
+        }
+      },
+      {
+        "title": "ให้ผู้จัดงานกำหนดราคาค่าเข้าชมเอง",
+        "success": {
+          "money": 0,
+          "scores": {
+            "people": -6
+          },
+          "report": "ราคาบัตรสูงกว่าที่ครอบครัวส่วนใหญ่รับได้ จึงเกิดเสียงร้องเรียนว่ากิจกรรมเมืองไม่ทั่วถึง"
+        }
+      },
+      {
+        "title": "รับเงิน 1,500,000 บาทและให้สิทธิพื้นที่ทั้งหมดแก่ผู้สนับสนุน",
+        "success": {
+          "money": 1500000,
+          "scores": {
+            "business": -10,
+            "people": -6,
+            "integrity": -5
+          },
+          "report": "ผู้สนับสนุนจัดพื้นที่ให้ร้านในเครือเป็นหลัก ร้านท้องถิ่นถูกกันออกและประชาชนตั้งข้อสงสัยว่าพื้นที่เมืองถูกให้สิทธิพิเศษ"
+        }
+      },
+      {
+        "title": "ยกเลิกงานเพื่อหลีกเลี่ยงความวุ่นวาย",
+        "success": {
+          "money": 0,
+          "scores": {
+            "fame": -4,
+            "business": -5
+          },
+          "report": "ร้านที่เตรียมสินค้าไว้เสียโอกาสและสื่อยกเลิกข่าวกิจกรรมของเมือง"
+        }
+      },
+      {
+        "title": "รับค่าเช่าพื้นที่ 700,000 บาทด้วยอัตราที่ประกาศและเปิดรับร้านค้าทั่วไป",
+        "success": {
+          "money": 700000,
+          "scores": {
+            "fame": 3,
+            "business": 4
+          },
+          "report": "เงินเข้าเมืองตามระเบียบ งานได้รับการประชาสัมพันธ์ และร้านค้าหลายรายมีโอกาสเข้าร่วม"
+        }
+      }
+    ]
+  },
+  {
+    "id": "v72-central-grant",
+    "category": "government",
+    "minLevel": 1,
+    "title": "ข้อเสนองบประมาณเร่งด่วน",
+    "story": "หน่วยงานส่วนกลางเปิดรอบงบอุดหนุนทั่วไป แต่กำหนดให้ข้อมูลความจำเป็นต้องตรงกับข้อเท็จจริง",
+    "choices": [
+      {
+        "title": "รับงบตามสิทธิ 500,000 บาทและส่งข้อมูลครบถ้วน",
+        "success": {
+          "money": 500000,
+          "scores": {
+            "government": 5
+          },
+          "report": "เอกสารผ่านการตรวจตามปกติ หน่วยงานกลางชื่นชมความร่วมมือและโอนเงินเข้าคลัง"
+        }
+      },
+      {
+        "title": "ไม่ยื่นขอเงินเพราะไม่ต้องการภาระเอกสาร",
+        "success": {
+          "money": 0,
+          "scores": {
+            "government": -4
+          },
+          "report": "ส่วนกลางไม่ได้รับข้อมูลที่ขอ จึงมองว่าเทศบาลไม่พร้อมประสานงาน"
+        }
+      },
+      {
+        "title": "ขอให้เจ้าหน้าที่ตรวจความถูกต้องก่อนส่ง",
+        "success": {
+          "money": 0,
+          "scores": {
+            "admin": 3
+          },
+          "report": "เจ้าหน้าที่จัดข้อมูลเป็นระบบและส่งคำชี้แจงได้ครบตามกำหนด"
+        }
+      },
+      {
+        "title": "ขอ 2,000,000 บาทโดยรวมโครงการที่ยังไม่ผ่านการอนุมัติเป็นภาระเร่งด่วน",
+        "success": {
+          "money": 2000000,
+          "scores": {
+            "government": -12,
+            "integrity": -12
+          },
+          "report": "เงินโอนจากการพิจารณาเบื้องต้น แต่ส่วนกลางพบว่ารายการที่แจ้งยังไม่ได้รับอนุมัติ ความเชื่อถือในข้อมูลเทศบาลลดลง"
+        }
+      },
+      {
+        "title": "รับเงินค่าประสานงาน 200,000 บาทตามอัตราปกติ",
+        "success": {
+          "money": 200000,
+          "scores": {},
+          "report": "การเบิกจ่ายเป็นรายการมาตรฐานของหน่วยงานและไม่ได้เปลี่ยนแผนหรือความสัมพันธ์กับรัฐบาล"
+        }
+      }
+    ]
+  },
+  {
+    "id": "v72-family-weekend",
+    "category": "people",
+    "minLevel": 1,
+    "title": "วันหยุดสำหรับครอบครัว",
+    "story": "ตัวแทนชุมชนอยากจัดกิจกรรมวันหยุดที่ทุกครอบครัวเข้าถึงได้ ผู้สนับสนุนหลายรายติดต่อเทศบาล",
+    "choices": [
+      {
+        "title": "ให้ทุกครอบครัวลงทะเบียนด้วยหลักเกณฑ์เดียวกัน",
+        "success": {
+          "money": 0,
+          "scores": {
+            "people": 6
+          },
+          "report": "ชุมชนต่าง ๆ ได้โอกาสเท่ากันและชมว่าการจัดงานเป็นธรรม"
+        }
+      },
+      {
+        "title": "รับ 1,100,000 บาทจากสโมสรที่ขอสงวนสิทธิ์เข้าร่วมให้สมาชิก",
+        "success": {
+          "money": 1100000,
+          "scores": {
+            "people": -12,
+            "integrity": -5
+          },
+          "report": "ครอบครัวที่ไม่เป็นสมาชิกถูกกันออกจากกิจกรรมที่ใช้ชื่อเทศบาล เกิดคำร้องเรื่องความเท่าเทียมและการให้สิทธิพิเศษ"
+        }
+      },
+      {
+        "title": "ประกาศให้ทุกคนเข้าร่วมโดยไม่จำกัดจำนวน",
+        "success": {
+          "money": 0,
+          "scores": {
+            "admin": -7,
+            "people": -5
+          },
+          "report": "จำนวนคนเกินความพร้อมที่ผู้จัดเตรียมไว้ บางครอบครัวต้องรอนานและเจ้าหน้าที่จัดคิวไม่ทัน"
+        }
+      },
+      {
+        "title": "รับเงินจากมูลนิธิ 350,000 บาทโดยไม่มีเงื่อนไข",
+        "success": {
+          "money": 350000,
+          "scores": {
+            "people": 3
+          },
+          "report": "มูลนิธิสมทบผ่านช่องทางปกติและประชาชนยังเข้าได้ตามสิทธิเดิม ตัวแทนชุมชนชื่นชมการระดมทุน"
+        }
+      },
+      {
+        "title": "จัดกิจกรรมตามแผนเดิมโดยไม่เปลี่ยนอะไร",
+        "success": {
+          "money": 0,
+          "scores": {},
+          "report": "กิจกรรมดำเนินตามกำหนด ไม่มีค่าใช้จ่ายหรือความเปลี่ยนแปลงเพิ่มเติม"
+        }
+      }
+    ]
+  },
+  {
+    "id": "v72-supplier",
+    "category": "business",
+    "minLevel": 1,
+    "title": "ผู้ค้าส่งขอเป็นคู่ค้าหลัก",
+    "story": "กลุ่มร้านค้าต้องการต้นทุนที่ต่ำลง ผู้ค้าส่งรายหนึ่งเสนอเงินให้เมืองเพื่อขยายตลาด",
+    "choices": [
+      {
+        "title": "เปิดเวทีให้ผู้ค้าส่งหลายรายเสนอเงื่อนไข",
+        "success": {
+          "money": 0,
+          "scores": {
+            "business": 6,
+            "integrity": 3
+          },
+          "report": "ร้านค้าสามารถเปรียบเทียบราคาและเงื่อนไขได้ ผู้ประกอบการและผู้ตรวจสอบพอใจกับการแข่งขัน"
+        }
+      },
+      {
+        "title": "รับเงินสมทบ 400,000 บาทโดยไม่ให้สิทธิผูกขาด",
+        "success": {
+          "money": 400000,
+          "scores": {},
+          "report": "ผู้ค้าส่งยอมโอนเงินผ่านคลังตามปกติ โดยร้านค้ายังคงเลือกคู่ค้าเอง ไม่มีคะแนนเปลี่ยนแปลง"
+        }
+      },
+      {
+        "title": "สั่งให้ทุกกิจการซื้อจากรายที่เสนอราคาต่ำสุดทันที",
+        "success": {
+          "money": 0,
+          "scores": {
+            "business": -8,
+            "admin": -5
+          },
+          "report": "ร้านค้าบางประเภทต้องใช้สินค้าต่างกันและไม่สามารถเปลี่ยนคู่ค้าทันที การบังคับใช้ทำให้เกิดคำร้องและเพิ่มภาระงาน"
+        }
+      },
+      {
+        "title": "ปฏิเสธการหารือกับผู้ค้าส่งทุกเจ้า",
+        "success": {
+          "money": 0,
+          "scores": {
+            "business": -5
+          },
+          "report": "สมาคมร้านค้าเสียโอกาสเจรจาลดต้นทุนและตำหนิเทศบาลที่ไม่รับฟัง"
+        }
+      },
+      {
+        "title": "รับ 1,750,000 บาทและประกาศให้บริษัทเป็นคู่ค้ารายเดียว",
+        "success": {
+          "money": 1750000,
+          "scores": {
+            "business": -12,
+            "integrity": -10
+          },
+          "report": "ผู้ค้ารายอื่นเสียโอกาสและร้านค้าพบว่าไม่สามารถต่อรองราคาได้ ผู้ตรวจสอบพบการให้สิทธิผูกขาดโดยไม่มีการแข่งขัน"
+        }
+      }
+    ]
+  },
+  {
+    "id": "v72-public-donation",
+    "category": "integrity",
+    "minLevel": 1,
+    "title": "เงินบริจาคก่อนการประมูล",
+    "story": "ผู้ประกอบการติดต่อขอสนับสนุนงบเมือง ขณะเทศบาลกำลังเตรียมเปิดประมูลโครงการใหม่",
+    "choices": [
+      {
+        "title": "ส่งเรื่องให้คณะกรรมการอิสระตรวจแหล่งเงินก่อน",
+        "success": {
+          "money": 0,
+          "scores": {
+            "integrity": 6,
+            "admin": -3
+          },
+          "report": "คณะกรรมการยืนยันว่าต้องตรวจความเกี่ยวข้องกับการประมูลก่อนรับเงิน ความน่าเชื่อถือเพิ่มขึ้นแต่ฝ่ายบริหารต้องใช้เวลาตรวจสอบ"
+        }
+      },
+      {
+        "title": "รับ 1,900,000 บาททันทีและขอบคุณผ่านเพจเมือง",
+        "success": {
+          "money": 1900000,
+          "scores": {
+            "integrity": -15,
+            "image": -8
+          },
+          "report": "ต่อมาพบว่าบริษัทเป็นผู้สนใจเข้าประมูล การเผยแพร่ภาพขอบคุณก่อนแข่งขันทำให้ประชาชนสงสัยว่าบริษัทได้รับการสนับสนุนเป็นพิเศษ"
+        }
+      },
+      {
+        "title": "ปฏิเสธข้อเสนอและประกาศหลักเกณฑ์รับเงินอย่างชัดเจน",
+        "success": {
+          "money": 0,
+          "scores": {
+            "integrity": 5,
+            "business": -3
+          },
+          "report": "หลักเกณฑ์ป้องกันผลประโยชน์ทับซ้อนชัดขึ้น แต่ผู้ประกอบการบางรายผิดหวังที่ต้องชะลอการสนับสนุน"
+        }
+      },
+      {
+        "title": "รับเงิน 300,000 บาทจากกองทุนอิสระที่ไม่เกี่ยวข้องกับการประมูลและลงทะเบียนเปิดเผย",
+        "success": {
+          "money": 300000,
+          "scores": {
+            "integrity": 3
+          },
+          "report": "ผู้ตรวจสอบตรวจสอบแหล่งเงินแล้วไม่พบความเกี่ยวข้องกับคู่ประมูล รายการบริจาคเปิดเผยได้และเพิ่มความเชื่อถือ"
+        }
+      },
+      {
+        "title": "ไม่รับเงินแต่ขอให้เจ้าหน้าที่เก็บเรื่องนี้ไว้เป็นความลับ",
+        "success": {
+          "money": 0,
+          "scores": {
+            "integrity": -6,
+            "image": -4
+          },
+          "report": "ข่าวการติดต่อรั่วไหลโดยไม่มีเอกสารสาธารณะให้ตรวจสอบ จึงเกิดข้อสงสัยแม้เมืองไม่ได้รับเงิน"
+        }
+      }
+    ]
+  }
+]);
+// Expand the original case-specific report into a readable account of actual consequences.
+const MAYOR_V72_REACTION={
+ admin:['ฝ่ายบริหารได้รับความเชื่อมั่นจากผลการดำเนินงาน','ฝ่ายบริหารเสียความเชื่อมั่นจากผลการดำเนินงาน'],
+ image:['ภาพลักษณ์นายกดีขึ้นเมื่อเรื่องนี้เป็นที่รับรู้','ผลที่เกิดขึ้นทำให้ภาพลักษณ์นายกลดลง'],
+ fame:['เหตุการณ์นี้ช่วยให้ชื่อเสียงเมืองดีขึ้น','เหตุการณ์นี้ส่งผลเสียต่อชื่อเสียงเมือง'],
+ government:['ผลการตัดสินใจช่วยรักษาความเชื่อมั่นของหน่วยงานส่วนกลาง','ผลการตัดสินใจทำให้หน่วยงานส่วนกลางเชื่อมั่นน้อยลง'],
+ people:['ประชาชนตอบรับผลที่เกิดขึ้นในเชิงบวก','ประชาชนไม่พอใจกับผลที่เกิดขึ้น'],
+ business:['ผู้ประกอบการตอบรับผลที่เกิดขึ้นในเชิงบวก','ผู้ประกอบการไม่พอใจกับผลที่เกิดขึ้น'],
+ integrity:['ผลที่เกิดขึ้นช่วยเพิ่มความเชื่อถือเรื่องความโปร่งใส','ผลที่เกิดขึ้นทำให้ความเชื่อถือเรื่องความโปร่งใสลดลง']
+};
+function mayorV72Narrative(i,r,changes,cashDelta,aiDelta){
+ const parts=[r.report||'เทศบาลสรุปผลการดำเนินงาน'];
+ const written=i.eventId.startsWith('v72-')||MAYOR_V72_OFFERS[i.eventId]?.success?.report===r.report;
+ if(!written){
+  const reactions=Object.entries(r.scores||{}).filter(([k,v])=>v&&MAYOR_V72_REACTION[k]).map(([k,v])=>MAYOR_V72_REACTION[k][v>0?0:1]);
+  if(reactions.length)parts.push(reactions.join(' และ '));
+ }
+ if(cashDelta>0)parts.push('ฝ่ายการเงินบันทึกเงินเข้าคลังสุทธิ '+cashDelta.toLocaleString('th-TH')+' บาท');
+ if(cashDelta<0)parts.push('ฝ่ายการเงินบันทึกเงินออกจากคลังสุทธิ '+(-cashDelta).toLocaleString('th-TH')+' บาท');
+ if(aiDelta>0)parts.push('เมืองได้รับโควต้าแยก AI เพิ่ม '+aiDelta+' จุด');
+ const effects={tripMultiplier:'รายได้จากภารกิจเดินทางที่เข้าเงื่อนไขเพิ่มขึ้นชั่วคราว',touristMultiplier:'รายได้จากนักท่องเที่ยวที่เข้าเงื่อนไขเพิ่มขึ้นชั่วคราว',tripDelta:'รายได้จากภารกิจเดินทางที่เข้าเงื่อนไขลดลงชั่วคราว',floodDamage:'พื้นที่อยู่อาศัยได้รับความเสียหายตามเงื่อนไขของเหตุการณ์',fillPopulation:'มีการรับประชากรเพิ่มเติมตามเงื่อนไขของเมือง',populationBlock:'การย้ายเข้าเมืองถูกระงับชั่วคราว',touristBlock:'การเดินทางเข้าของนักท่องเที่ยวถูกระงับชั่วคราว'};
+ for(const e of r.effects||[])if(effects[e.kind])parts.push(effects[e.kind]);
+ if(!Object.values(r.scores||{}).some(Boolean)&&!(r.effects||[]).length&&!aiDelta)parts.push('ไม่มีผลต่อคะแนนหรือสถานะพิเศษของเมือง');
+ if(Object.entries(changes).some(([k,v])=>v.delta!==(r.scores[k]||0)))parts.push('คะแนนที่แสดงเป็นค่าจริงหลังจำกัดช่วงคะแนน 0–100');
+ return parts.join(' — ');
+}
 function createMayorCore(definitions, random=Math.random){
 const keys=["admin","image","fame","government","people","business","integrity"], byId=new Map(definitions.map(d=>[d.id,d]));
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -10045,8 +10709,8 @@ function issueDeadline(i){return i.source==="night"&&Number.isFinite(i.deadline)
 function needsAdvance(s,t){return !s?.started||s.day!==dayAt(t)||s.nightDay!==s.day||s.lastTime<deadline(s.day)&&t>=deadline(s.day)||Number.isFinite(s.nightAt)&&t>=s.nightAt||s.issues.some(i=>i.source==="night"&&i.status==="pending"&&t>=issueDeadline(i));}
 function nightPulse(s,city,t){if(!Number.isFinite(s.nightAt)||t<s.nightAt)return;const at=s.nightAt;s.nightAt=null;if(active(s,t)||t>=at+120||t>=start(s.day+1))return;specialIssue(s,city,"emergencyOnly",at);}
 function record(s,i,report,t,details=null){s.history.push({id:i.id,eventId:i.eventId,category:i.category,status:i.status,report,at:t,source:i.source,...(i.target?{target:clone(i.target)}:{}),...(details?{details}: {})});}
-function apply(s,i,result,city,t,cashBefore=city.money){const r=result||{},before={...s.scores},aiBefore=city.aiCredits;if(r.money)city.money+=r.money;if(r.aiCredits&&Number.isFinite(city.aiCredits))city.aiCredits=Math.min(100000,Math.max(0,city.aiCredits+r.aiCredits));score(s,r.scores,t);const scoreChanges=Object.fromEntries(Object.keys(r.scores||{}).filter(k=>keys.includes(k)).map(k=>[k,{before:before[k],after:s.scores[k],delta:s.scores[k]-before[k]}]));for(const e of r.effects||[]){if(["floodDamage","fillPopulation"].includes(e.kind)){city.applyEffect?.(clone(e));}else if(t<start(i.day+1)){s.effects.push({...clone(e),expires:start(i.day+1),source:i.id});}}for(const flag of r.flags||[])if(!s.flags.includes(flag))s.flags.push(flag);record(s,i,r.report||"",t,{money:r.money||0,scores:clone(r.scores||{}),effects:clone(r.effects||[]),paid:i.paid||0,grant:i.grant||0,scoreChanges,cashDelta:city.money-cashBefore,aiCredits:Number.isFinite(aiBefore)?city.aiCredits-aiBefore:0});return r.report||"";}
-function choose(s,id,index,city,t){const i=s.issues.find(x=>x.id===id);if(!i||i.status!=="pending"||active(s,t)||dayAt(t)!==i.day||t>=issueDeadline(i))return {ok:false};const o=options(s,i,city)[index];if(!o?.enabled)return {ok:false};const cashBefore=city.money;if(o.payable)city.money-=o.payable;if(o.grant)city.money+=o.grant;i.selected=index;i.paid=o.payable;i.grant=o.grant||0;if(o.task){i.status="working";i.task=clone(o.task);if(o.task.kind==="build")i.baseline=(city.buildingIds?.[o.task.key]||[]).slice();record(s,i,"รับภารกิจแล้ว",t,{money:0,scores:{},effects:[],paid:i.paid,grant:i.grant,scoreChanges:{},cashDelta:city.money-cashBefore});return {ok:true,working:true};}const won=o.chance===undefined||random()<o.chance;i.status=won?"success":"failed";i.rollWon=won;return {ok:true,won,report:apply(s,i,won?o.success:o.failure,city,t,cashBefore)};}
+function apply(s,i,result,city,t,cashBefore=city.money){const r=result||{},before={...s.scores},aiBefore=city.aiCredits;if(r.money)city.money+=r.money;if(r.aiCredits&&Number.isFinite(city.aiCredits))city.aiCredits=Math.min(100000,Math.max(0,city.aiCredits+r.aiCredits));score(s,r.scores,t);const scoreChanges=Object.fromEntries(Object.keys(r.scores||{}).filter(k=>keys.includes(k)).map(k=>[k,{before:before[k],after:s.scores[k],delta:s.scores[k]-before[k]}]));for(const e of r.effects||[]){if(["floodDamage","fillPopulation"].includes(e.kind)){city.applyEffect?.(clone(e));}else if(t<start(i.day+1)){s.effects.push({...clone(e),expires:start(i.day+1),source:i.id});}}for(const flag of r.flags||[])if(!s.flags.includes(flag))s.flags.push(flag);const cashDelta=city.money-cashBefore,aiDelta=Number.isFinite(aiBefore)?city.aiCredits-aiBefore:0;const report=mayorV72Narrative(i,r,scoreChanges,cashDelta,aiDelta);record(s,i,report,t,{money:r.money||0,scores:clone(r.scores||{}),effects:clone(r.effects||[]),paid:i.paid||0,grant:i.grant||0,scoreChanges,cashDelta,aiCredits:aiDelta});return report;}
+function choose(s,id,index,city,t){const i=s.issues.find(x=>x.id===id);if(!i||i.status!=="pending"||active(s,t)||dayAt(t)!==i.day||t>=issueDeadline(i))return {ok:false};const o=options(s,i,city)[index];if(!o?.enabled)return {ok:false};const cashBefore=city.money;if(o.payable)city.money-=o.payable;if(o.grant)city.money+=o.grant;i.selected=index;i.paid=o.payable;i.grant=o.grant||0;if(o.task){i.status="working";i.task=clone(o.task);if(o.task.kind==="build")i.baseline=(city.buildingIds?.[o.task.key]||[]).slice();const objective=o.task.kind==="build"?"ก่อสร้าง "+(city.catalog?.[o.task.key]?.name||o.task.key)+" จำนวน "+o.task.count+" แห่ง":"ทำให้ภารกิจเดินทางสำเร็จถึง "+o.task.target+"%";const report="เทศบาลรับข้อเสนอแล้ว เจ้าหน้าที่จะติดตามเป้าหมาย "+objective+" ก่อน 06:00 วันถัดไป"+(i.paid?" และอนุมัติงบ "+i.paid.toLocaleString("th-TH")+" บาท":"")+(i.grant?" โดยได้รับเงินสนับสนุน "+i.grant.toLocaleString("th-TH")+" บาท ซึ่งต้องคืนหากไม่ผ่านเงื่อนไข":"")+" คะแนนจะสรุปเมื่อภารกิจสิ้นสุด";record(s,i,report,t,{money:0,scores:{},effects:[],paid:i.paid,grant:i.grant,scoreChanges:{},cashDelta:city.money-cashBefore});return {ok:true,working:true,report};}const won=o.chance===undefined||random()<o.chance;i.status=won?"success":"failed";i.rollWon=won;return {ok:true,won,report:apply(s,i,won?o.success:o.failure,city,t,cashBefore)};}
 function finish(s,i,city,t,won){if(i.status!=="working")return false;const o=byId.get(i.eventId).choices[i.selected];i.status=won?"success":"failed";const cashBefore=city.money;if(!won&&i.grant){const paid=Math.min(Math.max(0,city.money),i.grant);city.money-=paid;s.unpaid+=i.grant-paid;}apply(s,i,won?o.success:o.failure,city,t,cashBefore);return true;}
 function checkTasks(s,city,t){for(const i of s.issues){if(i.status!=="working"||t>=start(i.day+1))continue;const task=i.task;let success=false;if(task.kind==="build"){const old=new Set(i.baseline);success=new Set((city.buildingIds?.[task.key]||[]).filter(id=>!old.has(id))).size>=task.count;}else if(task.kind==="performance"){success=Number.isFinite(city.performance)&&city.performance>=task.target;}if(success)finish(s,i,city,t,true);}}
 function expire(s,city,t){for(const i of s.issues){if(i.status==="pending"&&t>=issueDeadline(i)){i.status="expired";const r=i.source==="night"?byId.get(i.eventId)?.ignored:null;apply(s,i,r||{scores:{[i.category]:-10},report:"ละเลยการตัดสินใจก่อน 16:00"},city,issueDeadline(i));}}}
