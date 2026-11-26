@@ -499,3 +499,36 @@
     #citySummaryStats button:focus-visible {outline:2px solid var(--city-accent)!important;outline-offset:-2px}
   }
 }
+
+/* Large category + actual score, compact on a phone. Semantic grade colors
+   share the readable light/dark contrast layer. */
+@layer cityReadability {
+ #mayorPanel .mayor-question-score {
+   --q-grade:#9a681a; margin:0 0 7px;padding:8px 10px;border-radius:8px;
+   background:var(--read-card)!important;color:var(--read-ink)!important;
+   border:1px solid var(--read-border)!important;
+ }
+ #mayorPanel .mayor-question-score[data-grade="A"] {--q-grade:#216347}
+ #mayorPanel .mayor-question-score[data-grade="B"] {--q-grade:#185a80}
+ #mayorPanel .mayor-question-score[data-grade="C"] {--q-grade:#84551a}
+ #mayorPanel .mayor-question-score[data-grade="D"] {--q-grade:#a04d20}
+ #mayorPanel .mayor-question-score[data-grade="F"] {--q-grade:#a62e38}
+ :root.smcity-gray-ui #mayorPanel .mayor-question-score[data-grade="A"] {--q-grade:#a6e7b9}
+ :root.smcity-gray-ui #mayorPanel .mayor-question-score[data-grade="B"] {--q-grade:#a9d9fa}
+ :root.smcity-gray-ui #mayorPanel .mayor-question-score[data-grade="C"] {--q-grade:#ffda98}
+ :root.smcity-gray-ui #mayorPanel .mayor-question-score[data-grade="D"] {--q-grade:#ffb88d}
+ :root.smcity-gray-ui #mayorPanel .mayor-question-score[data-grade="F"] {--q-grade:#ffb6b9}
+ #mayorPanel .mayor-question-score-main {display:flex;align-items:center;justify-content:space-between;gap:8px}
+ #mayorPanel .mayor-question-score-main>div:first-child {flex:1;min-width:0}
+ #mayorPanel .mayor-question-score small {display:block;color:var(--read-muted)!important;font-size:10px}
+ #mayorPanel .mayor-question-score h3 {font-size:clamp(15px,3.5vw,19px)!important;line-height:1.35;margin:1px 0 0;color:var(--read-ink)!important;overflow-wrap:anywhere}
+ #mayorPanel .mayor-question-score-value {flex:none;text-align:right}
+ #mayorPanel .mayor-question-score-value strong {font-size:25px;line-height:1.1;display:block;color:var(--q-grade)!important;font-variant-numeric:tabular-nums}
+ #mayorPanel .mayor-question-score-value strong span {font-size:11px;color:var(--read-muted)!important}
+ #mayorPanel .mayor-question-score-track {height:4px;background:var(--read-soft)!important;border-radius:4px;margin-top:6px;overflow:hidden}
+ #mayorPanel .mayor-question-score-track i {display:block;height:100%;border-radius:4px;background:var(--q-grade)!important}
+ @media(max-width:720px),(max-height:520px) and (pointer:coarse) {
+   #mayorPanel .mayor-question-score {padding:5px 7px;margin-bottom:5px}
+   #mayorPanel .mayor-question-score-value strong {font-size:21px}
+ }
+}

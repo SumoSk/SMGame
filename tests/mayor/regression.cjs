@@ -30,7 +30,7 @@ for(const d of MAYOR_EVENTS){
  assert.equal(safe.length,1);const o=safe[0];
  assert(o.title.endsWith('(ไม่มีความเสี่ยง)'));assert(!o.task&&!o.cost&&!o.grant&&o.chance===undefined);
  assert(!Object.keys(o.requires||{}).length&&!Object.keys(o.requiresBuildings||{}).length);
- assert(!Object.values(o.success.scores||{}).some(v=>v<0));assert(!(o.success.effects||[]).length);
+ assert(!Object.values(o.success.scores||{}).some(v=>v<0));if(!d.rollbackOnly)assert.equal(Object.values(o.success.scores||{}).some(v=>v!==0),false);assert(!(o.success.effects||[]).length);
  const testState=full.fresh(360);testState.issues=[{id:1,eventId:d.id,category:d.category,status:'pending',day:0,source:'daily'}];
  assert(full.options(testState,testState.issues[0],blank).find(x=>x.noRisk).enabled);
 }
@@ -53,3 +53,23 @@ const cs=limited.fresh(1800);cs.openingHandled=true;limited.advance(cs,{...live,
 const fs=limited.fresh(4680);fs.openingHandled=true;fs.flags.push('foundingCasinoAccepted');fs.history.push({eventId:'founding-casino',status:'success',day:0});limited.advance(fs,live,4680);assert(fs.issues.some(i=>i.eventId==='founding-casino-return'));
 console.log('Mayor founding, all welcome gifts, no-risk choices, save compatibility and one-time rewards passed.');
 
+
+const casino=MAYOR_EVENTS.find(d=>d.id==='founding-casino');
+const riskIndex=casino.choices.findIndex(o=>o.quietRisk);
+assert(riskIndex>=0);assert.equal(casino.choices[riskIndex].chance,.3);
+for(const [roll,quiet] of [[.299999,true],[.3,false],[.99,false]]){
+ const e=createMayorCore(MAYOR_EVENTS,()=>roll),s=e.fresh(360);
+ const c={...blank,money:500000};
+ e.advance(s,c,360);const issue=s.issues.find(i=>i.eventId==='founding-casino'),scores={...s.scores};
+ const result=e.choose(s,issue.id,riskIndex,c,370);assert(result.ok);assert.equal(c.money,3500000);
+ assert.equal(result.won,quiet);if(quiet){assert.deepEqual(s.scores,scores);assert(!s.flags.includes('foundingCasinoAccepted'));}
+ else{assert(s.scores.integrity<scores.integrity);assert(s.flags.includes('foundingCasinoAccepted'));}
+ assert(!e.choose(s,issue.id,riskIndex,c,370).ok);
+}
+for(const d of MAYOR_EVENTS.filter(d=>!d.rollbackOnly)){
+ const o=d.choices.find(x=>x.noRisk),isGift=['founding-grant','founding-ai','founding-mahanakhon','founding-cars'].includes(d.id);
+ assert.equal(Object.values(o.success.scores||{}).some(v=>v!==0),false);
+ if(!isGift){assert(!o.success.money&&!o.success.aiCredits&&!o.success.freeMahanakhon&&!o.success.hardworkingCars);assert(!(o.success.flags||[]).length);assert(d.choices.some(x=>!x.noRisk&&!x.legacyHidden&&Object.values(x.success?.scores||{}).some(v=>v>0)));}
+ for(const q of d.choices.filter(x=>x.quietRisk)){assert.equal(q.chance,.3);assert(!(q.success.effects||[]).length);assert(!(q.success.flags||[]).length);assert.equal(Object.values(q.success.scores||{}).some(v=>v!==0),false);}
+}
+console.log('Neutral choices, reward alternatives and 30% quiet outcomes passed.');

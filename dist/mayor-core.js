@@ -10737,6 +10737,120 @@ for(const d of MAYOR_EVENTS){
  safe.title+=" (ไม่มีความเสี่ยง)";
 }
 
+
+/* Decisions are a shortcut only, never a scoring strategy. Preserve existing
+   option indices and rewards for saved tasks; append new decisions as needed. */
+const mayorGiftSet=new Set(foundingGiftIds);
+const mayorNeutralTitle="ให้เจ้าหน้าที่ดำเนินงานตามแผนเดิม";
+const mayorNeutralReport="ทีมงานดำเนินงานตามแผนเดิม เมืองไม่มีค่าใช้จ่ายหรือผลกระทบเพิ่มเติม";
+const mayorPositive=o=>Object.values(o.success?.scores||{}).some(v=>v>0);
+const mayorRewarded=o=>mayorPositive(o)||!!(o.success?.money||o.success?.aiCredits||o.success?.freeMahanakhon||o.success?.hardworkingCars);
+for(const d of MAYOR_EVENTS){
+ if(d.rollbackOnly)continue;
+ const safe=d.choices.find(o=>o.noRisk);
+ if(mayorGiftSet.has(d.id)){
+   for(const o of d.choices)if(!o.legacyHidden&&o.success)o.success.scores={};
+   continue;
+ }
+ // Keep genuinely useful decisions as real alternatives rather than nerfing
+ // their benefits; give the player a separate neutral shortcut.
+ if(mayorRewarded(safe)){
+   safe.noRisk=false;safe.title=safe.title.replace(/\s*\(ไม่มีความเสี่ยง\)$/,"");
+   const neutral=d.choices.find(o=>safeMayorOption(o)&&!mayorRewarded(o)&&!o.noRisk);
+   if(neutral){neutral.noRisk=true;neutral.title+=" (ไม่มีความเสี่ยง)";}
+   else d.choices.push({title:mayorNeutralTitle+" (ไม่มีความเสี่ยง)",noRisk:true,success:{scores:{},report:mayorNeutralReport}});
+ }else safe.success={scores:{},report:safe.success.report||mayorNeutralReport};
+}
+// The founding casino refusal is the simple neutral answer. Formal disclosure
+// is a stronger, rewarded decision; existing acceptance keeps its story arc.
+const openingCasino=MAYOR_EVENTS.find(d=>d.id==="founding-casino");
+const oldRefusal=openingCasino.choices[2];
+if(!oldRefusal.noRisk){
+ const current=openingCasino.choices.find(o=>o.noRisk);current.noRisk=false;current.title=current.title.replace(/\s*\(ไม่มีความเสี่ยง\)$/,"");current.legacyHidden=true;
+ oldRefusal.noRisk=true;oldRefusal.title+=" (ไม่มีความเสี่ยง)";oldRefusal.success={scores:{},report:"กลุ่มทุนถอนข้อเสนอ เมืองไม่ได้รับเงินและไม่เกิดผลเสีย"};
+}
+openingCasino.choices.push({title:"ไม่เปิดชื่อก็ได้ แต่ 2 ล้านมันน้อยไปครับ ขอ 3 ล้านถ้วน!",
+ chance:.3,quietRisk:true,
+ success:{money:3000000,scores:{},report:"คนกลางยอมเพิ่มเงินให้เมืองเป็น 3 ล้านบาท เรื่องจบเงียบ ๆ ไม่มีผลกระทบต่อคะแนน"},
+ failure:{money:3000000,scores:{integrity:-18,image:-8},flags:["foundingCasinoAccepted"],report:"คนกลางโอนเงิน 3 ล้านบาท แต่ข่าวเรื่องเงินลึกลับหลุดออกมาและกลุ่มทุนเตรียมติดต่อกลับมาอีก"}});
+openingCasino.choices.push({title:"เงินไม่ต้องเพิ่ม แต่ขอให้เปิดชื่อและบริจาคตามกติกาเมือง ผมไม่รับเงินลับ",
+ success:{money:300000,scores:{integrity:12,government:5},report:"กลุ่มทุนยอมบริจาค 300,000 บาทผ่านบัญชีทางการ เอกสารตรวจสอบได้ เมืองได้รับคำชมจากหน่วยงานกำกับ"}});
+// Rewrite selected existing choices, preserving their mechanics and indices.
+// A forceful personality can be genuinely effective if the response makes sense.
+const mayorBoldCopy={
+ "admin-rain":[0,"ฝนจะตกก็ให้ตก แต่เมืองผมต้องไม่จม! อนุมัติแผนป้องกันเต็มที่"],
+ "admin-traffic":[1,"รถติดไม่ใช่เรื่องเล่น ๆ จัดทีมลงไปแก้เดี๋ยวนี้!"],
+ "image-interview":[3,"คุณรู้ไหมผมเป็นใคร? อยากรู้ความจริงก็ไปพิสูจน์มา!"],
+ "image-award":[1,"รางวัลรับได้ แต่เงินไม่เอา ผลงานผมให้ชาวเมืองตัดสินเอง"],
+ "image-critic":[0,"วิจารณ์ได้ครับ เอาข้อเท็จจริงมาคุยกันตรง ๆ เลย"],
+ "image-party":[0,"ไม่ต้องจัดงานให้ผมหรอก เอางบไปให้ชุมชนดีกว่า"],
+ "fame-food":[1,"ร้านเมืองเรามีดี จัดงานให้คนได้ชิมกันจริง ๆ เลย!"],
+ "integrity-contract":[0,"ผมไม่ได้มีหน้าที่เซ็นทุกอย่างที่ยื่นมา ตรวจสัญญาให้ละเอียดก่อน"],
+ "integrity-secret-deal":[3,"เงินแค่นี้จะซื้อกติกาเมืองผมไม่ได้ ส่งเรื่องให้คณะตรวจสอบเลย"],
+ "integrity-press-ethics":[0,"สงสัยอะไรถามมาเลย ผมมีเอกสารให้ดู"],
+ "people-night-noise":[4,"ผับก็ต้องเปิด ชาวบ้านก็ต้องนอน แต่จะมาขู่ผมไม่ได้!"],
+ "business-monopoly":[2,"เมืองนี้ไม่ใช่ห้างของคุณครับ ปฏิเสธข้อเสนอ"],
+ "founding-plan":[1,"จำชื่อเมืองนี้ไว้เลย อีกหน่อยทั้งประเทศต้องรู้จักเรา!"],
+ "founding-family":[1,"บ้านอย่างเดียวไม่พอ คนเมืองผมต้องเดินทางสะดวกด้วย"],
+ "night-fire":[0,"ไม่ต้องรอหนังสืออนุมัติ จัดทีมฉุกเฉินไปช่วยเดี๋ยวนี้!"]
+};
+for(const [id,[idx,title]] of Object.entries(mayorBoldCopy)){
+ const o=MAYOR_EVENTS.find(d=>d.id===id)?.choices[idx];
+ if(o&&!o.noRisk&&!o.legacyHidden)o.title=title;
+}
+// Contextual reckless responses: some are already plausible risks in the base
+// event. Exactly 30% of these specific choices end quietly, not all choices.
+const mayorQuietCopy={
+ "admin-traffic":["ตำหนิคนที่ร้องเรียน","รถติดก็ออกจากบ้านให้เร็วขึ้นสิครับ ทำไมต้องให้ผมแก้ทุกเรื่อง?","คนร้องเรียนเงียบลง เรื่องจบโดยไม่มีผลเพิ่มเติม"],
+ "admin-crossing":["ให้คนขับจัดการกันเอง","แยกเดียวเอง ให้คนขับเจรจากันเองสิครับ","รถทยอยผ่านแยกไปได้ ไม่มีเรื่องตามมา"],
+ "admin-audit-cost":["ข้ามการตรวจและรับรองรายจ่ายเดิม","ตัวเลขก็สวยดีนี่ครับ เซ็นผ่านเลย ไม่ต้องขุดต่อ","รายการผ่านรอบตรวจโดยไม่มีข้อทักท้วง"],
+ "admin-paper":["อนุมัติเอกสารค้างโดยไม่ตรวจทีละฉบับ","กองเอกสารสูงขนาดนี้ เซ็นรวดเดียวเลยครับ ผมมีงานอีกเยอะ","เอกสารผ่านไปโดยไม่มีข้อร้องเรียน"],
+ "admin-training":["รับรองว่าทีมผ่านอบรมโดยไม่จัดจริง","ทีมผมเก่งอยู่แล้ว ลงว่าผ่านการอบรมไปเลย","ไม่มีการทักท้วงเรื่องเอกสารอบรมในครั้งนี้"],
+ "image-interview":["คุณรู้ไหมผมเป็นใคร? อยากรู้ความจริงก็ไปพิสูจน์มา!","คุณรู้ไหมผมเป็นใคร? ไม่พอใจก็ไปพิสูจน์มา!","นักข่าวไม่ตามเรื่องต่อ ไม่มีผลกระทบ"],
+ "image-party":["จัดงานปิด ไม่เปิดเผยรายชื่อผู้สนับสนุน","งานเล็ก ๆ รู้กันแค่นี้พอ ไม่ต้องลงข่าวนะ","งานเลี้ยงจบลงเงียบ ๆ ไม่มีข่าวตามมา"],
+ "image-photo":["ท้าให้สื่อพิสูจน์","รถหรูแล้วไงครับ? มีหลักฐานก็เอามาเลย","สื่อไม่ได้ติดตามเรื่องรถต่อ"],
+ "image-friend":["ให้สิทธิพิเศษโดยไม่ลงเอกสาร","เพื่อนผมเอง ให้สิทธิ์ไปเถอะ ไม่ต้องทำเรื่องใหญ่","เรื่องจบอยู่ในวงสนทนา ไม่มีข่าวตามมา"],
+ "image-gift":["ให้ผู้ส่งเปลี่ยนเป็นของขวัญส่วนตัว","ถ้าเป็นของส่วนตัวก็ไม่ต้องลงชื่อเมืองใช่ไหมครับ?","ผู้ส่งไม่ได้พูดถึงของขวัญอีก ไม่มีข้อร้องเรียน"],
+ "image-survey":["เผยแพร่เฉพาะผลสำรวจด้านบวก","คะแนนดี ๆ เอาขึ้นเพจ ส่วนที่เหลือเก็บไว้ให้ทีมอ่านเอง","ไม่มีคนทักท้วงผลสำรวจที่เผยแพร่"],
+ "fame-shopping":["ให้ผู้จัดโฆษณาเกินจริงเพื่อเรียกความสนใจ","จัดโปรโมตให้ใหญ่ไว้ก่อน! รายละเอียดค่อยตามมาทีหลัง","งานประชาสัมพันธ์ผ่านไปโดยไม่มีข้อร้องเรียน"],
+ "fame-city-award":["อ้างรางวัลก่อนผลประเมิน","ทำป้ายฉลองไว้เลยครับ ยังไงเมืองเราก็ต้องได้!","ไม่มีใครทักท้วงป้ายประชาสัมพันธ์ครั้งนี้"],
+ "government-visit":["เสนอผลงานเกินจริงเพื่อสร้างความประทับใจ","นำเสนอให้รัฐบาลตะลึงไปเลย ตัวเลขปัดขึ้นนิดหน่อยไม่เป็นไร","การประชุมจบโดยไม่มีคำถามเพิ่มเติม"],
+ "people-cost":["ขู่งดสวัสดิการ","ถ้าบ่นอีก ผมจะพิจารณางบช่วยเหลือใหม่ทั้งหมดนะครับ","การร้องเรียนยุติลงชั่วคราว ไม่มีผลเพิ่มเติม"],
+ "people-complaint":["ประกาศปิดกล่องร้องเรียน","กล่องร้องเรียนเต็มแล้ว ปิดรับก่อนครับ ผมขอพักบ้าง","ไม่มีเรื่องร้องเรียนเพิ่มเติมเข้ามา"],
+ "people-night-noise":["ผับก็ต้องเปิด ชาวบ้านก็ต้องนอน แต่จะมาขู่ผมไม่ได้!","ถ้าจะประท้วงกันทุกคืน ผมก็จะไม่ลงไปคุยแล้วนะครับ","กลุ่มผู้ร้องเรียนยุติการรวมตัวในคืนนี้"],
+ "integrity-donation":["ขอเงินเพิ่มโดยยอมไม่เปิดเผยชื่อ","จะไม่เปิดชื่อก็ได้ แต่ยอดเดิมมันน้อยไป ขอเพิ่มอีกหน่อย","ผู้ติดต่อไม่เปิดเผยเรื่องกับคนอื่น ไม่มีข่าวตามมา"],
+ "integrity-secret-deal":["ขอเงื่อนไขเพิ่มเติมโดยไม่เปิดเผย","เรื่องนี้เรารู้กันแค่นี้ ขอข้อเสนอที่คุ้มกว่านี้หน่อย","เรื่องจบเงียบ ๆ ไม่มีข้อกล่าวหาเพิ่มเติม"],
+ "integrity-relative":["ให้ญาติได้รับสิทธิ์โดยไม่เปิดเผย","ญาติผมเอง ช่วยให้เขาได้โอกาสสักครั้งเถอะ","ไม่มีคนทักท้วงเรื่องการพิจารณาครั้งนี้"],
+ "integrity-documents":["ปล่อยเรื่องผ่านไป","หาไม่เจอก็เก็บเรื่องไว้ก่อน ใครจะมาถามตอนนี้?","ไม่มีคำขอเอกสารเพิ่มเติม"],
+ "integrity-tender":["ขอเงินเพิ่มจากผู้เสนอสิทธิ์พิเศษ","ถ้าอยากได้สิทธิ์ก่อนคนอื่น ข้อเสนอนี้ยังไม่คุ้มครับ","ผู้ติดต่อไม่เปิดเผยการสนทนา ไม่มีข่าวตามมา"],
+ "moral-envelope":["ขอเจรจาเพิ่มยอดตามเงื่อนไขเดิม","ซองนี้บางไปนะครับ ถ้าจะให้เรื่องจบ ขอเพิ่มอีกหน่อย","ผู้ติดต่อไม่ได้เอาเรื่องไปพูดต่อ"],
+ "night-leak":["ปฏิเสธทันทีโดยไม่ตรวจเอกสาร","เอกสารอะไรครับ? ผมยังไม่เคยเห็นเลย ไม่ต้องถามแล้ว","ข่าวไม่ได้รับการติดตามเพิ่มเติมในคืนนี้"]
+};
+for(const [id,[old,title,quiet]] of Object.entries(mayorQuietCopy)){
+ const d=MAYOR_EVENTS.find(x=>x.id===id),o=d?.choices.find(x=>x.title===old);
+ if(!o||o.noRisk||o.task||!o.failure||o.chance===undefined)continue;
+ o.title=title;o.chance=.3;o.quietRisk=true;
+ // Keep any promised money/AI if the quiet outcome originally pays it;
+ // no score loss, buff, flag or delayed consequence on this branch.
+ const {money,aiCredits}=o.success||{};
+ o.success={...(money>0?{money}:{}),...(aiCredits>0?{aiCredits}:{}),scores:{},report:quiet};
+}
+// Additional competent answers for dilemmas whose former safe answer was the
+// only clearly positive one. No new task or hidden future penalty.
+const mayorExcellent={
+ "v72-road-fund":["ให้วิศวกรสำรวจจุดเสี่ยง เปิดประกาศผล และเชิญทุกบริษัทเสนอแผนตามกติกา",{"admin":12,"integrity":8},"วิศวกรเสนอแผนตรงจุดและทุกบริษัทได้รับโอกาสเท่ากัน เมืองมีแผนตรวจถนนที่ชัดเจน"],
+ "v72-media-fund":["ให้ประชาชนส่งคำถามล่วงหน้า แล้วตอบสดโดยไม่ให้ผู้สนับสนุนควบคุมรายการ",{"image":12,"integrity":8},"รายการได้รับคำชมว่าเปิดกว้างและไม่ถูกควบคุมโดยผู้สนับสนุน"],
+ "v72-festival":["ให้ร้านค้าร่วมออกแบบงาน เปิดรับร้านเล็กด้วย และประกาศค่าเช่าล่วงหน้า",{"fame":10,"business":8,"people":5},"ร้านค้าและชาวเมืองร่วมมือกัน งานมีความหลากหลายและเป็นธรรม"],
+ "v72-family-weekend":["แบ่งรอบกิจกรรมให้ทุกครอบครัวมีโอกาส และให้ชุมชนช่วยประสานงาน",{"people":12,"admin":5},"ครอบครัวเข้าร่วมได้ทั่วถึงโดยไม่ทำให้ทีมงานรับภาระเกินไป"],
+ "v72-supplier":["เชิญหลายบริษัทมาเสนอราคาเดียวกันต่อหน้าตัวแทนร้านค้า",{"business":12,"integrity":8},"ร้านค้าต่อรองได้ดีขึ้นและไม่มีผู้ค้าส่งรายใดผูกขาด"],
+ "v72-public-donation":["พักรับเงินไว้ก่อน ให้คณะอิสระตรวจสอบ และเผยแพร่หลักเกณฑ์ก่อนประมูล",{"integrity":15,"government":5},"คณะตรวจสอบยืนยันว่ากระบวนการแยกจากผู้บริจาค ผู้ประกอบการเชื่อมั่นในกติกา"],
+ "moral-envelope":["เงินไม่สำคัญเท่าความน่าเชื่อถือของเมือง ส่งคืนและบันทึกข้อเสนออย่างเป็นทางการ",{"integrity":12,"image":5},"เมืองปฏิเสธเงินลับและจัดทำหลักฐานอย่างโปร่งใส หน่วยงานกำกับชื่นชม"],
+ "founding-plan":["เล่าเป้าหมายพร้อมแผนงานที่วัดผลได้ ให้สื่อมาติดตามความคืบหน้าจริง",{"image":8,"fame":5},"สื่อเห็นว่าเมืองมีเป้าหมายชัดเจนและพร้อมตรวจสอบผลงาน"],
+ "founding-family":["ให้ทีมงานสำรวจความต้องการของครอบครัวและวางแผนบ้านควบคู่กับงาน",{"people":10,"admin":5},"ครอบครัวได้รับข้อมูลที่เป็นประโยชน์ และเมืองมีแผนรองรับคนใหม่"],
+ "founding-casino-return":["ยืนยันเงื่อนไขเดิม ขอเปิดเผยทุกการติดต่อ และให้ทุกบริษัทแข่งขันตามเกณฑ์เดียวกัน",{"integrity":12,"government":5},"เมืองปฏิเสธสิทธิพิเศษอย่างชัดเจนและวางกติกาสำหรับนักลงทุนทุกราย"]
+};
+for(const [id,[title,scores,report]] of Object.entries(mayorExcellent))MAYOR_EVENTS.find(d=>d.id===id)?.choices.push({title,success:{scores,report}});
+
 function createMayorCore(definitions, random=Math.random){
 const keys=["admin","image","fame","government","people","business","integrity"], byId=new Map(definitions.map(d=>[d.id,d]));
 const clone=x=>JSON.parse(JSON.stringify(x));
