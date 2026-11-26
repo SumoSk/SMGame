@@ -1,7 +1,10 @@
 'use strict';
 const assert=require('node:assert/strict');
 const {MAYOR_EVENTS,createMayorCore}=require('../../dist/mayor-core.js');
-assert.equal(MAYOR_EVENTS.filter(d=>!d.rollbackOnly&&!d.foundingOnly&&!d.followup).length,129);
+assert.equal(MAYOR_EVENTS.filter(d=>!d.rollbackOnly&&!d.foundingOnly&&!d.followup).length,164);
+assert.equal(MAYOR_EVENTS.filter(d=>!d.rollbackOnly).length,184);
+assert.equal(MAYOR_EVENTS.filter(d=>d.lifeScene).length,42);
+assert.equal(MAYOR_EVENTS.filter(d=>d.lifeFollow).length,7);
 assert.equal(MAYOR_EVENTS.filter(d=>d.foundingOnly).length,12);
 const defs=MAYOR_EVENTS.filter(d=>!['admin-rain','people-welcome'].includes(d.id)), by=new Map(defs.map(d=>[d.id,d]));
 const core=createMayorCore(defs,()=>0.1);
@@ -73,3 +76,37 @@ for(const d of MAYOR_EVENTS.filter(d=>!d.rollbackOnly)){
  for(const q of d.choices.filter(x=>x.quietRisk)){assert.equal(q.chance,.3);assert(!(q.success.effects||[]).length);assert(!(q.success.flags||[]).length);assert.equal(Object.values(q.success.scores||{}).some(v=>v!==0),false);}
 }
 console.log('Neutral choices, reward alternatives and 30% quiet outcomes passed.');
+
+const life=MAYOR_EVENTS.filter(d=>d.lifeScene);
+assert.equal(new Set(MAYOR_EVENTS.map(d=>d.id)).size,MAYOR_EVENTS.length);
+for(const d of life){
+ assert.equal(d.choices.filter(o=>o.noRisk).length,1);
+ assert(d.choices.some(o=>Object.values(o.success?.scores||{}).some(v=>v>0)));
+ const neutral=d.choices.find(o=>o.noRisk);assert(!neutral.success.money&&!neutral.success.flags&&!neutral.success.effects);
+}
+const world={...live,money:500000,roadVehicles:5,tourists:2,buildingCounts:{restaurant_starter:1,park_small:1,office_starter:1},buildingIds:{restaurant_starter:[1],park_small:[2],office_starter:[3]},catalog:{restaurant_starter:{kind:'restaurant'},park_small:{kind:'park'},office_starter:{kind:'office'}}};
+for(const d of life.filter(d=>d.lifeFollow)){
+ const f=d.lifeFollow,parent=life.find(x=>x.id===f.parent);
+ assert(parent.once);const e=createMayorCore([parent,d],()=>0),at=1800;
+ const city={...world};let s=e.fresh(at);s.openingHandled=true;
+ e.advance(s,city,at);let p=s.issues.find(i=>i.eventId===parent.id);
+ assert(p);assert(!s.issues.some(i=>i.eventId===d.id));
+ const good=parent.choices.findIndex(o=>o.success.flags?.includes(f.flag));assert(good>=0);
+ assert(e.choose(s,p.id,good,city,at+1).ok);s=e.restore(JSON.parse(JSON.stringify(s)),at+1);
+ for(let n=1;n<f.delay;n++){e.advance(s,city,at+n*1440);assert(!s.issues.some(i=>i.eventId===d.id));}
+ const due=at+f.delay*1440;e.advance(s,city,due);const sequel=s.issues.find(i=>i.eventId===d.id);assert(sequel);
+ const safe=d.choices.findIndex(o=>o.noRisk);const before={...s.scores},cash=city.money;
+ assert(e.choose(s,sequel.id,safe,city,due+1).ok);assert.deepEqual(s.scores,before);assert.equal(city.money,cash);
+ s=e.restore(JSON.parse(JSON.stringify(s)),due+1);e.advance(s,city,due+1440);assert(!s.issues.some(i=>i.eventId===d.id));
+ // Neutral parent cannot trigger a sequel.
+ let alt=e.fresh(at);alt.openingHandled=true;e.advance(alt,world,at);
+ p=alt.issues.find(i=>i.eventId===parent.id);assert(e.choose(alt,p.id,parent.choices.findIndex(o=>o.noRisk),world,at+1).ok);
+ e.advance(alt,world,due);assert(!alt.issues.some(i=>i.eventId===d.id));
+}
+for(const d of life.filter(d=>!d.lifeFollow&&(d.lifeKinds||d.lifeRoad||d.lifeTourists))){
+ const e=createMayorCore([d],()=>0),s=e.fresh(1800);s.openingHandled=true;
+ e.advance(s,{...live,roadVehicles:0,tourists:0,buildingCounts:{},buildingIds:{},catalog:{}},1800);assert(!s.issues.some(i=>i.eventId===d.id));
+}
+const meme=life.find(d=>d.id==='life-meme'),me=createMayorCore([meme],()=>0),ms=me.fresh(1800);ms.openingHandled=true;me.advance(ms,world,1800);
+assert(me.choose(ms,ms.issues[0].id,0,world,1801).ok);me.advance(ms,world,3240);assert.equal(ms.issues.length,0);me.advance(ms,world,9000);assert(ms.issues.some(i=>i.eventId===meme.id));
+console.log('42 new city life scenes, seven saved sequels, scene gates and cooldown passed.');
