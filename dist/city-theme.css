@@ -1,3 +1,301 @@
+
+/* Semantic contrast overrides. Important declarations in this first layer win
+   over legacy device rules and always-dark inline menu skins. No layout changes. */
+@layer cityReadability, citySkin;
+@layer cityReadability {
+ :root {
+   --read-bg:#edf4f8; --read-card:#ffffff; --read-soft:#e1edf4;
+   --read-ink:#23374a; --read-muted:#465d6d; --read-border:#839bac;
+   --read-accent:#185a80; --read-primary:#245b78; --read-on-primary:#ffffff;
+   --read-good:#216347; --read-good-bg:#e1f2e8;
+   --read-bad:#a62e38; --read-bad-bg:#fbe8e8;
+   --read-warn:#84551a; --read-warn-bg:#fff1d9;
+   --read-link:#185a80; --read-focus:#176b9a;
+   --read-disabled:#536677; --read-disabled-bg:#e4ebf0;
+   color-scheme:light!important;
+ }
+ :root.smcity-gray-ui {
+   --read-bg:#182737; --read-card:#25394b; --read-soft:#30485a;
+   --read-ink:#f4f7fa; --read-muted:#c5d4df; --read-border:#7b92a3;
+   --read-accent:#a9d9fa; --read-primary:#386678; --read-on-primary:#ffffff;
+   --read-good:#a6e7b9; --read-good-bg:#254637;
+   --read-bad:#ffb6b9; --read-bad-bg:#58343c;
+   --read-warn:#ffda98; --read-warn-bg:#50412c;
+   --read-link:#a9d9fa; --read-focus:#9ddaff;
+   --read-disabled:#b9c6cf; --read-disabled-bg:#303d4b;
+   color-scheme:dark!important;
+ }
+ /* Shared legacy variables have to be set on the panels as well as the root:
+    the older styles redeclare them on individual dialogs. */
+ :root,
+ :root :is(#dialog,#missionDailyAuto,#smcityCreator,#memberGate,.member-card,#inspector,
+ .citizens-dashboard,#citizensDashboard,#touristsDashboard,#trafficPairDashboard,
+ #cityAdvisor,#cityAdvisorTicker,#cityLesson,#lessonChoice,#buildVariantPopup,#planningCoverageControls,
+ #developerChatDialog,.control-deck,#mayorPanel,#mayorScoreHud) {
+   --sm-panel-bg:var(--read-bg)!important;--sm-panel-card:var(--read-card)!important;
+   --sm-panel-soft:var(--read-soft)!important;--sm-panel-line:var(--read-border)!important;
+   --sm-panel-ink:var(--read-ink)!important;--sm-panel-muted:var(--read-muted)!important;
+   --sm-panel-head:var(--read-soft)!important;--sm-panel-accent:var(--read-accent)!important;
+   --sm-panel-accent-soft:var(--read-soft)!important;--sm-panel-danger:var(--read-bad)!important;
+   --sm-panel-danger-soft:var(--read-bad-bg)!important;
+   --sm-pop-surface:var(--read-bg)!important;--sm-pop-card:var(--read-card)!important;
+   --sm-pop-raised:var(--read-soft)!important;--sm-pop-ink:var(--read-ink)!important;
+   --sm-pop-muted:var(--read-muted)!important;--sm-pop-line:var(--read-border)!important;
+   --sm-pop-primary:var(--read-primary)!important;--sm-pop-on-primary:var(--read-on-primary)!important;
+   --sm-pop-hover:var(--read-soft)!important;--sm-pop-danger:var(--read-bad)!important;
+   --sm-pop-warning-bg:var(--read-warn-bg)!important;--sm-pop-warning-ink:var(--read-warn)!important;
+   --sm-pop-warning-line:var(--read-warn)!important;
+   --sm-dark-text:var(--read-ink)!important;--sm-dark-muted:var(--read-muted)!important;
+   --sm-dark-hover:var(--read-soft)!important;
+   color-scheme:inherit!important;
+ }
+ :root {color-scheme:light!important}
+ :root.smcity-gray-ui {color-scheme:dark!important}
+
+ /* Player hub: its hard-coded dark foreground was surviving a light card. */
+ #memberGate .member-card {
+   color:var(--read-ink)!important;background:var(--read-card)!important;
+   border-color:var(--read-border)!important;
+ }
+ #memberGate .member-card::before {
+   color:var(--read-accent)!important;background:var(--read-soft)!important;
+   border-color:var(--read-border)!important;
+ }
+ #memberGate :is(#memberTitle,.member-form label,.member-eyebrow) {
+   color:var(--read-ink)!important;text-shadow:none!important;
+ }
+ #memberGate #memberIntro {color:var(--read-muted)!important}
+ #memberGate :is(#memberClose,#memberBack,.member-tabs button) {
+   color:var(--read-ink)!important;background:var(--read-soft)!important;
+   border-color:var(--read-border)!important;
+ }
+ #memberGate .member-tabs {background:var(--read-bg)!important;border-color:var(--read-border)!important}
+ #memberGate :is(#memberSubmit,#memberRetrySave,.member-tabs button.active) {
+   color:var(--read-on-primary)!important;background:var(--read-primary)!important;
+   border-color:var(--read-primary)!important;text-shadow:none!important;
+ }
+ #memberGate #memberNotice {color:var(--read-good)!important;background:transparent!important}
+ #memberGate #memberNotice.error {color:var(--read-bad)!important}
+ #memberGate #memberDevQuick.member-mark {
+   color:var(--read-accent)!important;background:var(--read-soft)!important;border-color:var(--read-border)!important;
+ }
+
+ /* Forms, including native option lists, placeholders and Chrome/Safari autofill.
+    Do not replace range, checkbox or radio geometry. */
+ :is(#memberGate,#dialog,#lessonChoice,#smcityCreator,#developerChatDialog,#inspector,
+ #citizensDashboard,#touristsDashboard,#trafficPairDashboard,#planningCoverageControls,#mayorPanel)
+ :is(input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]):not([type=hidden]),textarea,select) {
+   color:var(--read-ink)!important;background:var(--read-card)!important;
+   border-color:var(--read-border)!important;caret-color:var(--read-ink)!important;
+ }
+ :is(#memberGate,#dialog,#lessonChoice,#smcityCreator,#developerChatDialog,#inspector,
+ #citizensDashboard,#touristsDashboard,#trafficPairDashboard,#planningCoverageControls,#mayorPanel)
+ :is(input,textarea)::placeholder {color:var(--read-muted)!important;opacity:1!important}
+ :is(#memberGate,#dialog,#smcityCreator,#developerChatDialog,#inspector,#citizensDashboard,#touristsDashboard)
+ :is(input,textarea):-webkit-autofill {
+   -webkit-text-fill-color:var(--read-ink)!important;
+   -webkit-box-shadow:0 0 0 1000px var(--read-card) inset!important;
+   caret-color:var(--read-ink)!important;
+ }
+ :is(#memberGate,#dialog,#lessonChoice,#smcityCreator,#developerChatDialog,#inspector,#citizensDashboard,
+ #touristsDashboard,#trafficPairDashboard,#planningCoverageControls,#mayorPanel) select option {
+   color:var(--read-ink)!important;background:var(--read-card)!important;
+ }
+ :is(#dialog,#memberGate,#smcityCreator,#lessonChoice,#developerChatDialog,#inspector,#citizensDashboard,
+ #touristsDashboard,#trafficPairDashboard,#planningCoverageControls,#mayorPanel,#missionDailyAuto,
+ #cityCommandBar,#cityQuickModes,#mayorRail,#buildVariantPopup,.control-deck,#cityLesson)
+ :is(button,input,textarea,select,summary,a):focus-visible {
+   outline:2px solid var(--read-focus)!important;outline-offset:2px!important;
+ }
+ :is(#dialog,#memberGate,#smcityCreator,#lessonChoice,#developerChatDialog,#inspector,#citizensDashboard,
+ #touristsDashboard,#trafficPairDashboard,#planningCoverageControls,#mayorPanel,#missionDailyAuto,
+ #cityCommandBar,#buildVariantPopup,.control-deck)
+ :is(button,input,select,textarea):disabled {
+   color:var(--read-disabled)!important;opacity:1!important;
+ }
+ :is(#dialog,#memberGate,#smcityCreator,#lessonChoice,#developerChatDialog,#inspector,#citizensDashboard,
+ #touristsDashboard,#mayorPanel,#missionDailyAuto,#buildVariantPopup) button:disabled {
+   background:var(--read-disabled-bg)!important;border-color:var(--read-border)!important;
+   box-shadow:none!important;cursor:not-allowed;
+ }
+
+ /* All common dialogs, including settings, reports, save and account screens.
+    Keep illustrated heroes and status badges as separate semantic surfaces. */
+ #dialog[open],#missionDailyAuto,#smcityCreator,#lessonChoice {
+   background:var(--read-bg)!important;color:var(--read-ink)!important;border-color:var(--read-border)!important;
+ }
+ #dialog #dialogContent {color:var(--read-ink)!important}
+ #dialog #dialogContent :is(h1,h2,h3,h4,label,legend,dt,dd,th,td),
+ #missionDailyAuto :is(h1,h2,h3,h4,label,th,td),
+ #smcityCreator :is(h1,h2,h3,h4,label,th,td),
+ #lessonChoice :is(h1,h2,h3,h4,label) {
+   color:var(--read-ink)!important;text-shadow:none!important;
+ }
+ #dialog #dialogContent :is(.menu-heading,.save-panel-head,.save-panel-footer,.account-password,.save-list-heading) {
+   border-color:var(--read-border)!important;
+ }
+ #dialog #dialogContent :is(.smcity-menu-list>button,.smcity-report-entry,.save-create-compact,
+ .save-create-card,.save-slot-card,.save-backup,.save-backup-body,.account-identity,.account-password,
+ .save-status-row,.save-confirm,.mission-card,.garage-wallet,.garage-product,.ai-checkout-info,
+ .ai-checkout-balance,.mission-result-stats>div,.daily-report-section,.sm-daily-mini) {
+   color:var(--read-ink)!important;background:var(--read-card)!important;border-color:var(--read-border)!important;
+ }
+ #dialog #dialogContent :is(.smcity-menu-list>button,.smcity-report-entry,.save-slot-card,.account-identity,
+ .account-password,.save-create-compact,.save-create-card,.save-backup,.save-backup-body,.mission-card,
+ .garage-wallet,.garage-product,.ai-checkout-info,.ai-checkout-balance,.mission-result-stats>div)
+ :is(b,strong,h2,h3,h4,label,summary,dt,dd) {color:var(--read-ink)!important}
+ #dialog #dialogContent :is(.smcity-menu-list>button,.smcity-report-entry,.save-slot-card,.account-identity,
+ .account-password,.save-create-card,.save-backup,.save-backup-body,.mission-card,.garage-wallet,
+ .garage-product,.ai-checkout-info,.ai-checkout-balance,.mission-result-stats>div)
+ :is(p,small,time) {color:var(--read-muted)!important;opacity:1!important}
+ #dialog #dialogContent :is(.save-panel-head p,.save-slot-heading time,.save-status-copy p,.save-hint,
+ .save-mini-state,.save-confirm>p,.save-backup>summary span,.menu-chevron,.report-menu-intro,
+ .mission-sub,.mission-footnote,.garage-group-heading,.garage-product-type) {
+   color:var(--read-muted)!important;text-shadow:none!important;
+ }
+ #dialog #dialogContent .save-panel-head::before,#dialog .save-slot-heading h3::before {
+   color:var(--read-accent)!important;
+ }
+ #dialog :is(.dialog-close-top,.save-slot-more>summary,.save-panel-footer button,
+ .save-backup-body button,.save-operation-actions>button:not(.primary),.save-slot-actions>button:not(.danger):not(.primary)),
+ #dialog #dialogContent :is(.actions>button:not(.primary):not(.danger),.garage-bottom button:not(.primary),
+ .ai-checkout-actions>button:not(.primary):not(.danger),.account-footer button:not(.primary):not(.danger)) {
+   color:var(--read-ink)!important;background:var(--read-soft)!important;border-color:var(--read-border)!important;
+ }
+ #dialog #dialogContent :is(.menu-logo,.menu-symbol,.save-list-heading>span,.save-status-symbol,.account-avatar,
+ .save-slot-icon,.ai-checkout-icon) {
+   color:var(--read-accent)!important;background:var(--read-soft)!important;border-color:var(--read-border)!important;
+ }
+ #dialog #dialogContent :is(.menu-resume,.actions>button.primary,.garage-buy,.garage-bottom button.primary,
+ .ai-checkout-actions>button.primary,#onlineCreate,.save-slot-controls>button.primary,
+ .save-operation-actions>button.primary,.account-footer button.primary) {
+   color:var(--read-on-primary)!important;background:var(--read-primary)!important;border-color:var(--read-primary)!important;
+ }
+ #dialog #dialogContent :is(.actions>button.danger,.save-slot-actions>button.danger,.account-footer button.danger) {
+   color:var(--read-bad)!important;background:var(--read-bad-bg)!important;border-color:var(--read-bad)!important;
+ }
+ #dialog #dialogContent :is(.quota-warning-message,.ai-checkout-warning) {
+   color:var(--read-warn)!important;background:var(--read-warn-bg)!important;border-color:var(--read-warn)!important;
+ }
+ #dialog #dialogContent .save-status-row.error .save-status-symbol {color:var(--read-bad)!important}
+ #dialog #dialogContent :is(.smcity-menu-list>button,.smcity-report-entry):hover:not(:disabled) {
+   background:var(--read-soft)!important;border-color:var(--read-accent)!important;
+ }
+ #dialog #dialogContent .mission-scorecard {
+   color:var(--read-ink)!important;background:var(--read-bg)!important;
+ }
+ #dialog #dialogContent .mission-scorecard :is(h3,li,b,strong) {color:var(--read-ink)!important}
+ #dialog #dialogContent .mission-scorecard :is(p,small,span:not(.mission-result-emblem)) {color:var(--read-muted)!important}
+ #dialog #dialogContent .mission-result-hero {
+   color:var(--read-ink)!important;background:var(--read-soft)!important;border-color:var(--read-border)!important;
+ }
+ #dialog #dialogContent .mission-result-hero h2 {color:var(--read-ink)!important}
+ #dialog #dialogContent #missionDetailPeriod {
+   color:var(--read-ink)!important;background:var(--read-card)!important;border-color:var(--read-border)!important;
+ }
+ #dialog #dialogContent #missionDetailClose {
+   color:var(--read-on-primary)!important;background:var(--read-primary)!important;
+ }
+
+ /* Live dashboards, inspection, demand and construction tools. */
+ :is(#inspector,#citizensDashboard,#touristsDashboard,#trafficPairDashboard,#cityAdvisor,
+ #cityAdvisorTicker,#cityLesson,#buildVariantPopup,#planningCoverageControls,#buildingQuickActions,
+ #landscapeQuickActions,#toast,#cityCommandBar) {
+   color:var(--read-ink)!important;background-color:var(--read-bg)!important;border-color:var(--read-border)!important;
+ }
+ :is(#inspector,#citizensDashboard,#touristsDashboard,#trafficPairDashboard)
+ :is(.citizens-top,.citizen-kpi,.citizen-person,.citizen-issue,.citizen-note,.citizen-more,.citizen-section,
+ .citizen-mini-metric,.citizen-focus,.citizen-advanced,.inspect-section,.panel-help,.tp-head,.tp-metric,.tp-route) {
+   color:var(--read-ink)!important;background:var(--read-card)!important;border-color:var(--read-border)!important;
+ }
+ :is(#inspector,#citizensDashboard,#touristsDashboard,#trafficPairDashboard,#cityAdvisor,#cityLesson,
+ #buildVariantPopup,#planningCoverageControls) :is(h1,h2,h3,h4,label,legend) {
+   color:var(--read-ink)!important;text-shadow:none!important;
+ }
+ :is(#inspector,#citizensDashboard,#touristsDashboard,#trafficPairDashboard) :is(.detail-row>strong,
+ .citizen-kpi b,.citizen-mini-metric strong,.citizen-focus-text strong,.citizen-overview-heading span,
+ .citizen-person b,.citizen-person strong,.citizen-section-head b) {color:var(--read-ink)!important}
+ :is(#inspector,#citizensDashboard,#touristsDashboard,#trafficPairDashboard) :is(.detail-row>span,
+ .citizen-detail,.citizen-empty,.citizen-person small,.citizen-note small,.citizen-focus-text small,
+ .tp-sub,.tp-label,.tp-route-small,.tp-empty,.tp-foot) {color:var(--read-muted)!important}
+ :is(#inspector,#citizensDashboard,#touristsDashboard,#trafficPairDashboard,#cityLesson,
+ #buildVariantPopup,#planningCoverageControls,#buildingQuickActions,#landscapeQuickActions,
+ #cityCommandBar,.dashboard-member-buttons,.dashboard-actions,#subcategories,#categories,#tools,
+ .dock-speed,.dock-display-actions,.playback) button:not(:disabled) {
+   color:var(--read-ink)!important;background-color:var(--read-card)!important;border-color:var(--read-border)!important;
+ }
+ :is(#inspector,#citizensDashboard,#touristsDashboard,#trafficPairDashboard,#buildVariantPopup,
+ #planningCoverageControls,#cityCommandBar,#categories,#subcategories,#tools,.dock-speed,
+ .dock-display-actions,.playback)
+ button:is(.active,.selected,.tp-active,[aria-pressed="true"]):not(:disabled) {
+   color:var(--read-on-primary)!important;background:var(--read-primary)!important;border-color:var(--read-primary)!important;
+ }
+ :is(#categories,#subcategories,#tools,.dock-speed,.dock-display-actions,.playback)
+ button:is(.active,.selected,[aria-pressed="true"]) :is(b,strong,span:not(.tool-icon),small) {color:inherit!important}
+ #citySummaryStats :is(.city-metric strong,.city-metric .metric-text>strong),
+ .control-deck :is(.dashboard-title strong,.mini-control-heading strong,.dock-clock,.dock-clock strong,
+ .dock-label,#day,#clock,#status,.edition,.tool-price,.tool-capacity,.tool-parking) {
+   color:var(--read-ink)!important;
+ }
+ .control-deck :is(.dashboard-title small,.mini-demand-legend,.city-metric .metric-text>small) {color:var(--read-muted)!important}
+ .control-deck .mini-need.shortage :is(span,strong) {color:var(--read-bad)!important}
+ .control-deck .metric-delta[data-change="up"] {color:var(--read-good)!important}
+ .control-deck .metric-delta[data-change="down"] {color:var(--read-bad)!important}
+ :is(#cityQuickModes,#mayorRail) button .quick-mode-name {color:inherit!important;text-shadow:none!important}
+
+ /* Mayor: keep the dark illustrated title banner readable even on light mode;
+    body, options, history and HUD use actual theme pairs. */
+ #mayorPanel {
+   --my-bg:var(--read-bg)!important;--my-surface:var(--read-card)!important;
+   --my-soft:var(--read-soft)!important;--my-line:var(--read-border)!important;
+   --my-text:var(--read-ink)!important;--my-muted:var(--read-muted)!important;
+   --my-accent:var(--read-accent)!important;--my-good:var(--read-good)!important;
+   --my-good-bg:var(--read-good-bg)!important;--my-bad:var(--read-bad)!important;
+   --my-bad-bg:var(--read-bad-bg)!important;
+   background:var(--read-bg)!important;color:var(--read-ink)!important;border-color:var(--read-border)!important;
+ }
+ #mayorPanel :is(header,.mayor-story,.mayor-hero,.mayor-blind-option,.mayor-option,.mayor-list-item) {
+   background:var(--read-card)!important;color:var(--read-ink)!important;border-color:var(--read-border)!important;
+ }
+ #mayorPanel :is(header>b,.mayor-choice-bar>b,.mayor-question-text,.mayor-option-head b) {color:var(--read-ink)!important}
+ #mayorPanel :is(.mayor-question-extra,.mayor-question-facts>b,.mayor-question-facts>span,.mayor-time,
+ .mayor-issue-top,.mayor-lock-reason) {color:var(--read-muted)!important}
+ #mayorPanel :is(.mayor-header-icon,.mayor-category-icon,.mayor-option-number,.mayor-reply-icon) {
+   color:var(--read-accent)!important;
+ }
+ #mayorPanel :is(.mayor-header-icon,.mayor-category-icon,.mayor-option-number) {background:var(--read-soft)!important}
+ #mayorPanel .mayor-scene h3 {color:#fff1cc!important;text-shadow:0 2px 3px #07121f!important}
+ #mayorPanel button.mayor-primary {
+   color:var(--read-on-primary)!important;background:var(--read-primary)!important;border-color:var(--read-primary)!important;
+ }
+ #mayorPanel button.mayor-blind-option:hover:enabled {
+   color:var(--read-ink)!important;background:var(--read-soft)!important;border-color:var(--read-accent)!important;
+ }
+ #mayorPanel .mayor-result[data-tone="working"] .mayor-result-hero {
+   color:var(--read-accent)!important;background:var(--read-soft)!important;
+ }
+ #mayorScoreHud {
+   color:var(--read-ink)!important;background:var(--read-card)!important;border-color:var(--read-border)!important;
+ }
+ #mayorScoreHud :is(.mayor-hud-head,.mayor-hud-icon) {color:var(--read-accent)!important;border-color:var(--read-border)!important}
+ #mayorScoreHud .mayor-hud-head small {color:var(--read-muted)!important}
+
+ /* Developer chat: message metadata inherits the bubble foreground, not black. */
+ #developerChatDialog {
+   --dc-bg:var(--read-bg)!important;--dc-ink:var(--read-ink)!important;
+   --dc-muted:var(--read-muted)!important;--dc-line:var(--read-border)!important;
+   --dc-soft:var(--read-card)!important;--dc-blue:var(--read-accent)!important;
+   --dc-incoming:var(--read-soft)!important;--dc-mine:var(--read-primary)!important;
+   color:var(--read-ink)!important;background:var(--read-bg)!important;border-color:var(--read-border)!important;
+ }
+ #developerChatDialog .dc-avatar {background:var(--read-primary)!important;color:var(--read-on-primary)!important}
+ #developerChatDialog :is(#dcStatus,#dcAttachment,.dc-heading small) {color:var(--read-muted)!important}
+ #dcMessages .dc-bubble {color:var(--read-ink)!important;background:var(--read-soft)!important}
+ #dcMessages article.mine .dc-bubble {color:var(--read-on-primary)!important;background:var(--read-primary)!important}
+ #dcMessages .dc-bubble small {color:inherit!important;opacity:1!important}
+ #dcMessages article>small {color:var(--read-muted)!important}
+}
+
 /* Important theme properties live in one layer so they precede the old device-specific
    colors without taking over sizing, visibility or pointer handling. */
 @layer citySkin {
