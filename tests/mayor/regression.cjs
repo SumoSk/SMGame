@@ -117,3 +117,12 @@ const old=full.fresh(1800);old.started=true;old.openingHandled=true;old.issues=[
 const migrated=full.restore(old,1800);assert(!migrated.issues.length);assert.equal(migrated.history.length,1);assert.deepEqual(migrated.scores,old.scores);
 assert.equal(MAYOR_EVENTS.filter(d=>d.id.startsWith('city-life-')).length,18);
 console.log('Trivial scenes retired and replaced with city-policy decisions; old history retained.');
+
+for(const d of MAYOR_EVENTS.filter(d=>d.lifeScene&&!d.rollbackOnly))assert.equal(d.choices.length,5);
+for(const id of ['city-life-maintenance-fund','city-life-business-relief']){
+ const d=MAYOR_EVENTS.find(x=>x.id===id);assert(d.choices.filter(o=>!o.noRisk).every(o=>o.success.money<0));
+}
+for(const id of ['life-cat-star','life-drawing-exhibit']){
+ const d=MAYOR_EVENTS.find(x=>x.id===id);assert(d.choices.filter(o=>!o.noRisk).every(o=>Object.values(o.success.scores).every(v=>v>=0)&&o.success.money>0));
+}
+console.log('Five options for all 42 new scenes; costly and all-positive variants passed.');
