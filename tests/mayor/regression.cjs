@@ -110,3 +110,10 @@ for(const d of life.filter(d=>!d.lifeFollow&&(d.lifeKinds||d.lifeRoad||d.lifeTou
 const meme=life.find(d=>d.id==='life-meme'),me=createMayorCore([meme],()=>0),ms=me.fresh(1800);ms.openingHandled=true;me.advance(ms,world,1800);
 assert(me.choose(ms,ms.issues[0].id,0,world,1801).ok);me.advance(ms,world,3240);assert.equal(ms.issues.length,0);me.advance(ms,world,9000);assert(ms.issues.some(i=>i.eventId===meme.id));
 console.log('42 new city life scenes, seven saved sequels, scene gates and cooldown passed.');
+
+const retired=['lost-key','rubber-duck','clock','raincoat','wrong-mic','old-shirt','selfie','postcard','wrong-letter','visit-lunch','form','birthday-child','queue-cake','wrong-order','shop-sign','receipt','gift-basket','parking-favor'];
+for(const id of retired)assert(MAYOR_EVENTS.find(d=>d.id==='life-'+id).rollbackOnly);
+const old=full.fresh(1800);old.started=true;old.openingHandled=true;old.issues=[{id:1,eventId:'life-lost-key',category:'admin',status:'pending',day:1,source:'daily'}];old.history=[{id:7,eventId:'life-lost-key',category:'admin',status:'success',day:0,at:370,report:'old result'}];
+const migrated=full.restore(old,1800);assert(!migrated.issues.length);assert.equal(migrated.history.length,1);assert.deepEqual(migrated.scores,old.scores);
+assert.equal(MAYOR_EVENTS.filter(d=>d.id.startsWith('city-life-')).length,18);
+console.log('Trivial scenes retired and replaced with city-policy decisions; old history retained.');
