@@ -1469,13 +1469,13 @@ const CITY_LEVEL_VERSION=51,CITY_LEVEL_FIRST=20,CITY_LEVEL_STEP=20,CITY_LEVEL_MI
 const CITY_CRATE_KINDS=['money','cars','ai'];
 function cityLevelForPeak(peak){return peak<CITY_LEVEL_FIRST?1:2+Math.floor((peak-CITY_LEVEL_FIRST)/CITY_LEVEL_STEP);}
 function cityNextLevelTarget(level){return CITY_LEVEL_FIRST+(Math.max(1,level)-1)*CITY_LEVEL_STEP;}
-function newCityLevel(){return{version:CITY_LEVEL_VERSION,peakPopulation:0,level:1,pending:[],claimed:0,aiCredits:0,history:[]};}
+function newCityLevel(){return{version:CITY_LEVEL_VERSION,peakPopulation:0,level:1,pending:[],claimed:0,aiCredits:0,history:[],celebratedThrough:1};}
 function ensureCityLevel(){if(!state.cityLevel||state.cityLevel.version!==CITY_LEVEL_VERSION)state.cityLevel=newCityLevel();return state.cityLevel;}
 function restoreCityLevel(saved){
  if(saved?.version!==CITY_LEVEL_VERSION)return newCityLevel();
  return{version:CITY_LEVEL_VERSION,peakPopulation:saved.peakPopulation,level:saved.level,
   pending:saved.pending.map(x=>({level:x.level,kind:x.kind})),claimed:saved.claimed,
-  aiCredits:saved.aiCredits,history:(saved.history||[]).slice(-25).map(x=>({...x}))};
+  aiCredits:saved.aiCredits,history:(saved.history||[]).slice(-25).map(x=>({...x})),celebratedThrough:Number.isSafeInteger(saved.celebratedThrough)?Math.max(1,Math.min(saved.level,saved.celebratedThrough)):(saved.pending.length?Math.max(1,saved.pending.reduce((n,x)=>Math.min(n,x.level),saved.level)-1):saved.level)};
 }
 function currentMissionScore(){
  // One 06:00–06:00 citizen journey ledger drives all displayed mission scores.
@@ -1502,24 +1502,44 @@ function updateCityLevel(currentPopulation){
  if(earned){
   addNews('เมืองถึงเลเวล '+l.level+' · ได้กล่องรางวัล '+earned+' กล่อง');
   toast('🏆 เลเวล '+l.level+'! กล่องสุ่มใหม่ '+earned+' กล่อง');
-  showCityLevelCelebration(l.level,earned);
+  refreshCityLevelCelebration();
  }
  return earned;
 }
-// Lightweight, event-only celebration: no renderer work, no frame-loop work.
-// Animation is transform/opacity CSS; old timers cannot hide a newer level.
-let cityLevelCelebrationTimer=null,cityLevelCelebrationToken=0;
+// The visual acknowledgement is independent of the saved crate entitlement.
+// Never expire the prompt on a real-time timer; wait behind existing dialogs.
+let cityLevelCelebrationSignature='';
 function dismissCityLevelCelebration(){
  const pane=$('cityLevelCelebration');
- cityLevelCelebrationToken++;
- if(cityLevelCelebrationTimer!=null){clearTimeout(cityLevelCelebrationTimer);cityLevelCelebrationTimer=null;}
+ cityLevelCelebrationSignature='';
  if(pane){pane.hidden=true;pane.innerHTML='';}
+}
+function acknowledgeCityLevelCelebration(){
+ const l=ensureCityLevel();
+ l.celebratedThrough=l.level;
+ dismissCityLevelCelebration();
+}
+function refreshCityLevelCelebration(){
+ const l=ensureCityLevel(),pane=$('cityLevelCelebration');
+ if(!pane)return;
+ if((l.celebratedThrough||1)>=l.level||!l.pending.length){
+  if(!pane.hidden)dismissCityLevelCelebration();
+  return;
+ }
+ if(mayorEntryBlocked()||document.querySelector('dialog[open]')){
+  if(!pane.hidden)dismissCityLevelCelebration();
+  return;
+ }
+ const count=l.pending.filter(x=>x.level>(l.celebratedThrough||1)).length;
+ if(!count){if(!pane.hidden)dismissCityLevelCelebration();return;}
+ showCityLevelCelebration(l.level,count);
 }
 function showCityLevelCelebration(level,count=1){
  const pane=$('cityLevelCelebration');
  if(!pane)return;
- dismissCityLevelCelebration();
- const token=cityLevelCelebrationToken;
+ const signature=level+':'+count;
+ if(!pane.hidden&&cityLevelCelebrationSignature===signature)return;
+ cityLevelCelebrationSignature=signature;
  // A fixed, small particle set is created only on level change and removed
  // after the animation; never attached to the simulation or 3D renderer.
  const confetti=Array.from({length:40},(_,i)=>{
@@ -1536,14 +1556,13 @@ function showCityLevelCelebration(level,count=1){
  '<div class="sm-level-celebration-subtitle">เมืองของคุณเติบโตขึ้นอีกขั้น!</div>'+
  '<div class="sm-level-celebration-chest">🎁 ได้รับกล่องสุ่มรางวัล <strong>+'+count+'</strong> กล่อง</div>'+
  '<button type="button" class="sm-level-celebration-open">เปิดกล่องรางวัล ✨</button>'+
+ '<button type="button" class="sm-level-celebration-later">ไว้เปิดภายหลัง</button>'+
  '</div>';
  pane.hidden=false;
  pane.querySelector?.('.sm-level-celebration-open')?.addEventListener('click',()=>{
-  dismissCityLevelCelebration();openCityCrateModal();
+  acknowledgeCityLevelCelebration();openCityCrateModal();
  });
- cityLevelCelebrationTimer=setTimeout(()=>{
-  if(token===cityLevelCelebrationToken)dismissCityLevelCelebration();
- },5200);
+ pane.querySelector?.('.sm-level-celebration-later')?.addEventListener('click',acknowledgeCityLevelCelebration);
 }
 function cityLevelStatus(){
  const l=ensureCityLevel(),previous=l.level===1?0:cityNextLevelTarget(l.level-1),next=cityNextLevelTarget(l.level);
@@ -1554,6 +1573,7 @@ function cityLevelStatus(){
 }
 function updateCityLevelHud(currentPopulation){
  updateCityLevel(currentPopulation);
+ refreshCityLevelCelebration();
  const l=cityLevelStatus(),set=(id,value)=>{const n=$(id);if(n&&n.textContent!==value)n.textContent=value;};
  set('cityLevelValue',String(l.level));
  set('cityLevelProgress','เพิ่มประชาชนอีก '+fmt(l.remaining)+' คน • ภารกิจ 80%');
@@ -1614,6 +1634,7 @@ function openCityCrateResult(reward){
 }
 function openCityCrateModal(){
  const l=cityLevelStatus(),has=l.pending.length>0;
+ if(has)acknowledgeCityLevelCelebration();
  modal('<div class="sm-level-reward"><div class="sm-level-kicker">SMCITY · CITY LEVEL '+l.level+'</div>'+
  '<div class="sm-level-shine" aria-hidden="true">✦</div><div class="sm-level-chest" aria-hidden="true">🎁</div>'+
  '<h2>'+(has?'กล่องสุ่มรางวัลเมือง':'เลเวลเมือง '+l.level)+'</h2>'+
