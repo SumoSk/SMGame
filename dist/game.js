@@ -4815,21 +4815,34 @@ function toast(text){const notice=$('toast');notice.textContent=text;
 
 // Counts represent unique citizens with an active unmet request, never building quotas.
 function cityDemand(){
- const kinds=['shop','restaurant','mall','park','pub','casino'],rows=kinds.map(kind=>({kind,label:KINDS[kind].name,buildings:0,capacity:0,used:0,reserved:0,missing:new Set(),full:new Set(),unreachable:new Set(),retrying:new Set(),traveling:new Set(),visiting:new Set()})),byKind=Object.fromEntries(rows.map(r=>[r.kind,r]));
+ const kinds=['shop','restaurant','mall','park','pub','casino'],rows=kinds.map(kind=>({kind,label:KINDS[kind].name,buildings:0,capacity:0,used:0,reserved:0,missing:new Set(),full:new Set(),unreachable:new Set(),retrying:new Set(),traveling:new Set(),visiting:new Set(),capacityRequests:new Set(),bookedVisitors:new Set()})),byKind=Object.fromEntries(rows.map(r=>[r.kind,r]));
  const jobs={kind:'work',label:'งาน · สำนักงาน / โรงงาน',people:new Set(),unreachable:new Set(),capacity:0,used:0,buildings:0},housing={kind:'home',label:'บ้าน',people:new Set(),incoming:new Set(),capacity:0,used:0,reserved:0,locked:0,buildings:0};
- for(const b of state.buildings.values()){const t=CATALOG[b.key];if(!t)continue;const r=byKind[t.kind];if(r){r.buildings++;r.capacity+=t.service;r.used+=b.visitors.size;r.reserved+=b.reservedService||0;for(const id of b.visitors){const c=state.citizens.get(id);if(c?.resident&&!c.removed)r.visiting.add(id);}}if(t.jobs){jobs.capacity+=t.jobs;jobs.used+=b.workers.size;jobs.buildings++;}if(t.residents){housing.buildings++;housing.capacity+=t.residents;housing.used+=b.residents.size;housing.reserved+=b.reservedResidents||0;housing.locked+=homeImmigrationLocks(b);}}
+ for(const b of state.buildings.values()){const t=CATALOG[b.key];if(!t)continue;const r=byKind[t.kind];if(r){r.buildings++;r.capacity+=t.service;r.used+=b.visitors.size;r.reserved+=b.reservedService||0;for(const id of b.visitors){r.bookedVisitors.add(id);const c=state.citizens.get(id);if(c?.resident&&!c.removed)r.visiting.add(id);}}if(t.jobs){jobs.capacity+=t.jobs;jobs.used+=b.workers.size;jobs.buildings++;}if(t.residents){housing.buildings++;housing.capacity+=t.residents;housing.used+=b.residents.size;housing.reserved+=b.reservedResidents||0;housing.locked+=homeImmigrationLocks(b);}}
+ // Only unreserved people with a current capacity request can contribute to
+ // the compact construction deficit. A blocked trip already holds its seat.
+ const capacityRequest=(r,c)=>{
+  if(!r||!c||c.removed||c.movingOut||r.bookedVisitors.has(c.id))return;
+  const v=state.vehicles.get(c.vehicleId),dest=state.buildings.get(v?.toId);
+  if(v?.serviceReservation&&(v.serviceKind||CATALOG[dest?.key]?.kind)===r.kind)return;
+  r.capacityRequests.add(c.id);
+ };
  const noRoute=v=>v&&(v.departureNoRoute||v.phase==='stuck'&&/ไม่มีเส้นทาง|หาเส้นทาง|ห้ามกลับรถ|เส้นทางเดิมขาด|ถนนถูกลบ/.test(v.stopReason||''));
  for(const c of state.citizens.values()){if(c.removed)continue;const v=state.vehicles.get(c.vehicleId);
+  if(c.tourist&&!c.resident){
+   const step=c.itinerary?.[c.tourIndex];
+   if(!v&&c.enteredAt!=null&&!c.returning&&c.tourRetries>0&&step&&step.at<=state.time&&state.time<c.tourEnd&&/เต็ม|ไม่มีอาคาร/.test(c.problem||'')&&!/ไม่มีเส้นทาง|ปิดบริการ/.test(c.problem||''))capacityRequest(byKind[step.kind],c);
+  }
   if(!c.resident){if(v?.kind==='moveIn')housing.incoming.add(c.id);continue;}if(!state.buildings.has(c.homeId))housing.people.add(c.id);
   if(!c.movingOut&&c.profile.trait!==3&&!c.workId)jobs.people.add(c.id);if(v?.kind==='work'&&noRoute(v)||c.pending?.action==='work'&&!v&&(!Number.isFinite(c.pending.expires)||c.pending.expires>=state.time)&&c.workId&&/ไม่มีเส้นทาง/.test(c.problem||''))jobs.unreachable.add(c.id);
   let kind=null,blocked=false;if(v?.kind==='leisure'){kind=v.serviceKind||CATALOG[state.buildings.get(v.toId)?.key]?.kind;blocked=noRoute(v);if(!blocked&&byKind[kind])byKind[kind].traveling.add(c.id);}
   const p=c.pending,active=p&&(!Number.isFinite(p.expires)||p.expires>=state.time)&&(!Number.isFinite(p.end)||p.end>state.time);if(active&&p.action==='leisure'&&!v){kind=p.kind;blocked=/ไม่มีเส้นทาง/.test(c.problem||'');}else if(!blocked)continue;
   const r=byKind[kind];if(!r)continue;if(!r.buildings)r.missing.add(c.id);else if(blocked)r.unreachable.add(c.id);else if(r.capacity-r.used-r.reserved<=0)r.full.add(c.id);else r.retrying.add(c.id);
+  if(active&&p.action==='leisure'&&!v&&!blocked&&!/ปิดบริการ|ไม่มีสถานที่เปิด/.test(c.problem||''))capacityRequest(r,c);
  }
  for(const issue of Object.values(ensurePerformance().complaints)){
   if(issue.resolvedAt!=null||!byKind[issue.kind])continue;
   const r=byKind[issue.kind],set=issue.reason==='missing'?r.missing:issue.reason==='full'?r.full:issue.reason==='route'?r.unreachable:r.retrying;
-  for(const cid of issue.people)if(state.citizens.has(cid))set.add(cid);
+  for(const cid of issue.people)if(state.citizens.has(cid)){set.add(cid);const c=state.citizens.get(cid);if((issue.reason==='missing'||issue.reason==='full')&&c?.resident)capacityRequest(r,c);}
  }
  const count=r=>{const out={...r};for(const [key,value]of Object.entries(out))if(value instanceof Set)out[key]=value.size;return out;};
  return{services:rows.map(r=>({...count(r),waiting:new Set([...r.missing,...r.full,...r.unreachable,...r.retrying]).size,free:Math.max(0,r.capacity-r.used-r.reserved)})),jobs:{...count(jobs),free:Math.max(0,jobs.capacity-jobs.used)},housing:{...count(housing),free:Math.max(0,housing.capacity-housing.used-housing.reserved-housing.locked)}};
@@ -4863,34 +4876,29 @@ function serviceGaugeMarkup(r){
    '<span class="need-gauge" data-gauge="'+key+'" aria-hidden="true"><span class="need-tube"><i class="need-tube-fill" style="clip-path:inset('+(100-metric[key].pct)+'% 0 0 0)"></i></span><span class="need-gauge-label">'+label+'</span></span>').join('')+
   '</div>';
 }
+// Booked includes occupied and reserved places, exactly once. "Missing" is
+// only demand beyond all remaining seats; road access and parking complaints
+// retain their existing reports, not a separate building quota.
+function compactDemandCounts(capacity,booked,requests){
+ return {capacity,booked,missing:Math.max(0,requests-Math.max(0,capacity-booked))};
+}
 function updateCityAdvisor(){
  const d=cityDemand(),advice=cityAdvice(d,state.stats),set=(id,html)=>{const el=$(id);if(el&&el.innerHTML!==html)el.innerHTML=html;},e=escapeSaveText;
- // Three compact figures: total capacity / currently using (including en route) / unmet demand.
+ // Three compact figures: capacity / occupied + reserved / actual capacity deficit.
  // Hotel guest reservations include visitors travelling to the hotel as well as those staying.
  const hotels=[...state.buildings.values()].filter(b=>CATALOG[b.key]?.beds);
  const hotelCapacity=hotels.reduce((sum,b)=>sum+CATALOG[b.key].beds,0);
  const hotelBooked=hotels.reduce((sum,b)=>sum+(b.guests?.size||0),0);
  const wantsHotel=touristPeople().filter(c=>c.enteredAt!=null&&!c.returning&&!c.hotelId&&c.wantsHotel&&c.nights<c.maxNights).length;
- const hotelUnmet=Math.max(0,wantsHotel-Math.max(0,hotelCapacity-hotelBooked));
- const touristServiceTrips=new Map();
- for(const v of state.vehicles.values()){
-  const c=state.citizens.get(v.citizenId);
-  if(!c?.tourist||c.removed||v.kind!=='leisure')continue;
-  const kind=v.serviceKind||CATALOG[state.buildings.get(v.toId)?.key]?.kind;
-  if(!kind)continue;
-  if(!touristServiceTrips.has(kind))touristServiceTrips.set(kind,new Set());
-  const destination=state.buildings.get(v.toId);
-  if(!destination?.visitors.has(c.id))touristServiceTrips.get(kind).add(c.id);
- }
  const needs=[
-  {kind:'home',label:'บ้าน',capacity:d.housing.capacity,busy:d.housing.used+d.housing.incoming,waiting:d.housing.people},
-  {kind:'work',label:'งาน',capacity:d.jobs.capacity,busy:d.jobs.used,waiting:d.jobs.people},
-  ...d.services.map(r=>({kind:r.kind,label:r.label,capacity:r.capacity,busy:r.used+r.traveling+(touristServiceTrips.get(r.kind)?.size||0),waiting:r.waiting})),
-  {kind:'hotel',label:'โรงแรม',capacity:hotelCapacity,busy:hotelBooked,waiting:hotelUnmet}
+  {kind:'home',label:'บ้าน',...compactDemandCounts(d.housing.capacity,d.housing.used+d.housing.reserved,d.housing.people)},
+  {kind:'work',label:'งาน',...compactDemandCounts(d.jobs.capacity,d.jobs.used,d.jobs.people)},
+  ...d.services.map(r=>({kind:r.kind,label:r.label,...compactDemandCounts(r.capacity,r.used+r.reserved,r.capacityRequests)})),
+  {kind:'hotel',label:'โรงแรม',...compactDemandCounts(hotelCapacity,hotelBooked,wantsHotel)}
  ];
  const html=needs.map(r=>{
-  const value=-Math.max(0,r.waiting);
-  return '<div class="mini-need'+(value<0?' shortage':'')+'" data-need-kind="'+r.kind+'" title="'+e(r.label)+' · ความจุ '+fmt(r.capacity)+' · กำลังใช้ '+fmt(r.busy)+' · ความต้องการ '+value+'"><span><i class="demand-kind-icon" aria-hidden="true">'+cityKindIcon(r.kind)+'</i> '+e(r.label)+'</span><div class="mini-need-values"><b class="mini-need-capacity">'+fmt(r.capacity)+'</b><b class="mini-need-busy">'+fmt(r.busy)+'</b><strong class="mini-need-missing">'+value+'</strong></div></div>';
+  const value=r.missing?-r.missing:0;
+  return '<div class="mini-need'+(value<0?' shortage':'')+'" data-need-kind="'+r.kind+'" title="'+e(r.label)+' · ความจุ '+fmt(r.capacity)+' · จองแล้ว '+fmt(r.booked)+' · ขาดความจุจริง '+r.missing+'"><span><i class="demand-kind-icon" aria-hidden="true">'+cityKindIcon(r.kind)+'</i> '+e(r.label)+'</span><div class="mini-need-values"><b class="mini-need-capacity">'+fmt(r.capacity)+'</b><b class="mini-need-busy">'+fmt(r.booked)+'</b><strong class="mini-need-missing">'+value+'</strong></div></div>';
  }).join('');
  // Show category rows only. Detailed reports remain available in their own panels.
  set('demand',html);
