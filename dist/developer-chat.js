@@ -121,7 +121,7 @@
    $('dcMore').hidden=!d.more;
    if(older)box.scrollTop+=box.scrollHeight-oldHeight;else box.scrollTop=box.scrollHeight;
    status(rows.length?(threadStatus==='resolved'?'ดำเนินการเรียบร้อยแล้ว':''):'ยังไม่มีข้อความ เริ่มสนทนาได้เลย');
-   void unread();
+   if(mode==='player')updateBadge(0);
   }catch(e){if(rev===revision)status(e.message||'โหลดข้อความไม่สำเร็จ');}
   finally{working=false;}
  }
@@ -196,20 +196,10 @@
   finally{working=false;$('dcSend').disabled=false;}
   if(rev===revision)void read();
  });
- // Refresh the launcher immediately when the existing game login changes.
+ // Chat network access only on explicit interaction.
  const previousAuthChanged=window.SMGameOnAuthChanged;
  window.SMGameOnAuthChanged=function(...args){
   try{return previousAuthChanged?.apply(this,args);}
-  finally{
-   if(token()!==lastToken){if(dialog.open)dialog.close();drafts.clear();lastToken=token();updateBadge(0);updateRole(false);}
-   void unread();
-  }
+  finally{if(token()!==lastToken){if(dialog.open)dialog.close();drafts.clear();lastToken=token();updateBadge(0);updateRole(false);}}
  };
- const timer=setInterval(()=>{
-  if(token()!==lastToken){if(dialog.open)dialog.close();drafts.clear();lastToken=token();updateBadge(0);updateRole(false);}
-  void unread();
- },60000);
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)void unread();});
- window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
- void unread();
 })();

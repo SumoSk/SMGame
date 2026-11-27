@@ -1503,6 +1503,7 @@ function updateCityLevel(currentPopulation){
   addNews('เมืองถึงเลเวล '+l.level+' · ได้กล่องรางวัล '+earned+' กล่อง');
   toast('🏆 เลเวล '+l.level+'! กล่องสุ่มใหม่ '+earned+' กล่อง');
   refreshCityLevelCelebration();
+  window.SMGameCreatorActivity?.('progress');
  }
  return earned;
 }
@@ -9575,6 +9576,7 @@ function daily({forfeitIncome=false}={}){
   scheduleDay(c,Math.floor(state.time/1440));scheduleDay(c,Math.floor(state.time/1440)+1);
  }
  addNews(forfeitIncome?'ข้ามวัน · งดรายได้ประจำวัน · ค่าบำรุงรักษา '+money(s.maint)+' · สุทธิ '+money(paid):'สรุปรอบ 06:00 · รายได้ '+Math.round(previousFactor*100)+'% · สุทธิ '+money(paid));
+ window.SMGameCreatorActivity?.('progress');
 }
 
 function reconcile(){syncParkingSlots();for(const b of state.buildings.values()){b.reservedResidents=0;b.reservedService=0;}for(const v of state.vehicles.values()){const b=state.buildings.get(v.toId);if(b){if(v.residentReservation)b.reservedResidents++;if(v.serviceReservation)b.reservedService++;}}}
@@ -9634,7 +9636,7 @@ function dispatchDueEvents(gameDt,oldTime){
  }
  for(const e of deferred)eventPush(e);
 }
-function tick(dt){if(!state.speed)return;const old=state.time,gameDt=dt*GAME_MINUTES_PER_SECOND*state.speed*NORMAL_SPEED_SCALE;state.time+=gameDt;smartSignalStep();if(performanceDay(old)!==performanceDay())daily();if(guide?.city!==state&&mayorEngine&&mayorEngine.needsAdvance(state.mayor,state.time))mayorAdvance();dispatchDueEvents(gameDt,old);
+function tick(dt){if(!state.speed)return;const old=state.time,gameDt=dt*GAME_MINUTES_PER_SECOND*state.speed*NORMAL_SPEED_SCALE;state.time+=gameDt;smartSignalStep();if(performanceDay(old)!==performanceDay())daily();if(Math.floor(old/1440)!==Math.floor(state.time/1440))window.SMGameCreatorActivity?.('progress');if(guide?.city!==state&&mayorEngine&&mayorEngine.needsAdvance(state.mayor,state.time))mayorAdvance();dispatchDueEvents(gameDt,old);
 if(state.time-state.lastImmigration>=1){state.lastImmigration=state.time;immigration();}
 if(Math.floor(old/2)!==Math.floor(state.time/2)){let n=0;for(const c of state.citizens.values()){if(c.pending&&!c.pending.life&&c.pending.next<=state.time&&n++<80){const p=c.pending;if(p.expires<state.time){c.pending=null;continue;}runAction(c,p.action,p);}}}
 if(state.time-state.lastPass>=90){state.lastPass=state.time;if(state.gates.length===4&&computeStats().pop<1200&&state.vehicles.size<3600){const index=Math.floor(state.time/90)%4;createTrip(null,'pass',null,null,state.gates[index],state.gates[(index+2)%4],null);}}
@@ -11194,7 +11196,7 @@ function loadGame(silent=false,slotId=null,rawOverride=null){const previous={sta
   ensureRoutine(c);
   if(!c.dailyPlan||!Number.isFinite(c.dailyPlan.day))c.dailyPlan=planForDay(c,Math.floor(state.time/1440));
  }
- syncCitizenVehicleTech();migratePerformance(s.performance);migrateTravelPlanning();const resumeMayor=!!(mayorEngine&&s.mayor?.version===1);if(!resumeMayor)advanceLoadedCityToMorning();else{state.lastMinute=Math.floor(state.time)-1;state.lastDay=Math.floor(state.time/1440);state.nextActivityCheck=state.time;resetSimulationRuntime();addNews('โหลดเซฟ · เล่นต่อ ณ เวลาที่บันทึก');}mayorEntryPending=false;const lessonPrompt=$('lessonChoice');if(lessonPrompt?.open){lessonPrompt.oncancel=null;lessonPrompt.close();}if(mayorEngine)mayorAdvance();state.speed=0;scanIncidents(true);renderTools();updateUI();if(!silent)toast(resumeMayor?'โหลดเซฟแล้ว · เวลา '+timeText(state.time)+' · กด ▶ เพื่อเล่นต่อค่ะ':'โหลดเซฟแล้ว · เริ่มวันใหม่ 06:00 กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;mayorEntryPending=previous.mayorEntryPending;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+'THAILAND'+' · สร้างเมืองในแบบคุณ</small>';renderTools();updateUI();if(!silent)toast(e.message?.includes('เฉพาะแผนที่ภูเก็ต')?e.message:e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
+ syncCitizenVehicleTech();migratePerformance(s.performance);migrateTravelPlanning();const resumeMayor=!!(mayorEngine&&s.mayor?.version===1);if(!resumeMayor)advanceLoadedCityToMorning();else{state.lastMinute=Math.floor(state.time)-1;state.lastDay=Math.floor(state.time/1440);state.nextActivityCheck=state.time;resetSimulationRuntime();addNews('โหลดเซฟ · เล่นต่อ ณ เวลาที่บันทึก');}mayorEntryPending=false;const lessonPrompt=$('lessonChoice');if(lessonPrompt?.open){lessonPrompt.oncancel=null;lessonPrompt.close();}if(mayorEngine)mayorAdvance();state.speed=0;scanIncidents(true);renderTools();updateUI();window.SMGameCreatorActivity?.('load');if(!silent)toast(resumeMayor?'โหลดเซฟแล้ว · เวลา '+timeText(state.time)+' · กด ▶ เพื่อเล่นต่อค่ะ':'โหลดเซฟแล้ว · เริ่มวันใหม่ 06:00 กด ▶ เพื่อเล่นต่อค่ะ');return true;}catch(e){state=previous.state;cam=previous.cam;news=previous.news;mayorEntryPending=previous.mayorEntryPending;console.error('Load failed:',e);$('cityName').textContent=CITIES[state.city].name;$('citySub').textContent=CITIES[state.city].sub;$('mapLabel').innerHTML=CITIES[state.city].en+'<small>'+'THAILAND'+' · สร้างเมืองในแบบคุณ</small>';renderTools();updateUI();if(!silent)toast(e.message?.includes('เฉพาะแผนที่ภูเก็ต')?e.message:e.message?.includes('ลานจอดรุ่นเก่า')?'เมืองเก่าใช้กับลานจอดระบบใหม่ไม่ได้ กรุณาเริ่มเมืองใหม่ค่ะ':'โหลดเซฟนี้ไม่ได้ เมืองปัจจุบันและข้อมูลเซฟยังอยู่ค่ะ');return false;}}
 // A developer can load a copy into the current session; no other user's save is changed.
 window.SMGameLoadCreatorSave=(raw,name)=>{
  if(!window.SMGameCreatorCanOpen||!window.SMGameAccount?.user||typeof raw!=='string'||!raw)return false;
@@ -11224,7 +11226,7 @@ async function openLoadDialog(){
 }
 // All visible save operations use the authenticated Supabase account.
 // Historic local saves are left on the device but are never read or written by the game menus.
-window.SMGameOnCloudSaved=()=>toast('บันทึกเกมออนไลน์แล้วค่ะ');
+window.SMGameOnCloudSaved=()=>{toast('บันทึกเกมออนไลน์แล้วค่ะ');window.SMGameCreatorActivity?.('save');};
 // After guest registration and the first cloud save, show the regular Save/Load panel.
 // Share the same entry point with registered players to avoid duplicate menus.
 window.SMGameOpenSaveDialog=()=>openCloudSaveDialog();
@@ -11264,6 +11266,7 @@ async function saveCloudCity(name,slotId,retry=null){
   if(dialogRevision===operation.revision)$('cloudSaveStateText').textContent='กำลังส่งข้อมูลเมืองแบบบีบอัด…';
   await api.save(name,slotId,packed);
   operation.status='success';
+  window.SMGameCreatorActivity?.('save');
   if(dialogRevision===operation.revision)showCloudSaveStatus(operation);
   toast('บันทึกสำเร็จ: '+name);return true;
  }catch(error){
@@ -11585,11 +11588,7 @@ $('menu').onclick=openMainMenu;
 $('cityLevelButton').onclick=openCityCrateModal;
 $('cityAiQuotaButton').onclick=openAICreditInfo;
 function creatorMetrics(){
- const stats=state.stats||{},touristLabel=$('tourists')?.textContent||'';
- const tourists=Number((touristLabel.match(/[0-9][0-9,]*/)?.[0]||'0').replace(/,/g,''));
- return{city:state.city,population:stats.pop||0,tourists,vehicles:state.vehicles.size,
-  buildings:state.buildings.size,metrics:{level:state.cityLevel?.level??null},
-  isPlaying:state.speed>0&&!window.SMGameAuthLocked&&!$('dialog').open};
+ return{city:state.city,metrics:{level:state.cityLevel?.level??null,gameDay:Math.floor(state.time/1440)+1}};
 }
 window.SMGameCreatorMetrics=creatorMetrics;
 $('skip').onclick=()=>confirmAction(
